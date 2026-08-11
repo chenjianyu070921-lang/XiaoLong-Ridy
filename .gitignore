@@ -1,0 +1,44 @@
+# Go 编译产物
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+coverage.out
+bin/
+dist/
+tmp/
+
+# Go 本地构建缓存
+.cache/
+*.coverprofile
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+*.local
+secrets/
+
+# 日志与临时文件
+*.log
+logs/
+*.tmp
+*.bak
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
