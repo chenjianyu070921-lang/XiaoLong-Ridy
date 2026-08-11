@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package ordersvc;
+
+option go_package = "XiaoLong-Ridy/rpc/ordersvc/pb";
+
+service Order {
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_WAIT_ACCEPT = 1; // 待接单
+  ORDER_STATUS_ACCEPTED = 2;    // 已接单
+  ORDER_STATUS_ON_TRIP = 3;     // 行程中
+  ORDER_STATUS_WAIT_PAY = 4;    // 待支付
+  ORDER_STATUS_COMPLETED = 5;   // 已完成
+  ORDER_STATUS_CANCELLED = 6;   // 已取消
+}
+
+// 添加订单：乘客叫车后创建一笔订单，状态初始为待接单。
+message CreateOrderRequest {
+  int64 user_id = 1;
+  int32 car_type = 2; // 车型：1特惠快车 2快车 3拼车
+  string from_address = 3;
+  double from_longitude = 4;
+  double from_latitude = 5;
+  string to_address = 6;
+  double to_longitude = 7;
+  double to_latitude = 8;
+  int64 estimated_distance_m = 9; // 预估距离（米）
+  int64 estimated_duration_s = 10; // 预估时长（秒）
+  int64 estimated_price_cents = 11; // 预估价格（分）
+}
+
+message CreateOrderResponse {
+  int64 order_id = 1;
+  string order_no = 2;
+  int64 estimated_price_cents = 3;
+  OrderStatus status = 4;
+  int64 created_at = 5; // Unix 秒
+}
