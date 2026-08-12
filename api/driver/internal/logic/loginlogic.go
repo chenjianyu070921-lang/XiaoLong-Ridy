@@ -5,10 +5,14 @@ package logic
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"driver/internal/svc"
 	"driver/internal/types"
+	"usersvc/usersvcclient"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -27,12 +31,35 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 }
 
 func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err error) {
-	// 占位实现：后续接入 UserRpc 完成手机号+验证码登录并发放 JWT
-	logx.Infof("driver login request phone=%s", req.Phone)
-
-	resp = &types.LoginResp{
-		Token:    "placeholder-token",
-		DriverId: 0,
+	// 调用下游 usersvc 完成手机号+验证码登录校验
+	rpcResp, err := l.svcCtx.UserRpc.Login(l.ctx, &usersvcclient.LoginReq{
+		Phone: req.Phone,
+		Code:  req.Code,
+	})
+	if err != nil {
+		logx.Errorf("user rpc login failed: %v", err)
+		return nil, err
 	}
-	return resp, nil
+	if rpcResp.Code != 0 {
+		return nil, fmt.Errorf("login failed code=%d msg=%s", rpcResp.Code, rpcResp.Message)
+	}
+
+	// 签发 JWT
+	now := time.Now().Unix()
+	claims := jwt.MapClaims{
+		"driverId": rpcResp.DriverId,
+		"exp":      now + l.svcCtx.Config.Auth.AccessExpire,
+		"iat":      now,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(l.svcCtx.Config.Auth.AccessSecret))
+	if err != nil {
+		logx.Errorf("sign jwt failed: %v", err)
+		return nil, err
+	}
+
+	return &types.LoginResp{
+		Token:    signed,
+		DriverId: rpcResp.DriverId,
+	}, nil
 }
