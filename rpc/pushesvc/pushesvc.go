@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 
+	"XiaoLong-Ridy/common/db"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/config"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/server"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/svc"
@@ -27,6 +28,10 @@ func main() {
 	conf.MustLoad(*configFile, &c)
 
 	ctx := svc.NewServiceContext(c)
+
+	// 连接 MySQL 和 Redis
+	_ = db.GetMySQL()
+	_ = db.GetRedis()
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		pushesvc.RegisterPushServiceServer(grpcServer, server.NewPushServiceServer(ctx))

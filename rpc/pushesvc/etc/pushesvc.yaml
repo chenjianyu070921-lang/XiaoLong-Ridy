@@ -17,9 +17,6 @@ Push:
   AppKey: ""
   MasterSecret: ""
 
-DB:
-  DataSource: root:root@tcp(127.0.0.1:3306)/xiaolongridy?charset=utf8mb4&parseTime=true&loc=Local
-
 Log:
   ServiceName: pushesvc
   Mode: console

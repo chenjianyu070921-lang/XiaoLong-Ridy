@@ -6,7 +6,6 @@ type Config struct {
 	zrpc.RpcServerConf
 	SMS  SMSConfig
 	Push PushConfig
-	DB   DBConfig
 }
 
 type SMSConfig struct {
@@ -20,8 +19,4 @@ type PushConfig struct {
 	Provider     string
 	AppKey       string
 	MasterSecret string
-}
-
-type DBConfig struct {
-	DataSource string
 }

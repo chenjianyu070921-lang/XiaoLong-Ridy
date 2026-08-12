@@ -1,19 +1,7 @@
 package config
 
 type Config struct {
-	DB    DBConfig
-	Redis RedisConfig
-	Log   LogConfig
-}
-
-type DBConfig struct {
-	DataSource string
-}
-
-type RedisConfig struct {
-	Host string
-	Pass string
-	Type string
+	Log LogConfig
 }
 
 type LogConfig struct {
