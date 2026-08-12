@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package usersvc;
+
+option go_package = "./;proto";
+
+service User {
+  // SendSMSCode 发送短信验证码。
+  rpc SendSMSCode(SendSMSCodeRequest) returns (SendSMSCodeResponse);
+  // LoginBySMS 通过短信验证码登录；首次登录自动创建乘客账号。
+  rpc LoginBySMS(LoginBySMSRequest) returns (LoginBySMSResponse);
+  // RefreshToken 刷新访问令牌。
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  // Logout 注销当前登录态。
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+}
+
+// SendSMSCodeRequest 发送短信验证码请求。
+message SendSMSCodeRequest {
+  string phone = 1; // 手机号
+}
+
+// SendSMSCodeResponse 发送短信验证码响应。
+message SendSMSCodeResponse {
+  bool success = 1; // 是否发送成功
+  int64 expire_in = 2; // 验证码有效期，单位：秒
+}
+
+// LoginBySMSRequest 短信验证码登录请求。
+message LoginBySMSRequest {
+  string phone = 1; // 手机号
+  string code = 2; // 短信验证码
+}
+
+// UserInfo 登录态中返回的用户基础信息。
+message UserInfo {
+  uint64 user_id = 1; // 用户 ID
+  string phone = 2; // 脱敏后的手机号
+  string nickname = 3; // 昵称
+  string avatar_url = 4; // 头像地址
+  string real_name_status = 5; // 实名认证状态：UNVERIFIED/VERIFIED
+}
+
+// LoginBySMSResponse 短信验证码登录响应。
+message LoginBySMSResponse {
+  string token = 1; // Access Token
+  string refresh_token = 2; // Refresh Token
+  bool is_new_user = 3; // 是否为首次创建的用户
+  UserInfo user = 4; // 用户基础信息
+}
+
+// RefreshTokenRequest 刷新令牌请求。
+message RefreshTokenRequest {
+  string refresh_token = 1; // Refresh Token
+}
+
+// RefreshTokenResponse 刷新令牌响应。
+message RefreshTokenResponse {
+  string token = 1; // 新的 Access Token
+  string refresh_token = 2; // 新的 Refresh Token
+}
+
+// LogoutRequest 注销请求。
+message LogoutRequest {
+  string token = 1; // 当前 Access Token
+}
+
+// LogoutResponse 注销响应。
+message LogoutResponse {
+  bool success = 1; // 是否注销成功
+}

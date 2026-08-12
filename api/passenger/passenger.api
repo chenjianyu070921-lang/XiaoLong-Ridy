@@ -1,0 +1,35 @@
+syntax = "v1"
+
+info (
+	title: "passenger api"
+	desc: "乘客端 API"
+	author: "XiaoLong-Ridy"
+)
+
+type SendSMSCodeRequest {
+	Phone string `json:"phone"`
+}
+
+type SendSMSCodeResponse {
+	Success bool `json:"success"`
+	ExpireIn int64 `json:"expireIn"`
+}
+
+type LoginBySMSRequest {
+	Phone string `json:"phone"`
+	Code string `json:"code"`
+}
+
+type LoginBySMSResponse {
+	Token string `json:"token"`
+	RefreshToken string `json:"refreshToken"`
+	IsNewUser bool `json:"isNewUser"`
+}
+
+service passenger-api {
+	@handler SendSMSCodeHandler
+	post /api/passenger/v1/auth/send-sms-code (SendSMSCodeRequest) returns (SendSMSCodeResponse)
+
+	@handler LoginBySMSHandler
+	post /api/passenger/v1/auth/login-by-sms (LoginBySMSRequest) returns (LoginBySMSResponse)
+}
