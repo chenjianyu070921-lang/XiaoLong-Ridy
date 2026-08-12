@@ -1,0 +1,15 @@
+Name: admin.rpc
+ListenOn: 0.0.0.0:8080
+Etcd:
+  Hosts:
+  - 127.0.0.1:2379
+  Key: admin.rpc
+MySQL:
+  DSN: root:123456@tcp(127.0.0.1:3306)/xiaolong_ridy?parseTime=true&loc=Local&charset=utf8mb4,utf8&timeout=5s&readTimeout=5s&writeTimeout=5s
+Redis:
+  Addr: 127.0.0.1:6379
+  Password: ""
+  DB: 0
+Auth:
+  SessionTTLHours: 24
+  TokenPrefix: admin:sess:
