@@ -1,0 +1,189 @@
+syntax = "v1"
+
+info (
+	title:   "司机端网关"
+	desc:    "XiaoLong-Ridy 司机端 API，包含登录认证、资质、工作台、订单、定位、钱包、消息"
+	author:  "driver-module"
+	version: "1.0"
+)
+
+// 通用响应包装
+type BaseResp {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+// 登录
+type LoginReq {
+	Phone string `json:"phone"`
+	Code  string `json:"code"`
+}
+
+type LoginResp {
+	Token    string `json:"token"`
+	DriverId int64  `json:"driverId"`
+}
+
+// 资质
+type SubmitQualificationReq {
+	DriverId       int64  `json:"driverId"`
+	IdCardNo       string `json:"idCardNo"`
+	IdCardFront    string `json:"idCardFront"`
+	IdCardBack     string `json:"idCardBack"`
+	DriverLicense  string `json:"driverLicense"`
+	VehicleLicense string `json:"vehicleLicense"`
+	VehiclePhoto   string `json:"vehiclePhoto"`
+}
+
+type QualificationResp {
+	AuditStatus  int32  `json:"auditStatus"`
+	RejectReason string `json:"rejectReason"`
+}
+
+// 工作台
+type OnlineReq {
+	DriverId int64 `json:"driverId"`
+	Online   bool  `json:"online"`
+}
+
+type HeartbeatReq {
+	DriverId int64   `json:"driverId"`
+	Lng      float64 `json:"lng"`
+	Lat      float64 `json:"lat"`
+	CityCode string  `json:"cityCode"`
+}
+
+type DispatchSettingReq {
+	DriverId     int64 `json:"driverId"`
+	OrderType    int32 `json:"orderType"`
+	DistancePref int32 `json:"distancePref"`
+	Enabled      bool  `json:"enabled"`
+}
+
+type DispatchSettingResp {
+	OrderType    int32 `json:"orderType"`
+	DistancePref int32 `json:"distancePref"`
+	Enabled      bool  `json:"enabled"`
+}
+
+// 订单
+type GrabOrderReq {
+	DriverId int64 `json:"driverId"`
+}
+
+type OrderIdReq {
+	DriverId int64 `json:"driverId"`
+	OrderId  int64 `json:"orderId"`
+}
+
+type OrderListResp {
+	Orders []OrderBrief `json:"orders"`
+}
+
+type OrderBrief {
+	OrderId   int64   `json:"orderId"`
+	Status    int32   `json:"status"`
+	StartName string  `json:"startName"`
+	EndName   string  `json:"endName"`
+	Fare      float64 `json:"fare"`
+}
+
+// 定位
+type LocationReportReq {
+	DriverId int64   `json:"driverId"`
+	OrderId  int64   `json:"orderId"`
+	Lng      float64 `json:"lng"`
+	Lat      float64 `json:"lat"`
+	Speed    float64 `json:"speed"`
+}
+
+// 钱包
+type WalletResp {
+	Balance     float64 `json:"balance"`
+	TodayIncome float64 `json:"todayIncome"`
+	MonthIncome float64 `json:"monthIncome"`
+}
+
+type WithdrawReq {
+	DriverId   int64   `json:"driverId"`
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+}
+
+// 消息
+type MessageResp {
+	Messages []MessageItem `json:"messages"`
+}
+
+type MessageItem {
+	Id      int64  `json:"id"`
+	Type    int32  `json:"type"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
+	Read    bool   `json:"read"`
+}
+
+// 仅含 driverId 的请求
+type DriverIdOnly {
+	DriverId int64 `form:"driverId"`
+}
+
+// 免鉴权分组：登录接口
+@server (
+	prefix: /driver
+)
+service driver-api {
+	@handler Login
+	post /auth/login (LoginReq) returns (LoginResp)
+}
+
+// 需鉴权分组：其余接口
+@server (
+	jwt:    Auth
+	prefix: /driver
+)
+service driver-api {
+	@handler SubmitQualification
+	post /qualification/submit (SubmitQualificationReq) returns (QualificationResp)
+
+	@handler GetQualification
+	get /qualification (DriverIdOnly) returns (QualificationResp)
+
+	@handler SetOnline
+	post /online (OnlineReq)
+
+	@handler Heartbeat
+	post /heartbeat (HeartbeatReq)
+
+	@handler UpdateDispatchSetting
+	put /dispatch/setting (DispatchSettingReq) returns (DispatchSettingResp)
+
+	@handler GetDispatchSetting
+	get /dispatch/setting (DriverIdOnly) returns (DispatchSettingResp)
+
+	@handler GrabPool
+	get /orders/grab (DriverIdOnly) returns (OrderListResp)
+
+	@handler GrabOrder
+	post /orders/:orderId/grab (GrabOrderReq)
+
+	@handler CancelOrder
+	post /orders/:orderId/cancel (OrderIdReq)
+
+	@handler HistoryOrders
+	get /orders/history (DriverIdOnly) returns (OrderListResp)
+
+	@handler ReportLocation
+	post /location/report (LocationReportReq)
+
+	@handler GetWallet
+	get /wallet (DriverIdOnly) returns (WalletResp)
+
+	@handler Withdraw
+	post /withdraw (WithdrawReq)
+
+	@handler GetMessages
+	get /messages (DriverIdOnly) returns (MessageResp)
+}
+

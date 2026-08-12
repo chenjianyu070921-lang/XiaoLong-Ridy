@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package usersvc;
+
+option go_package = "./usersvc";
+
+// ============ 通用 ============
+message CommonResp {
+  int64 code = 1;
+  string message = 2;
+}
+
+// ============ 登录 ============
+message LoginReq {
+  string phone = 1;
+  string code = 2;
+}
+message LoginResp {
+  int64 code = 1;
+  string message = 2;
+  int64 driverId = 3;
+  int32 status = 4; // 司机状态:0待审核 1正常 2禁用
+}
+
+// ============ 司机资料 ============
+message GetProfileReq {
+  int64 driverId = 1;
+}
+message GetProfileResp {
+  int64 code = 1;
+  string message = 2;
+  int64 driverId = 3;
+  string phone = 4;
+  string realName = 5;
+  int32 status = 6;
+  int32 onlineStatus = 7; // 0离线 1在线 2忙碌
+}
+
+// ============ 资质认证 ============
+message SubmitQualificationReq {
+  int64 driverId = 1;
+  string realName = 2;
+  string idCardNo = 3;
+  string driverLicenseNo = 4;
+  string idCardFront = 5;
+  string idCardBack = 6;
+  string licenseFront = 7;
+  string licenseBack = 8;
+}
+message GetQualificationReq {
+  int64 driverId = 1;
+}
+message GetQualificationResp {
+  int64 code = 1;
+  string message = 2;
+  int64 driverId = 3;
+  string realName = 4;
+  string idCardNo = 5;
+  string driverLicenseNo = 6;
+  int32 reviewStatus = 7; // 0待审核 1通过 2拒绝
+  string rejectReason = 8;
+}
+
+// ============ 车辆 ============
+message SubmitVehicleReq {
+  int64 driverId = 1;
+  string vehicleNo = 2;
+  string vehicleType = 3;
+  string brand = 4;
+  string model = 5;
+  string color = 6;
+  string engineNo = 7;
+  string vin = 8;
+  string licenseFront = 9;
+  string licenseBack = 10;
+}
+message GetVehicleReq {
+  int64 driverId = 1;
+}
+message GetVehicleResp {
+  int64 code = 1;
+  string message = 2;
+  int64 driverId = 3;
+  string vehicleNo = 4;
+  string vehicleType = 5;
+  string brand = 6;
+  string model = 7;
+  string color = 8;
+  int32 reviewStatus = 9;
+}
+
+// ============ 在线状态 / 心跳 ============
+message SetOnlineStatusReq {
+  int64 driverId = 1;
+  int32 onlineStatus = 2; // 0离线 1在线 2忙碌
+}
+message HeartbeatReq {
+  int64 driverId = 1;
+  double lng = 2;
+  double lat = 3;
+}
+
+// ============ 派单设置 ============
+message UpdateDispatchConfigReq {
+  int64 driverId = 1;
+  bool autoAccept = 2;
+  int32 maxDailyOrders = 3;
+  double acceptRadius = 4;
+  repeated int32 orderTypes = 5;
+}
+message GetDispatchConfigReq {
+  int64 driverId = 1;
+}
+message GetDispatchConfigResp {
+  int64 code = 1;
+  string message = 2;
+  int64 driverId = 3;
+  bool autoAccept = 4;
+  int32 maxDailyOrders = 5;
+  double acceptRadius = 6;
+  repeated int32 orderTypes = 7;
+}
+
+// ============ 钱包 / 提现 ============
+message GetWalletReq {
+  int64 driverId = 1;
+}
+message GetWalletResp {
+  int64 code = 1;
+  string message = 2;
+  int64 driverId = 3;
+  int64 balance = 4;     // 分
+  int64 frozen = 5;      // 冻结金额(分)
+  int64 totalIncome = 6; // 累计收入(分)
+}
+message WithdrawReq {
+  int64 driverId = 1;
+  int64 amount = 2; // 分
+}
+
+// ============ 消息 ============
+message GetMessagesReq {
+  int64 driverId = 1;
+  int32 page = 2;
+  int32 size = 3;
+}
+message MessageItem {
+  int64 id = 1;
+  string title = 2;
+  string content = 3;
+  int32 type = 4;
+  int64 createdAt = 5;
+}
+message GetMessagesResp {
+  int64 code = 1;
+  string message = 2;
+  repeated MessageItem list = 3;
+  int64 total = 4;
+}
+
+// ============ 银行卡 ============
+message UpdateBankCardReq {
+  int64 driverId = 1;
+  string bankName = 2;
+  string cardNo = 3;
+  string holderName = 4;
+}
+
+service Usersvc {
+  rpc Login(LoginReq) returns (LoginResp);
+  rpc GetProfile(GetProfileReq) returns (GetProfileResp);
+  rpc SubmitQualification(SubmitQualificationReq) returns (CommonResp);
+  rpc GetQualification(GetQualificationReq) returns (GetQualificationResp);
+  rpc SubmitVehicle(SubmitVehicleReq) returns (CommonResp);
+  rpc GetVehicle(GetVehicleReq) returns (GetVehicleResp);
+  rpc SetOnlineStatus(SetOnlineStatusReq) returns (CommonResp);
+  rpc Heartbeat(HeartbeatReq) returns (CommonResp);
+  rpc UpdateDispatchConfig(UpdateDispatchConfigReq) returns (CommonResp);
+  rpc GetDispatchConfig(GetDispatchConfigReq) returns (GetDispatchConfigResp);
+  rpc GetWallet(GetWalletReq) returns (GetWalletResp);
+  rpc Withdraw(WithdrawReq) returns (CommonResp);
+  rpc GetMessages(GetMessagesReq) returns (GetMessagesResp);
+  rpc UpdateBankCard(UpdateBankCardReq) returns (CommonResp);
+}
