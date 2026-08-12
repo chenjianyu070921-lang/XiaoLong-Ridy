@@ -1,3 +1,6 @@
+# Go 依赖
+go.sum
+
 # Go 编译产物
 *.exe
 *.exe~
