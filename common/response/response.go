@@ -1,51 +1,29 @@
 package response
 
 import (
-	"context"
+	"encoding/json"
 	"net/http"
 
-	"github.com/zeromicro/go-zero/rest/httpx"
 	"XiaoLong-Ridy/common/errorx"
 )
 
-// Body 统一返回结构
-type Body struct {
+// Result 统一返回格式
+type Result struct {
 	Code int         `json:"code"`
 	Msg  string      `json:"msg"`
 	Data interface{} `json:"data,omitempty"`
 }
 
-var bgCtx = context.Background()
-
-// Success 成功返回
-func Success(w http.ResponseWriter, data interface{}) {
-	httpx.OkJsonCtx(bgCtx, w, &Body{
-		Code: errorx.OK,
-		Msg:  errorx.GetMsg(errorx.OK),
-		Data: data,
-	})
+// Ok 返回成功
+func Ok(w http.ResponseWriter, data interface{}) {
+	b, _ := json.Marshal(Result{Code: errorx.OK, Msg: errorx.Msg(errorx.OK), Data: data})
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
 }
 
-// Error 错误返回
-func Error(w http.ResponseWriter, code int, msg string) {
-	httpx.WriteJsonCtx(bgCtx, w, http.StatusOK, &Body{
-		Code: code,
-		Msg:  msg,
-	})
-}
-
-// ErrorWithCode 根据错误码返回
-func ErrorWithCode(w http.ResponseWriter, code int) {
-	httpx.WriteJsonCtx(bgCtx, w, http.StatusOK, &Body{
-		Code: code,
-		Msg:  errorx.GetMsg(code),
-	})
-}
-
-// ParamError 参数错误快捷返回
-func ParamError(w http.ResponseWriter, msg string) {
-	if msg == "" {
-		msg = errorx.GetMsg(errorx.ParamError)
-	}
-	Error(w, errorx.ParamError, msg)
+// Fail 返回失败
+func Fail(w http.ResponseWriter, code int) {
+	b, _ := json.Marshal(Result{Code: code, Msg: errorx.Msg(code)})
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
 }

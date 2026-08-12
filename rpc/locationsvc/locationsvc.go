@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
-	"XiaoLong-Ridy/common/db"
+	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/config"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/server"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/svc"
@@ -27,11 +28,28 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
-	ctx := svc.NewServiceContext(c)
+	// 连接 MySQL
+	mysqlDB, err := datasource.NewMysqlClient(c.Mysql)
+	if err != nil {
+		panic(err)
+	}
+	sqlDB, err := mysqlDB.DB()
+	if err != nil {
+		panic(err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		panic(err)
+	}
+	fmt.Println("MySQL 连接成功")
 
-	// 连接 MySQL 和 Redis
-	_ = db.GetMySQL()
-	_ = db.GetRedis()
+	// 连接 Redis
+	if err := datasource.NewRedisClient(c.RedisConf).Ping(context.Background()).Err(); err != nil {
+		panic(err)
+	}
+	fmt.Println("Redis 连接成功")
+
+	// 注入数据库与地图客户端
+	ctx := svc.NewServiceContext(c, mysqlDB)
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		locationsvc.RegisterLocationServiceServer(grpcServer, server.NewLocationServiceServer(ctx))

@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
-	"XiaoLong-Ridy/common/db"
+	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/config"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/server"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/svc"
@@ -29,9 +30,25 @@ func main() {
 
 	ctx := svc.NewServiceContext(c)
 
-	// 连接 MySQL 和 Redis
-	_ = db.GetMySQL()
-	_ = db.GetRedis()
+	// 连接 MySQL
+	mysqlDB, err := datasource.NewMysqlClient(c.Mysql)
+	if err != nil {
+		panic(err)
+	}
+	sqlDB, err := mysqlDB.DB()
+	if err != nil {
+		panic(err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		panic(err)
+	}
+	fmt.Println("MySQL 连接成功")
+
+	// 连接 Redis
+	if err := datasource.NewRedisClient(c.RedisConf).Ping(context.Background()).Err(); err != nil {
+		panic(err)
+	}
+	fmt.Println("Redis 连接成功")
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		pushesvc.RegisterPushServiceServer(grpcServer, server.NewPushServiceServer(ctx))

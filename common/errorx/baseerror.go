@@ -1,50 +1,38 @@
 package errorx
 
-import (
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+// 错误码（简单记）
+const (
+	OK     = 0
+	FAIL   = 500
+	PARAM  = 400
+	NOTLOG = 401 // 未登录
 )
 
-const defaultCode = 1001
+// 错误消息
+var msgs = map[int]string{
+	OK:     "成功",
+	FAIL:   "失败",
+	PARAM:  "参数不对",
+	NOTLOG: "未登录",
+}
 
-// CodeError 统一错误类型
-type CodeError struct {
+func Msg(code int) string {
+	if m, ok := msgs[code]; ok {
+		return m
+	}
+	return "未知错误"
+}
+
+// NewErr 创建一个错误
+func NewErr(code int) error {
+	return &Err{Code: code, Msg: Msg(code)}
+}
+
+type Err struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
 }
 
-// CodeErrorResponse 统一错误返回格式
-type CodeErrorResponse struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
-}
-
-func NewCodeError(code int, msg string) error {
-	return &CodeError{Code: code, Msg: msg}
-}
-
-func NewDefaultError(msg string) error {
-	return NewCodeError(defaultCode, msg)
-}
-
-func (e *CodeError) Error() string {
+func (e *Err) Error() string {
 	return e.Msg
-}
-
-func (e *CodeError) Data() *CodeErrorResponse {
-	return &CodeErrorResponse{
-		Code: e.Code,
-		Msg:  e.Msg,
-	}
-}
-
-// GrpcError 用于 gRPC 错误转换
-func GrpcError(err error) error {
-	if err == nil {
-		return nil
-	}
-	if codeErr, ok := err.(*CodeError); ok {
-		return status.Error(codes.Code(codeErr.Code), codeErr.Msg)
-	}
-	return status.Error(codes.Code(defaultCode), err.Error())
 }

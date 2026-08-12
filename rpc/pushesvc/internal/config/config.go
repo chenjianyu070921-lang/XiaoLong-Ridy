@@ -1,11 +1,16 @@
 package config
 
-import "github.com/zeromicro/go-zero/zrpc"
+import (
+	commonconfig "XiaoLong-Ridy/common/config"
+	"github.com/zeromicro/go-zero/zrpc"
+)
 
 type Config struct {
 	zrpc.RpcServerConf
-	SMS  SMSConfig
-	Push PushConfig
+	Mysql     commonconfig.MysqlConf
+	RedisConf commonconfig.RedisConf
+	SMS       SMSConfig
+	Push      PushConfig
 }
 
 type SMSConfig struct {
