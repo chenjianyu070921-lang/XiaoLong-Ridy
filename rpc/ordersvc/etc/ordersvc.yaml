@@ -4,3 +4,12 @@ Etcd:
   Hosts:
   - 127.0.0.1:2379
   Key: ordersvc.rpc
+mysql:
+  DSN: root:root@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+redis:
+  Addr: 127.0.0.1:6379
+kafka:
+  Brokers:
+  - 127.0.0.1:9092
+  Topic: order.created
+  Group: order-event-consumer
