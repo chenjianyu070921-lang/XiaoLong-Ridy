@@ -2,7 +2,6 @@ package datasource
 
 import (
 	"XiaoLong-Ridy/common/config"
-	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -22,7 +21,7 @@ func NewMysqlClient(c config.MysqlConf) (*gorm.DB, error) {
 	}
 	sqlDB.SetMaxOpenConns(c.MaxOpenConn)
 	sqlDB.SetMaxIdleConns(c.MaxIdleConn)
-	sqlDB.SetConnMaxLifetime(time.Duration(c.MaxLifeTime))
+	sqlDB.SetConnMaxLifetime(c.MaxLifeTime)
 
 	return db, nil
 }

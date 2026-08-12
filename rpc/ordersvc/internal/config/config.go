@@ -5,21 +5,16 @@ import "github.com/zeromicro/go-zero/zrpc"
 type Config struct {
 	zrpc.RpcServerConf
 
-	Mysql MysqlConf `yaml:"mysql"`
-	Redis RedisConf `yaml:"redis"`
-	Kafka KafkaConf `yaml:"kafka"`
+	Mysql MysqlConf `yaml:"mysql" json:"mysql"`
+	Kafka KafkaConf `yaml:"kafka" json:"kafka"`
 }
 
 type MysqlConf struct {
-	DSN string `yaml:"DSN"`
-}
-
-type RedisConf struct {
-	Addr string `yaml:"Addr"`
+	DSN string `yaml:"dsn" json:"dsn"`
 }
 
 type KafkaConf struct {
-	Brokers []string `yaml:"Brokers"`
-	Topic   string   `yaml:"Topic"`
-	Group   string   `yaml:"Group"`
+	Brokers []string `yaml:"brokers" json:"brokers"`
+	Topic   string   `yaml:"topic" json:"topic"`
+	Group   string   `yaml:"group" json:"group"`
 }

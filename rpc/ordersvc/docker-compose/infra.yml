@@ -71,6 +71,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 40s
+
 volumes:
   mysql_data:
   redis_data:

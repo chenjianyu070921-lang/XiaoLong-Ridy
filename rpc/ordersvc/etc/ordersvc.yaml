@@ -1,15 +1,12 @@
 Name: ordersvc.rpc
-ListenOn: 0.0.0.0:8080
-Etcd:
-  Hosts:
-  - 127.0.0.1:2379
-  Key: ordersvc.rpc
+ListenOn: 0.0.0.0:50051
 mysql:
-  DSN: root:root@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  dsn: root:root@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 redis:
-  Addr: 127.0.0.1:6379
+  host: 127.0.0.1:6379
+  key: ordersvc
 kafka:
-  Brokers:
-  - 127.0.0.1:9092
-  Topic: order.created
-  Group: order-event-consumer
+  brokers:
+    - 127.0.0.1:9092
+  topic: order.created
+  group: order-event-consumer
