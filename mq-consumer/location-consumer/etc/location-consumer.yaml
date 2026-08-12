@@ -1,0 +1,17 @@
+Name: location-consumer
+
+Kafka:
+  Brokers:
+    - 127.0.0.1:9092
+  Topic: location-report
+  Group: location-consumer-group
+
+Redis:
+  Host: 127.0.0.1:6379
+  Pass: ""
+  Type: node
+
+Log:
+  ServiceName: location-consumer
+  Mode: console
+  Level: info

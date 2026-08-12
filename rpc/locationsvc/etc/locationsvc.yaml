@@ -1,0 +1,18 @@
+Name: locationsvc.rpc
+ListenOn: 0.0.0.0:9001
+
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: locationsvc.rpc
+
+# 地图服务配置（后续对接高德/腾讯地图时使用）
+MapService:
+  ApiKey: "8e17f5be48667ed588da48a9822405f0"
+  Provider: "amap"
+  BaseUrl: "https://restapi.amap.com/v3"
+
+Log:
+  ServiceName: locationsvc
+  Mode: console
+  Level: info

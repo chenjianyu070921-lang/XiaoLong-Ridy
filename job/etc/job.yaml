@@ -1,0 +1,19 @@
+Name: job-scheduler
+
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: job-scheduler
+
+DB:
+  DataSource: root:root@tcp(127.0.0.1:3306)/xiaolongridy?charset=utf8mb4&parseTime=true&loc=Local
+
+Redis:
+  Host: 127.0.0.1:6379
+  Pass: ""
+  Type: node
+
+Log:
+  ServiceName: job
+  Mode: console
+  Level: info
