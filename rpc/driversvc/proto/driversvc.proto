@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package driversvc;
+option go_package="./;proto";
+
+// DriverStatus 司机账号状态枚举。
+enum DriverStatus {
+  DRIVER_STATUS_UNSPECIFIED = 0; // 未指定（默认值，不使用）
+  DRIVER_STATUS_PENDING = 1;     // 待审核
+  DRIVER_STATUS_NORMAL = 2;      // 正常
+  DRIVER_STATUS_FROZEN = 3;      // 冻结
+  DRIVER_STATUS_CANCELLED = 4;   // 注销
+}
+
+service Driversvc {
+  rpc Ping(Request) returns(Response);
+  rpc CreateDriver(CreateDriverRequest) returns(CreateDriverResponse);
+  rpc UpdateDriver(UpdateDriverRequest) returns(UpdateDriverResponse);
+  rpc DeleteDriver(DeleteDriverRequest) returns(DeleteDriverResponse);
+  rpc GetDriver(GetDriverRequest) returns(GetDriverResponse);
+  rpc ListDrivers(ListDriversRequest) returns(ListDriversResponse);
+}
+
+// Driver 司机信息，对应 driver 表的完整记录。
+message Driver {
+  int64 id = 1;                  // 司机 ID
+  string phone = 2;              // 手机号（登录账号）
+  string password_hash = 3;      // 密码哈希
+  string real_name = 4;          // 真实姓名
+  string id_card_no = 5;         // 身份证号
+  string driver_license_no = 6;  // 驾驶证号
+  string avatar_url = 7;         // 头像地址
+  DriverStatus status = 8;       // 账号状态
+  int64 created_at = 9;          // 创建时间（Unix 秒）
+  int64 updated_at = 10;         // 更新时间（Unix 秒）
+}
+
+// CreateDriverRequest 创建司机请求。
+message CreateDriverRequest {
+  string phone = 1;              // 手机号（登录账号）
+  string password_hash = 2;      // 密码哈希
+  string real_name = 3;          // 真实姓名
+  string id_card_no = 4;         // 身份证号
+  string driver_license_no = 5;  // 驾驶证号
+  string avatar_url = 6;         // 头像地址
+}
+
+// CreateDriverResponse 创建司机响应。
+message CreateDriverResponse {
+  int64 id = 1;                  // 新建司机 ID
+  DriverStatus status = 2;       // 初始状态（待审核）
+  int64 created_at = 3;          // 创建时间（Unix 秒）
+}
+
+// UpdateDriverRequest 更新司机请求，除 id 外均为可选字段。
+message UpdateDriverRequest {
+  int64 id = 1;                  // 待更新的司机 ID
+  optional string phone = 2;     // 手机号（可选）
+  optional string password_hash = 3; // 密码哈希（可选）
+  optional string real_name = 4; // 真实姓名（可选）
+  optional string id_card_no = 5; // 身份证号（可选）
+  optional string driver_license_no = 6; // 驾驶证号（可选）
+  optional string avatar_url = 7; // 头像地址（可选）
+  optional DriverStatus status = 8; // 账号状态（可选）
+}
+
+// UpdateDriverResponse 更新司机响应。
+message UpdateDriverResponse {
+  int64 id = 1;                  // 司机 ID
+  DriverStatus status = 2;       // 更新后的状态
+  int64 updated_at = 3;          // 更新时间（Unix 秒）
+}
+
+// DeleteDriverRequest 删除司机请求。
+message DeleteDriverRequest {
+  int64 id = 1;                  // 待删除的司机 ID
+}
+
+// DeleteDriverResponse 删除司机响应。
+message DeleteDriverResponse {
+  int64 id = 1;                  // 司机 ID
+  bool success = 2;             // 是否删除成功
+}
+
+// GetDriverRequest 查询司机详情请求。
+message GetDriverRequest {
+  int64 id = 1;                  // 待查询的司机 ID
+}
+
+// GetDriverResponse 查询司机详情响应。
+message GetDriverResponse {
+  Driver driver = 1;             // 司机完整信息
+}
+
+// ListDriversRequest 分页查询司机列表请求。
+message ListDriversRequest {
+  DriverStatus status = 1;       // 按状态过滤，可选
+  string phone_keyword = 2;      // 手机号模糊匹配，可选
+  int32 page = 3;                // 页码，默认 1
+  int32 page_size = 4;           // 每页条数，默认 20，上限 100
+}
+
+// DriverSummary 司机摘要信息（列表项）。
+message DriverSummary {
+  int64 id = 1;                  // 司机 ID
+  string phone = 2;              // 手机号
+  string real_name = 3;          // 真实姓名
+  string driver_license_no = 4;  // 驾驶证号
+  DriverStatus status = 5;       // 账号状态
+  int64 created_at = 6;          // 创建时间（Unix 秒）
+}
+
+// ListDriversResponse 分页查询司机列表响应。
+message ListDriversResponse {
+  repeated DriverSummary list = 1; // 司机摘要列表
+  int64 total = 2;                // 符合条件的总记录数
+  int32 page = 3;                 // 当前页码
+  int32 page_size = 4;            // 每页条数
+}
+
+// Request ping 请求（保留兼容）。
+message Request {
+  string ping = 1;               // 请求内容
+}
+
+// Response ping 响应（保留兼容）。
+message Response {
+  string pong = 1;               // 响应内容
+}
