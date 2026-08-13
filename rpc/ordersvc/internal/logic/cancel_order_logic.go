@@ -13,11 +13,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// 订单业务错误定义。
 var (
 	ErrInvalidOrderParams       = errors.New("invalid order params")
 	ErrCancelReasonRequired     = errors.New("cancel reason required")
 	ErrOrderStatusNotCancelable = errors.New("order status not cancelable")
 	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this order")
+	ErrOrderStatusNotAllowed    = errors.New("order status not allowed")
+	ErrDriverNotMatched         = errors.New("driver not matched")
 )
 
 type CancelOrderLogic struct {
@@ -26,6 +29,7 @@ type CancelOrderLogic struct {
 	logx.Logger
 }
 
+// NewCancelOrderLogic 创建取消订单逻辑对象。
 func NewCancelOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CancelOrderLogic {
 	return &CancelOrderLogic{
 		ctx:    ctx,
@@ -34,6 +38,7 @@ func NewCancelOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cance
 	}
 }
 
+// CancelOrder 校验取消方与订单状态，条件更新订单并写入取消日志。
 func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.CancelOrderResponse, error) {
 	if in.OrderId <= 0 {
 		return nil, ErrInvalidOrderParams
@@ -85,6 +90,7 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 	}, nil
 }
 
+// validOperatorType 判断取消方类型是否合法。
 func validOperatorType(operatorType string) bool {
 	switch operatorType {
 	case constants.OperatorUser, constants.OperatorDriver, constants.OperatorSystem, constants.OperatorAdmin:
@@ -94,10 +100,12 @@ func validOperatorType(operatorType string) bool {
 	}
 }
 
+// canCancelStatus 判断订单状态是否允许取消。
 func canCancelStatus(status int8) bool {
 	return status == constants.OrderStatusWaitAccept || status == constants.OrderStatusAccepted
 }
 
+// canCancelByOperator 校验取消方是否有权取消该订单。
 func canCancelByOperator(order *model.RideOrder, operatorType string, operatorID int64) bool {
 	switch operatorType {
 	case constants.OperatorUser:

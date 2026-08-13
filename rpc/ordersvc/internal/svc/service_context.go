@@ -16,6 +16,7 @@ type ServiceContext struct {
 	OrderRepository repository.OrderRepository
 }
 
+// NewServiceContext 初始化 MySQL 连接与订单仓储。
 func NewServiceContext(c config.Config) *ServiceContext {
 	//1.mysql连接
 	client, err := datasource.NewMysqlClient(cfg.MysqlConf{
