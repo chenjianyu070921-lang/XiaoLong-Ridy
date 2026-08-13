@@ -4,14 +4,16 @@ import (
 	cfg "XiaoLong-Ridy/common/config"
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/config"
+	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type ServiceContext struct {
-	Config config.Config
-	DB     *gorm.DB
+	Config          config.Config
+	DB              *gorm.DB
+	OrderRepository repository.OrderRepository
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -20,13 +22,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Dsn:         c.Mysql.DSN,
 		MaxOpenConn: 200,
 		MaxIdleConn: 30,
-		MaxLifeTime: time.Hour * 1,
+		MaxLifeTime: int((time.Hour * 1).Seconds()),
 	})
 	if err != nil {
 		panic(err)
 	}
 	return &ServiceContext{
-		Config: c,
-		DB:     client,
+		Config:          c,
+		DB:              client,
+		OrderRepository: repository.NewGormOrderRepository(client),
 	}
 }

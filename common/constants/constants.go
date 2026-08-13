@@ -2,18 +2,27 @@ package constants
 
 // 订单状态
 const (
-	OrderWait   = 0 // 等待接单
-	OrderAccept = 1 // 已接单
-	OrderGoing  = 2 // 行程中
-	OrderDone   = 3 // 已完成
-	OrderCancel = 4 // 已取消
+	OrderStatusWaitAccept = 1 // 待接单
+	OrderStatusAccepted   = 2 // 已接单
+	OrderStatusOnTrip     = 3 // 行程中
+	OrderStatusWaitPay    = 4 // 待支付
+	OrderStatusCompleted  = 5 // 已完成
+	OrderStatusCancelled  = 6 // 已取消
+)
+
+// 订单操作方
+const (
+	OperatorUser   = "user"
+	OperatorDriver = "driver"
+	OperatorSystem = "system"
+	OperatorAdmin  = "admin"
 )
 
 // Redis Key 模板（用的时候 fmt.Sprintf 填入 ID）
 const (
-	RedisDriverPos  = "driver:pos:%d"  // 司机位置
-	RedisOrderInfo  = "order:info:%d"  // 订单信息
-	RedisSmsCode    = "sms:code:%s"    // 验证码
+	RedisDriverPos = "driver:pos:%d" // 司机位置
+	RedisOrderInfo = "order:info:%d" // 订单信息
+	RedisSmsCode   = "sms:code:%s"   // 验证码
 )
 
 // Kafka 消息主题

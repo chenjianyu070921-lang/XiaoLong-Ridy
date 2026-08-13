@@ -2,11 +2,22 @@ package logic
 
 import (
 	"context"
+	"errors"
+	"strings"
 
+	"XiaoLong-Ridy/common/constants"
+	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+)
+
+var (
+	ErrInvalidOrderParams       = errors.New("invalid order params")
+	ErrCancelReasonRequired     = errors.New("cancel reason required")
+	ErrOrderStatusNotCancelable = errors.New("order status not cancelable")
+	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this order")
 )
 
 type CancelOrderLogic struct {
@@ -24,7 +35,78 @@ func NewCancelOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cance
 }
 
 func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.CancelOrderResponse, error) {
-	// todo: add your logic here and delete this line
+	if in.OrderId <= 0 {
+		return nil, ErrInvalidOrderParams
+	}
+	operatorType := strings.TrimSpace(in.OperatorType)
+	if !validOperatorType(operatorType) {
+		return nil, ErrInvalidOrderParams
+	}
+	if operatorType != constants.OperatorSystem && in.OperatorId <= 0 {
+		return nil, ErrInvalidOrderParams
+	}
+	reason := strings.TrimSpace(in.Reason)
+	if reason == "" {
+		return nil, ErrCancelReasonRequired
+	}
 
-	return &proto.CancelOrderResponse{}, nil
+	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
+	if err != nil {
+		return nil, err
+	}
+	if !canCancelStatus(order.Status) {
+		return nil, ErrOrderStatusNotCancelable
+	}
+	if !canCancelByOperator(order, operatorType, in.OperatorId) {
+		return nil, ErrCancelNotAllowed
+	}
+
+	statusLog := &model.OrderStatusLog{
+		FromStatus:   order.Status,
+		ToStatus:     constants.OrderStatusCancelled,
+		OperatorType: operatorType,
+		OperatorId:   uint64(in.OperatorId),
+		Remark:       reason,
+	}
+	ok, err := l.svcCtx.OrderRepository.Cancel(l.ctx, order.Id, []int8{
+		constants.OrderStatusWaitAccept,
+		constants.OrderStatusAccepted,
+	}, operatorType, reason, statusLog)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrOrderStatusNotCancelable
+	}
+
+	return &proto.CancelOrderResponse{
+		OrderId: in.OrderId,
+		Status:  proto.OrderStatus_ORDER_STATUS_CANCELLED,
+	}, nil
+}
+
+func validOperatorType(operatorType string) bool {
+	switch operatorType {
+	case constants.OperatorUser, constants.OperatorDriver, constants.OperatorSystem, constants.OperatorAdmin:
+		return true
+	default:
+		return false
+	}
+}
+
+func canCancelStatus(status int8) bool {
+	return status == constants.OrderStatusWaitAccept || status == constants.OrderStatusAccepted
+}
+
+func canCancelByOperator(order *model.RideOrder, operatorType string, operatorID int64) bool {
+	switch operatorType {
+	case constants.OperatorUser:
+		return order.UserId == uint64(operatorID)
+	case constants.OperatorDriver:
+		return order.Status == constants.OrderStatusAccepted && order.DriverId == uint64(operatorID)
+	case constants.OperatorSystem, constants.OperatorAdmin:
+		return true
+	default:
+		return false
+	}
 }
