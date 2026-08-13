@@ -25,6 +25,7 @@ type ServiceContext struct {
 	UserRepository         *repository.UserRepository
 	DriverRepository       *repository.DriverRepository
 	OrderRepository        *repository.OrderRepository
+	CouponRepository       *repository.CouponRepository
 }
 
 // NewServiceContext 初始化服务依赖。
@@ -70,6 +71,7 @@ func NewServiceContext(cfg *config.Config) (*ServiceContext, error) {
 		UserRepository:         repository.NewUserRepository(db),
 		DriverRepository:       repository.NewDriverRepository(db),
 		OrderRepository:        repository.NewOrderRepository(db),
+		CouponRepository:       repository.NewCouponRepository(db),
 	}, nil
 }
 

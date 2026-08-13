@@ -75,7 +75,11 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/driver-certifications", r.authRequired(r.handleDriverCertifications))
 	r.mux.HandleFunc("/admin/v1/driver-certifications/", r.authRequired(r.handleDriverCertificationByID))
 
+	r.mux.HandleFunc("/admin/v1/coupons", r.authRequired(r.handleCoupons))
+	r.mux.HandleFunc("/admin/v1/coupons/", r.authRequired(r.handleCouponByID))
+
 	r.mux.HandleFunc("/admin/v1/orders", r.authRequired(r.handleOrders))
+	r.mux.HandleFunc("/admin/v1/orders/abnormal", r.authRequired(r.handleAbnormalOrders))
 	r.mux.HandleFunc("/admin/v1/orders/", r.authRequired(r.handleOrderByID))
 }
 
@@ -329,6 +333,31 @@ func (r *Router) handleOrders(w http.ResponseWriter, req *http.Request) {
 	writeSuccess(w, resp)
 }
 
+// handleAbnormalOrders 查询异常订单列表。
+// 该接口用于运营后台定位取消、支付失败、退款和派单异常订单，不执行任何订单写操作。
+func (r *Router) handleAbnormalOrders(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	query := req.URL.Query()
+	resp, err := logic.NewOrderLogic(r.ctx).ListAbnormal(req.Context(), types.AbnormalOrderListRequest{
+		Page:         intQuery(req, "page", 1),
+		PageSize:     intQuery(req, "page_size", 20),
+		Keyword:      query.Get("keyword"),
+		AbnormalType: query.Get("abnormal_type"),
+		UserID:       int64Query(req, "user_id", 0),
+		DriverID:     int64Query(req, "driver_id", 0),
+		StartTime:    query.Get("start_time"),
+		EndTime:      query.Get("end_time"),
+	})
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
 // handleOrderByID 返回订单详情。
 func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
@@ -346,6 +375,68 @@ func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	writeSuccess(w, resp)
+}
+
+// handleCoupons 处理优惠券模板列表和新增。
+// GET 用于列表查询，POST 用于新增模板；新增动作会写入后台操作日志。
+func (r *Router) handleCoupons(w http.ResponseWriter, req *http.Request) {
+	couponLogic := logic.NewCouponLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		query := req.URL.Query()
+		resp, err := couponLogic.List(req.Context(), types.CouponListRequest{
+			Page:      intQuery(req, "page", 1),
+			PageSize:  intQuery(req, "page_size", 20),
+			Keyword:   query.Get("keyword"),
+			Type:      int32Query(req, "type", 0),
+			Status:    int32Query(req, "status", 0),
+			StartTime: query.Get("start_time"),
+			EndTime:   query.Get("end_time"),
+		})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body types.CouponSaveRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		resp, err := couponLogic.Create(req.Context(), body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handleCouponByID 处理优惠券模板编辑。
+// 当前只开放 PUT /admin/v1/coupons/{id}，状态启停和发券任务后续独立扩展。
+func (r *Router) handleCouponByID(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPut {
+		writeMethodNotAllowed(w)
+		return
+	}
+	id, ok := idFromPath(req.URL.Path, "/admin/v1/coupons/")
+	if !ok {
+		writeError(w, http.StatusBadRequest, 40001, "invalid coupon id")
+		return
+	}
+	var body types.CouponSaveRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	if err := logic.NewCouponLogic(r.ctx).Update(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
 }
 
 // authRequired 是后台通用鉴权中间件。
@@ -391,6 +482,7 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 	case errors.Is(err, repository.ErrUserNotFound),
 		errors.Is(err, repository.ErrDriverCertificationNotFound),
 		errors.Is(err, repository.ErrOrderNotFound),
+		errors.Is(err, repository.ErrCouponNotFound),
 		errors.Is(err, repository.ErrOperationLogNotFound):
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case errors.Is(err, logic.ErrForbidden):
