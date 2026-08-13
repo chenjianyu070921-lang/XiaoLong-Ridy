@@ -86,7 +86,7 @@ func (s *UserService) LoginBySMS(ctx context.Context, req *userproto.LoginBySMSR
 	}
 
 	// 无论新老用户，均签发一组新的 Access Token 和 Refresh Token。
-	token, refreshToken, err := s.tokens.Issue(user.ID, user.Phone)
+	token, refreshToken, err := s.tokens.Issue(user.ID, user.Phone, user.Status)
 	if err != nil {
 		return nil, err
 	}
