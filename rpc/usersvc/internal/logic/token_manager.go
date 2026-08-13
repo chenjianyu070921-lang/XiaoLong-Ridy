@@ -1,15 +1,12 @@
 package logic
 
 import (
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	"XiaoLong-Ridy/common/jwtx"
 )
 
 const (
@@ -17,25 +14,17 @@ const (
 	refreshTokenTTL = 7 * 24 * time.Hour
 )
 
-type tokenClaims struct {
-	Subject string `json:"sub"`
-	Phone   string `json:"phone"`
-	Role    string `json:"role"`
-	Issued  int64  `json:"iat"`
-	Expire  int64  `json:"exp"`
-	Issuer  string `json:"iss"`
-}
-
 type refreshSession struct {
-	userID    uint64
-	phone     string
-	expiresAt time.Time
+	userID     uint64
+	phone      string
+	userStatus int
+	expiresAt  time.Time
 }
 
 // TokenManager 管理本地开发阶段的 Access Token 和 Refresh Token。
 type TokenManager struct {
 	mu              sync.Mutex
-	signingKey      []byte
+	signingKey      string
 	refreshSessions map[string]refreshSession
 	revokedTokens   map[string]time.Time
 }
@@ -43,15 +32,22 @@ type TokenManager struct {
 // NewTokenManager 创建令牌管理器；生产环境应从安全配置读取 signingKey。
 func NewTokenManager(signingKey string) *TokenManager {
 	return &TokenManager{
-		signingKey:      []byte(signingKey),
+		signingKey:      signingKey,
 		refreshSessions: make(map[string]refreshSession),
 		revokedTokens:   make(map[string]time.Time),
 	}
 }
 
 // Issue 为指定用户签发 Access Token 与 Refresh Token。
-func (m *TokenManager) Issue(userID uint64, phone string) (string, string, error) {
-	accessToken, err := m.issueAccessToken(userID, phone)
+func (m *TokenManager) Issue(userID uint64, phone string, userStatus int) (string, string, error) {
+	accessToken, err := jwtx.SignUserToken(jwtx.UserTokenPayload{
+		UserID:     userID,
+		Phone:      phone,
+		Role:       "passenger",
+		UserStatus: userStatus,
+		Issuer:     "huaxiaozhu-api",
+		TTL:        accessTokenTTL,
+	}, m.signingKey)
 	if err != nil {
 		return "", "", err
 	}
@@ -63,9 +59,10 @@ func (m *TokenManager) Issue(userID uint64, phone string) (string, string, error
 	m.mu.Lock()
 	// Refresh Token 仅保存服务端会话；客户端拿到的旧令牌在刷新后会被删除。
 	m.refreshSessions[refreshToken] = refreshSession{
-		userID:    userID,
-		phone:     phone,
-		expiresAt: time.Now().Add(refreshTokenTTL),
+		userID:     userID,
+		phone:      phone,
+		userStatus: userStatus,
+		expiresAt:  time.Now().Add(refreshTokenTTL),
 	}
 	m.mu.Unlock()
 	return accessToken, refreshToken, nil
@@ -84,7 +81,7 @@ func (m *TokenManager) Refresh(refreshToken string) (string, string, error) {
 	if time.Now().After(session.expiresAt) {
 		return "", "", ErrTokenExpired
 	}
-	return m.Issue(session.userID, session.phone)
+	return m.Issue(session.userID, session.phone, session.userStatus)
 }
 
 // Revoke 使当前 Access Token 立即失效。
@@ -100,22 +97,16 @@ func (m *TokenManager) Revoke(token string) error {
 }
 
 // Validate 校验 Access Token 的格式、签名、过期时间和注销状态。
-func (m *TokenManager) Validate(token string) (*tokenClaims, error) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 2 {
+func (m *TokenManager) Validate(token string) (*jwtx.UserClaims, error) {
+	claims, err := jwtx.ParseUserToken(token, m.signingKey)
+	if err == jwtx.ErrInvalidToken {
 		return nil, ErrInvalidToken
 	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
-	if err != nil || !hmac.Equal([]byte(parts[1]), []byte(m.sign(parts[0]))) {
-		return nil, ErrInvalidToken
-	}
-
-	var claims tokenClaims
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil, ErrInvalidToken
-	}
-	if time.Now().Unix() >= claims.Expire {
+	if err == jwtx.ErrTokenExpired {
 		return nil, ErrTokenExpired
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	// 校验注销黑名单，避免用户登出后旧 Token 仍可继续访问。
@@ -129,30 +120,7 @@ func (m *TokenManager) Validate(token string) (*tokenClaims, error) {
 	if revoked {
 		return nil, ErrInvalidToken
 	}
-	return &claims, nil
-}
-
-func (m *TokenManager) issueAccessToken(userID uint64, phone string) (string, error) {
-	now := time.Now()
-	payload, err := json.Marshal(tokenClaims{
-		Subject: "user_" + formatUserID(userID),
-		Phone:   maskTokenPhone(phone),
-		Role:    "passenger",
-		Issued:  now.Unix(),
-		Expire:  now.Add(accessTokenTTL).Unix(),
-		Issuer:  "huaxiaozhu-api",
-	})
-	if err != nil {
-		return "", err
-	}
-	encoded := base64.RawURLEncoding.EncodeToString(payload)
-	return encoded + "." + m.sign(encoded), nil
-}
-
-func (m *TokenManager) sign(payload string) string {
-	mac := hmac.New(sha256.New, m.signingKey)
-	_, _ = mac.Write([]byte(payload))
-	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return claims, nil
 }
 
 func randomToken() (string, error) {
@@ -161,15 +129,4 @@ func randomToken() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(value), nil
-}
-
-func formatUserID(userID uint64) string {
-	return strconv.FormatUint(userID, 10)
-}
-
-func maskTokenPhone(phone string) string {
-	if len(phone) != 11 {
-		return phone
-	}
-	return phone[:3] + "****" + phone[7:]
 }
