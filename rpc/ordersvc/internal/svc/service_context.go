@@ -20,7 +20,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Dsn:         c.Mysql.DSN,
 		MaxOpenConn: 200,
 		MaxIdleConn: 30,
-		MaxLifeTime: time.Hour * 1,
+		MaxLifeTime: int((time.Hour * 1).Milliseconds()),
 	})
 	if err != nil {
 		panic(err)

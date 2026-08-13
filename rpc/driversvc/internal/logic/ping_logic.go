@@ -23,8 +23,7 @@ func NewPingLogic(ctx context.Context, svcCtx *svc.ServiceContext) *PingLogic {
 	}
 }
 
+// Ping 健康检查接口，返回 pong 供调用方探活。
 func (l *PingLogic) Ping(in *proto.Request) (*proto.Response, error) {
-	// todo: add your logic here and delete this line
-
-	return &proto.Response{}, nil
+	return &proto.Response{Pong: "pong"}, nil
 }

@@ -1,7 +1,7 @@
 Name: driversvc.rpc
 ListenOn: 0.0.0.0:8080
 mysql:
-  dsn: root:root@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  dsn: root:root123456@tcp(127.0.0.1:3306)/driver?charset=utf8mb4&parseTime=True&loc=Local
 redis:
   host: 127.0.0.1:6379
   key: ordersvc

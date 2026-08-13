@@ -1003,6 +1003,3362 @@ func (x *Response) GetPong() string {
 	return ""
 }
 
+// Vehicle 车辆信息，对应 driver_vehicle 表的完整记录。
+type Vehicle struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                                          // 车辆 ID
+	DriverId          int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`                              // 所属司机 ID
+	PlateNo           string                 `protobuf:"bytes,3,opt,name=plate_no,json=plateNo,proto3" json:"plate_no,omitempty"`                                  // 车牌号
+	Brand             string                 `protobuf:"bytes,4,opt,name=brand,proto3" json:"brand,omitempty"`                                                     // 品牌
+	Model             string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`                                                     // 车型
+	Color             string                 `protobuf:"bytes,6,opt,name=color,proto3" json:"color,omitempty"`                                                     // 车身颜色
+	VehicleType       int32                  `protobuf:"varint,7,opt,name=vehicle_type,json=vehicleType,proto3" json:"vehicle_type,omitempty"`                     // 车辆类型：1特惠快车 2快车 3拼车
+	RegistrationDate  string                 `protobuf:"bytes,8,opt,name=registration_date,json=registrationDate,proto3" json:"registration_date,omitempty"`       // 注册日期（YYYY-MM-DD）
+	InsuranceNo       string                 `protobuf:"bytes,9,opt,name=insurance_no,json=insuranceNo,proto3" json:"insurance_no,omitempty"`                      // 保险单号
+	InsuranceExpireAt string                 `protobuf:"bytes,10,opt,name=insurance_expire_at,json=insuranceExpireAt,proto3" json:"insurance_expire_at,omitempty"` // 保险到期日（YYYY-MM-DD）
+	Status            int32                  `protobuf:"varint,11,opt,name=status,proto3" json:"status,omitempty"`                                                 // 状态：1待审核 2正常 3禁用
+	CreatedAt         int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`                          // 创建时间（Unix 秒）
+	UpdatedAt         int64                  `protobuf:"varint,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                          // 更新时间（Unix 秒）
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *Vehicle) Reset() {
+	*x = Vehicle{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Vehicle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Vehicle) ProtoMessage() {}
+
+func (x *Vehicle) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Vehicle.ProtoReflect.Descriptor instead.
+func (*Vehicle) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *Vehicle) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Vehicle) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *Vehicle) GetPlateNo() string {
+	if x != nil {
+		return x.PlateNo
+	}
+	return ""
+}
+
+func (x *Vehicle) GetBrand() string {
+	if x != nil {
+		return x.Brand
+	}
+	return ""
+}
+
+func (x *Vehicle) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *Vehicle) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *Vehicle) GetVehicleType() int32 {
+	if x != nil {
+		return x.VehicleType
+	}
+	return 0
+}
+
+func (x *Vehicle) GetRegistrationDate() string {
+	if x != nil {
+		return x.RegistrationDate
+	}
+	return ""
+}
+
+func (x *Vehicle) GetInsuranceNo() string {
+	if x != nil {
+		return x.InsuranceNo
+	}
+	return ""
+}
+
+func (x *Vehicle) GetInsuranceExpireAt() string {
+	if x != nil {
+		return x.InsuranceExpireAt
+	}
+	return ""
+}
+
+func (x *Vehicle) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *Vehicle) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *Vehicle) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type CreateVehicleRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	DriverId          int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`                             // 所属司机 ID
+	PlateNo           string                 `protobuf:"bytes,2,opt,name=plate_no,json=plateNo,proto3" json:"plate_no,omitempty"`                                 // 车牌号
+	Brand             string                 `protobuf:"bytes,3,opt,name=brand,proto3" json:"brand,omitempty"`                                                    // 品牌
+	Model             string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`                                                    // 车型
+	Color             string                 `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"`                                                    // 车身颜色
+	VehicleType       int32                  `protobuf:"varint,6,opt,name=vehicle_type,json=vehicleType,proto3" json:"vehicle_type,omitempty"`                    // 车辆类型
+	RegistrationDate  string                 `protobuf:"bytes,7,opt,name=registration_date,json=registrationDate,proto3" json:"registration_date,omitempty"`      // 注册日期
+	InsuranceNo       string                 `protobuf:"bytes,8,opt,name=insurance_no,json=insuranceNo,proto3" json:"insurance_no,omitempty"`                     // 保险单号
+	InsuranceExpireAt string                 `protobuf:"bytes,9,opt,name=insurance_expire_at,json=insuranceExpireAt,proto3" json:"insurance_expire_at,omitempty"` // 保险到期日
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CreateVehicleRequest) Reset() {
+	*x = CreateVehicleRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateVehicleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateVehicleRequest) ProtoMessage() {}
+
+func (x *CreateVehicleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateVehicleRequest.ProtoReflect.Descriptor instead.
+func (*CreateVehicleRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CreateVehicleRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *CreateVehicleRequest) GetPlateNo() string {
+	if x != nil {
+		return x.PlateNo
+	}
+	return ""
+}
+
+func (x *CreateVehicleRequest) GetBrand() string {
+	if x != nil {
+		return x.Brand
+	}
+	return ""
+}
+
+func (x *CreateVehicleRequest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *CreateVehicleRequest) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *CreateVehicleRequest) GetVehicleType() int32 {
+	if x != nil {
+		return x.VehicleType
+	}
+	return 0
+}
+
+func (x *CreateVehicleRequest) GetRegistrationDate() string {
+	if x != nil {
+		return x.RegistrationDate
+	}
+	return ""
+}
+
+func (x *CreateVehicleRequest) GetInsuranceNo() string {
+	if x != nil {
+		return x.InsuranceNo
+	}
+	return ""
+}
+
+func (x *CreateVehicleRequest) GetInsuranceExpireAt() string {
+	if x != nil {
+		return x.InsuranceExpireAt
+	}
+	return ""
+}
+
+type CreateVehicleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`         // 新建车辆 ID
+	Status        int32                  `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"` // 初始状态（待审核）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateVehicleResponse) Reset() {
+	*x = CreateVehicleResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateVehicleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateVehicleResponse) ProtoMessage() {}
+
+func (x *CreateVehicleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateVehicleResponse.ProtoReflect.Descriptor instead.
+func (*CreateVehicleResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *CreateVehicleResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *CreateVehicleResponse) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+type UpdateVehicleRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                                                // 待更新的车辆 ID
+	DriverId          *int64                 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3,oneof" json:"driver_id,omitempty"`                              // 所属司机 ID（可选）
+	PlateNo           *string                `protobuf:"bytes,3,opt,name=plate_no,json=plateNo,proto3,oneof" json:"plate_no,omitempty"`                                  // 车牌号（可选）
+	Brand             *string                `protobuf:"bytes,4,opt,name=brand,proto3,oneof" json:"brand,omitempty"`                                                     // 品牌（可选）
+	Model             *string                `protobuf:"bytes,5,opt,name=model,proto3,oneof" json:"model,omitempty"`                                                     // 车型（可选）
+	Color             *string                `protobuf:"bytes,6,opt,name=color,proto3,oneof" json:"color,omitempty"`                                                     // 车身颜色（可选）
+	VehicleType       *int32                 `protobuf:"varint,7,opt,name=vehicle_type,json=vehicleType,proto3,oneof" json:"vehicle_type,omitempty"`                     // 车辆类型（可选）
+	RegistrationDate  *string                `protobuf:"bytes,8,opt,name=registration_date,json=registrationDate,proto3,oneof" json:"registration_date,omitempty"`       // 注册日期（可选）
+	InsuranceNo       *string                `protobuf:"bytes,9,opt,name=insurance_no,json=insuranceNo,proto3,oneof" json:"insurance_no,omitempty"`                      // 保险单号（可选）
+	InsuranceExpireAt *string                `protobuf:"bytes,10,opt,name=insurance_expire_at,json=insuranceExpireAt,proto3,oneof" json:"insurance_expire_at,omitempty"` // 保险到期日（可选）
+	Status            *int32                 `protobuf:"varint,11,opt,name=status,proto3,oneof" json:"status,omitempty"`                                                 // 状态（可选）
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdateVehicleRequest) Reset() {
+	*x = UpdateVehicleRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateVehicleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateVehicleRequest) ProtoMessage() {}
+
+func (x *UpdateVehicleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateVehicleRequest.ProtoReflect.Descriptor instead.
+func (*UpdateVehicleRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *UpdateVehicleRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateVehicleRequest) GetDriverId() int64 {
+	if x != nil && x.DriverId != nil {
+		return *x.DriverId
+	}
+	return 0
+}
+
+func (x *UpdateVehicleRequest) GetPlateNo() string {
+	if x != nil && x.PlateNo != nil {
+		return *x.PlateNo
+	}
+	return ""
+}
+
+func (x *UpdateVehicleRequest) GetBrand() string {
+	if x != nil && x.Brand != nil {
+		return *x.Brand
+	}
+	return ""
+}
+
+func (x *UpdateVehicleRequest) GetModel() string {
+	if x != nil && x.Model != nil {
+		return *x.Model
+	}
+	return ""
+}
+
+func (x *UpdateVehicleRequest) GetColor() string {
+	if x != nil && x.Color != nil {
+		return *x.Color
+	}
+	return ""
+}
+
+func (x *UpdateVehicleRequest) GetVehicleType() int32 {
+	if x != nil && x.VehicleType != nil {
+		return *x.VehicleType
+	}
+	return 0
+}
+
+func (x *UpdateVehicleRequest) GetRegistrationDate() string {
+	if x != nil && x.RegistrationDate != nil {
+		return *x.RegistrationDate
+	}
+	return ""
+}
+
+func (x *UpdateVehicleRequest) GetInsuranceNo() string {
+	if x != nil && x.InsuranceNo != nil {
+		return *x.InsuranceNo
+	}
+	return ""
+}
+
+func (x *UpdateVehicleRequest) GetInsuranceExpireAt() string {
+	if x != nil && x.InsuranceExpireAt != nil {
+		return *x.InsuranceExpireAt
+	}
+	return ""
+}
+
+func (x *UpdateVehicleRequest) GetStatus() int32 {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return 0
+}
+
+type UpdateVehicleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                // 车辆 ID
+	Status        int32                  `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"`                        // 更新后的状态
+	UpdatedAt     int64                  `protobuf:"varint,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // 更新时间（Unix 秒）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateVehicleResponse) Reset() {
+	*x = UpdateVehicleResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateVehicleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateVehicleResponse) ProtoMessage() {}
+
+func (x *UpdateVehicleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateVehicleResponse.ProtoReflect.Descriptor instead.
+func (*UpdateVehicleResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UpdateVehicleResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateVehicleResponse) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *UpdateVehicleResponse) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type DeleteVehicleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"` // 待删除的车辆 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteVehicleRequest) Reset() {
+	*x = DeleteVehicleRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteVehicleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteVehicleRequest) ProtoMessage() {}
+
+func (x *DeleteVehicleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteVehicleRequest.ProtoReflect.Descriptor instead.
+func (*DeleteVehicleRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *DeleteVehicleRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteVehicleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`           // 车辆 ID
+	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"` // 是否删除成功
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteVehicleResponse) Reset() {
+	*x = DeleteVehicleResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteVehicleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteVehicleResponse) ProtoMessage() {}
+
+func (x *DeleteVehicleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteVehicleResponse.ProtoReflect.Descriptor instead.
+func (*DeleteVehicleResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DeleteVehicleResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DeleteVehicleResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type GetVehicleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"` // 待查询的车辆 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVehicleRequest) Reset() {
+	*x = GetVehicleRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVehicleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVehicleRequest) ProtoMessage() {}
+
+func (x *GetVehicleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVehicleRequest.ProtoReflect.Descriptor instead.
+func (*GetVehicleRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetVehicleRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type GetVehicleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Vehicle       *Vehicle               `protobuf:"bytes,1,opt,name=vehicle,proto3" json:"vehicle,omitempty"` // 车辆完整信息
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVehicleResponse) Reset() {
+	*x = GetVehicleResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVehicleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVehicleResponse) ProtoMessage() {}
+
+func (x *GetVehicleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVehicleResponse.ProtoReflect.Descriptor instead.
+func (*GetVehicleResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetVehicleResponse) GetVehicle() *Vehicle {
+	if x != nil {
+		return x.Vehicle
+	}
+	return nil
+}
+
+type ListVehiclesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"` // 按司机过滤，可选
+	Status        int32                  `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"`                     // 按状态过滤，可选
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`                         // 页码，默认 1
+	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 每页条数，默认 20，上限 100
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListVehiclesRequest) Reset() {
+	*x = ListVehiclesRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVehiclesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVehiclesRequest) ProtoMessage() {}
+
+func (x *ListVehiclesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVehiclesRequest.ProtoReflect.Descriptor instead.
+func (*ListVehiclesRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListVehiclesRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *ListVehiclesRequest) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *ListVehiclesRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListVehiclesRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type VehicleSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                      // 车辆 ID
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`          // 所属司机 ID
+	PlateNo       string                 `protobuf:"bytes,3,opt,name=plate_no,json=plateNo,proto3" json:"plate_no,omitempty"`              // 车牌号
+	Brand         string                 `protobuf:"bytes,4,opt,name=brand,proto3" json:"brand,omitempty"`                                 // 品牌
+	VehicleType   int32                  `protobuf:"varint,5,opt,name=vehicle_type,json=vehicleType,proto3" json:"vehicle_type,omitempty"` // 车辆类型
+	Status        int32                  `protobuf:"varint,6,opt,name=status,proto3" json:"status,omitempty"`                              // 状态
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VehicleSummary) Reset() {
+	*x = VehicleSummary{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VehicleSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VehicleSummary) ProtoMessage() {}
+
+func (x *VehicleSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VehicleSummary.ProtoReflect.Descriptor instead.
+func (*VehicleSummary) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *VehicleSummary) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *VehicleSummary) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *VehicleSummary) GetPlateNo() string {
+	if x != nil {
+		return x.PlateNo
+	}
+	return ""
+}
+
+func (x *VehicleSummary) GetBrand() string {
+	if x != nil {
+		return x.Brand
+	}
+	return ""
+}
+
+func (x *VehicleSummary) GetVehicleType() int32 {
+	if x != nil {
+		return x.VehicleType
+	}
+	return 0
+}
+
+func (x *VehicleSummary) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+type ListVehiclesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          []*VehicleSummary      `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"`                          // 车辆摘要列表
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`                       // 符合条件的总记录数
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`                         // 当前页码
+	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 每页条数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListVehiclesResponse) Reset() {
+	*x = ListVehiclesResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVehiclesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVehiclesResponse) ProtoMessage() {}
+
+func (x *ListVehiclesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVehiclesResponse.ProtoReflect.Descriptor instead.
+func (*ListVehiclesResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListVehiclesResponse) GetList() []*VehicleSummary {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+func (x *ListVehiclesResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *ListVehiclesResponse) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListVehiclesResponse) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+// Certification 认证信息，对应 driver_certification 表的完整记录。
+type Certification struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                                         // 认证 ID
+	DriverId          int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`                             // 所属司机 ID
+	VehicleId         int64                  `protobuf:"varint,3,opt,name=vehicle_id,json=vehicleId,proto3" json:"vehicle_id,omitempty"`                          // 关联车辆 ID
+	IdCardFrontUrl    string                 `protobuf:"bytes,4,opt,name=id_card_front_url,json=idCardFrontUrl,proto3" json:"id_card_front_url,omitempty"`        // 身份证人像面
+	IdCardBackUrl     string                 `protobuf:"bytes,5,opt,name=id_card_back_url,json=idCardBackUrl,proto3" json:"id_card_back_url,omitempty"`           // 身份证国徽面
+	DriverLicenseUrl  string                 `protobuf:"bytes,6,opt,name=driver_license_url,json=driverLicenseUrl,proto3" json:"driver_license_url,omitempty"`    // 驾驶证照片
+	VehicleLicenseUrl string                 `protobuf:"bytes,7,opt,name=vehicle_license_url,json=vehicleLicenseUrl,proto3" json:"vehicle_license_url,omitempty"` // 行驶证照片
+	AuditStatus       int32                  `protobuf:"varint,8,opt,name=audit_status,json=auditStatus,proto3" json:"audit_status,omitempty"`                    // 审核状态：1待审核 2通过 3驳回
+	AuditRemark       string                 `protobuf:"bytes,9,opt,name=audit_remark,json=auditRemark,proto3" json:"audit_remark,omitempty"`                     // 驳回原因/审核备注
+	AuditedBy         int64                  `protobuf:"varint,10,opt,name=audited_by,json=auditedBy,proto3" json:"audited_by,omitempty"`                         // 审核人（管理员 ID）
+	AuditedAt         int64                  `protobuf:"varint,11,opt,name=audited_at,json=auditedAt,proto3" json:"audited_at,omitempty"`                         // 审核时间（Unix 秒）
+	CreatedAt         int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`                         // 创建时间（Unix 秒）
+	UpdatedAt         int64                  `protobuf:"varint,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                         // 更新时间（Unix 秒）
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *Certification) Reset() {
+	*x = Certification{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Certification) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Certification) ProtoMessage() {}
+
+func (x *Certification) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Certification.ProtoReflect.Descriptor instead.
+func (*Certification) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *Certification) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Certification) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *Certification) GetVehicleId() int64 {
+	if x != nil {
+		return x.VehicleId
+	}
+	return 0
+}
+
+func (x *Certification) GetIdCardFrontUrl() string {
+	if x != nil {
+		return x.IdCardFrontUrl
+	}
+	return ""
+}
+
+func (x *Certification) GetIdCardBackUrl() string {
+	if x != nil {
+		return x.IdCardBackUrl
+	}
+	return ""
+}
+
+func (x *Certification) GetDriverLicenseUrl() string {
+	if x != nil {
+		return x.DriverLicenseUrl
+	}
+	return ""
+}
+
+func (x *Certification) GetVehicleLicenseUrl() string {
+	if x != nil {
+		return x.VehicleLicenseUrl
+	}
+	return ""
+}
+
+func (x *Certification) GetAuditStatus() int32 {
+	if x != nil {
+		return x.AuditStatus
+	}
+	return 0
+}
+
+func (x *Certification) GetAuditRemark() string {
+	if x != nil {
+		return x.AuditRemark
+	}
+	return ""
+}
+
+func (x *Certification) GetAuditedBy() int64 {
+	if x != nil {
+		return x.AuditedBy
+	}
+	return 0
+}
+
+func (x *Certification) GetAuditedAt() int64 {
+	if x != nil {
+		return x.AuditedAt
+	}
+	return 0
+}
+
+func (x *Certification) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *Certification) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type CreateCertificationRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	DriverId          int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`                             // 所属司机 ID
+	VehicleId         int64                  `protobuf:"varint,2,opt,name=vehicle_id,json=vehicleId,proto3" json:"vehicle_id,omitempty"`                          // 关联车辆 ID
+	IdCardFrontUrl    string                 `protobuf:"bytes,3,opt,name=id_card_front_url,json=idCardFrontUrl,proto3" json:"id_card_front_url,omitempty"`        // 身份证人像面
+	IdCardBackUrl     string                 `protobuf:"bytes,4,opt,name=id_card_back_url,json=idCardBackUrl,proto3" json:"id_card_back_url,omitempty"`           // 身份证国徽面
+	DriverLicenseUrl  string                 `protobuf:"bytes,5,opt,name=driver_license_url,json=driverLicenseUrl,proto3" json:"driver_license_url,omitempty"`    // 驾驶证照片
+	VehicleLicenseUrl string                 `protobuf:"bytes,6,opt,name=vehicle_license_url,json=vehicleLicenseUrl,proto3" json:"vehicle_license_url,omitempty"` // 行驶证照片
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CreateCertificationRequest) Reset() {
+	*x = CreateCertificationRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCertificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCertificationRequest) ProtoMessage() {}
+
+func (x *CreateCertificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCertificationRequest.ProtoReflect.Descriptor instead.
+func (*CreateCertificationRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *CreateCertificationRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *CreateCertificationRequest) GetVehicleId() int64 {
+	if x != nil {
+		return x.VehicleId
+	}
+	return 0
+}
+
+func (x *CreateCertificationRequest) GetIdCardFrontUrl() string {
+	if x != nil {
+		return x.IdCardFrontUrl
+	}
+	return ""
+}
+
+func (x *CreateCertificationRequest) GetIdCardBackUrl() string {
+	if x != nil {
+		return x.IdCardBackUrl
+	}
+	return ""
+}
+
+func (x *CreateCertificationRequest) GetDriverLicenseUrl() string {
+	if x != nil {
+		return x.DriverLicenseUrl
+	}
+	return ""
+}
+
+func (x *CreateCertificationRequest) GetVehicleLicenseUrl() string {
+	if x != nil {
+		return x.VehicleLicenseUrl
+	}
+	return ""
+}
+
+type CreateCertificationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                      // 新建认证 ID
+	AuditStatus   int32                  `protobuf:"varint,2,opt,name=audit_status,json=auditStatus,proto3" json:"audit_status,omitempty"` // 初始审核状态（待审核）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCertificationResponse) Reset() {
+	*x = CreateCertificationResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCertificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCertificationResponse) ProtoMessage() {}
+
+func (x *CreateCertificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCertificationResponse.ProtoReflect.Descriptor instead.
+func (*CreateCertificationResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *CreateCertificationResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *CreateCertificationResponse) GetAuditStatus() int32 {
+	if x != nil {
+		return x.AuditStatus
+	}
+	return 0
+}
+
+type UpdateCertificationRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                                               // 待更新的认证 ID
+	DriverId          *int64                 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3,oneof" json:"driver_id,omitempty"`                             // 所属司机 ID（可选）
+	VehicleId         *int64                 `protobuf:"varint,3,opt,name=vehicle_id,json=vehicleId,proto3,oneof" json:"vehicle_id,omitempty"`                          // 关联车辆 ID（可选）
+	IdCardFrontUrl    *string                `protobuf:"bytes,4,opt,name=id_card_front_url,json=idCardFrontUrl,proto3,oneof" json:"id_card_front_url,omitempty"`        // 身份证人像面（可选）
+	IdCardBackUrl     *string                `protobuf:"bytes,5,opt,name=id_card_back_url,json=idCardBackUrl,proto3,oneof" json:"id_card_back_url,omitempty"`           // 身份证国徽面（可选）
+	DriverLicenseUrl  *string                `protobuf:"bytes,6,opt,name=driver_license_url,json=driverLicenseUrl,proto3,oneof" json:"driver_license_url,omitempty"`    // 驾驶证照片（可选）
+	VehicleLicenseUrl *string                `protobuf:"bytes,7,opt,name=vehicle_license_url,json=vehicleLicenseUrl,proto3,oneof" json:"vehicle_license_url,omitempty"` // 行驶证照片（可选）
+	AuditStatus       *int32                 `protobuf:"varint,8,opt,name=audit_status,json=auditStatus,proto3,oneof" json:"audit_status,omitempty"`                    // 审核状态（可选）
+	AuditRemark       *string                `protobuf:"bytes,9,opt,name=audit_remark,json=auditRemark,proto3,oneof" json:"audit_remark,omitempty"`                     // 驳回原因/审核备注（可选）
+	AuditedBy         *int64                 `protobuf:"varint,10,opt,name=audited_by,json=auditedBy,proto3,oneof" json:"audited_by,omitempty"`                         // 审核人（可选）
+	AuditedAt         *int64                 `protobuf:"varint,11,opt,name=audited_at,json=auditedAt,proto3,oneof" json:"audited_at,omitempty"`                         // 审核时间（可选）
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdateCertificationRequest) Reset() {
+	*x = UpdateCertificationRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateCertificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateCertificationRequest) ProtoMessage() {}
+
+func (x *UpdateCertificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateCertificationRequest.ProtoReflect.Descriptor instead.
+func (*UpdateCertificationRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *UpdateCertificationRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateCertificationRequest) GetDriverId() int64 {
+	if x != nil && x.DriverId != nil {
+		return *x.DriverId
+	}
+	return 0
+}
+
+func (x *UpdateCertificationRequest) GetVehicleId() int64 {
+	if x != nil && x.VehicleId != nil {
+		return *x.VehicleId
+	}
+	return 0
+}
+
+func (x *UpdateCertificationRequest) GetIdCardFrontUrl() string {
+	if x != nil && x.IdCardFrontUrl != nil {
+		return *x.IdCardFrontUrl
+	}
+	return ""
+}
+
+func (x *UpdateCertificationRequest) GetIdCardBackUrl() string {
+	if x != nil && x.IdCardBackUrl != nil {
+		return *x.IdCardBackUrl
+	}
+	return ""
+}
+
+func (x *UpdateCertificationRequest) GetDriverLicenseUrl() string {
+	if x != nil && x.DriverLicenseUrl != nil {
+		return *x.DriverLicenseUrl
+	}
+	return ""
+}
+
+func (x *UpdateCertificationRequest) GetVehicleLicenseUrl() string {
+	if x != nil && x.VehicleLicenseUrl != nil {
+		return *x.VehicleLicenseUrl
+	}
+	return ""
+}
+
+func (x *UpdateCertificationRequest) GetAuditStatus() int32 {
+	if x != nil && x.AuditStatus != nil {
+		return *x.AuditStatus
+	}
+	return 0
+}
+
+func (x *UpdateCertificationRequest) GetAuditRemark() string {
+	if x != nil && x.AuditRemark != nil {
+		return *x.AuditRemark
+	}
+	return ""
+}
+
+func (x *UpdateCertificationRequest) GetAuditedBy() int64 {
+	if x != nil && x.AuditedBy != nil {
+		return *x.AuditedBy
+	}
+	return 0
+}
+
+func (x *UpdateCertificationRequest) GetAuditedAt() int64 {
+	if x != nil && x.AuditedAt != nil {
+		return *x.AuditedAt
+	}
+	return 0
+}
+
+type UpdateCertificationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                      // 认证 ID
+	AuditStatus   int32                  `protobuf:"varint,2,opt,name=audit_status,json=auditStatus,proto3" json:"audit_status,omitempty"` // 更新后的审核状态
+	UpdatedAt     int64                  `protobuf:"varint,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`       // 更新时间（Unix 秒）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateCertificationResponse) Reset() {
+	*x = UpdateCertificationResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateCertificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateCertificationResponse) ProtoMessage() {}
+
+func (x *UpdateCertificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateCertificationResponse.ProtoReflect.Descriptor instead.
+func (*UpdateCertificationResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *UpdateCertificationResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateCertificationResponse) GetAuditStatus() int32 {
+	if x != nil {
+		return x.AuditStatus
+	}
+	return 0
+}
+
+func (x *UpdateCertificationResponse) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type DeleteCertificationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"` // 待删除的认证 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteCertificationRequest) Reset() {
+	*x = DeleteCertificationRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteCertificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteCertificationRequest) ProtoMessage() {}
+
+func (x *DeleteCertificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteCertificationRequest.ProtoReflect.Descriptor instead.
+func (*DeleteCertificationRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *DeleteCertificationRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteCertificationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`           // 认证 ID
+	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"` // 是否删除成功
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteCertificationResponse) Reset() {
+	*x = DeleteCertificationResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteCertificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteCertificationResponse) ProtoMessage() {}
+
+func (x *DeleteCertificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteCertificationResponse.ProtoReflect.Descriptor instead.
+func (*DeleteCertificationResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *DeleteCertificationResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DeleteCertificationResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type GetCertificationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"` // 待查询的认证 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCertificationRequest) Reset() {
+	*x = GetCertificationRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCertificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCertificationRequest) ProtoMessage() {}
+
+func (x *GetCertificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCertificationRequest.ProtoReflect.Descriptor instead.
+func (*GetCertificationRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetCertificationRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type GetCertificationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Certification *Certification         `protobuf:"bytes,1,opt,name=certification,proto3" json:"certification,omitempty"` // 认证完整信息
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCertificationResponse) Reset() {
+	*x = GetCertificationResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCertificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCertificationResponse) ProtoMessage() {}
+
+func (x *GetCertificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCertificationResponse.ProtoReflect.Descriptor instead.
+func (*GetCertificationResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GetCertificationResponse) GetCertification() *Certification {
+	if x != nil {
+		return x.Certification
+	}
+	return nil
+}
+
+type ListCertificationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`          // 按司机过滤，可选
+	AuditStatus   int32                  `protobuf:"varint,2,opt,name=audit_status,json=auditStatus,proto3" json:"audit_status,omitempty"` // 按审核状态过滤，可选
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`                                  // 页码，默认 1
+	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`          // 每页条数，默认 20，上限 100
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCertificationsRequest) Reset() {
+	*x = ListCertificationsRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCertificationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCertificationsRequest) ProtoMessage() {}
+
+func (x *ListCertificationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCertificationsRequest.ProtoReflect.Descriptor instead.
+func (*ListCertificationsRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ListCertificationsRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *ListCertificationsRequest) GetAuditStatus() int32 {
+	if x != nil {
+		return x.AuditStatus
+	}
+	return 0
+}
+
+func (x *ListCertificationsRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListCertificationsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type CertificationSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                      // 认证 ID
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`          // 所属司机 ID
+	VehicleId     int64                  `protobuf:"varint,3,opt,name=vehicle_id,json=vehicleId,proto3" json:"vehicle_id,omitempty"`       // 关联车辆 ID
+	AuditStatus   int32                  `protobuf:"varint,4,opt,name=audit_status,json=auditStatus,proto3" json:"audit_status,omitempty"` // 审核状态
+	CreatedAt     int64                  `protobuf:"varint,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`       // 创建时间（Unix 秒）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CertificationSummary) Reset() {
+	*x = CertificationSummary{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CertificationSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CertificationSummary) ProtoMessage() {}
+
+func (x *CertificationSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CertificationSummary.ProtoReflect.Descriptor instead.
+func (*CertificationSummary) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *CertificationSummary) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *CertificationSummary) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *CertificationSummary) GetVehicleId() int64 {
+	if x != nil {
+		return x.VehicleId
+	}
+	return 0
+}
+
+func (x *CertificationSummary) GetAuditStatus() int32 {
+	if x != nil {
+		return x.AuditStatus
+	}
+	return 0
+}
+
+func (x *CertificationSummary) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type ListCertificationsResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	List          []*CertificationSummary `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"`                          // 认证摘要列表
+	Total         int64                   `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`                       // 符合条件的总记录数
+	Page          int32                   `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`                         // 当前页码
+	PageSize      int32                   `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 每页条数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCertificationsResponse) Reset() {
+	*x = ListCertificationsResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCertificationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCertificationsResponse) ProtoMessage() {}
+
+func (x *ListCertificationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCertificationsResponse.ProtoReflect.Descriptor instead.
+func (*ListCertificationsResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ListCertificationsResponse) GetList() []*CertificationSummary {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+func (x *ListCertificationsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *ListCertificationsResponse) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListCertificationsResponse) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+// Score 服务分信息，对应 driver_score 表的完整记录。
+type Score struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                                                // 主键 ID
+	DriverId            int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`                                    // 所属司机 ID
+	Score               float64                `protobuf:"fixed64,3,opt,name=score,proto3" json:"score,omitempty"`                                                         // 服务分
+	Level               int32                  `protobuf:"varint,4,opt,name=level,proto3" json:"level,omitempty"`                                                          // 司机等级：1-5
+	MonthOrders         int32                  `protobuf:"varint,5,opt,name=month_orders,json=monthOrders,proto3" json:"month_orders,omitempty"`                           // 当月完单数
+	MonthCancelRate     float64                `protobuf:"fixed64,6,opt,name=month_cancel_rate,json=monthCancelRate,proto3" json:"month_cancel_rate,omitempty"`            // 当月取消率（%）
+	MonthComplaintCount int32                  `protobuf:"varint,7,opt,name=month_complaint_count,json=monthComplaintCount,proto3" json:"month_complaint_count,omitempty"` // 当月投诉数
+	UpdatedAt           int64                  `protobuf:"varint,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                 // 更新时间（Unix 秒）
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *Score) Reset() {
+	*x = Score{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Score) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Score) ProtoMessage() {}
+
+func (x *Score) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Score.ProtoReflect.Descriptor instead.
+func (*Score) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *Score) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Score) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *Score) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *Score) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *Score) GetMonthOrders() int32 {
+	if x != nil {
+		return x.MonthOrders
+	}
+	return 0
+}
+
+func (x *Score) GetMonthCancelRate() float64 {
+	if x != nil {
+		return x.MonthCancelRate
+	}
+	return 0
+}
+
+func (x *Score) GetMonthComplaintCount() int32 {
+	if x != nil {
+		return x.MonthComplaintCount
+	}
+	return 0
+}
+
+func (x *Score) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type CreateScoreRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	DriverId            int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`                                    // 所属司机 ID
+	Score               float64                `protobuf:"fixed64,2,opt,name=score,proto3" json:"score,omitempty"`                                                         // 服务分，默认 100
+	Level               int32                  `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`                                                          // 司机等级，默认 1
+	MonthOrders         int32                  `protobuf:"varint,4,opt,name=month_orders,json=monthOrders,proto3" json:"month_orders,omitempty"`                           // 当月完单数
+	MonthCancelRate     float64                `protobuf:"fixed64,5,opt,name=month_cancel_rate,json=monthCancelRate,proto3" json:"month_cancel_rate,omitempty"`            // 当月取消率（%）
+	MonthComplaintCount int32                  `protobuf:"varint,6,opt,name=month_complaint_count,json=monthComplaintCount,proto3" json:"month_complaint_count,omitempty"` // 当月投诉数
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *CreateScoreRequest) Reset() {
+	*x = CreateScoreRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateScoreRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateScoreRequest) ProtoMessage() {}
+
+func (x *CreateScoreRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateScoreRequest.ProtoReflect.Descriptor instead.
+func (*CreateScoreRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *CreateScoreRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *CreateScoreRequest) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *CreateScoreRequest) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *CreateScoreRequest) GetMonthOrders() int32 {
+	if x != nil {
+		return x.MonthOrders
+	}
+	return 0
+}
+
+func (x *CreateScoreRequest) GetMonthCancelRate() float64 {
+	if x != nil {
+		return x.MonthCancelRate
+	}
+	return 0
+}
+
+func (x *CreateScoreRequest) GetMonthComplaintCount() int32 {
+	if x != nil {
+		return x.MonthComplaintCount
+	}
+	return 0
+}
+
+type CreateScoreResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                             // 新建记录 ID
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"` // 所属司机 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateScoreResponse) Reset() {
+	*x = CreateScoreResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateScoreResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateScoreResponse) ProtoMessage() {}
+
+func (x *CreateScoreResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateScoreResponse.ProtoReflect.Descriptor instead.
+func (*CreateScoreResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *CreateScoreResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *CreateScoreResponse) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type UpdateScoreRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                                                      // 待更新的记录 ID
+	DriverId            *int64                 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3,oneof" json:"driver_id,omitempty"`                                    // 所属司机 ID（可选）
+	Score               *float64               `protobuf:"fixed64,3,opt,name=score,proto3,oneof" json:"score,omitempty"`                                                         // 服务分（可选）
+	Level               *int32                 `protobuf:"varint,4,opt,name=level,proto3,oneof" json:"level,omitempty"`                                                          // 司机等级（可选）
+	MonthOrders         *int32                 `protobuf:"varint,5,opt,name=month_orders,json=monthOrders,proto3,oneof" json:"month_orders,omitempty"`                           // 当月完单数（可选）
+	MonthCancelRate     *float64               `protobuf:"fixed64,6,opt,name=month_cancel_rate,json=monthCancelRate,proto3,oneof" json:"month_cancel_rate,omitempty"`            // 当月取消率（可选）
+	MonthComplaintCount *int32                 `protobuf:"varint,7,opt,name=month_complaint_count,json=monthComplaintCount,proto3,oneof" json:"month_complaint_count,omitempty"` // 当月投诉数（可选）
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *UpdateScoreRequest) Reset() {
+	*x = UpdateScoreRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateScoreRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateScoreRequest) ProtoMessage() {}
+
+func (x *UpdateScoreRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateScoreRequest.ProtoReflect.Descriptor instead.
+func (*UpdateScoreRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *UpdateScoreRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateScoreRequest) GetDriverId() int64 {
+	if x != nil && x.DriverId != nil {
+		return *x.DriverId
+	}
+	return 0
+}
+
+func (x *UpdateScoreRequest) GetScore() float64 {
+	if x != nil && x.Score != nil {
+		return *x.Score
+	}
+	return 0
+}
+
+func (x *UpdateScoreRequest) GetLevel() int32 {
+	if x != nil && x.Level != nil {
+		return *x.Level
+	}
+	return 0
+}
+
+func (x *UpdateScoreRequest) GetMonthOrders() int32 {
+	if x != nil && x.MonthOrders != nil {
+		return *x.MonthOrders
+	}
+	return 0
+}
+
+func (x *UpdateScoreRequest) GetMonthCancelRate() float64 {
+	if x != nil && x.MonthCancelRate != nil {
+		return *x.MonthCancelRate
+	}
+	return 0
+}
+
+func (x *UpdateScoreRequest) GetMonthComplaintCount() int32 {
+	if x != nil && x.MonthComplaintCount != nil {
+		return *x.MonthComplaintCount
+	}
+	return 0
+}
+
+type UpdateScoreResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                // 记录 ID
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`    // 所属司机 ID
+	UpdatedAt     int64                  `protobuf:"varint,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // 更新时间（Unix 秒）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateScoreResponse) Reset() {
+	*x = UpdateScoreResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateScoreResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateScoreResponse) ProtoMessage() {}
+
+func (x *UpdateScoreResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateScoreResponse.ProtoReflect.Descriptor instead.
+func (*UpdateScoreResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *UpdateScoreResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateScoreResponse) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *UpdateScoreResponse) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type DeleteScoreRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"` // 待删除的记录 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteScoreRequest) Reset() {
+	*x = DeleteScoreRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteScoreRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteScoreRequest) ProtoMessage() {}
+
+func (x *DeleteScoreRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteScoreRequest.ProtoReflect.Descriptor instead.
+func (*DeleteScoreRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *DeleteScoreRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteScoreResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`           // 记录 ID
+	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"` // 是否删除成功
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteScoreResponse) Reset() {
+	*x = DeleteScoreResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteScoreResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteScoreResponse) ProtoMessage() {}
+
+func (x *DeleteScoreResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteScoreResponse.ProtoReflect.Descriptor instead.
+func (*DeleteScoreResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *DeleteScoreResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DeleteScoreResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type GetScoreRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"` // 待查询的记录 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScoreRequest) Reset() {
+	*x = GetScoreRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScoreRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScoreRequest) ProtoMessage() {}
+
+func (x *GetScoreRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScoreRequest.ProtoReflect.Descriptor instead.
+func (*GetScoreRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *GetScoreRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type GetScoreResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Score         *Score                 `protobuf:"bytes,1,opt,name=score,proto3" json:"score,omitempty"` // 服务分完整信息
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScoreResponse) Reset() {
+	*x = GetScoreResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScoreResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScoreResponse) ProtoMessage() {}
+
+func (x *GetScoreResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScoreResponse.ProtoReflect.Descriptor instead.
+func (*GetScoreResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GetScoreResponse) GetScore() *Score {
+	if x != nil {
+		return x.Score
+	}
+	return nil
+}
+
+type ListScoresRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"` // 按司机过滤，可选
+	Page          int32                  `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`                         // 页码，默认 1
+	PageSize      int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 每页条数，默认 20，上限 100
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListScoresRequest) Reset() {
+	*x = ListScoresRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListScoresRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListScoresRequest) ProtoMessage() {}
+
+func (x *ListScoresRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListScoresRequest.ProtoReflect.Descriptor instead.
+func (*ListScoresRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ListScoresRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *ListScoresRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListScoresRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ScoreSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                      // 记录 ID
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`          // 所属司机 ID
+	Score         float64                `protobuf:"fixed64,3,opt,name=score,proto3" json:"score,omitempty"`                               // 服务分
+	Level         int32                  `protobuf:"varint,4,opt,name=level,proto3" json:"level,omitempty"`                                // 司机等级
+	MonthOrders   int32                  `protobuf:"varint,5,opt,name=month_orders,json=monthOrders,proto3" json:"month_orders,omitempty"` // 当月完单数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScoreSummary) Reset() {
+	*x = ScoreSummary{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoreSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoreSummary) ProtoMessage() {}
+
+func (x *ScoreSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScoreSummary.ProtoReflect.Descriptor instead.
+func (*ScoreSummary) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ScoreSummary) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *ScoreSummary) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *ScoreSummary) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *ScoreSummary) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *ScoreSummary) GetMonthOrders() int32 {
+	if x != nil {
+		return x.MonthOrders
+	}
+	return 0
+}
+
+type ListScoresResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          []*ScoreSummary        `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"`                          // 服务分摘要列表
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`                       // 符合条件的总记录数
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`                         // 当前页码
+	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 每页条数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListScoresResponse) Reset() {
+	*x = ListScoresResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListScoresResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListScoresResponse) ProtoMessage() {}
+
+func (x *ListScoresResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListScoresResponse.ProtoReflect.Descriptor instead.
+func (*ListScoresResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *ListScoresResponse) GetList() []*ScoreSummary {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+func (x *ListScoresResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *ListScoresResponse) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListScoresResponse) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+// Withdraw 提现信息，对应 driver_withdraw 表的完整记录。
+type Withdraw struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                  // 提现 ID
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`      // 所属司机 ID
+	WithdrawNo    string                 `protobuf:"bytes,3,opt,name=withdraw_no,json=withdrawNo,proto3" json:"withdraw_no,omitempty"` // 提现单号
+	Amount        float64                `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`                         // 提现金额
+	PayeeName     string                 `protobuf:"bytes,5,opt,name=payee_name,json=payeeName,proto3" json:"payee_name,omitempty"`    // 收款人姓名
+	PayAccount    string                 `protobuf:"bytes,6,opt,name=pay_account,json=payAccount,proto3" json:"pay_account,omitempty"` // 收款账号
+	Status        int32                  `protobuf:"varint,7,opt,name=status,proto3" json:"status,omitempty"`                          // 状态：1申请中 2打款成功 3打款失败
+	Remark        string                 `protobuf:"bytes,8,opt,name=remark,proto3" json:"remark,omitempty"`                           // 失败原因/备注
+	AppliedAt     int64                  `protobuf:"varint,9,opt,name=applied_at,json=appliedAt,proto3" json:"applied_at,omitempty"`   // 申请时间（Unix 秒）
+	PaidAt        int64                  `protobuf:"varint,10,opt,name=paid_at,json=paidAt,proto3" json:"paid_at,omitempty"`           // 打款时间（Unix 秒）
+	CreatedAt     int64                  `protobuf:"varint,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`  // 创建时间（Unix 秒）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Withdraw) Reset() {
+	*x = Withdraw{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Withdraw) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Withdraw) ProtoMessage() {}
+
+func (x *Withdraw) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Withdraw.ProtoReflect.Descriptor instead.
+func (*Withdraw) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *Withdraw) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Withdraw) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *Withdraw) GetWithdrawNo() string {
+	if x != nil {
+		return x.WithdrawNo
+	}
+	return ""
+}
+
+func (x *Withdraw) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *Withdraw) GetPayeeName() string {
+	if x != nil {
+		return x.PayeeName
+	}
+	return ""
+}
+
+func (x *Withdraw) GetPayAccount() string {
+	if x != nil {
+		return x.PayAccount
+	}
+	return ""
+}
+
+func (x *Withdraw) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *Withdraw) GetRemark() string {
+	if x != nil {
+		return x.Remark
+	}
+	return ""
+}
+
+func (x *Withdraw) GetAppliedAt() int64 {
+	if x != nil {
+		return x.AppliedAt
+	}
+	return 0
+}
+
+func (x *Withdraw) GetPaidAt() int64 {
+	if x != nil {
+		return x.PaidAt
+	}
+	return 0
+}
+
+func (x *Withdraw) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type CreateWithdrawRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`      // 所属司机 ID
+	WithdrawNo    string                 `protobuf:"bytes,2,opt,name=withdraw_no,json=withdrawNo,proto3" json:"withdraw_no,omitempty"` // 提现单号
+	Amount        float64                `protobuf:"fixed64,3,opt,name=amount,proto3" json:"amount,omitempty"`                         // 提现金额
+	PayeeName     string                 `protobuf:"bytes,4,opt,name=payee_name,json=payeeName,proto3" json:"payee_name,omitempty"`    // 收款人姓名
+	PayAccount    string                 `protobuf:"bytes,5,opt,name=pay_account,json=payAccount,proto3" json:"pay_account,omitempty"` // 收款账号
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWithdrawRequest) Reset() {
+	*x = CreateWithdrawRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWithdrawRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWithdrawRequest) ProtoMessage() {}
+
+func (x *CreateWithdrawRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWithdrawRequest.ProtoReflect.Descriptor instead.
+func (*CreateWithdrawRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *CreateWithdrawRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *CreateWithdrawRequest) GetWithdrawNo() string {
+	if x != nil {
+		return x.WithdrawNo
+	}
+	return ""
+}
+
+func (x *CreateWithdrawRequest) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *CreateWithdrawRequest) GetPayeeName() string {
+	if x != nil {
+		return x.PayeeName
+	}
+	return ""
+}
+
+func (x *CreateWithdrawRequest) GetPayAccount() string {
+	if x != nil {
+		return x.PayAccount
+	}
+	return ""
+}
+
+type CreateWithdrawResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                  // 新建提现 ID
+	WithdrawNo    string                 `protobuf:"bytes,2,opt,name=withdraw_no,json=withdrawNo,proto3" json:"withdraw_no,omitempty"` // 提现单号
+	Status        int32                  `protobuf:"varint,3,opt,name=status,proto3" json:"status,omitempty"`                          // 初始状态（申请中）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWithdrawResponse) Reset() {
+	*x = CreateWithdrawResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWithdrawResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWithdrawResponse) ProtoMessage() {}
+
+func (x *CreateWithdrawResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWithdrawResponse.ProtoReflect.Descriptor instead.
+func (*CreateWithdrawResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *CreateWithdrawResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *CreateWithdrawResponse) GetWithdrawNo() string {
+	if x != nil {
+		return x.WithdrawNo
+	}
+	return ""
+}
+
+func (x *CreateWithdrawResponse) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+type UpdateWithdrawRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                        // 待更新的提现 ID
+	DriverId      *int64                 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3,oneof" json:"driver_id,omitempty"`      // 所属司机 ID（可选）
+	WithdrawNo    *string                `protobuf:"bytes,3,opt,name=withdraw_no,json=withdrawNo,proto3,oneof" json:"withdraw_no,omitempty"` // 提现单号（可选）
+	Amount        *float64               `protobuf:"fixed64,4,opt,name=amount,proto3,oneof" json:"amount,omitempty"`                         // 提现金额（可选）
+	PayeeName     *string                `protobuf:"bytes,5,opt,name=payee_name,json=payeeName,proto3,oneof" json:"payee_name,omitempty"`    // 收款人姓名（可选）
+	PayAccount    *string                `protobuf:"bytes,6,opt,name=pay_account,json=payAccount,proto3,oneof" json:"pay_account,omitempty"` // 收款账号（可选）
+	Status        *int32                 `protobuf:"varint,7,opt,name=status,proto3,oneof" json:"status,omitempty"`                          // 状态（可选）
+	Remark        *string                `protobuf:"bytes,8,opt,name=remark,proto3,oneof" json:"remark,omitempty"`                           // 失败原因/备注（可选）
+	AppliedAt     *int64                 `protobuf:"varint,9,opt,name=applied_at,json=appliedAt,proto3,oneof" json:"applied_at,omitempty"`   // 申请时间（可选）
+	PaidAt        *int64                 `protobuf:"varint,10,opt,name=paid_at,json=paidAt,proto3,oneof" json:"paid_at,omitempty"`           // 打款时间（可选）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWithdrawRequest) Reset() {
+	*x = UpdateWithdrawRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWithdrawRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWithdrawRequest) ProtoMessage() {}
+
+func (x *UpdateWithdrawRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWithdrawRequest.ProtoReflect.Descriptor instead.
+func (*UpdateWithdrawRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *UpdateWithdrawRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateWithdrawRequest) GetDriverId() int64 {
+	if x != nil && x.DriverId != nil {
+		return *x.DriverId
+	}
+	return 0
+}
+
+func (x *UpdateWithdrawRequest) GetWithdrawNo() string {
+	if x != nil && x.WithdrawNo != nil {
+		return *x.WithdrawNo
+	}
+	return ""
+}
+
+func (x *UpdateWithdrawRequest) GetAmount() float64 {
+	if x != nil && x.Amount != nil {
+		return *x.Amount
+	}
+	return 0
+}
+
+func (x *UpdateWithdrawRequest) GetPayeeName() string {
+	if x != nil && x.PayeeName != nil {
+		return *x.PayeeName
+	}
+	return ""
+}
+
+func (x *UpdateWithdrawRequest) GetPayAccount() string {
+	if x != nil && x.PayAccount != nil {
+		return *x.PayAccount
+	}
+	return ""
+}
+
+func (x *UpdateWithdrawRequest) GetStatus() int32 {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return 0
+}
+
+func (x *UpdateWithdrawRequest) GetRemark() string {
+	if x != nil && x.Remark != nil {
+		return *x.Remark
+	}
+	return ""
+}
+
+func (x *UpdateWithdrawRequest) GetAppliedAt() int64 {
+	if x != nil && x.AppliedAt != nil {
+		return *x.AppliedAt
+	}
+	return 0
+}
+
+func (x *UpdateWithdrawRequest) GetPaidAt() int64 {
+	if x != nil && x.PaidAt != nil {
+		return *x.PaidAt
+	}
+	return 0
+}
+
+type UpdateWithdrawResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`         // 提现 ID
+	Status        int32                  `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"` // 更新后的状态
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWithdrawResponse) Reset() {
+	*x = UpdateWithdrawResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWithdrawResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWithdrawResponse) ProtoMessage() {}
+
+func (x *UpdateWithdrawResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWithdrawResponse.ProtoReflect.Descriptor instead.
+func (*UpdateWithdrawResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *UpdateWithdrawResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateWithdrawResponse) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+type DeleteWithdrawRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"` // 待删除的提现 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteWithdrawRequest) Reset() {
+	*x = DeleteWithdrawRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteWithdrawRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteWithdrawRequest) ProtoMessage() {}
+
+func (x *DeleteWithdrawRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteWithdrawRequest.ProtoReflect.Descriptor instead.
+func (*DeleteWithdrawRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *DeleteWithdrawRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteWithdrawResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`           // 提现 ID
+	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"` // 是否删除成功
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteWithdrawResponse) Reset() {
+	*x = DeleteWithdrawResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteWithdrawResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteWithdrawResponse) ProtoMessage() {}
+
+func (x *DeleteWithdrawResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteWithdrawResponse.ProtoReflect.Descriptor instead.
+func (*DeleteWithdrawResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *DeleteWithdrawResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DeleteWithdrawResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type GetWithdrawRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"` // 待查询的提现 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWithdrawRequest) Reset() {
+	*x = GetWithdrawRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWithdrawRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWithdrawRequest) ProtoMessage() {}
+
+func (x *GetWithdrawRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWithdrawRequest.ProtoReflect.Descriptor instead.
+func (*GetWithdrawRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *GetWithdrawRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type GetWithdrawResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Withdraw      *Withdraw              `protobuf:"bytes,1,opt,name=withdraw,proto3" json:"withdraw,omitempty"` // 提现完整信息
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWithdrawResponse) Reset() {
+	*x = GetWithdrawResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWithdrawResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWithdrawResponse) ProtoMessage() {}
+
+func (x *GetWithdrawResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWithdrawResponse.ProtoReflect.Descriptor instead.
+func (*GetWithdrawResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *GetWithdrawResponse) GetWithdraw() *Withdraw {
+	if x != nil {
+		return x.Withdraw
+	}
+	return nil
+}
+
+type ListWithdrawsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"` // 按司机过滤，可选
+	Status        int32                  `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"`                     // 按状态过滤，可选
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`                         // 页码，默认 1
+	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 每页条数，默认 20，上限 100
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWithdrawsRequest) Reset() {
+	*x = ListWithdrawsRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWithdrawsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWithdrawsRequest) ProtoMessage() {}
+
+func (x *ListWithdrawsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWithdrawsRequest.ProtoReflect.Descriptor instead.
+func (*ListWithdrawsRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *ListWithdrawsRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *ListWithdrawsRequest) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *ListWithdrawsRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListWithdrawsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type WithdrawSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                  // 提现 ID
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`      // 所属司机 ID
+	WithdrawNo    string                 `protobuf:"bytes,3,opt,name=withdraw_no,json=withdrawNo,proto3" json:"withdraw_no,omitempty"` // 提现单号
+	Amount        float64                `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`                         // 提现金额
+	Status        int32                  `protobuf:"varint,5,opt,name=status,proto3" json:"status,omitempty"`                          // 状态
+	AppliedAt     int64                  `protobuf:"varint,6,opt,name=applied_at,json=appliedAt,proto3" json:"applied_at,omitempty"`   // 申请时间（Unix 秒）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WithdrawSummary) Reset() {
+	*x = WithdrawSummary{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WithdrawSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WithdrawSummary) ProtoMessage() {}
+
+func (x *WithdrawSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WithdrawSummary.ProtoReflect.Descriptor instead.
+func (*WithdrawSummary) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *WithdrawSummary) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *WithdrawSummary) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *WithdrawSummary) GetWithdrawNo() string {
+	if x != nil {
+		return x.WithdrawNo
+	}
+	return ""
+}
+
+func (x *WithdrawSummary) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *WithdrawSummary) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *WithdrawSummary) GetAppliedAt() int64 {
+	if x != nil {
+		return x.AppliedAt
+	}
+	return 0
+}
+
+type ListWithdrawsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          []*WithdrawSummary     `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"`                          // 提现摘要列表
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`                       // 符合条件的总记录数
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`                         // 当前页码
+	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 每页条数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWithdrawsResponse) Reset() {
+	*x = ListWithdrawsResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWithdrawsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWithdrawsResponse) ProtoMessage() {}
+
+func (x *ListWithdrawsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWithdrawsResponse.ProtoReflect.Descriptor instead.
+func (*ListWithdrawsResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *ListWithdrawsResponse) GetList() []*WithdrawSummary {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+func (x *ListWithdrawsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *ListWithdrawsResponse) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListWithdrawsResponse) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
 var File_rpc_driversvc_proto_driversvc_proto protoreflect.FileDescriptor
 
 const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
@@ -1092,20 +4448,371 @@ const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
 	"\aRequest\x12\x12\n" +
 	"\x04ping\x18\x01 \x01(\tR\x04ping\"\x1e\n" +
 	"\bResponse\x12\x12\n" +
-	"\x04pong\x18\x01 \x01(\tR\x04pong*\x99\x01\n" +
+	"\x04pong\x18\x01 \x01(\tR\x04pong\"\x8c\x03\n" +
+	"\aVehicle\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x19\n" +
+	"\bplate_no\x18\x03 \x01(\tR\aplateNo\x12\x14\n" +
+	"\x05brand\x18\x04 \x01(\tR\x05brand\x12\x14\n" +
+	"\x05model\x18\x05 \x01(\tR\x05model\x12\x14\n" +
+	"\x05color\x18\x06 \x01(\tR\x05color\x12!\n" +
+	"\fvehicle_type\x18\a \x01(\x05R\vvehicleType\x12+\n" +
+	"\x11registration_date\x18\b \x01(\tR\x10registrationDate\x12!\n" +
+	"\finsurance_no\x18\t \x01(\tR\vinsuranceNo\x12.\n" +
+	"\x13insurance_expire_at\x18\n" +
+	" \x01(\tR\x11insuranceExpireAt\x12\x16\n" +
+	"\x06status\x18\v \x01(\x05R\x06status\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\r \x01(\x03R\tupdatedAt\"\xb3\x02\n" +
+	"\x14CreateVehicleRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x19\n" +
+	"\bplate_no\x18\x02 \x01(\tR\aplateNo\x12\x14\n" +
+	"\x05brand\x18\x03 \x01(\tR\x05brand\x12\x14\n" +
+	"\x05model\x18\x04 \x01(\tR\x05model\x12\x14\n" +
+	"\x05color\x18\x05 \x01(\tR\x05color\x12!\n" +
+	"\fvehicle_type\x18\x06 \x01(\x05R\vvehicleType\x12+\n" +
+	"\x11registration_date\x18\a \x01(\tR\x10registrationDate\x12!\n" +
+	"\finsurance_no\x18\b \x01(\tR\vinsuranceNo\x12.\n" +
+	"\x13insurance_expire_at\x18\t \x01(\tR\x11insuranceExpireAt\"?\n" +
+	"\x15CreateVehicleResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\x05R\x06status\"\xa1\x04\n" +
+	"\x14UpdateVehicleRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12 \n" +
+	"\tdriver_id\x18\x02 \x01(\x03H\x00R\bdriverId\x88\x01\x01\x12\x1e\n" +
+	"\bplate_no\x18\x03 \x01(\tH\x01R\aplateNo\x88\x01\x01\x12\x19\n" +
+	"\x05brand\x18\x04 \x01(\tH\x02R\x05brand\x88\x01\x01\x12\x19\n" +
+	"\x05model\x18\x05 \x01(\tH\x03R\x05model\x88\x01\x01\x12\x19\n" +
+	"\x05color\x18\x06 \x01(\tH\x04R\x05color\x88\x01\x01\x12&\n" +
+	"\fvehicle_type\x18\a \x01(\x05H\x05R\vvehicleType\x88\x01\x01\x120\n" +
+	"\x11registration_date\x18\b \x01(\tH\x06R\x10registrationDate\x88\x01\x01\x12&\n" +
+	"\finsurance_no\x18\t \x01(\tH\aR\vinsuranceNo\x88\x01\x01\x123\n" +
+	"\x13insurance_expire_at\x18\n" +
+	" \x01(\tH\bR\x11insuranceExpireAt\x88\x01\x01\x12\x1b\n" +
+	"\x06status\x18\v \x01(\x05H\tR\x06status\x88\x01\x01B\f\n" +
+	"\n" +
+	"_driver_idB\v\n" +
+	"\t_plate_noB\b\n" +
+	"\x06_brandB\b\n" +
+	"\x06_modelB\b\n" +
+	"\x06_colorB\x0f\n" +
+	"\r_vehicle_typeB\x14\n" +
+	"\x12_registration_dateB\x0f\n" +
+	"\r_insurance_noB\x16\n" +
+	"\x14_insurance_expire_atB\t\n" +
+	"\a_status\"^\n" +
+	"\x15UpdateVehicleResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\x05R\x06status\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\x03R\tupdatedAt\"&\n" +
+	"\x14DeleteVehicleRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"A\n" +
+	"\x15DeleteVehicleResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\"#\n" +
+	"\x11GetVehicleRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"B\n" +
+	"\x12GetVehicleResponse\x12,\n" +
+	"\avehicle\x18\x01 \x01(\v2\x12.driversvc.VehicleR\avehicle\"{\n" +
+	"\x13ListVehiclesRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\x05R\x06status\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\"\xa9\x01\n" +
+	"\x0eVehicleSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x19\n" +
+	"\bplate_no\x18\x03 \x01(\tR\aplateNo\x12\x14\n" +
+	"\x05brand\x18\x04 \x01(\tR\x05brand\x12!\n" +
+	"\fvehicle_type\x18\x05 \x01(\x05R\vvehicleType\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\x05R\x06status\"\x8c\x01\n" +
+	"\x14ListVehiclesResponse\x12-\n" +
+	"\x04list\x18\x01 \x03(\v2\x19.driversvc.VehicleSummaryR\x04list\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\"\xcf\x03\n" +
+	"\rCertification\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x1d\n" +
+	"\n" +
+	"vehicle_id\x18\x03 \x01(\x03R\tvehicleId\x12)\n" +
+	"\x11id_card_front_url\x18\x04 \x01(\tR\x0eidCardFrontUrl\x12'\n" +
+	"\x10id_card_back_url\x18\x05 \x01(\tR\ridCardBackUrl\x12,\n" +
+	"\x12driver_license_url\x18\x06 \x01(\tR\x10driverLicenseUrl\x12.\n" +
+	"\x13vehicle_license_url\x18\a \x01(\tR\x11vehicleLicenseUrl\x12!\n" +
+	"\faudit_status\x18\b \x01(\x05R\vauditStatus\x12!\n" +
+	"\faudit_remark\x18\t \x01(\tR\vauditRemark\x12\x1d\n" +
+	"\n" +
+	"audited_by\x18\n" +
+	" \x01(\x03R\tauditedBy\x12\x1d\n" +
+	"\n" +
+	"audited_at\x18\v \x01(\x03R\tauditedAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\r \x01(\x03R\tupdatedAt\"\x8a\x02\n" +
+	"\x1aCreateCertificationRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x1d\n" +
+	"\n" +
+	"vehicle_id\x18\x02 \x01(\x03R\tvehicleId\x12)\n" +
+	"\x11id_card_front_url\x18\x03 \x01(\tR\x0eidCardFrontUrl\x12'\n" +
+	"\x10id_card_back_url\x18\x04 \x01(\tR\ridCardBackUrl\x12,\n" +
+	"\x12driver_license_url\x18\x05 \x01(\tR\x10driverLicenseUrl\x12.\n" +
+	"\x13vehicle_license_url\x18\x06 \x01(\tR\x11vehicleLicenseUrl\"P\n" +
+	"\x1bCreateCertificationResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
+	"\faudit_status\x18\x02 \x01(\x05R\vauditStatus\"\x87\x05\n" +
+	"\x1aUpdateCertificationRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12 \n" +
+	"\tdriver_id\x18\x02 \x01(\x03H\x00R\bdriverId\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"vehicle_id\x18\x03 \x01(\x03H\x01R\tvehicleId\x88\x01\x01\x12.\n" +
+	"\x11id_card_front_url\x18\x04 \x01(\tH\x02R\x0eidCardFrontUrl\x88\x01\x01\x12,\n" +
+	"\x10id_card_back_url\x18\x05 \x01(\tH\x03R\ridCardBackUrl\x88\x01\x01\x121\n" +
+	"\x12driver_license_url\x18\x06 \x01(\tH\x04R\x10driverLicenseUrl\x88\x01\x01\x123\n" +
+	"\x13vehicle_license_url\x18\a \x01(\tH\x05R\x11vehicleLicenseUrl\x88\x01\x01\x12&\n" +
+	"\faudit_status\x18\b \x01(\x05H\x06R\vauditStatus\x88\x01\x01\x12&\n" +
+	"\faudit_remark\x18\t \x01(\tH\aR\vauditRemark\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"audited_by\x18\n" +
+	" \x01(\x03H\bR\tauditedBy\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"audited_at\x18\v \x01(\x03H\tR\tauditedAt\x88\x01\x01B\f\n" +
+	"\n" +
+	"_driver_idB\r\n" +
+	"\v_vehicle_idB\x14\n" +
+	"\x12_id_card_front_urlB\x13\n" +
+	"\x11_id_card_back_urlB\x15\n" +
+	"\x13_driver_license_urlB\x16\n" +
+	"\x14_vehicle_license_urlB\x0f\n" +
+	"\r_audit_statusB\x0f\n" +
+	"\r_audit_remarkB\r\n" +
+	"\v_audited_byB\r\n" +
+	"\v_audited_at\"o\n" +
+	"\x1bUpdateCertificationResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
+	"\faudit_status\x18\x02 \x01(\x05R\vauditStatus\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\x03R\tupdatedAt\",\n" +
+	"\x1aDeleteCertificationRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"G\n" +
+	"\x1bDeleteCertificationResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\")\n" +
+	"\x17GetCertificationRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"Z\n" +
+	"\x18GetCertificationResponse\x12>\n" +
+	"\rcertification\x18\x01 \x01(\v2\x18.driversvc.CertificationR\rcertification\"\x8c\x01\n" +
+	"\x19ListCertificationsRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12!\n" +
+	"\faudit_status\x18\x02 \x01(\x05R\vauditStatus\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\"\xa4\x01\n" +
+	"\x14CertificationSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x1d\n" +
+	"\n" +
+	"vehicle_id\x18\x03 \x01(\x03R\tvehicleId\x12!\n" +
+	"\faudit_status\x18\x04 \x01(\x05R\vauditStatus\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\x03R\tcreatedAt\"\x98\x01\n" +
+	"\x1aListCertificationsResponse\x123\n" +
+	"\x04list\x18\x01 \x03(\v2\x1f.driversvc.CertificationSummaryR\x04list\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\"\x82\x02\n" +
+	"\x05Score\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x14\n" +
+	"\x05score\x18\x03 \x01(\x01R\x05score\x12\x14\n" +
+	"\x05level\x18\x04 \x01(\x05R\x05level\x12!\n" +
+	"\fmonth_orders\x18\x05 \x01(\x05R\vmonthOrders\x12*\n" +
+	"\x11month_cancel_rate\x18\x06 \x01(\x01R\x0fmonthCancelRate\x122\n" +
+	"\x15month_complaint_count\x18\a \x01(\x05R\x13monthComplaintCount\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\b \x01(\x03R\tupdatedAt\"\xe0\x01\n" +
+	"\x12CreateScoreRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x14\n" +
+	"\x05score\x18\x02 \x01(\x01R\x05score\x12\x14\n" +
+	"\x05level\x18\x03 \x01(\x05R\x05level\x12!\n" +
+	"\fmonth_orders\x18\x04 \x01(\x05R\vmonthOrders\x12*\n" +
+	"\x11month_cancel_rate\x18\x05 \x01(\x01R\x0fmonthCancelRate\x122\n" +
+	"\x15month_complaint_count\x18\x06 \x01(\x05R\x13monthComplaintCount\"B\n" +
+	"\x13CreateScoreResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\"\xf1\x02\n" +
+	"\x12UpdateScoreRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12 \n" +
+	"\tdriver_id\x18\x02 \x01(\x03H\x00R\bdriverId\x88\x01\x01\x12\x19\n" +
+	"\x05score\x18\x03 \x01(\x01H\x01R\x05score\x88\x01\x01\x12\x19\n" +
+	"\x05level\x18\x04 \x01(\x05H\x02R\x05level\x88\x01\x01\x12&\n" +
+	"\fmonth_orders\x18\x05 \x01(\x05H\x03R\vmonthOrders\x88\x01\x01\x12/\n" +
+	"\x11month_cancel_rate\x18\x06 \x01(\x01H\x04R\x0fmonthCancelRate\x88\x01\x01\x127\n" +
+	"\x15month_complaint_count\x18\a \x01(\x05H\x05R\x13monthComplaintCount\x88\x01\x01B\f\n" +
+	"\n" +
+	"_driver_idB\b\n" +
+	"\x06_scoreB\b\n" +
+	"\x06_levelB\x0f\n" +
+	"\r_month_ordersB\x14\n" +
+	"\x12_month_cancel_rateB\x18\n" +
+	"\x16_month_complaint_count\"a\n" +
+	"\x13UpdateScoreResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\x03R\tupdatedAt\"$\n" +
+	"\x12DeleteScoreRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"?\n" +
+	"\x13DeleteScoreResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\"!\n" +
+	"\x0fGetScoreRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\":\n" +
+	"\x10GetScoreResponse\x12&\n" +
+	"\x05score\x18\x01 \x01(\v2\x10.driversvc.ScoreR\x05score\"a\n" +
+	"\x11ListScoresRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"\x8a\x01\n" +
+	"\fScoreSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x14\n" +
+	"\x05score\x18\x03 \x01(\x01R\x05score\x12\x14\n" +
+	"\x05level\x18\x04 \x01(\x05R\x05level\x12!\n" +
+	"\fmonth_orders\x18\x05 \x01(\x05R\vmonthOrders\"\x88\x01\n" +
+	"\x12ListScoresResponse\x12+\n" +
+	"\x04list\x18\x01 \x03(\v2\x17.driversvc.ScoreSummaryR\x04list\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\"\xb7\x02\n" +
+	"\bWithdraw\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x1f\n" +
+	"\vwithdraw_no\x18\x03 \x01(\tR\n" +
+	"withdrawNo\x12\x16\n" +
+	"\x06amount\x18\x04 \x01(\x01R\x06amount\x12\x1d\n" +
+	"\n" +
+	"payee_name\x18\x05 \x01(\tR\tpayeeName\x12\x1f\n" +
+	"\vpay_account\x18\x06 \x01(\tR\n" +
+	"payAccount\x12\x16\n" +
+	"\x06status\x18\a \x01(\x05R\x06status\x12\x16\n" +
+	"\x06remark\x18\b \x01(\tR\x06remark\x12\x1d\n" +
+	"\n" +
+	"applied_at\x18\t \x01(\x03R\tappliedAt\x12\x17\n" +
+	"\apaid_at\x18\n" +
+	" \x01(\x03R\x06paidAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\v \x01(\x03R\tcreatedAt\"\xad\x01\n" +
+	"\x15CreateWithdrawRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x1f\n" +
+	"\vwithdraw_no\x18\x02 \x01(\tR\n" +
+	"withdrawNo\x12\x16\n" +
+	"\x06amount\x18\x03 \x01(\x01R\x06amount\x12\x1d\n" +
+	"\n" +
+	"payee_name\x18\x04 \x01(\tR\tpayeeName\x12\x1f\n" +
+	"\vpay_account\x18\x05 \x01(\tR\n" +
+	"payAccount\"a\n" +
+	"\x16CreateWithdrawResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vwithdraw_no\x18\x02 \x01(\tR\n" +
+	"withdrawNo\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\x05R\x06status\"\xcb\x03\n" +
+	"\x15UpdateWithdrawRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12 \n" +
+	"\tdriver_id\x18\x02 \x01(\x03H\x00R\bdriverId\x88\x01\x01\x12$\n" +
+	"\vwithdraw_no\x18\x03 \x01(\tH\x01R\n" +
+	"withdrawNo\x88\x01\x01\x12\x1b\n" +
+	"\x06amount\x18\x04 \x01(\x01H\x02R\x06amount\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"payee_name\x18\x05 \x01(\tH\x03R\tpayeeName\x88\x01\x01\x12$\n" +
+	"\vpay_account\x18\x06 \x01(\tH\x04R\n" +
+	"payAccount\x88\x01\x01\x12\x1b\n" +
+	"\x06status\x18\a \x01(\x05H\x05R\x06status\x88\x01\x01\x12\x1b\n" +
+	"\x06remark\x18\b \x01(\tH\x06R\x06remark\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"applied_at\x18\t \x01(\x03H\aR\tappliedAt\x88\x01\x01\x12\x1c\n" +
+	"\apaid_at\x18\n" +
+	" \x01(\x03H\bR\x06paidAt\x88\x01\x01B\f\n" +
+	"\n" +
+	"_driver_idB\x0e\n" +
+	"\f_withdraw_noB\t\n" +
+	"\a_amountB\r\n" +
+	"\v_payee_nameB\x0e\n" +
+	"\f_pay_accountB\t\n" +
+	"\a_statusB\t\n" +
+	"\a_remarkB\r\n" +
+	"\v_applied_atB\n" +
+	"\n" +
+	"\b_paid_at\"@\n" +
+	"\x16UpdateWithdrawResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\x05R\x06status\"'\n" +
+	"\x15DeleteWithdrawRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"B\n" +
+	"\x16DeleteWithdrawResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\"$\n" +
+	"\x12GetWithdrawRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"F\n" +
+	"\x13GetWithdrawResponse\x12/\n" +
+	"\bwithdraw\x18\x01 \x01(\v2\x13.driversvc.WithdrawR\bwithdraw\"|\n" +
+	"\x14ListWithdrawsRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\x05R\x06status\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\"\xae\x01\n" +
+	"\x0fWithdrawSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12\x1f\n" +
+	"\vwithdraw_no\x18\x03 \x01(\tR\n" +
+	"withdrawNo\x12\x16\n" +
+	"\x06amount\x18\x04 \x01(\x01R\x06amount\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\x05R\x06status\x12\x1d\n" +
+	"\n" +
+	"applied_at\x18\x06 \x01(\x03R\tappliedAt\"\x8e\x01\n" +
+	"\x15ListWithdrawsResponse\x12.\n" +
+	"\x04list\x18\x01 \x03(\v2\x1a.driversvc.WithdrawSummaryR\x04list\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\x05R\bpageSize*\x99\x01\n" +
 	"\fDriverStatus\x12\x1d\n" +
 	"\x19DRIVER_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15DRIVER_STATUS_PENDING\x10\x01\x12\x18\n" +
 	"\x14DRIVER_STATUS_NORMAL\x10\x02\x12\x18\n" +
 	"\x14DRIVER_STATUS_FROZEN\x10\x03\x12\x1b\n" +
-	"\x17DRIVER_STATUS_CANCELLED\x10\x042\xc5\x03\n" +
+	"\x17DRIVER_STATUS_CANCELLED\x10\x042\xf0\x10\n" +
 	"\tDriversvc\x12/\n" +
 	"\x04Ping\x12\x12.driversvc.Request\x1a\x13.driversvc.Response\x12O\n" +
 	"\fCreateDriver\x12\x1e.driversvc.CreateDriverRequest\x1a\x1f.driversvc.CreateDriverResponse\x12O\n" +
 	"\fUpdateDriver\x12\x1e.driversvc.UpdateDriverRequest\x1a\x1f.driversvc.UpdateDriverResponse\x12O\n" +
 	"\fDeleteDriver\x12\x1e.driversvc.DeleteDriverRequest\x1a\x1f.driversvc.DeleteDriverResponse\x12F\n" +
 	"\tGetDriver\x12\x1b.driversvc.GetDriverRequest\x1a\x1c.driversvc.GetDriverResponse\x12L\n" +
-	"\vListDrivers\x12\x1d.driversvc.ListDriversRequest\x1a\x1e.driversvc.ListDriversResponseB\n" +
+	"\vListDrivers\x12\x1d.driversvc.ListDriversRequest\x1a\x1e.driversvc.ListDriversResponse\x12R\n" +
+	"\rCreateVehicle\x12\x1f.driversvc.CreateVehicleRequest\x1a .driversvc.CreateVehicleResponse\x12R\n" +
+	"\rUpdateVehicle\x12\x1f.driversvc.UpdateVehicleRequest\x1a .driversvc.UpdateVehicleResponse\x12R\n" +
+	"\rDeleteVehicle\x12\x1f.driversvc.DeleteVehicleRequest\x1a .driversvc.DeleteVehicleResponse\x12I\n" +
+	"\n" +
+	"GetVehicle\x12\x1c.driversvc.GetVehicleRequest\x1a\x1d.driversvc.GetVehicleResponse\x12O\n" +
+	"\fListVehicles\x12\x1e.driversvc.ListVehiclesRequest\x1a\x1f.driversvc.ListVehiclesResponse\x12d\n" +
+	"\x13CreateCertification\x12%.driversvc.CreateCertificationRequest\x1a&.driversvc.CreateCertificationResponse\x12d\n" +
+	"\x13UpdateCertification\x12%.driversvc.UpdateCertificationRequest\x1a&.driversvc.UpdateCertificationResponse\x12d\n" +
+	"\x13DeleteCertification\x12%.driversvc.DeleteCertificationRequest\x1a&.driversvc.DeleteCertificationResponse\x12[\n" +
+	"\x10GetCertification\x12\".driversvc.GetCertificationRequest\x1a#.driversvc.GetCertificationResponse\x12a\n" +
+	"\x12ListCertifications\x12$.driversvc.ListCertificationsRequest\x1a%.driversvc.ListCertificationsResponse\x12L\n" +
+	"\vCreateScore\x12\x1d.driversvc.CreateScoreRequest\x1a\x1e.driversvc.CreateScoreResponse\x12L\n" +
+	"\vUpdateScore\x12\x1d.driversvc.UpdateScoreRequest\x1a\x1e.driversvc.UpdateScoreResponse\x12L\n" +
+	"\vDeleteScore\x12\x1d.driversvc.DeleteScoreRequest\x1a\x1e.driversvc.DeleteScoreResponse\x12C\n" +
+	"\bGetScore\x12\x1a.driversvc.GetScoreRequest\x1a\x1b.driversvc.GetScoreResponse\x12I\n" +
+	"\n" +
+	"ListScores\x12\x1c.driversvc.ListScoresRequest\x1a\x1d.driversvc.ListScoresResponse\x12U\n" +
+	"\x0eCreateWithdraw\x12 .driversvc.CreateWithdrawRequest\x1a!.driversvc.CreateWithdrawResponse\x12U\n" +
+	"\x0eUpdateWithdraw\x12 .driversvc.UpdateWithdrawRequest\x1a!.driversvc.UpdateWithdrawResponse\x12U\n" +
+	"\x0eDeleteWithdraw\x12 .driversvc.DeleteWithdrawRequest\x1a!.driversvc.DeleteWithdrawResponse\x12L\n" +
+	"\vGetWithdraw\x12\x1d.driversvc.GetWithdrawRequest\x1a\x1e.driversvc.GetWithdrawResponse\x12R\n" +
+	"\rListWithdraws\x12\x1f.driversvc.ListWithdrawsRequest\x1a .driversvc.ListWithdrawsResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
 var (
@@ -1121,23 +4828,71 @@ func file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP() []byte {
 }
 
 var file_rpc_driversvc_proto_driversvc_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_rpc_driversvc_proto_driversvc_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_rpc_driversvc_proto_driversvc_proto_msgTypes = make([]protoimpl.MessageInfo, 62)
 var file_rpc_driversvc_proto_driversvc_proto_goTypes = []any{
-	(DriverStatus)(0),            // 0: driversvc.DriverStatus
-	(*Driver)(nil),               // 1: driversvc.Driver
-	(*CreateDriverRequest)(nil),  // 2: driversvc.CreateDriverRequest
-	(*CreateDriverResponse)(nil), // 3: driversvc.CreateDriverResponse
-	(*UpdateDriverRequest)(nil),  // 4: driversvc.UpdateDriverRequest
-	(*UpdateDriverResponse)(nil), // 5: driversvc.UpdateDriverResponse
-	(*DeleteDriverRequest)(nil),  // 6: driversvc.DeleteDriverRequest
-	(*DeleteDriverResponse)(nil), // 7: driversvc.DeleteDriverResponse
-	(*GetDriverRequest)(nil),     // 8: driversvc.GetDriverRequest
-	(*GetDriverResponse)(nil),    // 9: driversvc.GetDriverResponse
-	(*ListDriversRequest)(nil),   // 10: driversvc.ListDriversRequest
-	(*DriverSummary)(nil),        // 11: driversvc.DriverSummary
-	(*ListDriversResponse)(nil),  // 12: driversvc.ListDriversResponse
-	(*Request)(nil),              // 13: driversvc.Request
-	(*Response)(nil),             // 14: driversvc.Response
+	(DriverStatus)(0),                   // 0: driversvc.DriverStatus
+	(*Driver)(nil),                      // 1: driversvc.Driver
+	(*CreateDriverRequest)(nil),         // 2: driversvc.CreateDriverRequest
+	(*CreateDriverResponse)(nil),        // 3: driversvc.CreateDriverResponse
+	(*UpdateDriverRequest)(nil),         // 4: driversvc.UpdateDriverRequest
+	(*UpdateDriverResponse)(nil),        // 5: driversvc.UpdateDriverResponse
+	(*DeleteDriverRequest)(nil),         // 6: driversvc.DeleteDriverRequest
+	(*DeleteDriverResponse)(nil),        // 7: driversvc.DeleteDriverResponse
+	(*GetDriverRequest)(nil),            // 8: driversvc.GetDriverRequest
+	(*GetDriverResponse)(nil),           // 9: driversvc.GetDriverResponse
+	(*ListDriversRequest)(nil),          // 10: driversvc.ListDriversRequest
+	(*DriverSummary)(nil),               // 11: driversvc.DriverSummary
+	(*ListDriversResponse)(nil),         // 12: driversvc.ListDriversResponse
+	(*Request)(nil),                     // 13: driversvc.Request
+	(*Response)(nil),                    // 14: driversvc.Response
+	(*Vehicle)(nil),                     // 15: driversvc.Vehicle
+	(*CreateVehicleRequest)(nil),        // 16: driversvc.CreateVehicleRequest
+	(*CreateVehicleResponse)(nil),       // 17: driversvc.CreateVehicleResponse
+	(*UpdateVehicleRequest)(nil),        // 18: driversvc.UpdateVehicleRequest
+	(*UpdateVehicleResponse)(nil),       // 19: driversvc.UpdateVehicleResponse
+	(*DeleteVehicleRequest)(nil),        // 20: driversvc.DeleteVehicleRequest
+	(*DeleteVehicleResponse)(nil),       // 21: driversvc.DeleteVehicleResponse
+	(*GetVehicleRequest)(nil),           // 22: driversvc.GetVehicleRequest
+	(*GetVehicleResponse)(nil),          // 23: driversvc.GetVehicleResponse
+	(*ListVehiclesRequest)(nil),         // 24: driversvc.ListVehiclesRequest
+	(*VehicleSummary)(nil),              // 25: driversvc.VehicleSummary
+	(*ListVehiclesResponse)(nil),        // 26: driversvc.ListVehiclesResponse
+	(*Certification)(nil),               // 27: driversvc.Certification
+	(*CreateCertificationRequest)(nil),  // 28: driversvc.CreateCertificationRequest
+	(*CreateCertificationResponse)(nil), // 29: driversvc.CreateCertificationResponse
+	(*UpdateCertificationRequest)(nil),  // 30: driversvc.UpdateCertificationRequest
+	(*UpdateCertificationResponse)(nil), // 31: driversvc.UpdateCertificationResponse
+	(*DeleteCertificationRequest)(nil),  // 32: driversvc.DeleteCertificationRequest
+	(*DeleteCertificationResponse)(nil), // 33: driversvc.DeleteCertificationResponse
+	(*GetCertificationRequest)(nil),     // 34: driversvc.GetCertificationRequest
+	(*GetCertificationResponse)(nil),    // 35: driversvc.GetCertificationResponse
+	(*ListCertificationsRequest)(nil),   // 36: driversvc.ListCertificationsRequest
+	(*CertificationSummary)(nil),        // 37: driversvc.CertificationSummary
+	(*ListCertificationsResponse)(nil),  // 38: driversvc.ListCertificationsResponse
+	(*Score)(nil),                       // 39: driversvc.Score
+	(*CreateScoreRequest)(nil),          // 40: driversvc.CreateScoreRequest
+	(*CreateScoreResponse)(nil),         // 41: driversvc.CreateScoreResponse
+	(*UpdateScoreRequest)(nil),          // 42: driversvc.UpdateScoreRequest
+	(*UpdateScoreResponse)(nil),         // 43: driversvc.UpdateScoreResponse
+	(*DeleteScoreRequest)(nil),          // 44: driversvc.DeleteScoreRequest
+	(*DeleteScoreResponse)(nil),         // 45: driversvc.DeleteScoreResponse
+	(*GetScoreRequest)(nil),             // 46: driversvc.GetScoreRequest
+	(*GetScoreResponse)(nil),            // 47: driversvc.GetScoreResponse
+	(*ListScoresRequest)(nil),           // 48: driversvc.ListScoresRequest
+	(*ScoreSummary)(nil),                // 49: driversvc.ScoreSummary
+	(*ListScoresResponse)(nil),          // 50: driversvc.ListScoresResponse
+	(*Withdraw)(nil),                    // 51: driversvc.Withdraw
+	(*CreateWithdrawRequest)(nil),       // 52: driversvc.CreateWithdrawRequest
+	(*CreateWithdrawResponse)(nil),      // 53: driversvc.CreateWithdrawResponse
+	(*UpdateWithdrawRequest)(nil),       // 54: driversvc.UpdateWithdrawRequest
+	(*UpdateWithdrawResponse)(nil),      // 55: driversvc.UpdateWithdrawResponse
+	(*DeleteWithdrawRequest)(nil),       // 56: driversvc.DeleteWithdrawRequest
+	(*DeleteWithdrawResponse)(nil),      // 57: driversvc.DeleteWithdrawResponse
+	(*GetWithdrawRequest)(nil),          // 58: driversvc.GetWithdrawRequest
+	(*GetWithdrawResponse)(nil),         // 59: driversvc.GetWithdrawResponse
+	(*ListWithdrawsRequest)(nil),        // 60: driversvc.ListWithdrawsRequest
+	(*WithdrawSummary)(nil),             // 61: driversvc.WithdrawSummary
+	(*ListWithdrawsResponse)(nil),       // 62: driversvc.ListWithdrawsResponse
 }
 var file_rpc_driversvc_proto_driversvc_proto_depIdxs = []int32{
 	0,  // 0: driversvc.Driver.status:type_name -> driversvc.DriverStatus
@@ -1148,23 +4903,71 @@ var file_rpc_driversvc_proto_driversvc_proto_depIdxs = []int32{
 	0,  // 5: driversvc.ListDriversRequest.status:type_name -> driversvc.DriverStatus
 	0,  // 6: driversvc.DriverSummary.status:type_name -> driversvc.DriverStatus
 	11, // 7: driversvc.ListDriversResponse.list:type_name -> driversvc.DriverSummary
-	13, // 8: driversvc.Driversvc.Ping:input_type -> driversvc.Request
-	2,  // 9: driversvc.Driversvc.CreateDriver:input_type -> driversvc.CreateDriverRequest
-	4,  // 10: driversvc.Driversvc.UpdateDriver:input_type -> driversvc.UpdateDriverRequest
-	6,  // 11: driversvc.Driversvc.DeleteDriver:input_type -> driversvc.DeleteDriverRequest
-	8,  // 12: driversvc.Driversvc.GetDriver:input_type -> driversvc.GetDriverRequest
-	10, // 13: driversvc.Driversvc.ListDrivers:input_type -> driversvc.ListDriversRequest
-	14, // 14: driversvc.Driversvc.Ping:output_type -> driversvc.Response
-	3,  // 15: driversvc.Driversvc.CreateDriver:output_type -> driversvc.CreateDriverResponse
-	5,  // 16: driversvc.Driversvc.UpdateDriver:output_type -> driversvc.UpdateDriverResponse
-	7,  // 17: driversvc.Driversvc.DeleteDriver:output_type -> driversvc.DeleteDriverResponse
-	9,  // 18: driversvc.Driversvc.GetDriver:output_type -> driversvc.GetDriverResponse
-	12, // 19: driversvc.Driversvc.ListDrivers:output_type -> driversvc.ListDriversResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	15, // 8: driversvc.GetVehicleResponse.vehicle:type_name -> driversvc.Vehicle
+	25, // 9: driversvc.ListVehiclesResponse.list:type_name -> driversvc.VehicleSummary
+	27, // 10: driversvc.GetCertificationResponse.certification:type_name -> driversvc.Certification
+	37, // 11: driversvc.ListCertificationsResponse.list:type_name -> driversvc.CertificationSummary
+	39, // 12: driversvc.GetScoreResponse.score:type_name -> driversvc.Score
+	49, // 13: driversvc.ListScoresResponse.list:type_name -> driversvc.ScoreSummary
+	51, // 14: driversvc.GetWithdrawResponse.withdraw:type_name -> driversvc.Withdraw
+	61, // 15: driversvc.ListWithdrawsResponse.list:type_name -> driversvc.WithdrawSummary
+	13, // 16: driversvc.Driversvc.Ping:input_type -> driversvc.Request
+	2,  // 17: driversvc.Driversvc.CreateDriver:input_type -> driversvc.CreateDriverRequest
+	4,  // 18: driversvc.Driversvc.UpdateDriver:input_type -> driversvc.UpdateDriverRequest
+	6,  // 19: driversvc.Driversvc.DeleteDriver:input_type -> driversvc.DeleteDriverRequest
+	8,  // 20: driversvc.Driversvc.GetDriver:input_type -> driversvc.GetDriverRequest
+	10, // 21: driversvc.Driversvc.ListDrivers:input_type -> driversvc.ListDriversRequest
+	16, // 22: driversvc.Driversvc.CreateVehicle:input_type -> driversvc.CreateVehicleRequest
+	18, // 23: driversvc.Driversvc.UpdateVehicle:input_type -> driversvc.UpdateVehicleRequest
+	20, // 24: driversvc.Driversvc.DeleteVehicle:input_type -> driversvc.DeleteVehicleRequest
+	22, // 25: driversvc.Driversvc.GetVehicle:input_type -> driversvc.GetVehicleRequest
+	24, // 26: driversvc.Driversvc.ListVehicles:input_type -> driversvc.ListVehiclesRequest
+	28, // 27: driversvc.Driversvc.CreateCertification:input_type -> driversvc.CreateCertificationRequest
+	30, // 28: driversvc.Driversvc.UpdateCertification:input_type -> driversvc.UpdateCertificationRequest
+	32, // 29: driversvc.Driversvc.DeleteCertification:input_type -> driversvc.DeleteCertificationRequest
+	34, // 30: driversvc.Driversvc.GetCertification:input_type -> driversvc.GetCertificationRequest
+	36, // 31: driversvc.Driversvc.ListCertifications:input_type -> driversvc.ListCertificationsRequest
+	40, // 32: driversvc.Driversvc.CreateScore:input_type -> driversvc.CreateScoreRequest
+	42, // 33: driversvc.Driversvc.UpdateScore:input_type -> driversvc.UpdateScoreRequest
+	44, // 34: driversvc.Driversvc.DeleteScore:input_type -> driversvc.DeleteScoreRequest
+	46, // 35: driversvc.Driversvc.GetScore:input_type -> driversvc.GetScoreRequest
+	48, // 36: driversvc.Driversvc.ListScores:input_type -> driversvc.ListScoresRequest
+	52, // 37: driversvc.Driversvc.CreateWithdraw:input_type -> driversvc.CreateWithdrawRequest
+	54, // 38: driversvc.Driversvc.UpdateWithdraw:input_type -> driversvc.UpdateWithdrawRequest
+	56, // 39: driversvc.Driversvc.DeleteWithdraw:input_type -> driversvc.DeleteWithdrawRequest
+	58, // 40: driversvc.Driversvc.GetWithdraw:input_type -> driversvc.GetWithdrawRequest
+	60, // 41: driversvc.Driversvc.ListWithdraws:input_type -> driversvc.ListWithdrawsRequest
+	14, // 42: driversvc.Driversvc.Ping:output_type -> driversvc.Response
+	3,  // 43: driversvc.Driversvc.CreateDriver:output_type -> driversvc.CreateDriverResponse
+	5,  // 44: driversvc.Driversvc.UpdateDriver:output_type -> driversvc.UpdateDriverResponse
+	7,  // 45: driversvc.Driversvc.DeleteDriver:output_type -> driversvc.DeleteDriverResponse
+	9,  // 46: driversvc.Driversvc.GetDriver:output_type -> driversvc.GetDriverResponse
+	12, // 47: driversvc.Driversvc.ListDrivers:output_type -> driversvc.ListDriversResponse
+	17, // 48: driversvc.Driversvc.CreateVehicle:output_type -> driversvc.CreateVehicleResponse
+	19, // 49: driversvc.Driversvc.UpdateVehicle:output_type -> driversvc.UpdateVehicleResponse
+	21, // 50: driversvc.Driversvc.DeleteVehicle:output_type -> driversvc.DeleteVehicleResponse
+	23, // 51: driversvc.Driversvc.GetVehicle:output_type -> driversvc.GetVehicleResponse
+	26, // 52: driversvc.Driversvc.ListVehicles:output_type -> driversvc.ListVehiclesResponse
+	29, // 53: driversvc.Driversvc.CreateCertification:output_type -> driversvc.CreateCertificationResponse
+	31, // 54: driversvc.Driversvc.UpdateCertification:output_type -> driversvc.UpdateCertificationResponse
+	33, // 55: driversvc.Driversvc.DeleteCertification:output_type -> driversvc.DeleteCertificationResponse
+	35, // 56: driversvc.Driversvc.GetCertification:output_type -> driversvc.GetCertificationResponse
+	38, // 57: driversvc.Driversvc.ListCertifications:output_type -> driversvc.ListCertificationsResponse
+	41, // 58: driversvc.Driversvc.CreateScore:output_type -> driversvc.CreateScoreResponse
+	43, // 59: driversvc.Driversvc.UpdateScore:output_type -> driversvc.UpdateScoreResponse
+	45, // 60: driversvc.Driversvc.DeleteScore:output_type -> driversvc.DeleteScoreResponse
+	47, // 61: driversvc.Driversvc.GetScore:output_type -> driversvc.GetScoreResponse
+	50, // 62: driversvc.Driversvc.ListScores:output_type -> driversvc.ListScoresResponse
+	53, // 63: driversvc.Driversvc.CreateWithdraw:output_type -> driversvc.CreateWithdrawResponse
+	55, // 64: driversvc.Driversvc.UpdateWithdraw:output_type -> driversvc.UpdateWithdrawResponse
+	57, // 65: driversvc.Driversvc.DeleteWithdraw:output_type -> driversvc.DeleteWithdrawResponse
+	59, // 66: driversvc.Driversvc.GetWithdraw:output_type -> driversvc.GetWithdrawResponse
+	62, // 67: driversvc.Driversvc.ListWithdraws:output_type -> driversvc.ListWithdrawsResponse
+	42, // [42:68] is the sub-list for method output_type
+	16, // [16:42] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_rpc_driversvc_proto_driversvc_proto_init() }
@@ -1173,13 +4976,17 @@ func file_rpc_driversvc_proto_driversvc_proto_init() {
 		return
 	}
 	file_rpc_driversvc_proto_driversvc_proto_msgTypes[3].OneofWrappers = []any{}
+	file_rpc_driversvc_proto_driversvc_proto_msgTypes[17].OneofWrappers = []any{}
+	file_rpc_driversvc_proto_driversvc_proto_msgTypes[29].OneofWrappers = []any{}
+	file_rpc_driversvc_proto_driversvc_proto_msgTypes[41].OneofWrappers = []any{}
+	file_rpc_driversvc_proto_driversvc_proto_msgTypes[53].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_driversvc_proto_driversvc_proto_rawDesc), len(file_rpc_driversvc_proto_driversvc_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   14,
+			NumMessages:   62,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
