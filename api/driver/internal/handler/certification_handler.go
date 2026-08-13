@@ -1,13 +1,16 @@
+// Package handler 实现司机端 HTTP API 的路由与请求处理。
 package handler
 
 import (
-	"net/http"
+	"net/http" // HTTP 处理器基础类型
 
-	"XiaoLong-Ridy/api/driver/internal/logic"
-	"XiaoLong-Ridy/api/driver/internal/svc"
-	"XiaoLong-Ridy/api/driver/internal/types"
+	"XiaoLong-Ridy/api/driver/internal/logic" // 业务逻辑层
+	"XiaoLong-Ridy/api/driver/internal/svc"    // 服务上下文
+	"XiaoLong-Ridy/api/driver/internal/types"  // 请求/响应类型
 )
 
+// CreateCertificationHandler POST /api/driver/v1/certifications
+// 处理创建司机认证的 HTTP 请求。
 func CreateCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.CreateCertificationRequest
@@ -23,6 +26,8 @@ func CreateCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// UpdateCertificationHandler POST /api/driver/v1/certifications/update
+// 处理更新认证信息（含审核状态流转）的 HTTP 请求。
 func UpdateCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.UpdateCertificationRequest
@@ -38,6 +43,8 @@ func UpdateCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// GetCertificationHandler GET /api/driver/v1/certifications/get?id=
+// 处理查询认证详情的 HTTP 请求（id 取自查询参数）。
 func GetCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := decodeQueryID(r, "id")
@@ -54,6 +61,8 @@ func GetCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// DeleteCertificationHandler POST /api/driver/v1/certifications/delete?id=
+// 处理删除认证的 HTTP 请求（id 取自查询参数）。
 func DeleteCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := decodeQueryID(r, "id")
@@ -70,6 +79,8 @@ func DeleteCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// ListCertificationsHandler POST /api/driver/v1/certifications/list
+// 处理分页查询认证列表的 HTTP 请求。
 func ListCertificationsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.ListCertificationsRequest

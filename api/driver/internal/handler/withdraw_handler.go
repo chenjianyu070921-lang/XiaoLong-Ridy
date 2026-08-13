@@ -1,13 +1,16 @@
+// Package handler 实现司机端 HTTP API 的路由与请求处理。
 package handler
 
 import (
-	"net/http"
+	"net/http" // HTTP 处理器基础类型
 
-	"XiaoLong-Ridy/api/driver/internal/logic"
-	"XiaoLong-Ridy/api/driver/internal/svc"
-	"XiaoLong-Ridy/api/driver/internal/types"
+	"XiaoLong-Ridy/api/driver/internal/logic" // 业务逻辑层
+	"XiaoLong-Ridy/api/driver/internal/svc"    // 服务上下文
+	"XiaoLong-Ridy/api/driver/internal/types"  // 请求/响应类型
 )
 
+// CreateWithdrawHandler POST /api/driver/v1/withdraws
+// 处理创建提现申请的 HTTP 请求。
 func CreateWithdrawHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.CreateWithdrawRequest
@@ -23,6 +26,8 @@ func CreateWithdrawHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// UpdateWithdrawHandler POST /api/driver/v1/withdraws/update
+// 处理更新提现记录（含打款状态流转）的 HTTP 请求。
 func UpdateWithdrawHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.UpdateWithdrawRequest
@@ -38,6 +43,8 @@ func UpdateWithdrawHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// GetWithdrawHandler GET /api/driver/v1/withdraws/get?id=
+// 处理查询提现详情的 HTTP 请求（id 取自查询参数）。
 func GetWithdrawHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := decodeQueryID(r, "id")
@@ -54,6 +61,8 @@ func GetWithdrawHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// DeleteWithdrawHandler POST /api/driver/v1/withdraws/delete?id=
+// 处理删除提现记录的 HTTP 请求（id 取自查询参数）。
 func DeleteWithdrawHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := decodeQueryID(r, "id")
@@ -70,6 +79,8 @@ func DeleteWithdrawHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// ListWithdrawsHandler POST /api/driver/v1/withdraws/list
+// 处理分页查询提现列表的 HTTP 请求。
 func ListWithdrawsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.ListWithdrawsRequest
