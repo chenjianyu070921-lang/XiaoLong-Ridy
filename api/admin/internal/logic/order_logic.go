@@ -38,6 +38,21 @@ func (l *OrderLogic) List(ctx context.Context, req types.OrderListRequest) (*typ
 	}, nil
 }
 
+// ListAbnormal 查询异常订单列表。
+// 当前实现只读取订单、支付和派单状态，不执行退款、改派等高风险写操作。
+func (l *OrderLogic) ListAbnormal(ctx context.Context, req types.AbnormalOrderListRequest) (*types.PageResult, error) {
+	list, total, err := l.ctx.OrderRepository.ListAbnormal(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return &types.PageResult{
+		List:     list,
+		Total:    total,
+		Page:     normalizePage(req.Page),
+		PageSize: normalizePageSize(req.PageSize),
+	}, nil
+}
+
 // Detail 查询订单详情并聚合关联数据。
 func (l *OrderLogic) Detail(ctx context.Context, id int64) (*types.OrderDetailDTO, error) {
 	order, err := l.ctx.OrderRepository.GetByID(ctx, id)
