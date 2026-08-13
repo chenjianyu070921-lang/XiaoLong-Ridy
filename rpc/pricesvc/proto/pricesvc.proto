@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package pricesvc;
+
+option go_package = "./;proto";
+
+// 计价服务：行程价格预估与优惠抵扣。
+service Price {
+  // 行程价格预估：根据计价规则 + 里程/时长估算费用。
+  rpc EstimatePrice(EstimatePriceRequest) returns (EstimatePriceResponse);
+  // 优惠券抵扣计算：根据优惠券计算折扣与实付金额。
+  rpc CalculateDiscount(CalculateDiscountRequest) returns (CalculateDiscountResponse);
+}
+
+// 优惠券类型
+enum CouponType {
+  COUPON_TYPE_UNSPECIFIED = 0;
+  COUPON_TYPE_FIXED = 1;    // 固定金额券
+  COUPON_TYPE_DISCOUNT = 2; // 折扣券（如 8 折）
+}
+
+// 价格明细项（单位：分）
+message PriceDetail {
+  int64 base_fee_cents = 1;        // 起步价
+  int64 distance_fee_cents = 2;    // 里程费
+  int64 time_fee_cents = 3;        // 时长费
+  int64 night_fee_cents = 4;       // 夜间附加费
+  int64 dynamic_fee_cents = 5;     // 动态调价费
+  int64 total_cents = 6;           // 合计（不含优惠）
+}
+
+// 行程价格预估请求
+message EstimatePriceRequest {
+  int64 user_id = 1;
+  string city_code = 2;          // 城市编码，如 110000
+  int32 car_type = 3;            // 车型：1特惠快车 2快车 3拼车
+  int64 distance_m = 4;          // 预估里程（米）
+  int64 duration_s = 5;          // 预估时长（秒）
+  int64 timestamp = 6;           // 预估时刻（Unix 秒），用于判断夜间时段；0 表示当前时间
+}
+
+// 行程价格预估响应
+message EstimatePriceResponse {
+  int64 price_rule_id = 1;       // 命中的计价规则ID
+  PriceDetail detail = 2;        // 费用明细
+  int64 total_cents = 3;         // 预估总价（分）
+}
+
+// 优惠券信息（本期作为入参传入，不落库）
+message Coupon {
+  int64 coupon_id = 1;
+  CouponType type = 2;
+  int64 face_value_cents = 3;    // 固定金额券面额（分）
+  int32 discount = 4;            // 折扣券折扣，如 80 表示 8 折
+  int64 threshold_cents = 5;     // 使用门槛（分），0 表示无门槛
+  int64 max_discount_cents = 6;  // 折扣券最大优惠金额（分）
+}
+
+// 优惠券抵扣计算请求
+message CalculateDiscountRequest {
+  int64 order_id = 1;
+  int64 total_cents = 2;         // 抵扣前的订单总金额（分）
+  Coupon coupon = 3;             // 使用的优惠券
+}
+
+// 优惠券抵扣计算响应
+message CalculateDiscountResponse {
+  int64 discount_amount_cents = 1;  // 优惠券抵扣金额（分）
+  int64 platform_subsidy_cents = 2; // 平台补贴金额（分）
+  int64 payable_amount_cents = 3;   // 乘客实付金额（分）
+}

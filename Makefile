@@ -51,3 +51,4 @@ usersvc-goctl:
 
 run-ordersvc:
 	go run .\rpc\ordersvc\ordersvc.go -f .\rpc\ordersvc\etc\ordersvc.yaml
+

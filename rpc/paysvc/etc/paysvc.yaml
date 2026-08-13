@@ -1,0 +1,15 @@
+Name: paysvc.rpc
+ListenOn: 0.0.0.0:50054
+mysql:
+  dsn: root:root123@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+alipay:
+  appId: ""
+  privateKey: ""
+  alipayPublicKey: ""
+  gateway: https://openapi.alipay.com/gateway.do
+  notifyUrl: ""
+  returnUrl: ""
+  signType: RSA2
+  charset: utf-8
+  timeoutExpress: 30m
+  sandbox: true

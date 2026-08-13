@@ -90,3 +90,13 @@ CREATE TABLE IF NOT EXISTS `settlement` (
   KEY `idx_order_id` (`order_id`),
   KEY `idx_driver_status` (`driver_id`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单结算表';
+
+-- =============================================================
+-- 初始数据：默认计价规则示例
+-- =============================================================
+INSERT INTO `price_rule`
+  (`name`, `city_code`, `car_type`, `base_price`, `base_distance_km`, `per_km_price`, `per_minute_price`, `night_start_time`, `night_end_time`, `night_surcharge`, `dynamic_max_factor`, `status`, `effective_at`)
+VALUES
+  ('北京特惠快车', '110000', 1, 8.00,  2.00, 1.80, 0.40, '23:00:00', '05:00:00', 5.00, 1.20, 1, NOW()),
+  ('北京快车',     '110000', 2, 12.00, 3.00, 2.50, 0.50, '23:00:00', '05:00:00', 8.00, 1.50, 1, NOW()),
+  ('北京拼车',     '110000', 3, 6.00,  2.00, 1.20, 0.30, '23:00:00', '05:00:00', 3.00, 1.10, 1, NOW());
