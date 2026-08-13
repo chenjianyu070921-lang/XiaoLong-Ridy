@@ -1,0 +1,11 @@
+Name: job-scheduler
+
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: job-scheduler
+
+Log:
+  ServiceName: job
+  Mode: console
+  Level: info

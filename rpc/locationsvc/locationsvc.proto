@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package locationsvc;
+
+option go_package = "XiaoLong-Ridy/rpc/locationsvc/locationsvc";
+
+// 位置服务
+service LocationService {
+  // 逆地址解析（经纬度 → 地址）
+  rpc ReverseGeocode(ReverseGeocodeReq) returns (ReverseGeocodeResp);
+  // POI 搜索
+  rpc POISearch(POISearchReq) returns (POISearchResp);
+  // 路径规划（计算距离和预计时间）
+  rpc RoutePlan(RoutePlanReq) returns (RoutePlanResp);
+}
+
+// ========== 逆地址解析 ==========
+message ReverseGeocodeReq {
+  double lat = 1;  // 纬度
+  double lng = 2;  // 经度
+}
+
+message ReverseGeocodeResp {
+  string province     = 1;  // 省
+  string city         = 2;  // 市
+  string district     = 3;  // 区
+  string address      = 4;  // 详细地址
+  string poi_name     = 5;  // 附近POI名称
+}
+
+// ========== POI 搜索 ==========
+message POISearchReq {
+  string keyword = 1;   // 搜索关键词
+  double lat     = 2;   // 中心纬度
+  double lng     = 3;   // 中心经度
+  int32  radius  = 4;   // 搜索半径（米）
+  int32  page    = 5;   // 页码
+  int32  size    = 6;   // 每页条数
+}
+
+message POIItem {
+  string name     = 1;  // POI 名称
+  string address  = 2;  // 地址
+  double lat      = 3;  // 纬度
+  double lng      = 4;  // 经度
+  string category = 5;  // 分类
+  int32  distance = 6;  // 距离（米）
+}
+
+message POISearchResp {
+  repeated POIItem items = 1;
+  int32  total           = 2;
+}
+
+// ========== 路径规划 ==========
+message RoutePlanReq {
+  double origin_lat      = 1;  // 起点纬度
+  double origin_lng      = 2;  // 起点经度
+  double destination_lat = 3;  // 终点纬度
+  double destination_lng = 4;  // 终点经度
+}
+
+message RoutePlanResp {
+  int32  distance     = 1;  // 距离（米）
+  int32  duration     = 2;  // 预计时间（秒）
+  string polyline     = 3;  // 路线点串（用于地图绘制）
+  double origin_lat   = 4;
+  double origin_lng   = 5;
+  double dest_lat     = 6;
+  double dest_lng     = 7;
+}

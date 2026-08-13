@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package pushesvc;
+
+option go_package = "XiaoLong-Ridy/rpc/pushesvc/pushesvc";
+
+// 消息推送服务
+service PushService {
+  // 发送站内信
+  rpc SendNotice(SendNoticeReq) returns (SendNoticeResp);
+  // 发送 App 推送
+  rpc SendPush(SendPushReq) returns (SendPushResp);
+  // 发送短信
+  rpc SendSMS(SendSMSReq) returns (SendSMSResp);
+}
+
+// ========== 站内信 ==========
+message SendNoticeReq {
+  int64  user_id = 1;
+  string title   = 2;
+  string content = 3;
+  int32  biz_type = 4; // 1=订单通知 2=系统通知 3=活动通知
+}
+
+message SendNoticeResp {
+  int64 notice_id = 1;
+}
+
+// ========== App 推送 ==========
+message SendPushReq {
+  int64  user_id    = 1;
+  string title      = 2;
+  string body       = 3;
+  string extras     = 4;
+  string device_type = 5; // ios / android
+}
+
+message SendPushResp {
+  bool success = 1;
+}
+
+// ========== 短信 ==========
+message SendSMSReq {
+  string phone   = 1;
+  string content = 2;
+  int32  biz_type = 3; // 1=验证码 2=通知 3=营销
+}
+
+message SendSMSResp {
+  bool success = 1;
+}
