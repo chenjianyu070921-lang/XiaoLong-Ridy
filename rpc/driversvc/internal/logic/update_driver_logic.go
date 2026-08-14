@@ -2,14 +2,11 @@ package logic
 
 import (
 	"context"
-	"errors"
 
-	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
-	"gorm.io/gorm"
 )
 
 type UpdateDriverLogic struct {
@@ -26,49 +23,8 @@ func NewUpdateDriverLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upda
 	}
 }
 
-// UpdateDriver 更新司机信息，仅修改请求中显式传入的字段（optional 字段为指针，nil 表示不更新）。
 func (l *UpdateDriverLogic) UpdateDriver(in *proto.UpdateDriverRequest) (*proto.UpdateDriverResponse, error) {
-	var d model.Driver
-	err := l.svcCtx.DB.First(&d, in.Id).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errors.New("driver not found")
-	}
-	if err != nil {
-		return nil, err
-	}
+	// todo: add your logic here and delete this line
 
-	updates := map[string]interface{}{}
-	if in.Phone != nil {
-		updates["phone"] = in.GetPhone()
-	}
-	if in.PasswordHash != nil {
-		updates["password_hash"] = in.GetPasswordHash()
-	}
-	if in.RealName != nil {
-		updates["real_name"] = in.GetRealName()
-	}
-	if in.IdCardNo != nil {
-		updates["id_card_no"] = in.GetIdCardNo()
-	}
-	if in.DriverLicenseNo != nil {
-		updates["driver_license_no"] = in.GetDriverLicenseNo()
-	}
-	if in.AvatarUrl != nil {
-		updates["avatar_url"] = in.GetAvatarUrl()
-	}
-	if in.Status != nil {
-		updates["status"] = int8(in.GetStatus())
-	}
-
-	if err := l.svcCtx.DB.Model(&d).Updates(updates).Error; err != nil {
-		return nil, err
-	}
-	if err := l.svcCtx.DB.First(&d, in.Id).Error; err != nil {
-		return nil, err
-	}
-	return &proto.UpdateDriverResponse{
-		Id:        int64(d.Id),
-		Status:    proto.DriverStatus(d.Status),
-		UpdatedAt: d.UpdatedAt.Unix(),
-	}, nil
+	return &proto.UpdateDriverResponse{}, nil
 }
