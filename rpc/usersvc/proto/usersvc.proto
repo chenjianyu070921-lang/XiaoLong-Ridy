@@ -13,6 +13,14 @@ service User {
   rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
   // Logout 注销当前登录态。
   rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // CreateAddress 新增乘客常用地址。
+  rpc CreateAddress(CreateAddressRequest) returns (AddressInfo);
+  // ListAddresses 查询乘客常用地址列表。
+  rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
+  // UpdateAddress 更新乘客常用地址。
+  rpc UpdateAddress(UpdateAddressRequest) returns (AddressInfo);
+  // DeleteAddress 删除乘客常用地址。
+  rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressResponse);
 }
 
 // SendSMSCodeRequest 发送短信验证码请求。
@@ -69,3 +77,66 @@ message LogoutRequest {
 message LogoutResponse {
   bool success = 1; // 是否注销成功
 }
+
+// AddressInfo 表示乘客常用地址信息。
+message AddressInfo {
+  uint64 id = 1; // 地址 ID
+  uint64 user_id = 2; // 用户 ID
+  string contact_name = 3; // 联系人姓名
+  string contact_phone = 4; // 联系人手机号
+  string tag = 5; // 地址标签：home/work/other
+  string address = 6; // 详细地址
+  double longitude = 7; // 经度
+  double latitude = 8; // 纬度
+  bool is_default = 9; // 是否默认地址
+  int32 sort = 10; // 排序值
+}
+
+// CreateAddressRequest 新增常用地址请求。
+message CreateAddressRequest {
+  uint64 user_id = 1; // 用户 ID
+  string contact_name = 2; // 联系人姓名
+  string contact_phone = 3; // 联系人手机号
+  string tag = 4; // 地址标签
+  string address = 5; // 详细地址
+  double longitude = 6; // 经度
+  double latitude = 7; // 纬度
+  bool is_default = 8; // 是否默认地址
+  int32 sort = 9; // 排序值
+}
+
+// ListAddressesRequest 查询常用地址列表请求。
+message ListAddressesRequest {
+  uint64 user_id = 1; // 用户 ID
+}
+
+// ListAddressesResponse 常用地址列表响应。
+message ListAddressesResponse {
+  repeated AddressInfo list = 1; // 地址列表
+}
+
+// UpdateAddressRequest 更新常用地址请求。
+message UpdateAddressRequest {
+  uint64 id = 1; // 地址 ID
+  uint64 user_id = 2; // 用户 ID
+  string contact_name = 3; // 联系人姓名
+  string contact_phone = 4; // 联系人手机号
+  string tag = 5; // 地址标签
+  string address = 6; // 详细地址
+  double longitude = 7; // 经度
+  double latitude = 8; // 纬度
+  bool is_default = 9; // 是否默认地址
+  int32 sort = 10; // 排序值
+}
+
+// DeleteAddressRequest 删除常用地址请求。
+message DeleteAddressRequest {
+  uint64 id = 1; // 地址 ID
+  uint64 user_id = 2; // 用户 ID
+}
+
+// DeleteAddressResponse 删除常用地址响应。
+message DeleteAddressResponse {
+  bool success = 1; // 是否删除成功
+}
+

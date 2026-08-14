@@ -18,7 +18,7 @@ type ServiceContext struct {
 
 // NewServiceContext 初始化 MySQL 连接与订单仓储。
 func NewServiceContext(c config.Config) *ServiceContext {
-	//1.mysql连接
+	// 创建订单服务使用的 MySQL 客户端，连接池参数沿用服务默认配置。
 	client, err := datasource.NewMysqlClient(cfg.MysqlConf{
 		Dsn:         c.Mysql.DSN,
 		MaxOpenConn: 200,

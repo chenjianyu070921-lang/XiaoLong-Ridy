@@ -20,10 +20,158 @@ type LoginBySMSRequest {
 	Code string `json:"code"`
 }
 
+type UserInfo {
+	UserID uint64 `json:"userId"`
+	Phone string `json:"phone"`
+	Nickname string `json:"nickname"`
+	AvatarURL string `json:"avatarUrl"`
+	RealNameStatus string `json:"realNameStatus"`
+}
+
 type LoginBySMSResponse {
 	Token string `json:"token"`
 	RefreshToken string `json:"refreshToken"`
 	IsNewUser bool `json:"isNewUser"`
+	User UserInfo `json:"user"`
+}
+
+type RefreshTokenRequest {
+	RefreshToken string `json:"refreshToken"`
+}
+
+type RefreshTokenResponse {
+	Token string `json:"token"`
+	RefreshToken string `json:"refreshToken"`
+}
+
+type LogoutResponse {
+	Success bool `json:"success"`
+}
+
+type CreateOrderRequest {
+	CarType int32 `json:"carType"`
+	FromAddress string `json:"fromAddress"`
+	FromLongitude float64 `json:"fromLongitude"`
+	FromLatitude float64 `json:"fromLatitude"`
+	ToAddress string `json:"toAddress"`
+	ToLongitude float64 `json:"toLongitude"`
+	ToLatitude float64 `json:"toLatitude"`
+}
+
+type CreateOrderResponse {
+	OrderID int64 `json:"orderId"`
+	OrderNo string `json:"orderNo"`
+	EstimatedPriceCents int64 `json:"estimatedPriceCents"`
+	Status int32 `json:"status"`
+	CreatedAt int64 `json:"createdAt"`
+}
+
+type ListOrdersRequest {
+	Status int32 `json:"status"`
+	Page int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type OrderSummary {
+	OrderID int64 `json:"orderId"`
+	OrderNo string `json:"orderNo"`
+	FromAddress string `json:"fromAddress"`
+	ToAddress string `json:"toAddress"`
+	Status int32 `json:"status"`
+	EstimatedPriceCents int64 `json:"estimatedPriceCents"`
+	CreatedAt int64 `json:"createdAt"`
+}
+
+type ListOrdersResponse {
+	List []OrderSummary `json:"list"`
+	Total int64 `json:"total"`
+	Page int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type GetOrderRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderDetail {
+	OrderID int64 `json:"orderId"`
+	OrderNo string `json:"orderNo"`
+	UserID int64 `json:"userId"`
+	DriverID int64 `json:"driverId"`
+	CarType int32 `json:"carType"`
+	FromAddress string `json:"fromAddress"`
+	FromLongitude float64 `json:"fromLongitude"`
+	FromLatitude float64 `json:"fromLatitude"`
+	ToAddress string `json:"toAddress"`
+	ToLongitude float64 `json:"toLongitude"`
+	ToLatitude float64 `json:"toLatitude"`
+	EstimatedDistanceM int64 `json:"estimatedDistanceM"`
+	EstimatedDurationS int64 `json:"estimatedDurationS"`
+	EstimatedPriceCents int64 `json:"estimatedPriceCents"`
+	Status int32 `json:"status"`
+	CancelReason string `json:"cancelReason"`
+	CancelBy string `json:"cancelBy"`
+	CreatedAt int64 `json:"createdAt"`
+	UpdatedAt int64 `json:"updatedAt"`
+}
+
+type CancelOrderRequest {
+	OrderID int64 `json:"orderId"`
+	Reason string `json:"reason"`
+}
+
+type CancelOrderResponse {
+	OrderID int64 `json:"orderId"`
+	Status int32 `json:"status"`
+}
+
+type AddressInfo {
+	ID uint64 `json:"id"`
+	ContactName string `json:"contactName"`
+	ContactPhone string `json:"contactPhone"`
+	Tag string `json:"tag"`
+	Address string `json:"address"`
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+	IsDefault bool `json:"isDefault"`
+	Sort int `json:"sort"`
+}
+
+type CreateAddressRequest {
+	ContactName string `json:"contactName"`
+	ContactPhone string `json:"contactPhone"`
+	Tag string `json:"tag"`
+	Address string `json:"address"`
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+	IsDefault bool `json:"isDefault"`
+	Sort int `json:"sort"`
+}
+
+type ListAddressesRequest {}
+
+type ListAddressesResponse {
+	List []AddressInfo `json:"list"`
+}
+
+type UpdateAddressRequest {
+	ID uint64 `json:"id"`
+	ContactName string `json:"contactName"`
+	ContactPhone string `json:"contactPhone"`
+	Tag string `json:"tag"`
+	Address string `json:"address"`
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+	IsDefault bool `json:"isDefault"`
+	Sort int `json:"sort"`
+}
+
+type DeleteAddressRequest {
+	ID uint64 `json:"id"`
+}
+
+type DeleteAddressResponse {
+	Success bool `json:"success"`
 }
 
 service passenger-api {
@@ -32,4 +180,35 @@ service passenger-api {
 
 	@handler LoginBySMSHandler
 	post /api/passenger/v1/auth/login-by-sms (LoginBySMSRequest) returns (LoginBySMSResponse)
+
+	@handler RefreshTokenHandler
+	post /api/passenger/v1/auth/refresh-token (RefreshTokenRequest) returns (RefreshTokenResponse)
+
+	@handler LogoutHandler
+	post /api/passenger/v1/auth/logout returns (LogoutResponse)
+
+	@handler CreateOrderHandler
+	post /api/passenger/v1/orders/create (CreateOrderRequest) returns (CreateOrderResponse)
+
+	@handler ListOrdersHandler
+	post /api/passenger/v1/orders/list (ListOrdersRequest) returns (ListOrdersResponse)
+
+	@handler GetOrderHandler
+	post /api/passenger/v1/orders/detail (GetOrderRequest) returns (OrderDetail)
+
+	@handler CancelOrderHandler
+	post /api/passenger/v1/orders/cancel (CancelOrderRequest) returns (CancelOrderResponse)
+
+	@handler CreateAddressHandler
+	post /api/passenger/v1/addresses/create (CreateAddressRequest) returns (AddressInfo)
+
+	@handler ListAddressesHandler
+	post /api/passenger/v1/addresses/list (ListAddressesRequest) returns (ListAddressesResponse)
+
+	@handler UpdateAddressHandler
+	post /api/passenger/v1/addresses/update (UpdateAddressRequest) returns (AddressInfo)
+
+	@handler DeleteAddressHandler
+	post /api/passenger/v1/addresses/delete (DeleteAddressRequest) returns (DeleteAddressResponse)
 }
+

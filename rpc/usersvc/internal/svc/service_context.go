@@ -12,7 +12,7 @@ type SMSCodeSender interface {
 	Send(ctx context.Context, phone string) (expireIn int64, err error)
 }
 
-// SMSCodeVerifier 定义验证码校验能力，便于业务逻辑屏蔽验证码存储实现。
+// SMSCodeVerifier 定义验证码校验能力，业务逻辑只依赖抽象契约。
 type SMSCodeVerifier interface {
 	Verify(ctx context.Context, phone, code string) (bool, error)
 }
@@ -24,19 +24,21 @@ type TokenManager interface {
 	Revoke(token string) error
 }
 
-// ServiceContext 集中保存 usersvc 运行时依赖，保持 server 层只负责转发请求。
+// ServiceContext 集中保存 usersvc 运行时依赖，server 层只负责转发请求。
 type ServiceContext struct {
 	Config      config.Config
 	Users       repository.UserRepository
+	Addresses   repository.AddressRepository
 	SMSSender   SMSCodeSender
 	SMSVerifier SMSCodeVerifier
 	Tokens      TokenManager
 }
 
-// NewServiceContext 按 goctl 风格根据配置创建 usersvc 服务上下文。
+// NewServiceContext 按 goctl 风格根据配置和依赖创建 usersvc 服务上下文。
 func NewServiceContext(
 	c config.Config,
 	users repository.UserRepository,
+	addresses repository.AddressRepository,
 	smsSender SMSCodeSender,
 	smsVerifier SMSCodeVerifier,
 	tokens TokenManager,
@@ -44,6 +46,7 @@ func NewServiceContext(
 	return &ServiceContext{
 		Config:      c,
 		Users:       users,
+		Addresses:   addresses,
 		SMSSender:   smsSender,
 		SMSVerifier: smsVerifier,
 		Tokens:      tokens,
