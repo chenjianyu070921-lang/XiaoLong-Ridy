@@ -4,14 +4,17 @@ import (
 	cfg "XiaoLong-Ridy/common/config"
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/driversvc/internal/config"
+	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type ServiceContext struct {
-	Config config.Config
-	DB     *gorm.DB
+	Config                 config.Config
+	DB                     *gorm.DB
+	DriverRepository       repository.DriverRepository
+	DriverVehicleRepository repository.DriverVehicleRepository
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -25,7 +28,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(err)
 	}
 	return &ServiceContext{
-		Config: c,
-		DB:     client,
+		Config:                  c,
+		DB:                      client,
+		DriverRepository:        repository.NewGormDriverRepository(client),
+		DriverVehicleRepository: repository.NewGormVehicleRepository(client),
 	}
 }

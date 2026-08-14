@@ -24,11 +24,25 @@ type (
 	UpdateDriverRequest  = proto.UpdateDriverRequest
 	UpdateDriverResponse = proto.UpdateDriverResponse
 
+	CreateVehicleRequest  = proto.CreateVehicleRequest
+	CreateVehicleResponse = proto.CreateVehicleResponse
+	DeleteVehicleRequest  = proto.DeleteVehicleRequest
+	DeleteVehicleResponse = proto.DeleteVehicleResponse
+	GetVehicleRequest     = proto.GetVehicleRequest
+	GetVehicleResponse    = proto.GetVehicleResponse
+	UpdateVehicleRequest  = proto.UpdateVehicleRequest
+	UpdateVehicleResponse = proto.UpdateVehicleResponse
+	Vehicle               = proto.Vehicle
+
 	Driversvc interface {
 		CreateDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
 		UpdateDriver(ctx context.Context, in *UpdateDriverRequest, opts ...grpc.CallOption) (*UpdateDriverResponse, error)
 		DeleteDriver(ctx context.Context, in *DeleteDriverRequest, opts ...grpc.CallOption) (*DeleteDriverResponse, error)
 		GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error)
+		CreateVehicle(ctx context.Context, in *CreateVehicleRequest, opts ...grpc.CallOption) (*CreateVehicleResponse, error)
+		UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error)
+		DeleteVehicle(ctx context.Context, in *DeleteVehicleRequest, opts ...grpc.CallOption) (*DeleteVehicleResponse, error)
+		GetVehicle(ctx context.Context, in *GetVehicleRequest, opts ...grpc.CallOption) (*GetVehicleResponse, error)
 	}
 
 	defaultDriversvc struct {
@@ -60,4 +74,24 @@ func (m *defaultDriversvc) DeleteDriver(ctx context.Context, in *DeleteDriverReq
 func (m *defaultDriversvc) GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error) {
 	client := proto.NewDriversvcClient(m.cli.Conn())
 	return client.GetDriver(ctx, in, opts...)
+}
+
+func (m *defaultDriversvc) CreateVehicle(ctx context.Context, in *CreateVehicleRequest, opts ...grpc.CallOption) (*CreateVehicleResponse, error) {
+	client := proto.NewDriversvcClient(m.cli.Conn())
+	return client.CreateVehicle(ctx, in, opts...)
+}
+
+func (m *defaultDriversvc) UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error) {
+	client := proto.NewDriversvcClient(m.cli.Conn())
+	return client.UpdateVehicle(ctx, in, opts...)
+}
+
+func (m *defaultDriversvc) DeleteVehicle(ctx context.Context, in *DeleteVehicleRequest, opts ...grpc.CallOption) (*DeleteVehicleResponse, error) {
+	client := proto.NewDriversvcClient(m.cli.Conn())
+	return client.DeleteVehicle(ctx, in, opts...)
+}
+
+func (m *defaultDriversvc) GetVehicle(ctx context.Context, in *GetVehicleRequest, opts ...grpc.CallOption) (*GetVehicleResponse, error) {
+	client := proto.NewDriversvcClient(m.cli.Conn())
+	return client.GetVehicle(ctx, in, opts...)
 }

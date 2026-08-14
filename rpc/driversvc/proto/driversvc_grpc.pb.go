@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v3.19.4
-// source: rpc/driversvc/proto/driversvc.proto
+// source: proto/driversvc.proto
 
 package proto
 
@@ -19,10 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Driversvc_CreateDriver_FullMethodName = "/driversvc.Driversvc/CreateDriver"
-	Driversvc_UpdateDriver_FullMethodName = "/driversvc.Driversvc/UpdateDriver"
-	Driversvc_DeleteDriver_FullMethodName = "/driversvc.Driversvc/DeleteDriver"
-	Driversvc_GetDriver_FullMethodName    = "/driversvc.Driversvc/GetDriver"
+	Driversvc_CreateDriver_FullMethodName  = "/driversvc.Driversvc/CreateDriver"
+	Driversvc_UpdateDriver_FullMethodName  = "/driversvc.Driversvc/UpdateDriver"
+	Driversvc_DeleteDriver_FullMethodName  = "/driversvc.Driversvc/DeleteDriver"
+	Driversvc_GetDriver_FullMethodName     = "/driversvc.Driversvc/GetDriver"
+	Driversvc_CreateVehicle_FullMethodName = "/driversvc.Driversvc/CreateVehicle"
+	Driversvc_UpdateVehicle_FullMethodName = "/driversvc.Driversvc/UpdateVehicle"
+	Driversvc_DeleteVehicle_FullMethodName = "/driversvc.Driversvc/DeleteVehicle"
+	Driversvc_GetVehicle_FullMethodName    = "/driversvc.Driversvc/GetVehicle"
 )
 
 // DriversvcClient is the client API for Driversvc service.
@@ -34,6 +38,11 @@ type DriversvcClient interface {
 	UpdateDriver(ctx context.Context, in *UpdateDriverRequest, opts ...grpc.CallOption) (*UpdateDriverResponse, error)
 	DeleteDriver(ctx context.Context, in *DeleteDriverRequest, opts ...grpc.CallOption) (*DeleteDriverResponse, error)
 	GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error)
+	// 车辆 CRUD（司机绑定车辆增删改查）
+	CreateVehicle(ctx context.Context, in *CreateVehicleRequest, opts ...grpc.CallOption) (*CreateVehicleResponse, error)
+	UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error)
+	DeleteVehicle(ctx context.Context, in *DeleteVehicleRequest, opts ...grpc.CallOption) (*DeleteVehicleResponse, error)
+	GetVehicle(ctx context.Context, in *GetVehicleRequest, opts ...grpc.CallOption) (*GetVehicleResponse, error)
 }
 
 type driversvcClient struct {
@@ -84,6 +93,46 @@ func (c *driversvcClient) GetDriver(ctx context.Context, in *GetDriverRequest, o
 	return out, nil
 }
 
+func (c *driversvcClient) CreateVehicle(ctx context.Context, in *CreateVehicleRequest, opts ...grpc.CallOption) (*CreateVehicleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateVehicleResponse)
+	err := c.cc.Invoke(ctx, Driversvc_CreateVehicle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driversvcClient) UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateVehicleResponse)
+	err := c.cc.Invoke(ctx, Driversvc_UpdateVehicle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driversvcClient) DeleteVehicle(ctx context.Context, in *DeleteVehicleRequest, opts ...grpc.CallOption) (*DeleteVehicleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteVehicleResponse)
+	err := c.cc.Invoke(ctx, Driversvc_DeleteVehicle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driversvcClient) GetVehicle(ctx context.Context, in *GetVehicleRequest, opts ...grpc.CallOption) (*GetVehicleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVehicleResponse)
+	err := c.cc.Invoke(ctx, Driversvc_GetVehicle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DriversvcServer is the server API for Driversvc service.
 // All implementations must embed UnimplementedDriversvcServer
 // for forward compatibility.
@@ -93,6 +142,11 @@ type DriversvcServer interface {
 	UpdateDriver(context.Context, *UpdateDriverRequest) (*UpdateDriverResponse, error)
 	DeleteDriver(context.Context, *DeleteDriverRequest) (*DeleteDriverResponse, error)
 	GetDriver(context.Context, *GetDriverRequest) (*GetDriverResponse, error)
+	// 车辆 CRUD（司机绑定车辆增删改查）
+	CreateVehicle(context.Context, *CreateVehicleRequest) (*CreateVehicleResponse, error)
+	UpdateVehicle(context.Context, *UpdateVehicleRequest) (*UpdateVehicleResponse, error)
+	DeleteVehicle(context.Context, *DeleteVehicleRequest) (*DeleteVehicleResponse, error)
+	GetVehicle(context.Context, *GetVehicleRequest) (*GetVehicleResponse, error)
 	mustEmbedUnimplementedDriversvcServer()
 }
 
@@ -114,6 +168,18 @@ func (UnimplementedDriversvcServer) DeleteDriver(context.Context, *DeleteDriverR
 }
 func (UnimplementedDriversvcServer) GetDriver(context.Context, *GetDriverRequest) (*GetDriverResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDriver not implemented")
+}
+func (UnimplementedDriversvcServer) CreateVehicle(context.Context, *CreateVehicleRequest) (*CreateVehicleResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateVehicle not implemented")
+}
+func (UnimplementedDriversvcServer) UpdateVehicle(context.Context, *UpdateVehicleRequest) (*UpdateVehicleResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateVehicle not implemented")
+}
+func (UnimplementedDriversvcServer) DeleteVehicle(context.Context, *DeleteVehicleRequest) (*DeleteVehicleResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteVehicle not implemented")
+}
+func (UnimplementedDriversvcServer) GetVehicle(context.Context, *GetVehicleRequest) (*GetVehicleResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetVehicle not implemented")
 }
 func (UnimplementedDriversvcServer) mustEmbedUnimplementedDriversvcServer() {}
 func (UnimplementedDriversvcServer) testEmbeddedByValue()                   {}
@@ -208,6 +274,78 @@ func _Driversvc_GetDriver_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Driversvc_CreateVehicle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateVehicleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).CreateVehicle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_CreateVehicle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).CreateVehicle(ctx, req.(*CreateVehicleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Driversvc_UpdateVehicle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateVehicleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).UpdateVehicle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_UpdateVehicle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).UpdateVehicle(ctx, req.(*UpdateVehicleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Driversvc_DeleteVehicle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteVehicleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).DeleteVehicle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_DeleteVehicle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).DeleteVehicle(ctx, req.(*DeleteVehicleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Driversvc_GetVehicle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVehicleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).GetVehicle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_GetVehicle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).GetVehicle(ctx, req.(*GetVehicleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Driversvc_ServiceDesc is the grpc.ServiceDesc for Driversvc service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -231,7 +369,23 @@ var Driversvc_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetDriver",
 			Handler:    _Driversvc_GetDriver_Handler,
 		},
+		{
+			MethodName: "CreateVehicle",
+			Handler:    _Driversvc_CreateVehicle_Handler,
+		},
+		{
+			MethodName: "UpdateVehicle",
+			Handler:    _Driversvc_UpdateVehicle_Handler,
+		},
+		{
+			MethodName: "DeleteVehicle",
+			Handler:    _Driversvc_DeleteVehicle_Handler,
+		},
+		{
+			MethodName: "GetVehicle",
+			Handler:    _Driversvc_GetVehicle_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "rpc/driversvc/proto/driversvc.proto",
+	Metadata: "proto/driversvc.proto",
 }

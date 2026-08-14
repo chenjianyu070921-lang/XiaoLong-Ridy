@@ -23,8 +23,17 @@ func NewDeleteDriverLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Dele
 	}
 }
 
+// DeleteDriver 根据司机 ID 软删除司机（设置 deleted_at，不物理删除）。
 func (l *DeleteDriverLogic) DeleteDriver(in *proto.DeleteDriverRequest) (*proto.DeleteDriverResponse, error) {
-	// todo: add your logic here and delete this line
-
-	return &proto.DeleteDriverResponse{}, nil
+	d, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.Id))
+	if err != nil {
+		return nil, err
+	}
+	if err := l.svcCtx.DriverRepository.Delete(l.ctx, d); err != nil {
+		return nil, err
+	}
+	return &proto.DeleteDriverResponse{
+		Id:      in.Id,
+		Success: true,
+	}, nil
 }

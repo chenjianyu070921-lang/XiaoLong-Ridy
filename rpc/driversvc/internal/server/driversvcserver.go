@@ -43,3 +43,24 @@ func (s *DriversvcServer) GetDriver(ctx context.Context, in *proto.GetDriverRequ
 	l := logic.NewGetDriverLogic(ctx, s.svcCtx)
 	return l.GetDriver(in)
 }
+
+// 车辆 CRUD（司机绑定车辆增删改查）
+func (s *DriversvcServer) CreateVehicle(ctx context.Context, in *proto.CreateVehicleRequest) (*proto.CreateVehicleResponse, error) {
+	l := logic.NewCreateVehicleLogic(ctx, s.svcCtx)
+	return l.CreateVehicle(in)
+}
+
+func (s *DriversvcServer) UpdateVehicle(ctx context.Context, in *proto.UpdateVehicleRequest) (*proto.UpdateVehicleResponse, error) {
+	l := logic.NewUpdateVehicleLogic(ctx, s.svcCtx)
+	return l.UpdateVehicle(in)
+}
+
+func (s *DriversvcServer) DeleteVehicle(ctx context.Context, in *proto.DeleteVehicleRequest) (*proto.DeleteVehicleResponse, error) {
+	l := logic.NewDeleteVehicleLogic(ctx, s.svcCtx)
+	return l.DeleteVehicle(in)
+}
+
+func (s *DriversvcServer) GetVehicle(ctx context.Context, in *proto.GetVehicleRequest) (*proto.GetVehicleResponse, error) {
+	l := logic.NewGetVehicleLogic(ctx, s.svcCtx)
+	return l.GetVehicle(in)
+}

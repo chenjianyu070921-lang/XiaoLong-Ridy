@@ -12,12 +12,25 @@ enum DriverStatus {
   DRIVER_STATUS_CANCELLED = 4;
 }
 
+// VehicleStatus 车辆状态枚举，对齐 driver_vehicle.status 字段。
+enum VehicleStatus {
+  VEHICLE_STATUS_UNSPECIFIED = 0;
+  VEHICLE_STATUS_PENDING = 1;
+  VEHICLE_STATUS_NORMAL = 2;
+  VEHICLE_STATUS_DISABLED = 3;
+}
+
 service Driversvc {
   // 司机主表 CRUD（仅司机增删改查）
   rpc CreateDriver(CreateDriverRequest) returns(CreateDriverResponse);
   rpc UpdateDriver(UpdateDriverRequest) returns(UpdateDriverResponse);
   rpc DeleteDriver(DeleteDriverRequest) returns(DeleteDriverResponse);
   rpc GetDriver(GetDriverRequest) returns(GetDriverResponse);
+  // 车辆 CRUD（司机绑定车辆增删改查）
+  rpc CreateVehicle(CreateVehicleRequest) returns(CreateVehicleResponse);
+  rpc UpdateVehicle(UpdateVehicleRequest) returns(UpdateVehicleResponse);
+  rpc DeleteVehicle(DeleteVehicleRequest) returns(DeleteVehicleResponse);
+  rpc GetVehicle(GetVehicleRequest) returns(GetVehicleResponse);
 }
 
 // Driver 司机信息，对应 driver 表的完整记录。
@@ -81,4 +94,76 @@ message GetDriverRequest {
 
 message GetDriverResponse {
   Driver driver = 1;
+}
+
+// Vehicle 车辆信息，对应 driver_vehicle 表的完整记录。
+message Vehicle {
+  int64 id = 1;
+  int64 driver_id = 2;
+  string plate_no = 3;
+  string brand = 4;
+  string model = 5;
+  string color = 6;
+  int32 vehicle_type = 7;
+  optional int64 registration_date = 8;
+  string insurance_no = 9;
+  optional int64 insurance_expire_at = 10;
+  VehicleStatus status = 11;
+  int64 created_at = 12;
+  int64 updated_at = 13;
+}
+
+message CreateVehicleRequest {
+  int64 driver_id = 1;
+  string plate_no = 2;
+  string brand = 3;
+  string model = 4;
+  string color = 5;
+  int32 vehicle_type = 6;
+  optional int64 registration_date = 7;
+  string insurance_no = 8;
+  optional int64 insurance_expire_at = 9;
+}
+
+message CreateVehicleResponse {
+  int64 id = 1;
+  VehicleStatus status = 2;
+  int64 created_at = 3;
+}
+
+message UpdateVehicleRequest {
+  int64 id = 1;
+  optional int64 driver_id = 2;
+  optional string plate_no = 3;
+  optional string brand = 4;
+  optional string model = 5;
+  optional string color = 6;
+  optional int32 vehicle_type = 7;
+  optional int64 registration_date = 8;
+  optional string insurance_no = 9;
+  optional int64 insurance_expire_at = 10;
+  optional VehicleStatus status = 11;
+}
+
+message UpdateVehicleResponse {
+  int64 id = 1;
+  VehicleStatus status = 2;
+  int64 updated_at = 3;
+}
+
+message DeleteVehicleRequest {
+  int64 id = 1;
+}
+
+message DeleteVehicleResponse {
+  int64 id = 1;
+  bool success = 2;
+}
+
+message GetVehicleRequest {
+  int64 id = 1;
+}
+
+message GetVehicleResponse {
+  Vehicle vehicle = 1;
 }
