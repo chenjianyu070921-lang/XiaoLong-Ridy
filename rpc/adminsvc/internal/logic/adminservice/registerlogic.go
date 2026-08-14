@@ -77,7 +77,7 @@ func (l *RegisterLogic) Register(in *adminsvc.RegisterRequest) (*adminsvc.AuthRe
 	_ = createOperationLog(l.ctx, l.svcCtx, operatorID, "auth", "register", "admin_user", id, "管理员注册", "")
 	return &adminsvc.AuthResponse{
 		Token:     token,
-		ExpiresIn: int64(l.svcCtx.Config.Auth.SessionTTLHours) * 3600,
+		ExpiresIn: int64(l.svcCtx.Config.Session.SessionTTLHours) * 3600,
 		Admin:     toAdminPB(admin),
 	}, nil
 }

@@ -6,10 +6,10 @@ Etcd:
   Key: admin.rpc
 MySQL:
   DSN: root:123456@tcp(127.0.0.1:3306)/xiaolong_ridy?parseTime=true&loc=Local&charset=utf8mb4,utf8&timeout=5s&readTimeout=5s&writeTimeout=5s
-Redis:
-  Addr: 127.0.0.1:6379
+Cache:
+  Host: 127.0.0.1:6379
   Password: ""
   DB: 0
-Auth:
+Session:
   SessionTTLHours: 24
-  TokenPrefix: admin:sess:
+  TokenPrefix: "admin:sess:"

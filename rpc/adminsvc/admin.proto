@@ -23,6 +23,10 @@ service AdminService {
   rpc ListUsers(UserListRequest) returns (UserListResponse);
   // 查询用户详情。
   rpc GetUser(UserDetailRequest) returns (User);
+  // 冻结用户。
+  rpc FreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
+  // 解封用户。
+  rpc UnfreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
   // 查询司机审核列表。
   rpc ListDriverCertifications(DriverCertificationListRequest) returns (DriverCertificationListResponse);
   // 查询司机审核详情。
@@ -35,6 +39,16 @@ service AdminService {
   rpc ListOrders(OrderListRequest) returns (OrderListResponse);
   // 查询订单详情。
   rpc GetOrder(OrderDetailRequest) returns (OrderDetail);
+  // 查询异常订单列表。
+  rpc ListAbnormalOrders(AbnormalOrderListRequest) returns (AbnormalOrderListResponse);
+  // 查询优惠券模板列表。
+  rpc ListCoupons(CouponListRequest) returns (CouponListResponse);
+  // 创建优惠券模板。
+  rpc CreateCoupon(CouponRequest) returns (CommonResponse);
+  // 更新优惠券模板。
+  rpc UpdateCoupon(CouponRequest) returns (CommonResponse);
+  // 下架优惠券模板。
+  rpc DisableCoupon(CouponRequest) returns (CommonResponse);
 }
 
 message Admin {
@@ -140,6 +154,15 @@ message UserListRequest {
 
 message UserDetailRequest {
   int64 id = 1;
+}
+
+message ChangeUserStatusRequest {
+  int64 id = 1;
+  int32 status = 2;
+  string reason = 3;
+  string remark = 4;
+  int64 admin_id = 5;
+  string ip = 6;
 }
 
 message User {
@@ -325,6 +348,100 @@ message OrderDetail {
 
 message OrderListResponse {
   repeated Order list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message AbnormalOrderListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  string abnormal_type = 4;
+  int64 user_id = 5;
+  int64 driver_id = 6;
+  string start_time = 7;
+  string end_time = 8;
+}
+
+message CouponListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 type = 4;
+  int32 status = 5;
+  string start_time = 6;
+  string end_time = 7;
+}
+
+message CouponRequest {
+  int64 id = 1;
+  string name = 2;
+  int32 type = 3;
+  string face_value = 4;
+  string discount = 5;
+  string threshold_amount = 6;
+  int64 total_count = 7;
+  int32 per_user_limit = 8;
+  string valid_start_at = 9;
+  string valid_end_at = 10;
+  int32 status = 11;
+  int64 admin_id = 12;
+  string ip = 13;
+}
+
+message Coupon {
+  int64 id = 1;
+  string name = 2;
+  int32 type = 3;
+  string face_value = 4;
+  string discount = 5;
+  string threshold_amount = 6;
+  int64 total_count = 7;
+  int64 received_count = 8;
+  int32 per_user_limit = 9;
+  string valid_start_at = 10;
+  string valid_end_at = 11;
+  int32 status = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+
+message CouponListResponse {
+  repeated Coupon list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message AbnormalOrder {
+  int64 id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  int64 driver_id = 4;
+  int32 car_type = 5;
+  string from_address = 6;
+  string from_longitude = 7;
+  string from_latitude = 8;
+  string to_address = 9;
+  string to_longitude = 10;
+  string to_latitude = 11;
+  int64 estimated_distance_m = 12;
+  int64 estimated_duration_s = 13;
+  string estimated_price = 14;
+  int32 status = 15;
+  string cancel_reason = 16;
+  string cancel_by = 17;
+  string abnormal_type = 18;
+  string abnormal_reason = 19;
+  int32 payment_status = 20;
+  int32 dispatch_status = 21;
+  string created_at = 22;
+  string updated_at = 23;
+}
+
+message AbnormalOrderListResponse {
+  repeated AbnormalOrder list = 1;
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;

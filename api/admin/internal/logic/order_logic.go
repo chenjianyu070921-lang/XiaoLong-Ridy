@@ -3,113 +3,148 @@ package logic
 import (
 	"context"
 
-	"XiaoLong-Ridy/api/admin/internal/model"
-	"XiaoLong-Ridy/api/admin/internal/repository"
 	"XiaoLong-Ridy/api/admin/internal/svc"
 	"XiaoLong-Ridy/api/admin/internal/types"
+	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
 )
 
-// OrderLogic 封装管理后台订单监控业务。
-// P0 阶段提供列表和详情聚合能力，方便客服和运营排查订单。
+// OrderLogic 负责管理后台订单查询的 HTTP 到 RPC 适配。
 type OrderLogic struct {
 	ctx *svc.ServiceContext
 }
 
-// NewOrderLogic 创建订单业务逻辑对象。
+// NewOrderLogic 创建订单逻辑。
 func NewOrderLogic(ctx *svc.ServiceContext) *OrderLogic {
 	return &OrderLogic{ctx: ctx}
 }
 
-// List 查询订单列表。
+// List 查询全量订单列表。
 func (l *OrderLogic) List(ctx context.Context, req types.OrderListRequest) (*types.PageResult, error) {
-	list, total, err := l.ctx.OrderRepository.List(ctx, req)
+	resp, err := l.ctx.AdminSvc.ListOrders(ctx, &adminclient.OrderListRequest{
+		Page:      int32(req.Page),
+		PageSize:  int32(req.PageSize),
+		Keyword:   req.Keyword,
+		Status:    req.Status,
+		UserId:    req.UserID,
+		DriverId:  req.DriverID,
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
+	})
 	if err != nil {
 		return nil, err
 	}
-	items := make([]types.OrderDTO, 0, len(list))
-	for _, item := range list {
-		items = append(items, toOrderDTO(item))
+	items := make([]types.OrderDTO, 0, len(resp.List))
+	for _, item := range resp.List {
+		items = append(items, orderPBToDTO(item))
 	}
-	return &types.PageResult{
-		List:     items,
-		Total:    total,
-		Page:     normalizePage(req.Page),
-		PageSize: normalizePageSize(req.PageSize),
-	}, nil
+	return &types.PageResult{List: items, Total: resp.Total, Page: int(resp.Page), PageSize: int(resp.PageSize)}, nil
 }
 
 // ListAbnormal 查询异常订单列表。
-// 当前实现只读取订单、支付和派单状态，不执行退款、改派等高风险写操作。
 func (l *OrderLogic) ListAbnormal(ctx context.Context, req types.AbnormalOrderListRequest) (*types.PageResult, error) {
-	list, total, err := l.ctx.OrderRepository.ListAbnormal(ctx, req)
+	resp, err := l.ctx.AdminSvc.ListAbnormalOrders(ctx, &adminclient.AbnormalOrderListRequest{
+		Page:         int32(req.Page),
+		PageSize:     int32(req.PageSize),
+		Keyword:      req.Keyword,
+		AbnormalType: req.AbnormalType,
+		UserId:       req.UserID,
+		DriverId:     req.DriverID,
+		StartTime:    req.StartTime,
+		EndTime:      req.EndTime,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return &types.PageResult{
-		List:     list,
-		Total:    total,
-		Page:     normalizePage(req.Page),
-		PageSize: normalizePageSize(req.PageSize),
-	}, nil
+	items := make([]types.AbnormalOrderDTO, 0, len(resp.List))
+	for _, item := range resp.List {
+		items = append(items, types.AbnormalOrderDTO{
+			OrderDTO: types.OrderDTO{
+				ID:                 item.Id,
+				OrderNo:            item.OrderNo,
+				UserID:             item.UserId,
+				DriverID:           item.DriverId,
+				CarType:            item.CarType,
+				FromAddress:        item.FromAddress,
+				FromLongitude:      item.FromLongitude,
+				FromLatitude:       item.FromLatitude,
+				ToAddress:          item.ToAddress,
+				ToLongitude:        item.ToLongitude,
+				ToLatitude:         item.ToLatitude,
+				EstimatedDistanceM: item.EstimatedDistanceM,
+				EstimatedDurationS: item.EstimatedDurationS,
+				EstimatedPrice:     item.EstimatedPrice,
+				Status:             item.Status,
+				CancelReason:       item.CancelReason,
+				CancelBy:           item.CancelBy,
+				CreatedAt:          item.CreatedAt,
+				UpdatedAt:          item.UpdatedAt,
+			},
+			AbnormalType:   item.AbnormalType,
+			AbnormalReason: item.AbnormalReason,
+			PaymentStatus:  item.PaymentStatus,
+			DispatchStatus: item.DispatchStatus,
+		})
+	}
+	return &types.PageResult{List: items, Total: resp.Total, Page: int(resp.Page), PageSize: int(resp.PageSize)}, nil
 }
 
-// Detail 查询订单详情并聚合关联数据。
+// Detail 查询订单详情聚合信息。
 func (l *OrderLogic) Detail(ctx context.Context, id int64) (*types.OrderDetailDTO, error) {
-	order, err := l.ctx.OrderRepository.GetByID(ctx, id)
+	resp, err := l.ctx.AdminSvc.GetOrder(ctx, &adminclient.OrderDetailRequest{Id: id})
 	if err != nil {
 		return nil, err
 	}
-	statusLogs, err := l.ctx.OrderRepository.ListStatusLogs(ctx, id)
-	if err != nil {
-		return nil, err
+	detail := &types.OrderDetailDTO{Order: orderPBToDTO(resp.Order)}
+	for _, item := range resp.StatusLogs {
+		detail.StatusLogs = append(detail.StatusLogs, types.OrderStatusLog{
+			ID: item.Id, OrderID: item.OrderId, FromStatus: item.FromStatus, ToStatus: item.ToStatus,
+			OperatorType: item.OperatorType, OperatorID: item.OperatorId, Remark: item.Remark, CreatedAt: item.CreatedAt,
+		})
 	}
-	dispatchRecords, err := l.ctx.OrderRepository.ListDispatchRecords(ctx, id)
-	if err != nil {
-		return nil, err
+	for _, item := range resp.DispatchRecords {
+		detail.DispatchRecords = append(detail.DispatchRecords, types.DispatchRecord{
+			ID: item.Id, OrderID: item.OrderId, DriverID: item.DriverId, DispatchType: item.DispatchType,
+			Status: item.Status, MatchScore: item.MatchScore, Remark: item.Remark, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
+		})
 	}
-	price, err := l.ctx.OrderRepository.GetOrderPrice(ctx, id)
-	if err != nil {
-		return nil, err
+	if resp.Price != nil {
+		detail.Price = &types.OrderPrice{
+			ID: resp.Price.Id, OrderID: resp.Price.OrderId, PriceRuleID: resp.Price.PriceRuleId,
+			EstimatedPrice: resp.Price.EstimatedPrice, ActualPrice: resp.Price.ActualPrice,
+			BaseFee: resp.Price.BaseFee, DistanceFee: resp.Price.DistanceFee, TimeFee: resp.Price.TimeFee,
+			NightFee: resp.Price.NightFee, DynamicFee: resp.Price.DynamicFee, DiscountAmount: resp.Price.DiscountAmount,
+			PlatformSubsidy: resp.Price.PlatformSubsidy, PayableAmount: resp.Price.PayableAmount, Status: resp.Price.Status,
+		}
 	}
-	payment, err := l.ctx.OrderRepository.GetPayment(ctx, id)
-	if err != nil {
-		return nil, err
+	if resp.Payment != nil {
+		detail.Payment = &types.Payment{
+			ID: resp.Payment.Id, PaymentNo: resp.Payment.PaymentNo, OrderID: resp.Payment.OrderId, UserID: resp.Payment.UserId,
+			Amount: resp.Payment.Amount, Channel: resp.Payment.Channel, Status: resp.Payment.Status,
+			TransactionID: resp.Payment.TransactionId, RefundAmount: resp.Payment.RefundAmount, PaidAt: resp.Payment.PaidAt,
+		}
 	}
-	settlement, err := l.ctx.OrderRepository.GetSettlement(ctx, id)
-	if err != nil {
-		return nil, err
+	if resp.Settlement != nil {
+		detail.Settlement = &types.Settlement{
+			ID: resp.Settlement.Id, SettlementNo: resp.Settlement.SettlementNo, OrderID: resp.Settlement.OrderId,
+			DriverID: resp.Settlement.DriverId, TotalAmount: resp.Settlement.TotalAmount,
+			PlatformCommissionRate: resp.Settlement.PlatformCommissionRate, PlatformCommission: resp.Settlement.PlatformCommission,
+			DriverIncome: resp.Settlement.DriverIncome, Status: resp.Settlement.Status, SettledAt: resp.Settlement.SettledAt,
+		}
 	}
-	return &types.OrderDetailDTO{
-		Order:           toOrderDTO(*order),
-		StatusLogs:      statusLogs,
-		DispatchRecords: dispatchRecords,
-		Price:           price,
-		Payment:         payment,
-		Settlement:      settlement,
-	}, nil
+	return detail, nil
 }
 
-// toOrderDTO 将订单数据库模型转换为接口 DTO。
-func toOrderDTO(order model.RideOrder) types.OrderDTO {
+// orderPBToDTO 将订单 protobuf 对象转换为 HTTP DTO。
+func orderPBToDTO(item *adminclient.Order) types.OrderDTO {
+	if item == nil {
+		return types.OrderDTO{}
+	}
 	return types.OrderDTO{
-		ID:                 order.ID,
-		OrderNo:            order.OrderNo,
-		UserID:             order.UserID,
-		DriverID:           order.DriverID,
-		CarType:            order.CarType,
-		FromAddress:        order.FromAddress,
-		FromLongitude:      order.FromLongitude,
-		FromLatitude:       order.FromLatitude,
-		ToAddress:          order.ToAddress,
-		ToLongitude:        order.ToLongitude,
-		ToLatitude:         order.ToLatitude,
-		EstimatedDistanceM: order.EstimatedDistanceM,
-		EstimatedDurationS: order.EstimatedDurationS,
-		EstimatedPrice:     order.EstimatedPrice,
-		Status:             order.Status,
-		CancelReason:       order.CancelReason,
-		CancelBy:           order.CancelBy,
-		CreatedAt:          repository.FormatTime(order.CreatedAt),
-		UpdatedAt:          repository.FormatTime(order.UpdatedAt),
+		ID: item.Id, OrderNo: item.OrderNo, UserID: item.UserId, DriverID: item.DriverId, CarType: item.CarType,
+		FromAddress: item.FromAddress, FromLongitude: item.FromLongitude, FromLatitude: item.FromLatitude,
+		ToAddress: item.ToAddress, ToLongitude: item.ToLongitude, ToLatitude: item.ToLatitude,
+		EstimatedDistanceM: item.EstimatedDistanceM, EstimatedDurationS: item.EstimatedDurationS,
+		EstimatedPrice: item.EstimatedPrice, Status: item.Status, CancelReason: item.CancelReason,
+		CancelBy: item.CancelBy, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
 	}
 }

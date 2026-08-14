@@ -89,7 +89,7 @@ func randomToken() (string, error) {
 
 // sessionKey 统一生成 Redis 会话 key。
 func sessionKey(svcCtx *svc.ServiceContext, token string) string {
-	prefix := svcCtx.Config.Auth.TokenPrefix
+	prefix := svcCtx.Config.Session.TokenPrefix
 	if prefix == "" {
 		prefix = "admin:sess:"
 	}
@@ -102,7 +102,7 @@ func saveSession(ctx context.Context, svcCtx *svc.ServiceContext, sess adminSess
 	if err != nil {
 		return fmt.Errorf("marshal session: %w", err)
 	}
-	ttlHours := svcCtx.Config.Auth.SessionTTLHours
+	ttlHours := svcCtx.Config.Session.SessionTTLHours
 	if ttlHours <= 0 {
 		ttlHours = 24
 	}

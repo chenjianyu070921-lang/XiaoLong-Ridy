@@ -27,12 +27,19 @@ const (
 	AdminService_ListOperationLogs_FullMethodName          = "/adminsvc.AdminService/ListOperationLogs"
 	AdminService_ListUsers_FullMethodName                  = "/adminsvc.AdminService/ListUsers"
 	AdminService_GetUser_FullMethodName                    = "/adminsvc.AdminService/GetUser"
+	AdminService_FreezeUser_FullMethodName                 = "/adminsvc.AdminService/FreezeUser"
+	AdminService_UnfreezeUser_FullMethodName               = "/adminsvc.AdminService/UnfreezeUser"
 	AdminService_ListDriverCertifications_FullMethodName   = "/adminsvc.AdminService/ListDriverCertifications"
 	AdminService_GetDriverCertification_FullMethodName     = "/adminsvc.AdminService/GetDriverCertification"
 	AdminService_ApproveDriverCertification_FullMethodName = "/adminsvc.AdminService/ApproveDriverCertification"
 	AdminService_RejectDriverCertification_FullMethodName  = "/adminsvc.AdminService/RejectDriverCertification"
 	AdminService_ListOrders_FullMethodName                 = "/adminsvc.AdminService/ListOrders"
 	AdminService_GetOrder_FullMethodName                   = "/adminsvc.AdminService/GetOrder"
+	AdminService_ListAbnormalOrders_FullMethodName         = "/adminsvc.AdminService/ListAbnormalOrders"
+	AdminService_ListCoupons_FullMethodName                = "/adminsvc.AdminService/ListCoupons"
+	AdminService_CreateCoupon_FullMethodName               = "/adminsvc.AdminService/CreateCoupon"
+	AdminService_UpdateCoupon_FullMethodName               = "/adminsvc.AdminService/UpdateCoupon"
+	AdminService_DisableCoupon_FullMethodName              = "/adminsvc.AdminService/DisableCoupon"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -58,6 +65,10 @@ type AdminServiceClient interface {
 	ListUsers(ctx context.Context, in *UserListRequest, opts ...grpc.CallOption) (*UserListResponse, error)
 	// 查询用户详情。
 	GetUser(ctx context.Context, in *UserDetailRequest, opts ...grpc.CallOption) (*User, error)
+	// 冻结用户。
+	FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 解封用户。
+	UnfreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询司机审核列表。
 	ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error)
 	// 查询司机审核详情。
@@ -70,6 +81,16 @@ type AdminServiceClient interface {
 	ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
 	// 查询订单详情。
 	GetOrder(ctx context.Context, in *OrderDetailRequest, opts ...grpc.CallOption) (*OrderDetail, error)
+	// 查询异常订单列表。
+	ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
+	// 查询优惠券模板列表。
+	ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error)
+	// 创建优惠券模板。
+	CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 更新优惠券模板。
+	UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 下架优惠券模板。
+	DisableCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 }
 
 type adminServiceClient struct {
@@ -160,6 +181,26 @@ func (c *adminServiceClient) GetUser(ctx context.Context, in *UserDetailRequest,
 	return out, nil
 }
 
+func (c *adminServiceClient) FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_FreezeUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UnfreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UnfreezeUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DriverCertificationListResponse)
@@ -220,6 +261,56 @@ func (c *adminServiceClient) GetOrder(ctx context.Context, in *OrderDetailReques
 	return out, nil
 }
 
+func (c *adminServiceClient) ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AbnormalOrderListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListAbnormalOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CouponListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListCoupons_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_CreateCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UpdateCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) DisableCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_DisableCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AdminServiceServer is the server API for AdminService service.
 // All implementations must embed UnimplementedAdminServiceServer
 // for forward compatibility
@@ -243,6 +334,10 @@ type AdminServiceServer interface {
 	ListUsers(context.Context, *UserListRequest) (*UserListResponse, error)
 	// 查询用户详情。
 	GetUser(context.Context, *UserDetailRequest) (*User, error)
+	// 冻结用户。
+	FreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error)
+	// 解封用户。
+	UnfreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error)
 	// 查询司机审核列表。
 	ListDriverCertifications(context.Context, *DriverCertificationListRequest) (*DriverCertificationListResponse, error)
 	// 查询司机审核详情。
@@ -255,6 +350,16 @@ type AdminServiceServer interface {
 	ListOrders(context.Context, *OrderListRequest) (*OrderListResponse, error)
 	// 查询订单详情。
 	GetOrder(context.Context, *OrderDetailRequest) (*OrderDetail, error)
+	// 查询异常订单列表。
+	ListAbnormalOrders(context.Context, *AbnormalOrderListRequest) (*AbnormalOrderListResponse, error)
+	// 查询优惠券模板列表。
+	ListCoupons(context.Context, *CouponListRequest) (*CouponListResponse, error)
+	// 创建优惠券模板。
+	CreateCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
+	// 更新优惠券模板。
+	UpdateCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
+	// 下架优惠券模板。
+	DisableCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -286,6 +391,12 @@ func (UnimplementedAdminServiceServer) ListUsers(context.Context, *UserListReque
 func (UnimplementedAdminServiceServer) GetUser(context.Context, *UserDetailRequest) (*User, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
 }
+func (UnimplementedAdminServiceServer) FreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FreezeUser not implemented")
+}
+func (UnimplementedAdminServiceServer) UnfreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnfreezeUser not implemented")
+}
 func (UnimplementedAdminServiceServer) ListDriverCertifications(context.Context, *DriverCertificationListRequest) (*DriverCertificationListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListDriverCertifications not implemented")
 }
@@ -303,6 +414,21 @@ func (UnimplementedAdminServiceServer) ListOrders(context.Context, *OrderListReq
 }
 func (UnimplementedAdminServiceServer) GetOrder(context.Context, *OrderDetailRequest) (*OrderDetail, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) ListAbnormalOrders(context.Context, *AbnormalOrderListRequest) (*AbnormalOrderListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAbnormalOrders not implemented")
+}
+func (UnimplementedAdminServiceServer) ListCoupons(context.Context, *CouponListRequest) (*CouponListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListCoupons not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateCoupon(context.Context, *CouponRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateCoupon not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdateCoupon(context.Context, *CouponRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateCoupon not implemented")
+}
+func (UnimplementedAdminServiceServer) DisableCoupon(context.Context, *CouponRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DisableCoupon not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 
@@ -461,6 +587,42 @@ func _AdminService_GetUser_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_FreezeUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeUserStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).FreezeUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_FreezeUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).FreezeUser(ctx, req.(*ChangeUserStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UnfreezeUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeUserStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UnfreezeUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UnfreezeUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UnfreezeUser(ctx, req.(*ChangeUserStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_ListDriverCertifications_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DriverCertificationListRequest)
 	if err := dec(in); err != nil {
@@ -569,6 +731,96 @@ func _AdminService_GetOrder_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_ListAbnormalOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AbnormalOrderListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListAbnormalOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListAbnormalOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListAbnormalOrders(ctx, req.(*AbnormalOrderListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListCoupons_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListCoupons(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListCoupons_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListCoupons(ctx, req.(*CouponListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreateCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateCoupon(ctx, req.(*CouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdateCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdateCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdateCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdateCoupon(ctx, req.(*CouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_DisableCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).DisableCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_DisableCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).DisableCoupon(ctx, req.(*CouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AdminService_ServiceDesc is the grpc.ServiceDesc for AdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -609,6 +861,14 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_GetUser_Handler,
 		},
 		{
+			MethodName: "FreezeUser",
+			Handler:    _AdminService_FreezeUser_Handler,
+		},
+		{
+			MethodName: "UnfreezeUser",
+			Handler:    _AdminService_UnfreezeUser_Handler,
+		},
+		{
 			MethodName: "ListDriverCertifications",
 			Handler:    _AdminService_ListDriverCertifications_Handler,
 		},
@@ -631,6 +891,26 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOrder",
 			Handler:    _AdminService_GetOrder_Handler,
+		},
+		{
+			MethodName: "ListAbnormalOrders",
+			Handler:    _AdminService_ListAbnormalOrders_Handler,
+		},
+		{
+			MethodName: "ListCoupons",
+			Handler:    _AdminService_ListCoupons_Handler,
+		},
+		{
+			MethodName: "CreateCoupon",
+			Handler:    _AdminService_CreateCoupon_Handler,
+		},
+		{
+			MethodName: "UpdateCoupon",
+			Handler:    _AdminService_UpdateCoupon_Handler,
+		},
+		{
+			MethodName: "DisableCoupon",
+			Handler:    _AdminService_DisableCoupon_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

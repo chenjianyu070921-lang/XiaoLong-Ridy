@@ -2,144 +2,91 @@ package logic
 
 import (
 	"context"
-	"fmt"
-	"strconv"
-	"strings"
-	"time"
 
 	"XiaoLong-Ridy/api/admin/internal/model"
-	"XiaoLong-Ridy/api/admin/internal/repository"
 	"XiaoLong-Ridy/api/admin/internal/svc"
 	"XiaoLong-Ridy/api/admin/internal/types"
+	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
 )
 
-const adminTimeLayout = "2006-01-02 15:04:05"
-
-// CouponLogic 封装管理后台优惠券配置业务逻辑。
-// 它负责参数校验、调用仓储读写 coupon 表，并为新增和编辑动作写入后台操作日志。
+// CouponLogic 负责优惠券 HTTP 请求到 adminsvc 的参数转换。
 type CouponLogic struct {
 	ctx *svc.ServiceContext
 }
 
-// NewCouponLogic 创建优惠券业务逻辑对象。
-// handler 层每次请求创建轻量实例，共用 ServiceContext 中的连接池和仓储。
+// NewCouponLogic 创建优惠券逻辑。
 func NewCouponLogic(ctx *svc.ServiceContext) *CouponLogic {
 	return &CouponLogic{ctx: ctx}
 }
 
-// List 查询优惠券模板分页列表。
-// 该接口只读取模板配置，不读取用户券明细，避免列表页查询过重。
+// List 查询优惠券模板列表。
 func (l *CouponLogic) List(ctx context.Context, req types.CouponListRequest) (*types.PageResult, error) {
-	list, total, err := l.ctx.CouponRepository.List(ctx, req)
+	resp, err := l.ctx.AdminSvc.ListCoupons(ctx, &adminclient.CouponListRequest{
+		Page: int32(req.Page), PageSize: int32(req.PageSize), Keyword: req.Keyword,
+		Type: req.Type, Status: req.Status, StartTime: req.StartTime, EndTime: req.EndTime,
+	})
 	if err != nil {
 		return nil, err
 	}
-	items := make([]types.CouponDTO, 0, len(list))
-	for _, item := range list {
-		items = append(items, toCouponDTO(item))
+	items := make([]types.CouponDTO, 0, len(resp.List))
+	for _, item := range resp.List {
+		items = append(items, couponPBToDTO(item))
 	}
-	return &types.PageResult{
-		List:     items,
-		Total:    total,
-		Page:     normalizePage(req.Page),
-		PageSize: normalizePageSize(req.PageSize),
-	}, nil
+	return &types.PageResult{List: items, Total: resp.Total, Page: int(resp.Page), PageSize: int(resp.PageSize)}, nil
 }
 
 // Create 新增优惠券模板。
-// 创建成功后写入 admin_operation_log，便于运营配置变更追溯。
 func (l *CouponLogic) Create(ctx context.Context, req types.CouponSaveRequest, session *model.AdminSession, ip string) (*types.CouponSaveResponse, error) {
-	if err := validateCouponSaveRequest(req); err != nil {
-		return nil, err
-	}
-	id, err := l.ctx.CouponRepository.Create(ctx, req)
+	_, err := l.ctx.AdminSvc.CreateCoupon(ctx, couponRequestToPB(0, req, session, ip))
 	if err != nil {
 		return nil, err
 	}
-	if err := l.ctx.OperationLogRepository.Create(ctx, repository.CreateOperationLogInput{
-		AdminID:    session.AdminID,
-		Module:     "coupon",
-		Action:     "create",
-		TargetType: "coupon",
-		TargetID:   id,
-		Detail:     fmt.Sprintf("创建优惠券模板：%s", req.Name),
-		IP:         ip,
-	}); err != nil {
-		return nil, err
-	}
-	return &types.CouponSaveResponse{ID: id}, nil
+	return &types.CouponSaveResponse{}, nil
 }
 
 // Update 编辑优惠券模板。
-// 编辑接口不直接操作 user_coupon，防止后台配置修改影响已经发放给用户的券实例。
 func (l *CouponLogic) Update(ctx context.Context, id int64, req types.CouponSaveRequest, session *model.AdminSession, ip string) error {
-	if id <= 0 {
-		return ErrBadRequest
-	}
-	if err := validateCouponSaveRequest(req); err != nil {
-		return err
-	}
-	if err := l.ctx.CouponRepository.Update(ctx, id, req); err != nil {
-		return err
-	}
-	return l.ctx.OperationLogRepository.Create(ctx, repository.CreateOperationLogInput{
-		AdminID:    session.AdminID,
-		Module:     "coupon",
-		Action:     "update",
-		TargetType: "coupon",
-		TargetID:   id,
-		Detail:     fmt.Sprintf("编辑优惠券模板：%s", req.Name),
-		IP:         ip,
-	})
+	_, err := l.ctx.AdminSvc.UpdateCoupon(ctx, couponRequestToPB(id, req, session, ip))
+	return err
 }
 
-// validateCouponSaveRequest 校验优惠券新增和编辑请求。
-// 这里做基础业务约束校验，复杂的活动冲突检测后续应交给计价/营销 RPC 服务处理。
-func validateCouponSaveRequest(req types.CouponSaveRequest) error {
-	if strings.TrimSpace(req.Name) == "" {
-		return ErrBadRequest
+// Disable 下架优惠券模板。
+func (l *CouponLogic) Disable(ctx context.Context, id int64, session *model.AdminSession, ip string) error {
+	adminID := int64(0)
+	if session != nil {
+		adminID = session.AdminID
 	}
-	if req.Type < 1 || req.Type > 3 {
-		return ErrBadRequest
-	}
-	if req.Status < 1 || req.Status > 2 {
-		return ErrBadRequest
-	}
-	if req.TotalCount < 0 || req.PerUserLimit <= 0 {
-		return ErrBadRequest
-	}
-	if !validDecimal(req.FaceValue) || !validDecimal(req.Discount) || !validDecimal(req.ThresholdAmount) {
-		return ErrBadRequest
-	}
-	start, err := time.ParseInLocation(adminTimeLayout, req.ValidStartAt, time.Local)
-	if err != nil {
-		return ErrBadRequest
-	}
-	end, err := time.ParseInLocation(adminTimeLayout, req.ValidEndAt, time.Local)
-	if err != nil {
-		return ErrBadRequest
-	}
-	if !end.After(start) {
-		return ErrBadRequest
-	}
-	return nil
+	_, err := l.ctx.AdminSvc.DisableCoupon(ctx, &adminclient.CouponRequest{Id: id, AdminId: adminID, Ip: ip})
+	return err
 }
 
-// validDecimal 校验金额和折扣字段是否为合法十进制字符串。
-// 业务层只校验格式和非负，实际精度由 MySQL DECIMAL 字段兜底约束。
-func validDecimal(value string) bool {
-	if strings.TrimSpace(value) == "" {
-		return false
+// couponRequestToPB 将 HTTP 请求体转换为 RPC 请求体。
+func couponRequestToPB(id int64, req types.CouponSaveRequest, session *model.AdminSession, ip string) *adminclient.CouponRequest {
+	adminID := int64(0)
+	if session != nil {
+		adminID = session.AdminID
 	}
-	parsed, err := strconv.ParseFloat(value, 64)
-	return err == nil && parsed >= 0
+	return &adminclient.CouponRequest{
+		Id:              id,
+		Name:            req.Name,
+		Type:            req.Type,
+		FaceValue:       req.FaceValue,
+		Discount:        req.Discount,
+		ThresholdAmount: req.ThresholdAmount,
+		TotalCount:      req.TotalCount,
+		PerUserLimit:    int32(req.PerUserLimit),
+		ValidStartAt:    req.ValidStartAt,
+		ValidEndAt:      req.ValidEndAt,
+		Status:          req.Status,
+		AdminId:         adminID,
+		Ip:              ip,
+	}
 }
 
-// toCouponDTO 将优惠券数据库模型转换为接口返回对象。
-// 时间统一格式化为 yyyy-MM-dd HH:mm:ss，便于前端直接展示。
-func toCouponDTO(item model.Coupon) types.CouponDTO {
+// couponPBToDTO 将 RPC 优惠券对象转换为 HTTP DTO。
+func couponPBToDTO(item *adminclient.Coupon) types.CouponDTO {
 	return types.CouponDTO{
-		ID:              item.ID,
+		ID:              item.Id,
 		Name:            item.Name,
 		Type:            item.Type,
 		FaceValue:       item.FaceValue,
@@ -147,11 +94,11 @@ func toCouponDTO(item model.Coupon) types.CouponDTO {
 		ThresholdAmount: item.ThresholdAmount,
 		TotalCount:      item.TotalCount,
 		ReceivedCount:   item.ReceivedCount,
-		PerUserLimit:    item.PerUserLimit,
-		ValidStartAt:    repository.FormatTime(item.ValidStartAt),
-		ValidEndAt:      repository.FormatTime(item.ValidEndAt),
+		PerUserLimit:    int64(item.PerUserLimit),
+		ValidStartAt:    item.ValidStartAt,
+		ValidEndAt:      item.ValidEndAt,
 		Status:          item.Status,
-		CreatedAt:       repository.FormatTime(item.CreatedAt),
-		UpdatedAt:       repository.FormatTime(item.UpdatedAt),
+		CreatedAt:       item.CreatedAt,
+		UpdatedAt:       item.UpdatedAt,
 	}
 }
