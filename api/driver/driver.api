@@ -2,7 +2,7 @@ syntax = "v1"
 
 info (
 	title: "driver api"
-	desc: "司机端 HTTP API，封装 driversvc gRPC 接口"
+	desc: "司机端 HTTP API，当前仅封装司机「增删改查」四个核心接口，为后续对接留出清晰空间"
 	author: "XiaoLong-Ridy"
 )
 
@@ -11,7 +11,7 @@ info (
 // - 所有响应统一为 { code, message, data, timestamp, traceId }。
 // - 入参校验失败返回 HTTP 400 + code 50000，并携带具体中文错误信息。
 
-// ============ 司机 ============
+// ============ 司机（增删改查） ============
 type CreateDriverRequest {
 	Phone           string `json:"phone"`
 	PasswordHash    string `json:"passwordHash"`
@@ -27,82 +27,54 @@ type CreateDriverResponse {
 	CreatedAt int64  `json:"createdAt"`
 }
 
-// ============ 车辆 ============
-type CreateVehicleRequest {
-	DriverID          int64  `json:"driverId"`
-	PlateNo           string `json:"plateNo"`
-	Brand             string `json:"brand"`
-	Model             string `json:"model"`
-	Color             string `json:"color"`
-	VehicleType       int32  `json:"vehicleType"`
-	RegistrationDate  string `json:"registrationDate"`
-	InsuranceNo       string `json:"insuranceNo"`
-	InsuranceExpireAt string `json:"insuranceExpireAt"`
+type UpdateDriverRequest {
+	ID              int64   `json:"id"`
+	Phone           *string `json:"phone,omitempty"`
+	PasswordHash    *string `json:"passwordHash,omitempty"`
+	RealName        *string `json:"realName,omitempty"`
+	IdCardNo        *string `json:"idCardNo,omitempty"`
+	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"`
+	AvatarURL       *string `json:"avatarUrl,omitempty"`
+	Status          *string `json:"status,omitempty"`
 }
 
-type CreateVehicleResponse {
-	ID     int64 `json:"id"`
-	Status int32 `json:"status"`
+type UpdateDriverResponse {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	UpdatedAt int64  `json:"updatedAt"`
 }
 
-// ============ 认证 ============
-type CreateCertificationRequest {
-	DriverID          int64  `json:"driverId"`
-	VehicleID         int64  `json:"vehicleId"`
-	IdCardFrontURL    string `json:"idCardFrontUrl"`
-	IdCardBackURL     string `json:"idCardBackUrl"`
-	DriverLicenseURL  string `json:"driverLicenseUrl"`
-	VehicleLicenseURL string `json:"vehicleLicenseUrl"`
+type GetDriverResponse {
+	Driver DriverDetail `json:"driver"`
 }
 
-type CreateCertificationResponse {
-	ID         int64 `json:"id"`
-	AuditStatus int32 `json:"auditStatus"`
+type DriverDetail {
+	ID              int64  `json:"id"`
+	Phone           string `json:"phone"`
+	RealName        string `json:"realName"`
+	IdCardNo        string `json:"idCardNo"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
+	AvatarURL       string `json:"avatarUrl"`
+	Status          string `json:"status"`
+	CreatedAt       int64  `json:"createdAt"`
+	UpdatedAt       int64  `json:"updatedAt"`
 }
 
-// ============ 服务分 ============
-type CreateScoreRequest {
-	DriverID            int64   `json:"driverId"`
-	Score               float64 `json:"score"`
-	Level               int32   `json:"level"`
-	MonthOrders         int32   `json:"monthOrders"`
-	MonthCancelRate     float64 `json:"monthCancelRate"`
-	MonthComplaintCount int32   `json:"monthComplaintCount"`
-}
-
-type CreateScoreResponse {
-	ID       int64 `json:"id"`
-	DriverID int64 `json:"driverId"`
-}
-
-// ============ 提现 ============
-type CreateWithdrawRequest {
-	DriverID   int64   `json:"driverId"`
-	WithdrawNo string  `json:"withdrawNo"`
-	Amount     float64 `json:"amount"`
-	PayeeName  string  `json:"payeeName"`
-	PayAccount string  `json:"payAccount"`
-}
-
-type CreateWithdrawResponse {
-	ID         int64  `json:"id"`
-	WithdrawNo string `json:"withdrawNo"`
-	Status     int32  `json:"status"`
+type DeleteResponse {
+	ID      int64  `json:"id"`
+	Success bool   `json:"success"`
 }
 
 service driver-api {
 	@handler CreateDriverHandler
 	post /api/driver/v1/drivers (CreateDriverRequest) returns (CreateDriverResponse)
 
-	@handler CreateVehicleHandler
-	post /api/driver/v1/vehicles (CreateVehicleRequest) returns (CreateVehicleResponse)
+	@handler UpdateDriverHandler
+	post /api/driver/v1/drivers/update (UpdateDriverRequest) returns (UpdateDriverResponse)
 
-	@handler CreateCertificationHandler
-	post /api/driver/v1/certifications (CreateCertificationRequest) returns (CreateCertificationResponse)
+	@handler GetDriverHandler
+	get /api/driver/v1/drivers/get (GetDriverResponse)
 
-	@handler CreateScoreHandler
-	post /api/driver/v1/scores (CreateScoreRequest) returns (CreateScoreResponse)
-
-	@handler CreateWithdrawHandler
-	post /api/driver/v1/withdraws (CreateWithdrawRequest) returns (CreateWithdrawResponse)
+	@handler DeleteDriverHandler
+	post /api/driver/v1/drivers/delete (DeleteResponse)
 }

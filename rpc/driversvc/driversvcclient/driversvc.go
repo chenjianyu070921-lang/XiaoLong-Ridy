@@ -20,24 +20,17 @@ type (
 	DeleteDriverRequest  = proto.DeleteDriverRequest
 	DeleteDriverResponse = proto.DeleteDriverResponse
 	Driver               = proto.Driver
-	DriverSummary        = proto.DriverSummary
 	GetDriverRequest     = proto.GetDriverRequest
 	GetDriverResponse    = proto.GetDriverResponse
-	ListDriversRequest   = proto.ListDriversRequest
-	ListDriversResponse  = proto.ListDriversResponse
-	Request              = proto.Request
-	Response             = proto.Response
 	UpdateDriverRequest  = proto.UpdateDriverRequest
 	UpdateDriverResponse = proto.UpdateDriverResponse
 
 	// Driversvc 是 driversvc 的 RPC 客户端接口，供其他服务远程调用。
 	Driversvc interface {
-		Ping(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 		CreateDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
 		UpdateDriver(ctx context.Context, in *UpdateDriverRequest, opts ...grpc.CallOption) (*UpdateDriverResponse, error)
 		DeleteDriver(ctx context.Context, in *DeleteDriverRequest, opts ...grpc.CallOption) (*DeleteDriverResponse, error)
 		GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error)
-		ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error)
 	}
 
 	// defaultDriversvc 是 Driversvc 接口的默认实现，持有底层 zrpc 客户端连接。
@@ -51,12 +44,6 @@ func NewDriversvc(cli zrpc.Client) Driversvc {
 	return &defaultDriversvc{
 		cli: cli,
 	}
-}
-
-// Ping 调用远端 Ping 接口，返回健康检查响应。
-func (m *defaultDriversvc) Ping(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	client := proto.NewDriversvcClient(m.cli.Conn())
-	return client.Ping(ctx, in, opts...)
 }
 
 // CreateDriver 调用远端创建司机接口。
@@ -81,10 +68,4 @@ func (m *defaultDriversvc) DeleteDriver(ctx context.Context, in *DeleteDriverReq
 func (m *defaultDriversvc) GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error) {
 	client := proto.NewDriversvcClient(m.cli.Conn())
 	return client.GetDriver(ctx, in, opts...)
-}
-
-// ListDrivers 调用远端分页查询司机列表接口。
-func (m *defaultDriversvc) ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error) {
-	client := proto.NewDriversvcClient(m.cli.Conn())
-	return client.ListDrivers(ctx, in, opts...)
 }

@@ -85,20 +85,3 @@ func DeleteDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
-
-// ListDriversHandler POST /api/driver/v1/drivers/list
-// 处理分页查询司机列表的 HTTP 请求。
-func ListDriversHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.ListDriversRequest
-		if !decodeJSON(w, r, &req) {
-			return
-		}
-		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).ListDrivers(&req)
-		if err != nil {
-			writeParamError(w, err)
-			return
-		}
-		writeSuccess(w, resp)
-	}
-}

@@ -1,4 +1,4 @@
-// Package logic 实现 driver API 的业务逻辑层。
+// Package logic 实现 driver API 的司机业务逻辑层。
 package logic
 
 import (
@@ -12,7 +12,7 @@ import (
 
 // DriverLogic 司机业务逻辑处理器，持有上下文与下游客户端。
 type DriverLogic struct {
-	ctx    context.Context   // 当前请求上下文
+	ctx    context.Context    // 当前请求上下文
 	svcCtx *svc.ServiceContext // 全局服务上下文（含 driversvc 客户端）
 }
 
@@ -20,6 +20,31 @@ type DriverLogic struct {
 func NewDriverLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DriverLogic {
 	// 注入上下文与服务上下文。
 	return &DriverLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+// enumDriverStatus 将可选状态字符串转为 proto 枚举指针；nil 或空串返回 nil（表示不更新该字段）。
+func enumDriverStatus(s *string) *driversproto.DriverStatus {
+	// 入参为 nil 或空串时返回 nil，调用方据此跳过该可选字段。
+	if s == nil || *s == "" {
+		return nil
+	}
+	// 声明局部变量承载映射后的枚举值。
+	var v driversproto.DriverStatus
+	// 按字符串值映射到对应的 proto 枚举。
+	switch *s {
+	case "DRIVER_STATUS_PENDING": // 待审核
+		v = driversproto.DriverStatus_DRIVER_STATUS_PENDING
+	case "DRIVER_STATUS_NORMAL": // 正常
+		v = driversproto.DriverStatus_DRIVER_STATUS_NORMAL
+	case "DRIVER_STATUS_FROZEN": // 冻结
+		v = driversproto.DriverStatus_DRIVER_STATUS_FROZEN
+	case "DRIVER_STATUS_CANCELLED": // 注销
+		v = driversproto.DriverStatus_DRIVER_STATUS_CANCELLED
+	default: // 未知值映射为未指定（由底层忽略）。
+		v = driversproto.DriverStatus_DRIVER_STATUS_UNSPECIFIED
+	}
+	// 返回枚举值的指针，以匹配 proto 的 optional 字段语义。
+	return &v
 }
 
 // CreateDriver 创建司机，校验必填项与手机号/身份证格式。
@@ -149,42 +174,6 @@ func (l *DriverLogic) DeleteDriver(id int64) (*types.DeleteResponse, error) {
 	}
 	// 返回删除结果（ID + 是否成功）。
 	return &types.DeleteResponse{ID: resp.GetId(), Success: resp.GetSuccess()}, nil
-}
-
-// ListDrivers 分页查询司机列表。
-func (l *DriverLogic) ListDrivers(req *types.ListDriversRequest) (*types.ListDriversResponse, error) {
-	// 收敛分页参数到合法范围。
-	page, pageSize := clampPage(req.Page, req.PageSize)
-	// 获取 driversvc 客户端。
-	client, err := l.driverClient()
-	if err != nil {
-		return nil, err
-	}
-	// 调用下游列表接口，状态过滤经枚举转换。
-	resp, err := client.ListDrivers(l.ctx, &driversproto.ListDriversRequest{
-		Status:       enumDriverStatusStr(req.Status), // 状态字符串转枚举
-		PhoneKeyword: req.PhoneKeyword,                // 手机号模糊关键字
-		Page:         page,                            // 页码
-		PageSize:     pageSize,                        // 每页条数
-	})
-	if err != nil {
-		return nil, err
-	}
-	// 预分配切片，避免扩容。
-	list := make([]types.DriverSummary, 0, len(resp.GetList()))
-	// 遍历 proto 摘要列表，逐个映射为 API 摘要结构。
-	for _, s := range resp.GetList() {
-		list = append(list, types.DriverSummary{
-			ID:              s.GetId(),
-			Phone:           s.GetPhone(),
-			RealName:        s.GetRealName(),
-			DriverLicenseNo: s.GetDriverLicenseNo(),
-			Status:          s.GetStatus().String(),
-			CreatedAt:       s.GetCreatedAt(),
-		})
-	}
-	// 组装并返回分页响应。
-	return &types.ListDriversResponse{List: list, Total: resp.GetTotal(), Page: resp.GetPage(), PageSize: resp.GetPageSize()}, nil
 }
 
 // driverClient 从服务上下文中安全取出 driversvc 客户端。

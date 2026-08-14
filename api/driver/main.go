@@ -51,7 +51,7 @@ func main() {
 func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	// 创建标准库的多路复用器，按路径分发请求到对应处理器。
 	mux := http.NewServeMux()
-	// 司机
+	// 司机（仅保留增删改查四个核心接口，为后续对接留出清晰空间）
 	// 创建司机：仅允许 POST 方法。
 	mux.HandleFunc("/api/driver/v1/drivers", methodSwitch("POST", handler.CreateDriverHandler(svcCtx)))
 	// 更新司机信息。
@@ -60,52 +60,6 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.HandleFunc("/api/driver/v1/drivers/get", handler.GetDriverHandler(svcCtx))
 	// 删除（软删）司机（通过 ?id= 传参）。
 	mux.HandleFunc("/api/driver/v1/drivers/delete", handler.DeleteDriverHandler(svcCtx))
-	// 分页查询司机列表。
-	mux.HandleFunc("/api/driver/v1/drivers/list", handler.ListDriversHandler(svcCtx))
-	// 车辆
-	// 创建车辆。
-	mux.HandleFunc("/api/driver/v1/vehicles", handler.CreateVehicleHandler(svcCtx))
-	// 更新车辆信息。
-	mux.HandleFunc("/api/driver/v1/vehicles/update", handler.UpdateVehicleHandler(svcCtx))
-	// 查询车辆详情。
-	mux.HandleFunc("/api/driver/v1/vehicles/get", handler.GetVehicleHandler(svcCtx))
-	// 删除车辆。
-	mux.HandleFunc("/api/driver/v1/vehicles/delete", handler.DeleteVehicleHandler(svcCtx))
-	// 分页查询车辆列表。
-	mux.HandleFunc("/api/driver/v1/vehicles/list", handler.ListVehiclesHandler(svcCtx))
-	// 认证
-	// 创建司机认证资料。
-	mux.HandleFunc("/api/driver/v1/certifications", handler.CreateCertificationHandler(svcCtx))
-	// 更新认证资料（含审核状态流转）。
-	mux.HandleFunc("/api/driver/v1/certifications/update", handler.UpdateCertificationHandler(svcCtx))
-	// 查询认证详情。
-	mux.HandleFunc("/api/driver/v1/certifications/get", handler.GetCertificationHandler(svcCtx))
-	// 删除认证资料。
-	mux.HandleFunc("/api/driver/v1/certifications/delete", handler.DeleteCertificationHandler(svcCtx))
-	// 分页查询认证列表。
-	mux.HandleFunc("/api/driver/v1/certifications/list", handler.ListCertificationsHandler(svcCtx))
-	// 服务分
-	// 创建司机服务分记录。
-	mux.HandleFunc("/api/driver/v1/scores", handler.CreateScoreHandler(svcCtx))
-	// 更新服务分记录。
-	mux.HandleFunc("/api/driver/v1/scores/update", handler.UpdateScoreHandler(svcCtx))
-	// 查询服务分详情。
-	mux.HandleFunc("/api/driver/v1/scores/get", handler.GetScoreHandler(svcCtx))
-	// 删除服务分记录。
-	mux.HandleFunc("/api/driver/v1/scores/delete", handler.DeleteScoreHandler(svcCtx))
-	// 分页查询服务分列表。
-	mux.HandleFunc("/api/driver/v1/scores/list", handler.ListScoresHandler(svcCtx))
-	// 提现
-	// 创建提现申请。
-	mux.HandleFunc("/api/driver/v1/withdraws", handler.CreateWithdrawHandler(svcCtx))
-	// 更新提现记录（含打款状态流转）。
-	mux.HandleFunc("/api/driver/v1/withdraws/update", handler.UpdateWithdrawHandler(svcCtx))
-	// 查询提现详情。
-	mux.HandleFunc("/api/driver/v1/withdraws/get", handler.GetWithdrawHandler(svcCtx))
-	// 删除提现记录。
-	mux.HandleFunc("/api/driver/v1/withdraws/delete", handler.DeleteWithdrawHandler(svcCtx))
-	// 分页查询提现列表。
-	mux.HandleFunc("/api/driver/v1/withdraws/list", handler.ListWithdrawsHandler(svcCtx))
 	// 将构建好的多路复用器返回给 HTTP 服务器使用。
 	return mux
 }

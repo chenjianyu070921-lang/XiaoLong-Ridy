@@ -23,12 +23,7 @@ func NewDriversvcServer(svcCtx *svc.ServiceContext) *DriversvcServer {
 	}
 }
 
-func (s *DriversvcServer) Ping(ctx context.Context, in *proto.Request) (*proto.Response, error) {
-	l := logic.NewPingLogic(ctx, s.svcCtx)
-	return l.Ping(in)
-}
-
-// 司机主表 CRUD
+// 司机主表 CRUD（仅司机增删改查）
 func (s *DriversvcServer) CreateDriver(ctx context.Context, in *proto.CreateDriverRequest) (*proto.CreateDriverResponse, error) {
 	l := logic.NewCreateDriverLogic(ctx, s.svcCtx)
 	return l.CreateDriver(in)
@@ -47,113 +42,4 @@ func (s *DriversvcServer) DeleteDriver(ctx context.Context, in *proto.DeleteDriv
 func (s *DriversvcServer) GetDriver(ctx context.Context, in *proto.GetDriverRequest) (*proto.GetDriverResponse, error) {
 	l := logic.NewGetDriverLogic(ctx, s.svcCtx)
 	return l.GetDriver(in)
-}
-
-func (s *DriversvcServer) ListDrivers(ctx context.Context, in *proto.ListDriversRequest) (*proto.ListDriversResponse, error) {
-	l := logic.NewListDriversLogic(ctx, s.svcCtx)
-	return l.ListDrivers(in)
-}
-
-// 车辆资质表 CRUD
-func (s *DriversvcServer) CreateVehicle(ctx context.Context, in *proto.CreateVehicleRequest) (*proto.CreateVehicleResponse, error) {
-	l := logic.NewCreateVehicleLogic(ctx, s.svcCtx)
-	return l.CreateVehicle(in)
-}
-
-func (s *DriversvcServer) UpdateVehicle(ctx context.Context, in *proto.UpdateVehicleRequest) (*proto.UpdateVehicleResponse, error) {
-	l := logic.NewUpdateVehicleLogic(ctx, s.svcCtx)
-	return l.UpdateVehicle(in)
-}
-
-func (s *DriversvcServer) DeleteVehicle(ctx context.Context, in *proto.DeleteVehicleRequest) (*proto.DeleteVehicleResponse, error) {
-	l := logic.NewDeleteVehicleLogic(ctx, s.svcCtx)
-	return l.DeleteVehicle(in)
-}
-
-func (s *DriversvcServer) GetVehicle(ctx context.Context, in *proto.GetVehicleRequest) (*proto.GetVehicleResponse, error) {
-	l := logic.NewGetVehicleLogic(ctx, s.svcCtx)
-	return l.GetVehicle(in)
-}
-
-func (s *DriversvcServer) ListVehicles(ctx context.Context, in *proto.ListVehiclesRequest) (*proto.ListVehiclesResponse, error) {
-	l := logic.NewListVehiclesLogic(ctx, s.svcCtx)
-	return l.ListVehicles(in)
-}
-
-// 司机认证表 CRUD
-func (s *DriversvcServer) CreateCertification(ctx context.Context, in *proto.CreateCertificationRequest) (*proto.CreateCertificationResponse, error) {
-	l := logic.NewCreateCertificationLogic(ctx, s.svcCtx)
-	return l.CreateCertification(in)
-}
-
-func (s *DriversvcServer) UpdateCertification(ctx context.Context, in *proto.UpdateCertificationRequest) (*proto.UpdateCertificationResponse, error) {
-	l := logic.NewUpdateCertificationLogic(ctx, s.svcCtx)
-	return l.UpdateCertification(in)
-}
-
-func (s *DriversvcServer) DeleteCertification(ctx context.Context, in *proto.DeleteCertificationRequest) (*proto.DeleteCertificationResponse, error) {
-	l := logic.NewDeleteCertificationLogic(ctx, s.svcCtx)
-	return l.DeleteCertification(in)
-}
-
-func (s *DriversvcServer) GetCertification(ctx context.Context, in *proto.GetCertificationRequest) (*proto.GetCertificationResponse, error) {
-	l := logic.NewGetCertificationLogic(ctx, s.svcCtx)
-	return l.GetCertification(in)
-}
-
-func (s *DriversvcServer) ListCertifications(ctx context.Context, in *proto.ListCertificationsRequest) (*proto.ListCertificationsResponse, error) {
-	l := logic.NewListCertificationsLogic(ctx, s.svcCtx)
-	return l.ListCertifications(in)
-}
-
-// 服务分表 CRUD
-func (s *DriversvcServer) CreateScore(ctx context.Context, in *proto.CreateScoreRequest) (*proto.CreateScoreResponse, error) {
-	l := logic.NewCreateScoreLogic(ctx, s.svcCtx)
-	return l.CreateScore(in)
-}
-
-func (s *DriversvcServer) UpdateScore(ctx context.Context, in *proto.UpdateScoreRequest) (*proto.UpdateScoreResponse, error) {
-	l := logic.NewUpdateScoreLogic(ctx, s.svcCtx)
-	return l.UpdateScore(in)
-}
-
-func (s *DriversvcServer) DeleteScore(ctx context.Context, in *proto.DeleteScoreRequest) (*proto.DeleteScoreResponse, error) {
-	l := logic.NewDeleteScoreLogic(ctx, s.svcCtx)
-	return l.DeleteScore(in)
-}
-
-func (s *DriversvcServer) GetScore(ctx context.Context, in *proto.GetScoreRequest) (*proto.GetScoreResponse, error) {
-	l := logic.NewGetScoreLogic(ctx, s.svcCtx)
-	return l.GetScore(in)
-}
-
-func (s *DriversvcServer) ListScores(ctx context.Context, in *proto.ListScoresRequest) (*proto.ListScoresResponse, error) {
-	l := logic.NewListScoresLogic(ctx, s.svcCtx)
-	return l.ListScores(in)
-}
-
-// 提现表 CRUD
-func (s *DriversvcServer) CreateWithdraw(ctx context.Context, in *proto.CreateWithdrawRequest) (*proto.CreateWithdrawResponse, error) {
-	l := logic.NewCreateWithdrawLogic(ctx, s.svcCtx)
-	return l.CreateWithdraw(in)
-}
-
-func (s *DriversvcServer) UpdateWithdraw(ctx context.Context, in *proto.UpdateWithdrawRequest) (*proto.UpdateWithdrawResponse, error) {
-	l := logic.NewUpdateWithdrawLogic(ctx, s.svcCtx)
-	return l.UpdateWithdraw(in)
-}
-
-func (s *DriversvcServer) DeleteWithdraw(ctx context.Context, in *proto.DeleteWithdrawRequest) (*proto.DeleteWithdrawResponse, error) {
-	l := logic.NewDeleteWithdrawLogic(ctx, s.svcCtx)
-	return l.DeleteWithdraw(in)
-}
-
-func (s *DriversvcServer) GetWithdraw(ctx context.Context, in *proto.GetWithdrawRequest) (*proto.GetWithdrawResponse, error) {
-	l := logic.NewGetWithdrawLogic(ctx, s.svcCtx)
-	return l.GetWithdraw(in)
-}
-
-func (s *DriversvcServer) ListWithdraws(ctx context.Context, in *proto.ListWithdrawsRequest) (*proto.ListWithdrawsResponse, error) {
-	l := logic.NewListWithdrawsLogic(ctx, s.svcCtx)
-	return l.ListWithdraws(in)
 }
