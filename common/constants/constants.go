@@ -21,3 +21,16 @@ const (
 	TopicLocation = "location-report" // 司机位置上报
 	TopicOrder    = "order-event"     // 订单事件
 )
+
+// 过期时间（秒）
+const (
+	RedisPosExpire   = 300 // 司机位置在 Redis 的存活时间，5 分钟
+	OrderWaitTimeout = 300 // 订单等待接单超时时间，5 分钟
+)
+
+// JWT 相关
+const (
+	JwtSecret = "xiao-long-ridy-secret"
+	JwtExpire = 7 * 24 * 3600 // 7 天，单位秒
+	JwtIssuer = "xiao-long-ridy"
+)
