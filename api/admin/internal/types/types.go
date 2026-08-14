@@ -142,6 +142,19 @@ type OrderListRequest struct {
 	EndTime   string
 }
 
+// AbnormalOrderListRequest 表示异常订单列表查询条件。
+// abnormal_type 用于区分取消、支付异常、派单异常和全部异常，便于后台运营快速定位问题。
+type AbnormalOrderListRequest struct {
+	Page         int
+	PageSize     int
+	Keyword      string
+	AbnormalType string
+	UserID       int64
+	DriverID     int64
+	StartTime    string
+	EndTime      string
+}
+
 // OrderDTO 表示订单主信息。
 type OrderDTO struct {
 	ID                 int64  `json:"id"`
@@ -163,6 +176,16 @@ type OrderDTO struct {
 	CancelBy           string `json:"cancel_by"`
 	CreatedAt          string `json:"created_at"`
 	UpdatedAt          string `json:"updated_at"`
+}
+
+// AbnormalOrderDTO 表示后台异常订单列表项。
+// 在订单基础信息外补充异常类型、异常原因、支付状态和派单状态，减少前端二次拼装。
+type AbnormalOrderDTO struct {
+	OrderDTO
+	AbnormalType   string `json:"abnormal_type"`
+	AbnormalReason string `json:"abnormal_reason"`
+	PaymentStatus  int32  `json:"payment_status"`
+	DispatchStatus int32  `json:"dispatch_status"`
 }
 
 // OrderDetailDTO 表示订单详情聚合信息。
@@ -244,6 +267,58 @@ type Settlement struct {
 	DriverIncome           string `json:"driver_income"`
 	Status                 int32  `json:"status"`
 	SettledAt              string `json:"settled_at"`
+}
+
+// CouponListRequest 表示优惠券模板列表查询条件。
+// 支持按名称、类型、状态和创建时间范围筛选。
+type CouponListRequest struct {
+	Page      int
+	PageSize  int
+	Keyword   string
+	Type      int32
+	Status    int32
+	StartTime string
+	EndTime   string
+}
+
+// CouponSaveRequest 表示优惠券新增和编辑请求体。
+// 金额字段使用字符串承载，服务端写入 MySQL DECIMAL，避免浮点数精度误差。
+type CouponSaveRequest struct {
+	Name            string `json:"name"`
+	Type            int32  `json:"type"`
+	FaceValue       string `json:"face_value"`
+	Discount        string `json:"discount"`
+	ThresholdAmount string `json:"threshold_amount"`
+	TotalCount      int64  `json:"total_count"`
+	PerUserLimit    int64  `json:"per_user_limit"`
+	ValidStartAt    string `json:"valid_start_at"`
+	ValidEndAt      string `json:"valid_end_at"`
+	Status          int32  `json:"status"`
+}
+
+// CouponDTO 表示优惠券模板接口返回对象。
+// 该结构只描述模板配置，不包含具体用户券实例。
+type CouponDTO struct {
+	ID              int64  `json:"id"`
+	Name            string `json:"name"`
+	Type            int32  `json:"type"`
+	FaceValue       string `json:"face_value"`
+	Discount        string `json:"discount"`
+	ThresholdAmount string `json:"threshold_amount"`
+	TotalCount      int64  `json:"total_count"`
+	ReceivedCount   int64  `json:"received_count"`
+	PerUserLimit    int64  `json:"per_user_limit"`
+	ValidStartAt    string `json:"valid_start_at"`
+	ValidEndAt      string `json:"valid_end_at"`
+	Status          int32  `json:"status"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
+}
+
+// CouponSaveResponse 表示优惠券新增成功后的返回数据。
+// 前端可使用 id 跳转到详情或刷新列表定位新记录。
+type CouponSaveResponse struct {
+	ID int64 `json:"id"`
 }
 
 // OperationLogListRequest 表示操作日志列表查询条件。

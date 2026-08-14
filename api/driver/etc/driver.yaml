@@ -1,0 +1,5 @@
+# driver api 服务配置
+# HTTP 监听地址（可通过环境变量 DRIVER_HTTP_ADDR 覆盖，如 :8082）
+httpAddr: ":8082"
+# 下游 driversvc gRPC 地址（可通过环境变量 DRIVER_GRPC_ADDR 覆盖）
+driverGrpcAddr: "127.0.0.1:8080"
