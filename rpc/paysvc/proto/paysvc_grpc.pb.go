@@ -20,6 +20,10 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	Pay_CreatePayment_FullMethodName = "/paysvc.Pay/CreatePayment"
+	Pay_NotifyPayment_FullMethodName = "/paysvc.Pay/NotifyPayment"
+	Pay_GetPayment_FullMethodName    = "/paysvc.Pay/GetPayment"
+	Pay_RefundPayment_FullMethodName = "/paysvc.Pay/RefundPayment"
+	Pay_SettleOrder_FullMethodName   = "/paysvc.Pay/SettleOrder"
 )
 
 // PayClient is the client API for Pay service.
@@ -30,6 +34,14 @@ const (
 type PayClient interface {
 	// 支付预下单：创建支付单并调第三方下单（本期为 mock）。
 	CreatePayment(ctx context.Context, in *CreatePaymentRequest, opts ...grpc.CallOption) (*CreatePaymentResponse, error)
+	// 支付回调：处理第三方支付结果通知（验签 + 更新状态）。
+	NotifyPayment(ctx context.Context, in *NotifyPaymentRequest, opts ...grpc.CallOption) (*NotifyPaymentResponse, error)
+	// 支付查询：按支付单号或订单ID查询支付状态。
+	GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...grpc.CallOption) (*GetPaymentResponse, error)
+	// 退款：退款并回写支付单。
+	RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error)
+	// 司机结算：计算平台抽成与司机实收。
+	SettleOrder(ctx context.Context, in *SettleOrderRequest, opts ...grpc.CallOption) (*SettleOrderResponse, error)
 }
 
 type payClient struct {
@@ -50,6 +62,46 @@ func (c *payClient) CreatePayment(ctx context.Context, in *CreatePaymentRequest,
 	return out, nil
 }
 
+func (c *payClient) NotifyPayment(ctx context.Context, in *NotifyPaymentRequest, opts ...grpc.CallOption) (*NotifyPaymentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NotifyPaymentResponse)
+	err := c.cc.Invoke(ctx, Pay_NotifyPayment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *payClient) GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...grpc.CallOption) (*GetPaymentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPaymentResponse)
+	err := c.cc.Invoke(ctx, Pay_GetPayment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *payClient) RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefundPaymentResponse)
+	err := c.cc.Invoke(ctx, Pay_RefundPayment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *payClient) SettleOrder(ctx context.Context, in *SettleOrderRequest, opts ...grpc.CallOption) (*SettleOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SettleOrderResponse)
+	err := c.cc.Invoke(ctx, Pay_SettleOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PayServer is the server API for Pay service.
 // All implementations must embed UnimplementedPayServer
 // for forward compatibility.
@@ -58,6 +110,14 @@ func (c *payClient) CreatePayment(ctx context.Context, in *CreatePaymentRequest,
 type PayServer interface {
 	// 支付预下单：创建支付单并调第三方下单（本期为 mock）。
 	CreatePayment(context.Context, *CreatePaymentRequest) (*CreatePaymentResponse, error)
+	// 支付回调：处理第三方支付结果通知（验签 + 更新状态）。
+	NotifyPayment(context.Context, *NotifyPaymentRequest) (*NotifyPaymentResponse, error)
+	// 支付查询：按支付单号或订单ID查询支付状态。
+	GetPayment(context.Context, *GetPaymentRequest) (*GetPaymentResponse, error)
+	// 退款：退款并回写支付单。
+	RefundPayment(context.Context, *RefundPaymentRequest) (*RefundPaymentResponse, error)
+	// 司机结算：计算平台抽成与司机实收。
+	SettleOrder(context.Context, *SettleOrderRequest) (*SettleOrderResponse, error)
 	mustEmbedUnimplementedPayServer()
 }
 
@@ -70,6 +130,18 @@ type UnimplementedPayServer struct{}
 
 func (UnimplementedPayServer) CreatePayment(context.Context, *CreatePaymentRequest) (*CreatePaymentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreatePayment not implemented")
+}
+func (UnimplementedPayServer) NotifyPayment(context.Context, *NotifyPaymentRequest) (*NotifyPaymentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method NotifyPayment not implemented")
+}
+func (UnimplementedPayServer) GetPayment(context.Context, *GetPaymentRequest) (*GetPaymentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPayment not implemented")
+}
+func (UnimplementedPayServer) RefundPayment(context.Context, *RefundPaymentRequest) (*RefundPaymentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefundPayment not implemented")
+}
+func (UnimplementedPayServer) SettleOrder(context.Context, *SettleOrderRequest) (*SettleOrderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SettleOrder not implemented")
 }
 func (UnimplementedPayServer) mustEmbedUnimplementedPayServer() {}
 func (UnimplementedPayServer) testEmbeddedByValue()             {}
@@ -110,6 +182,78 @@ func _Pay_CreatePayment_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Pay_NotifyPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotifyPaymentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PayServer).NotifyPayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Pay_NotifyPayment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PayServer).NotifyPayment(ctx, req.(*NotifyPaymentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Pay_GetPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPaymentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PayServer).GetPayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Pay_GetPayment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PayServer).GetPayment(ctx, req.(*GetPaymentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Pay_RefundPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundPaymentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PayServer).RefundPayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Pay_RefundPayment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PayServer).RefundPayment(ctx, req.(*RefundPaymentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Pay_SettleOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SettleOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PayServer).SettleOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Pay_SettleOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PayServer).SettleOrder(ctx, req.(*SettleOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Pay_ServiceDesc is the grpc.ServiceDesc for Pay service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -120,6 +264,22 @@ var Pay_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreatePayment",
 			Handler:    _Pay_CreatePayment_Handler,
+		},
+		{
+			MethodName: "NotifyPayment",
+			Handler:    _Pay_NotifyPayment_Handler,
+		},
+		{
+			MethodName: "GetPayment",
+			Handler:    _Pay_GetPayment_Handler,
+		},
+		{
+			MethodName: "RefundPayment",
+			Handler:    _Pay_RefundPayment_Handler,
+		},
+		{
+			MethodName: "SettleOrder",
+			Handler:    _Pay_SettleOrder_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

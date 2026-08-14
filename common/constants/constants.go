@@ -18,6 +18,7 @@ const (
 
 // Kafka 消息主题
 const (
-	TopicLocation = "location-report" // 司机位置上报
-	TopicOrder    = "order-event"     // 订单事件
+	TopicLocation   = "location-report" // 司机位置上报
+	TopicOrder      = "order-event"     // 订单事件
+	TopicOrderPaid  = "order.paid"      // 订单支付成功事件
 )
