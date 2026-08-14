@@ -1,0 +1,448 @@
+syntax = "proto3";
+
+package adminsvc;
+
+option go_package = "./adminsvc";
+
+// AdminService 是管理后台内部 RPC 服务。
+// P0 阶段只覆盖登录鉴权、操作日志、用户查询、司机审核和订单查询。
+service AdminService {
+  // 管理员注册。
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  // 管理员登录。
+  rpc Login(LoginRequest) returns (AuthResponse);
+  // 管理员退出登录。
+  rpc Logout(LogoutRequest) returns (CommonResponse);
+  // 查询当前管理员信息。
+  rpc Me(MeRequest) returns (MeResponse);
+  // 查询角色菜单。
+  rpc Menus(MenusRequest) returns (MenusResponse);
+  // 查询操作日志。
+  rpc ListOperationLogs(OperationLogListRequest) returns (OperationLogListResponse);
+  // 查询用户列表。
+  rpc ListUsers(UserListRequest) returns (UserListResponse);
+  // 查询用户详情。
+  rpc GetUser(UserDetailRequest) returns (User);
+  // 冻结用户。
+  rpc FreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
+  // 解封用户。
+  rpc UnfreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
+  // 查询司机审核列表。
+  rpc ListDriverCertifications(DriverCertificationListRequest) returns (DriverCertificationListResponse);
+  // 查询司机审核详情。
+  rpc GetDriverCertification(DriverCertificationDetailRequest) returns (DriverCertification);
+  // 审核通过司机认证。
+  rpc ApproveDriverCertification(AuditDriverCertificationRequest) returns (CommonResponse);
+  // 驳回司机认证。
+  rpc RejectDriverCertification(AuditDriverCertificationRequest) returns (CommonResponse);
+  // 查询订单列表。
+  rpc ListOrders(OrderListRequest) returns (OrderListResponse);
+  // 查询订单详情。
+  rpc GetOrder(OrderDetailRequest) returns (OrderDetail);
+  // 查询异常订单列表。
+  rpc ListAbnormalOrders(AbnormalOrderListRequest) returns (AbnormalOrderListResponse);
+  // 查询优惠券模板列表。
+  rpc ListCoupons(CouponListRequest) returns (CouponListResponse);
+  // 创建优惠券模板。
+  rpc CreateCoupon(CouponRequest) returns (CommonResponse);
+  // 更新优惠券模板。
+  rpc UpdateCoupon(CouponRequest) returns (CommonResponse);
+  // 下架优惠券模板。
+  rpc DisableCoupon(CouponRequest) returns (CommonResponse);
+}
+
+message Admin {
+  int64 id = 1;
+  string username = 2;
+  string real_name = 3;
+  int32 role = 4;
+  int32 status = 5;
+}
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+  string real_name = 3;
+  int32 role = 4;
+  int64 operator_admin_id = 5;
+  int32 operator_role = 6;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  string token = 1;
+  int64 expires_in = 2;
+  Admin admin = 3;
+}
+
+message LogoutRequest {
+  string token = 1;
+}
+
+message MeRequest {
+  int64 admin_id = 1;
+}
+
+message MeResponse {
+  Admin admin = 1;
+}
+
+message MenusRequest {
+  int64 admin_id = 1;
+  int32 role = 2;
+}
+
+message MenuItem {
+  string name = 1;
+  string path = 2;
+  string icon = 3;
+  string perm = 4;
+  repeated MenuItem children = 5;
+}
+
+message MenusResponse {
+  repeated MenuItem items = 1;
+}
+
+message CommonResponse {
+  string message = 1;
+}
+
+message OperationLogListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int64 admin_id = 3;
+  string module = 4;
+  string action = 5;
+  string target_type = 6;
+  int64 target_id = 7;
+  string start_time = 8;
+  string end_time = 9;
+}
+
+message OperationLog {
+  int64 id = 1;
+  int64 admin_id = 2;
+  string module = 3;
+  string action = 4;
+  string target_type = 5;
+  int64 target_id = 6;
+  string detail = 7;
+  string ip = 8;
+  string created_at = 9;
+}
+
+message OperationLogListResponse {
+  repeated OperationLog list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message UserListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 status = 4;
+  string start_time = 5;
+  string end_time = 6;
+}
+
+message UserDetailRequest {
+  int64 id = 1;
+}
+
+message ChangeUserStatusRequest {
+  int64 id = 1;
+  int32 status = 2;
+  string reason = 3;
+  string remark = 4;
+  int64 admin_id = 5;
+  string ip = 6;
+}
+
+message User {
+  int64 id = 1;
+  string phone = 2;
+  string nickname = 3;
+  string avatar_url = 4;
+  int32 gender = 5;
+  string real_name = 6;
+  string id_card_no = 7;
+  string register_source = 8;
+  int32 status = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message UserListResponse {
+  repeated User list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message DriverCertificationListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 audit_status = 4;
+  string start_time = 5;
+  string end_time = 6;
+}
+
+message DriverCertificationDetailRequest {
+  int64 id = 1;
+}
+
+message AuditDriverCertificationRequest {
+  int64 id = 1;
+  string remark = 2;
+  int64 admin_id = 3;
+  string ip = 4;
+}
+
+message DriverCertification {
+  int64 id = 1;
+  int64 driver_id = 2;
+  int64 vehicle_id = 3;
+  string driver_phone = 4;
+  string driver_name = 5;
+  int32 driver_status = 6;
+  string plate_no = 7;
+  int32 vehicle_status = 8;
+  string id_card_front_url = 9;
+  string id_card_back_url = 10;
+  string driver_license_url = 11;
+  string vehicle_license_url = 12;
+  int32 audit_status = 13;
+  string audit_remark = 14;
+  int64 audited_by = 15;
+  string audited_at = 16;
+  string created_at = 17;
+  string updated_at = 18;
+}
+
+message DriverCertificationListResponse {
+  repeated DriverCertification list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message OrderListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 status = 4;
+  int64 user_id = 5;
+  int64 driver_id = 6;
+  string start_time = 7;
+  string end_time = 8;
+}
+
+message OrderDetailRequest {
+  int64 id = 1;
+}
+
+message Order {
+  int64 id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  int64 driver_id = 4;
+  int32 car_type = 5;
+  string from_address = 6;
+  string from_longitude = 7;
+  string from_latitude = 8;
+  string to_address = 9;
+  string to_longitude = 10;
+  string to_latitude = 11;
+  int64 estimated_distance_m = 12;
+  int64 estimated_duration_s = 13;
+  string estimated_price = 14;
+  int32 status = 15;
+  string cancel_reason = 16;
+  string cancel_by = 17;
+  string created_at = 18;
+  string updated_at = 19;
+}
+
+message OrderStatusLog {
+  int64 id = 1;
+  int64 order_id = 2;
+  int32 from_status = 3;
+  int32 to_status = 4;
+  string operator_type = 5;
+  int64 operator_id = 6;
+  string remark = 7;
+  string created_at = 8;
+}
+
+message DispatchRecord {
+  int64 id = 1;
+  int64 order_id = 2;
+  int64 driver_id = 3;
+  int32 dispatch_type = 4;
+  int32 status = 5;
+  string match_score = 6;
+  string remark = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message OrderPrice {
+  int64 id = 1;
+  int64 order_id = 2;
+  int64 price_rule_id = 3;
+  string estimated_price = 4;
+  string actual_price = 5;
+  string base_fee = 6;
+  string distance_fee = 7;
+  string time_fee = 8;
+  string night_fee = 9;
+  string dynamic_fee = 10;
+  string discount_amount = 11;
+  string platform_subsidy = 12;
+  string payable_amount = 13;
+  int32 status = 14;
+}
+
+message Payment {
+  int64 id = 1;
+  string payment_no = 2;
+  int64 order_id = 3;
+  int64 user_id = 4;
+  string amount = 5;
+  string channel = 6;
+  int32 status = 7;
+  string transaction_id = 8;
+  string refund_amount = 9;
+  string paid_at = 10;
+}
+
+message Settlement {
+  int64 id = 1;
+  string settlement_no = 2;
+  int64 order_id = 3;
+  int64 driver_id = 4;
+  string total_amount = 5;
+  string platform_commission_rate = 6;
+  string platform_commission = 7;
+  string driver_income = 8;
+  int32 status = 9;
+  string settled_at = 10;
+}
+
+message OrderDetail {
+  Order order = 1;
+  repeated OrderStatusLog status_logs = 2;
+  repeated DispatchRecord dispatch_records = 3;
+  OrderPrice price = 4;
+  Payment payment = 5;
+  Settlement settlement = 6;
+}
+
+message OrderListResponse {
+  repeated Order list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message AbnormalOrderListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  string abnormal_type = 4;
+  int64 user_id = 5;
+  int64 driver_id = 6;
+  string start_time = 7;
+  string end_time = 8;
+}
+
+message CouponListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 type = 4;
+  int32 status = 5;
+  string start_time = 6;
+  string end_time = 7;
+}
+
+message CouponRequest {
+  int64 id = 1;
+  string name = 2;
+  int32 type = 3;
+  string face_value = 4;
+  string discount = 5;
+  string threshold_amount = 6;
+  int64 total_count = 7;
+  int32 per_user_limit = 8;
+  string valid_start_at = 9;
+  string valid_end_at = 10;
+  int32 status = 11;
+  int64 admin_id = 12;
+  string ip = 13;
+}
+
+message Coupon {
+  int64 id = 1;
+  string name = 2;
+  int32 type = 3;
+  string face_value = 4;
+  string discount = 5;
+  string threshold_amount = 6;
+  int64 total_count = 7;
+  int64 received_count = 8;
+  int32 per_user_limit = 9;
+  string valid_start_at = 10;
+  string valid_end_at = 11;
+  int32 status = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+
+message CouponListResponse {
+  repeated Coupon list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message AbnormalOrder {
+  int64 id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  int64 driver_id = 4;
+  int32 car_type = 5;
+  string from_address = 6;
+  string from_longitude = 7;
+  string from_latitude = 8;
+  string to_address = 9;
+  string to_longitude = 10;
+  string to_latitude = 11;
+  int64 estimated_distance_m = 12;
+  int64 estimated_duration_s = 13;
+  string estimated_price = 14;
+  int32 status = 15;
+  string cancel_reason = 16;
+  string cancel_by = 17;
+  string abnormal_type = 18;
+  string abnormal_reason = 19;
+  int32 payment_status = 20;
+  int32 dispatch_status = 21;
+  string created_at = 22;
+  string updated_at = 23;
+}
+
+message AbnormalOrderListResponse {
+  repeated AbnormalOrder list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}

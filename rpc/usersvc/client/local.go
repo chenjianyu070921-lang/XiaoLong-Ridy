@@ -3,16 +3,18 @@ package client
 import (
 	"context"
 
+	"XiaoLong-Ridy/rpc/usersvc/internal/config"
 	"XiaoLong-Ridy/rpc/usersvc/internal/logic"
 	"XiaoLong-Ridy/rpc/usersvc/internal/repository"
 	"XiaoLong-Ridy/rpc/usersvc/internal/server"
+	"XiaoLong-Ridy/rpc/usersvc/internal/svc"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
 )
 
 // LocalClient 是开发环境内存版 usersvc 客户端。
 // API 层只依赖 proto 契约；切换为 gRPC/zRPC 时可替换该实现。
 type LocalClient struct {
-	service *server.UserService
+	service *server.UserServer
 }
 
 // NewLocalClient 创建可用于本地联调的 usersvc 客户端。
@@ -21,8 +23,9 @@ func NewLocalClient(signingKey string, onSMSCode func(phone, code string)) *Loca
 	users := repository.NewMemoryUserRepository()
 	smsService := logic.NewMemorySMSCodeService(onSMSCode)
 	tokens := logic.NewTokenManager(signingKey)
+	svcCtx := svc.NewServiceContext(config.Config{}, users, smsService, smsService, tokens)
 	return &LocalClient{
-		service: server.NewUserService(users, smsService, smsService, tokens),
+		service: server.NewUserServer(svcCtx),
 	}
 }
 

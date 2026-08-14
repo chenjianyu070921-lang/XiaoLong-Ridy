@@ -15,6 +15,7 @@ type ListOrdersLogic struct {
 	logx.Logger
 }
 
+// NewListOrdersLogic 创建订单列表逻辑对象。
 func NewListOrdersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListOrdersLogic {
 	return &ListOrdersLogic{
 		ctx:    ctx,
@@ -23,8 +24,55 @@ func NewListOrdersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListOr
 	}
 }
 
+// ListOrders 按用户/司机/状态分页查询订单摘要。
 func (l *ListOrdersLogic) ListOrders(in *proto.ListOrdersRequest) (*proto.ListOrdersResponse, error) {
-	// todo: add your logic here and delete this line
+	if in.Status < 0 || in.Status > proto.OrderStatus_ORDER_STATUS_CANCELLED {
+		return nil, ErrInvalidOrderParams
+	}
+	page := normalizePage(in.Page)
+	pageSize := normalizePageSize(in.PageSize)
 
-	return &proto.ListOrdersResponse{}, nil
+	list, total, err := l.svcCtx.OrderRepository.List(l.ctx, uint64(in.UserId), uint64(in.DriverId), int8(in.Status), page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]*proto.OrderSummary, 0, len(list))
+	for i := range list {
+		order := list[i]
+		items = append(items, &proto.OrderSummary{
+			OrderId:             int64(order.Id),
+			OrderNo:             order.OrderNo,
+			FromAddress:         order.FromAddress,
+			ToAddress:           order.ToAddress,
+			Status:              proto.OrderStatus(order.Status),
+			EstimatedPriceCents: yuanToCents(order.EstimatedPrice),
+			CreatedAt:           order.CreatedAt.Unix(),
+		})
+	}
+
+	return &proto.ListOrdersResponse{
+		List:     items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+// normalizePage 归一化页码，默认 1。
+func normalizePage(page int32) int32 {
+	if page <= 0 {
+		return 1
+	}
+	return page
+}
+
+// normalizePageSize 归一化每页条数，默认 20，上限 100。
+func normalizePageSize(pageSize int32) int32 {
+	if pageSize <= 0 {
+		return 20
+	}
+	if pageSize > 100 {
+		return 100
+	}
+	return pageSize
 }
