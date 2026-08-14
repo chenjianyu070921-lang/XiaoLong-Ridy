@@ -35,15 +35,12 @@ func main() {
 		}
 	}
 
-	// ---- 示例数据：3 个司机，全部入库保留 ----
-
 	drivers := []proto.CreateDriverRequest{
 		{Phone: "13800000001", PasswordHash: "e10adc3949ba59abbe56e057f20f883e", RealName: "王伟", IdCardNo: "110101199001011234", DriverLicenseNo: "DL10000001", AvatarUrl: "http://cdn.xxx/avatar/1.png"},
 		{Phone: "13800000002", PasswordHash: "e10adc3949ba59abbe56e057f20f883e", RealName: "李娜", IdCardNo: "110101199203054321", DriverLicenseNo: "DL10000002", AvatarUrl: "http://cdn.xxx/avatar/2.png"},
 		{Phone: "13800000003", PasswordHash: "e10adc3949ba59abbe56e057f20f883e", RealName: "张强", IdCardNo: "110101198807189876", DriverLicenseNo: "DL10000003", AvatarUrl: "http://cdn.xxx/avatar/3.png"},
 	}
 
-	// ---- 插入司机 ----
 	driverIDs := make([]int64, 0, len(drivers))
 	for i, d := range drivers {
 		r, e := c.CreateDriver(ctx, &d)
@@ -53,7 +50,6 @@ func main() {
 		}
 	}
 
-	// ---- 更新司机状态（示例：置为正常）----
 	for i, id := range driverIDs {
 		u, ue := c.UpdateDriver(ctx, &proto.UpdateDriverRequest{
 			Id:     id,
@@ -62,7 +58,6 @@ func main() {
 		log(fmt.Sprintf("UpdateDriver-置正常-%d", i+1), u, ue)
 	}
 
-	// ---- 查询司机详情（确认数据已入库）----
 	for i, id := range driverIDs {
 		g, ge := c.GetDriver(ctx, &proto.GetDriverRequest{Id: id})
 		log(fmt.Sprintf("GetDriver-%d", i+1), g, ge)
