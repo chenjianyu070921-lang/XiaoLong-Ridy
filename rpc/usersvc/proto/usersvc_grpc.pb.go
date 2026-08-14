@@ -13,10 +13,14 @@ import (
 )
 
 const (
-	User_SendSMSCode_FullMethodName  = "/usersvc.User/SendSMSCode"
-	User_LoginBySMS_FullMethodName   = "/usersvc.User/LoginBySMS"
-	User_RefreshToken_FullMethodName = "/usersvc.User/RefreshToken"
-	User_Logout_FullMethodName       = "/usersvc.User/Logout"
+	User_SendSMSCode_FullMethodName   = "/usersvc.User/SendSMSCode"
+	User_LoginBySMS_FullMethodName    = "/usersvc.User/LoginBySMS"
+	User_RefreshToken_FullMethodName  = "/usersvc.User/RefreshToken"
+	User_Logout_FullMethodName        = "/usersvc.User/Logout"
+	User_CreateAddress_FullMethodName = "/usersvc.User/CreateAddress"
+	User_ListAddresses_FullMethodName = "/usersvc.User/ListAddresses"
+	User_UpdateAddress_FullMethodName = "/usersvc.User/UpdateAddress"
+	User_DeleteAddress_FullMethodName = "/usersvc.User/DeleteAddress"
 )
 
 // UserClient 是 usersvc 对外暴露的 gRPC 客户端契约。
@@ -25,6 +29,10 @@ type UserClient interface {
 	LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginBySMSResponse, error)
 	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
+	CreateAddress(ctx context.Context, in *CreateAddressRequest, opts ...grpc.CallOption) (*AddressInfo, error)
+	ListAddresses(ctx context.Context, in *ListAddressesRequest, opts ...grpc.CallOption) (*ListAddressesResponse, error)
+	UpdateAddress(ctx context.Context, in *UpdateAddressRequest, opts ...grpc.CallOption) (*AddressInfo, error)
+	DeleteAddress(ctx context.Context, in *DeleteAddressRequest, opts ...grpc.CallOption) (*DeleteAddressResponse, error)
 }
 
 type userClient struct {
@@ -72,12 +80,52 @@ func (c *userClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *userClient) CreateAddress(ctx context.Context, in *CreateAddressRequest, opts ...grpc.CallOption) (*AddressInfo, error) {
+	out := new(AddressInfo)
+	err := c.cc.Invoke(ctx, User_CreateAddress_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) ListAddresses(ctx context.Context, in *ListAddressesRequest, opts ...grpc.CallOption) (*ListAddressesResponse, error) {
+	out := new(ListAddressesResponse)
+	err := c.cc.Invoke(ctx, User_ListAddresses_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) UpdateAddress(ctx context.Context, in *UpdateAddressRequest, opts ...grpc.CallOption) (*AddressInfo, error) {
+	out := new(AddressInfo)
+	err := c.cc.Invoke(ctx, User_UpdateAddress_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) DeleteAddress(ctx context.Context, in *DeleteAddressRequest, opts ...grpc.CallOption) (*DeleteAddressResponse, error) {
+	out := new(DeleteAddressResponse)
+	err := c.cc.Invoke(ctx, User_DeleteAddress_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServer 是 usersvc 对外暴露的 gRPC 服务端契约。
 type UserServer interface {
 	SendSMSCode(context.Context, *SendSMSCodeRequest) (*SendSMSCodeResponse, error)
 	LoginBySMS(context.Context, *LoginBySMSRequest) (*LoginBySMSResponse, error)
 	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
+	CreateAddress(context.Context, *CreateAddressRequest) (*AddressInfo, error)
+	ListAddresses(context.Context, *ListAddressesRequest) (*ListAddressesResponse, error)
+	UpdateAddress(context.Context, *UpdateAddressRequest) (*AddressInfo, error)
+	DeleteAddress(context.Context, *DeleteAddressRequest) (*DeleteAddressResponse, error)
 	mustEmbedUnimplementedUserServer()
 }
 
@@ -95,6 +143,18 @@ func (UnimplementedUserServer) RefreshToken(context.Context, *RefreshTokenReques
 }
 func (UnimplementedUserServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
+}
+func (UnimplementedUserServer) CreateAddress(context.Context, *CreateAddressRequest) (*AddressInfo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateAddress not implemented")
+}
+func (UnimplementedUserServer) ListAddresses(context.Context, *ListAddressesRequest) (*ListAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAddresses not implemented")
+}
+func (UnimplementedUserServer) UpdateAddress(context.Context, *UpdateAddressRequest) (*AddressInfo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAddress not implemented")
+}
+func (UnimplementedUserServer) DeleteAddress(context.Context, *DeleteAddressRequest) (*DeleteAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteAddress not implemented")
 }
 func (UnimplementedUserServer) mustEmbedUnimplementedUserServer() {}
 
@@ -180,6 +240,78 @@ func _User_Logout_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _User_CreateAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).CreateAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_CreateAddress_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).CreateAddress(ctx, req.(*CreateAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_ListAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).ListAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_ListAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).ListAddresses(ctx, req.(*ListAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_UpdateAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).UpdateAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_UpdateAddress_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).UpdateAddress(ctx, req.(*UpdateAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_DeleteAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).DeleteAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_DeleteAddress_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).DeleteAddress(ctx, req.(*DeleteAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // User_ServiceDesc 描述 usersvc.User 服务的 RPC 方法集合。
 var User_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "usersvc.User",
@@ -200,6 +332,22 @@ var User_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Logout",
 			Handler:    _User_Logout_Handler,
+		},
+		{
+			MethodName: "CreateAddress",
+			Handler:    _User_CreateAddress_Handler,
+		},
+		{
+			MethodName: "ListAddresses",
+			Handler:    _User_ListAddresses_Handler,
+		},
+		{
+			MethodName: "UpdateAddress",
+			Handler:    _User_UpdateAddress_Handler,
+		},
+		{
+			MethodName: "DeleteAddress",
+			Handler:    _User_DeleteAddress_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

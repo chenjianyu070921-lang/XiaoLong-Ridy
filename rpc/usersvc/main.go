@@ -50,9 +50,10 @@ func newServiceContext(c config.Config) *svc.ServiceContext {
 	}
 
 	users := repository.NewMemoryUserRepository()
+	addresses := repository.NewMemoryAddressRepository()
 	smsService := logic.NewMemorySMSCodeService(func(phone, code string) {
 		log.Printf("本地短信验证码：phone=%s code=%s", phone, code)
 	})
 	tokens := logic.NewTokenManager(signingKey)
-	return svc.NewServiceContext(c, users, smsService, smsService, tokens)
+	return svc.NewServiceContext(c, users, addresses, smsService, smsService, tokens)
 }

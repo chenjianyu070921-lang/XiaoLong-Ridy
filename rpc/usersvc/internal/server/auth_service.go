@@ -44,3 +44,27 @@ func (s *UserServer) Logout(ctx context.Context, req *userproto.LogoutRequest) (
 	l := logic.NewLogoutLogic(ctx, s.svcCtx)
 	return l.Logout(req)
 }
+
+// CreateAddress 转发新增常用地址请求到对应 logic。
+func (s *UserServer) CreateAddress(ctx context.Context, req *userproto.CreateAddressRequest) (*userproto.AddressInfo, error) {
+	l := logic.NewCreateAddressLogic(ctx, s.svcCtx)
+	return l.CreateAddress(req)
+}
+
+// ListAddresses 转发查询常用地址列表请求到对应 logic。
+func (s *UserServer) ListAddresses(ctx context.Context, req *userproto.ListAddressesRequest) (*userproto.ListAddressesResponse, error) {
+	l := logic.NewListAddressesLogic(ctx, s.svcCtx)
+	return l.ListAddresses(req)
+}
+
+// UpdateAddress 转发更新常用地址请求到对应 logic。
+func (s *UserServer) UpdateAddress(ctx context.Context, req *userproto.UpdateAddressRequest) (*userproto.AddressInfo, error) {
+	l := logic.NewUpdateAddressLogic(ctx, s.svcCtx)
+	return l.UpdateAddress(req)
+}
+
+// DeleteAddress 转发删除常用地址请求到对应 logic。
+func (s *UserServer) DeleteAddress(ctx context.Context, req *userproto.DeleteAddressRequest) (*userproto.DeleteAddressResponse, error) {
+	l := logic.NewDeleteAddressLogic(ctx, s.svcCtx)
+	return l.DeleteAddress(req)
+}
