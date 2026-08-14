@@ -66,7 +66,7 @@ func (l *LoginLogic) Login(in *adminsvc.LoginRequest) (*adminsvc.AuthResponse, e
 	_ = createOperationLog(l.ctx, l.svcCtx, admin.ID, "auth", "login", "admin_user", admin.ID, "管理员登录", "")
 	return &adminsvc.AuthResponse{
 		Token:     token,
-		ExpiresIn: int64(l.svcCtx.Config.Auth.SessionTTLHours) * 3600,
+		ExpiresIn: int64(l.svcCtx.Config.Session.SessionTTLHours) * 3600,
 		Admin:     toAdminPB(admin),
 	}, nil
 }

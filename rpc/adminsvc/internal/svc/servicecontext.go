@@ -29,15 +29,15 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	db.SetMaxOpenConns(20)
 
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     c.Redis.Addr,
-		Password: c.Redis.Password,
-		DB:       c.Redis.DB,
+		Addr:     c.Cache.Host,
+		Password: c.Cache.Password,
+		DB:       c.Cache.DB,
 	})
-	if c.Auth.SessionTTLHours <= 0 {
-		c.Auth.SessionTTLHours = 24
+	if c.Session.SessionTTLHours <= 0 {
+		c.Session.SessionTTLHours = 24
 	}
-	if c.Auth.TokenPrefix == "" {
-		c.Auth.TokenPrefix = "admin:sess:"
+	if c.Session.TokenPrefix == "" {
+		c.Session.TokenPrefix = "admin:sess:"
 	}
 	return &ServiceContext{
 		Config: c,

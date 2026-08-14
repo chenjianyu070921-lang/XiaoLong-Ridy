@@ -13,10 +13,18 @@ import (
 )
 
 type (
+	AbnormalOrder                    = adminsvc.AbnormalOrder
+	AbnormalOrderListRequest         = adminsvc.AbnormalOrderListRequest
+	AbnormalOrderListResponse        = adminsvc.AbnormalOrderListResponse
 	Admin                            = adminsvc.Admin
 	AuditDriverCertificationRequest  = adminsvc.AuditDriverCertificationRequest
 	AuthResponse                     = adminsvc.AuthResponse
+	ChangeUserStatusRequest          = adminsvc.ChangeUserStatusRequest
 	CommonResponse                   = adminsvc.CommonResponse
+	Coupon                           = adminsvc.Coupon
+	CouponListRequest                = adminsvc.CouponListRequest
+	CouponListResponse               = adminsvc.CouponListResponse
+	CouponRequest                    = adminsvc.CouponRequest
 	DispatchRecord                   = adminsvc.DispatchRecord
 	DriverCertification              = adminsvc.DriverCertification
 	DriverCertificationDetailRequest = adminsvc.DriverCertificationDetailRequest
@@ -48,34 +56,27 @@ type (
 	UserListResponse                 = adminsvc.UserListResponse
 
 	AdminService interface {
-		// 管理员注册。
 		Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*AuthResponse, error)
-		// 管理员登录。
 		Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*AuthResponse, error)
-		// 管理员退出登录。
 		Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*CommonResponse, error)
-		// 查询当前管理员信息。
 		Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
-		// 查询角色菜单。
 		Menus(ctx context.Context, in *MenusRequest, opts ...grpc.CallOption) (*MenusResponse, error)
-		// 查询操作日志。
 		ListOperationLogs(ctx context.Context, in *OperationLogListRequest, opts ...grpc.CallOption) (*OperationLogListResponse, error)
-		// 查询用户列表。
 		ListUsers(ctx context.Context, in *UserListRequest, opts ...grpc.CallOption) (*UserListResponse, error)
-		// 查询用户详情。
 		GetUser(ctx context.Context, in *UserDetailRequest, opts ...grpc.CallOption) (*User, error)
-		// 查询司机审核列表。
+		FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		UnfreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error)
-		// 查询司机审核详情。
 		GetDriverCertification(ctx context.Context, in *DriverCertificationDetailRequest, opts ...grpc.CallOption) (*DriverCertification, error)
-		// 审核通过司机认证。
 		ApproveDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
-		// 驳回司机认证。
 		RejectDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
-		// 查询订单列表。
 		ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
-		// 查询订单详情。
 		GetOrder(ctx context.Context, in *OrderDetailRequest, opts ...grpc.CallOption) (*OrderDetail, error)
+		ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
+		ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error)
+		CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		DisableCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	}
 
 	defaultAdminService struct {
@@ -84,91 +85,89 @@ type (
 )
 
 func NewAdminService(cli zrpc.Client) AdminService {
-	return &defaultAdminService{
-		cli: cli,
-	}
+	return &defaultAdminService{cli: cli}
 }
 
-// 管理员注册。
 func (m *defaultAdminService) Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.Register(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).Register(ctx, in, opts...)
 }
 
-// 管理员登录。
 func (m *defaultAdminService) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.Login(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).Login(ctx, in, opts...)
 }
 
-// 管理员退出登录。
 func (m *defaultAdminService) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.Logout(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).Logout(ctx, in, opts...)
 }
 
-// 查询当前管理员信息。
 func (m *defaultAdminService) Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.Me(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).Me(ctx, in, opts...)
 }
 
-// 查询角色菜单。
 func (m *defaultAdminService) Menus(ctx context.Context, in *MenusRequest, opts ...grpc.CallOption) (*MenusResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.Menus(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).Menus(ctx, in, opts...)
 }
 
-// 查询操作日志。
 func (m *defaultAdminService) ListOperationLogs(ctx context.Context, in *OperationLogListRequest, opts ...grpc.CallOption) (*OperationLogListResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.ListOperationLogs(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListOperationLogs(ctx, in, opts...)
 }
 
-// 查询用户列表。
 func (m *defaultAdminService) ListUsers(ctx context.Context, in *UserListRequest, opts ...grpc.CallOption) (*UserListResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.ListUsers(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListUsers(ctx, in, opts...)
 }
 
-// 查询用户详情。
 func (m *defaultAdminService) GetUser(ctx context.Context, in *UserDetailRequest, opts ...grpc.CallOption) (*User, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.GetUser(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).GetUser(ctx, in, opts...)
 }
 
-// 查询司机审核列表。
+func (m *defaultAdminService) FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).FreezeUser(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) UnfreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).UnfreezeUser(ctx, in, opts...)
+}
+
 func (m *defaultAdminService) ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.ListDriverCertifications(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListDriverCertifications(ctx, in, opts...)
 }
 
-// 查询司机审核详情。
 func (m *defaultAdminService) GetDriverCertification(ctx context.Context, in *DriverCertificationDetailRequest, opts ...grpc.CallOption) (*DriverCertification, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.GetDriverCertification(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).GetDriverCertification(ctx, in, opts...)
 }
 
-// 审核通过司机认证。
 func (m *defaultAdminService) ApproveDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.ApproveDriverCertification(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ApproveDriverCertification(ctx, in, opts...)
 }
 
-// 驳回司机认证。
 func (m *defaultAdminService) RejectDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.RejectDriverCertification(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).RejectDriverCertification(ctx, in, opts...)
 }
 
-// 查询订单列表。
 func (m *defaultAdminService) ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.ListOrders(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListOrders(ctx, in, opts...)
 }
 
-// 查询订单详情。
 func (m *defaultAdminService) GetOrder(ctx context.Context, in *OrderDetailRequest, opts ...grpc.CallOption) (*OrderDetail, error) {
-	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
-	return client.GetOrder(ctx, in, opts...)
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).GetOrder(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListAbnormalOrders(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListCoupons(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).CreateCoupon(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).UpdateCoupon(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) DisableCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).DisableCoupon(ctx, in, opts...)
 }

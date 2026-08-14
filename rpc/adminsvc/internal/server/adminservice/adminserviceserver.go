@@ -70,6 +70,18 @@ func (s *AdminServiceServer) GetUser(ctx context.Context, in *adminsvc.UserDetai
 	return l.GetUser(in)
 }
 
+// 冻结用户。
+func (s *AdminServiceServer) FreezeUser(ctx context.Context, in *adminsvc.ChangeUserStatusRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewFreezeUserLogic(ctx, s.svcCtx)
+	return l.FreezeUser(in)
+}
+
+// 解封用户。
+func (s *AdminServiceServer) UnfreezeUser(ctx context.Context, in *adminsvc.ChangeUserStatusRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewUnfreezeUserLogic(ctx, s.svcCtx)
+	return l.UnfreezeUser(in)
+}
+
 // 查询司机审核列表。
 func (s *AdminServiceServer) ListDriverCertifications(ctx context.Context, in *adminsvc.DriverCertificationListRequest) (*adminsvc.DriverCertificationListResponse, error) {
 	l := adminservicelogic.NewListDriverCertificationsLogic(ctx, s.svcCtx)
@@ -104,4 +116,34 @@ func (s *AdminServiceServer) ListOrders(ctx context.Context, in *adminsvc.OrderL
 func (s *AdminServiceServer) GetOrder(ctx context.Context, in *adminsvc.OrderDetailRequest) (*adminsvc.OrderDetail, error) {
 	l := adminservicelogic.NewGetOrderLogic(ctx, s.svcCtx)
 	return l.GetOrder(in)
+}
+
+// 查询异常订单列表。
+func (s *AdminServiceServer) ListAbnormalOrders(ctx context.Context, in *adminsvc.AbnormalOrderListRequest) (*adminsvc.AbnormalOrderListResponse, error) {
+	l := adminservicelogic.NewListAbnormalOrdersLogic(ctx, s.svcCtx)
+	return l.ListAbnormalOrders(in)
+}
+
+// 查询优惠券列表。
+func (s *AdminServiceServer) ListCoupons(ctx context.Context, in *adminsvc.CouponListRequest) (*adminsvc.CouponListResponse, error) {
+	l := adminservicelogic.NewListCouponsLogic(ctx, s.svcCtx)
+	return l.ListCoupons(in)
+}
+
+// 创建优惠券。
+func (s *AdminServiceServer) CreateCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewCreateCouponLogic(ctx, s.svcCtx)
+	return l.CreateCoupon(in)
+}
+
+// 更新优惠券。
+func (s *AdminServiceServer) UpdateCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewUpdateCouponLogic(ctx, s.svcCtx)
+	return l.UpdateCoupon(in)
+}
+
+// 下架优惠券。
+func (s *AdminServiceServer) DisableCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewDisableCouponLogic(ctx, s.svcCtx)
+	return l.DisableCoupon(in)
 }

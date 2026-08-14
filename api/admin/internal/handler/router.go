@@ -13,6 +13,9 @@ import (
 	"XiaoLong-Ridy/api/admin/internal/repository"
 	"XiaoLong-Ridy/api/admin/internal/svc"
 	"XiaoLong-Ridy/api/admin/internal/types"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Router 是管理后台 API 的 HTTP 路由入口。
@@ -220,21 +223,54 @@ func (r *Router) handleUsers(w http.ResponseWriter, req *http.Request) {
 
 // handleUserByID 返回用户详情。
 func (r *Router) handleUserByID(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	id, ok := idFromPath(req.URL.Path, "/admin/v1/users/")
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/users/")
 	if !ok {
 		writeError(w, http.StatusBadRequest, 40001, "invalid user id")
 		return
 	}
-	resp, err := logic.NewUserLogic(r.ctx).Detail(req.Context(), id)
-	if err != nil {
-		r.writeBizError(w, err)
+	userLogic := logic.NewUserLogic(r.ctx)
+	if action == "" {
+		if req.Method != http.MethodGet {
+			writeMethodNotAllowed(w)
+			return
+		}
+		resp, err := userLogic.Detail(req.Context(), id)
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
 		return
 	}
-	writeSuccess(w, resp)
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body struct {
+		Reason string `json:"reason"`
+		Remark string `json:"remark"`
+	}
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	session := sessionFromContext(req.Context())
+	switch action {
+	case "freeze":
+		if err := userLogic.Freeze(req.Context(), id, body.Reason, body.Remark, session, clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+	case "unfreeze":
+		if err := userLogic.Unfreeze(req.Context(), id, body.Reason, body.Remark, session, clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+	default:
+		http.NotFound(w, req)
+		return
+	}
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
 }
 
 // handleDriverCertifications 返回司机审核列表。
@@ -418,13 +454,30 @@ func (r *Router) handleCoupons(w http.ResponseWriter, req *http.Request) {
 // handleCouponByID 处理优惠券模板编辑。
 // 当前只开放 PUT /admin/v1/coupons/{id}，状态启停和发券任务后续独立扩展。
 func (r *Router) handleCouponByID(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPut {
-		writeMethodNotAllowed(w)
-		return
-	}
-	id, ok := idFromPath(req.URL.Path, "/admin/v1/coupons/")
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/coupons/")
 	if !ok {
 		writeError(w, http.StatusBadRequest, 40001, "invalid coupon id")
+		return
+	}
+	couponLogic := logic.NewCouponLogic(r.ctx)
+	if action == "disable" {
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		if err := couponLogic.Disable(req.Context(), id, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
+		return
+	}
+	if action != "" {
+		http.NotFound(w, req)
+		return
+	}
+	if req.Method != http.MethodPut {
+		writeMethodNotAllowed(w)
 		return
 	}
 	var body types.CouponSaveRequest
@@ -432,7 +485,7 @@ func (r *Router) handleCouponByID(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
-	if err := logic.NewCouponLogic(r.ctx).Update(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+	if err := couponLogic.Update(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
 		r.writeBizError(w, err)
 		return
 	}
@@ -469,6 +522,14 @@ func (r *Router) writeAuthError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, 40003, "forbidden")
 	case errors.Is(err, logic.ErrConflict):
 		writeError(w, http.StatusConflict, 40902, "conflict")
+	case status.Code(err) == codes.InvalidArgument:
+		writeError(w, http.StatusBadRequest, 40001, "bad request")
+	case status.Code(err) == codes.NotFound:
+		writeError(w, http.StatusNotFound, 40401, "resource not found")
+	case status.Code(err) == codes.PermissionDenied:
+		writeError(w, http.StatusForbidden, 40003, "forbidden")
+	case status.Code(err) == codes.Unauthenticated:
+		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
 	default:
 		writeError(w, http.StatusInternalServerError, 50000, "system error")
 	}
@@ -487,6 +548,14 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case errors.Is(err, logic.ErrForbidden):
 		writeError(w, http.StatusForbidden, 40003, "forbidden")
+	case status.Code(err) == codes.InvalidArgument:
+		writeError(w, http.StatusBadRequest, 40001, "bad request")
+	case status.Code(err) == codes.NotFound:
+		writeError(w, http.StatusNotFound, 40401, "resource not found")
+	case status.Code(err) == codes.PermissionDenied:
+		writeError(w, http.StatusForbidden, 40003, "forbidden")
+	case status.Code(err) == codes.Unauthenticated:
+		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
 	default:
 		writeError(w, http.StatusInternalServerError, 50000, "system error")
 	}
