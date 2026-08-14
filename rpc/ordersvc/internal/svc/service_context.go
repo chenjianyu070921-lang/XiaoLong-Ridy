@@ -4,7 +4,6 @@ import (
 	cfg "XiaoLong-Ridy/common/config"
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/config"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -20,7 +19,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Dsn:         c.Mysql.DSN,
 		MaxOpenConn: 200,
 		MaxIdleConn: 30,
-		MaxLifeTime: time.Hour * 1,
+		MaxLifeTime: 3600,
 	})
 	if err != nil {
 		panic(err)
