@@ -68,6 +68,25 @@ type RideOrder struct {
 	DeletedAt          *time.Time
 }
 
+// Coupon 表示 coupon 优惠券模板表模型。
+// 管理后台通过该模型完成优惠券模板的列表查询、新增和编辑，金额字段统一按字符串返回，避免 float 精度问题。
+type Coupon struct {
+	ID              int64
+	Name            string
+	Type            int32
+	FaceValue       string
+	Discount        string
+	ThresholdAmount string
+	TotalCount      int64
+	ReceivedCount   int64
+	PerUserLimit    int64
+	ValidStartAt    time.Time
+	ValidEndAt      time.Time
+	Status          int32
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
 // OperationLog 表示 admin_operation_log 后台操作日志模型。
 type OperationLog struct {
 	ID         int64

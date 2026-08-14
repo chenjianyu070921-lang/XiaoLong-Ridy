@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package paysvc;
+
+option go_package = "./;proto";
+
+// 支付服务：支付预下单。
+service Pay {
+  // 支付预下单：创建支付单并调第三方下单（本期为 mock）。
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+}
+
+// 支付渠道
+enum PayChannel {
+  PAY_CHANNEL_UNSPECIFIED = 0;
+  PAY_CHANNEL_WECHAT = 1;   // 微信
+  PAY_CHANNEL_ALIPAY = 2;   // 支付宝
+  PAY_CHANNEL_BALANCE = 3;  // 余额
+}
+
+// 支付预下单请求
+message CreatePaymentRequest {
+  int64 order_id = 1;
+  int64 user_id = 2;
+  int64 amount_cents = 3;      // 支付金额（分）
+  PayChannel channel = 4;      // 支付渠道
+}
+
+// 支付预下单响应
+message CreatePaymentResponse {
+  int64 payment_id = 1;
+  string payment_no = 2;       // 平台支付单号
+  string transaction_id = 3;   // 第三方支付流水号（mock）
+  string pay_params = 4;       // 支付参数（mock，如预支付 ID/二维码串）
+  int32 status = 5;            // 状态：1待支付
+}
