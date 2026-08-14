@@ -95,8 +95,27 @@ func (c *LocalClient) GetOrder(_ context.Context, req *orderproto.GetOrderReques
 	if !ok {
 		return nil, fmt.Errorf("order not found")
 	}
-	cloned := *order
-	return &cloned, nil
+	return &orderproto.GetOrderResponse{
+		OrderId:             order.GetOrderId(),
+		OrderNo:             order.GetOrderNo(),
+		UserId:              order.GetUserId(),
+		DriverId:            order.GetDriverId(),
+		CarType:             order.GetCarType(),
+		FromAddress:         order.GetFromAddress(),
+		FromLongitude:       order.GetFromLongitude(),
+		FromLatitude:        order.GetFromLatitude(),
+		ToAddress:           order.GetToAddress(),
+		ToLongitude:         order.GetToLongitude(),
+		ToLatitude:          order.GetToLatitude(),
+		EstimatedDistanceM:  order.GetEstimatedDistanceM(),
+		EstimatedDurationS:  order.GetEstimatedDurationS(),
+		EstimatedPriceCents: order.GetEstimatedPriceCents(),
+		Status:              order.GetStatus(),
+		CancelReason:        order.GetCancelReason(),
+		CancelBy:            order.GetCancelBy(),
+		CreatedAt:           order.GetCreatedAt(),
+		UpdatedAt:           order.GetUpdatedAt(),
+	}, nil
 }
 
 // ListOrders 返回订单分页列表。
