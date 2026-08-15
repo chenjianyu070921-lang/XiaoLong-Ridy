@@ -38,6 +38,20 @@ func (r *MemoryUserRepository) FindByPhone(_ context.Context, phone string) (*mo
 	return &copied, nil
 }
 
+// FindByID 返回指定用户 ID 的资料副本，供个人中心和实名服务查询。
+func (r *MemoryUserRepository) FindByID(_ context.Context, id uint64) (*model.User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	user, ok := r.usersByID[id]
+	if !ok {
+		return nil, ErrUserNotFound
+	}
+
+	copied := *user
+	return &copied, nil
+}
+
 // Create 插入新用户并分配自增 ID。
 func (r *MemoryUserRepository) Create(_ context.Context, user *model.User) error {
 	r.mu.Lock()
@@ -58,6 +72,33 @@ func (r *MemoryUserRepository) Create(_ context.Context, user *model.User) error
 	r.usersByPhone[copied.Phone] = &copied
 
 	user.ID = copied.ID
+	user.CreatedAt = copied.CreatedAt
+	user.UpdatedAt = copied.UpdatedAt
+	return nil
+}
+
+// Update 保存用户资料副本，确保手机号索引和 ID 索引保持一致。
+func (r *MemoryUserRepository) Update(_ context.Context, user *model.User) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current, ok := r.usersByID[user.ID]
+	if !ok {
+		return ErrUserNotFound
+	}
+	if current.Phone != user.Phone {
+		if _, exists := r.usersByPhone[user.Phone]; exists {
+			return ErrPhoneExists
+		}
+		delete(r.usersByPhone, current.Phone)
+	}
+
+	copied := *user
+	copied.CreatedAt = current.CreatedAt
+	copied.UpdatedAt = time.Now()
+	r.usersByID[copied.ID] = &copied
+	r.usersByPhone[copied.Phone] = &copied
+
 	user.CreatedAt = copied.CreatedAt
 	user.UpdatedAt = copied.UpdatedAt
 	return nil

@@ -48,6 +48,21 @@ type LogoutResponse {
 	Success bool `json:"success"`
 }
 
+type GetProfileRequest {}
+
+type GetProfileResponse {
+	User UserInfo `json:"user"`
+}
+
+type SubmitRealNameRequest {
+	RealName string `json:"realName"`
+	IDCardNo string `json:"idCardNo"`
+}
+
+type SubmitRealNameResponse {
+	User UserInfo `json:"user"`
+}
+
 type CreateOrderRequest {
 	CarType int32 `json:"carType"`
 	FromAddress string `json:"fromAddress"`
@@ -56,12 +71,21 @@ type CreateOrderRequest {
 	ToAddress string `json:"toAddress"`
 	ToLongitude float64 `json:"toLongitude"`
 	ToLatitude float64 `json:"toLatitude"`
+	CouponID int64 `json:"couponId"`
+	CouponType int32 `json:"couponType"`
+	CouponFaceValueCents int64 `json:"couponFaceValueCents"`
+	CouponDiscount int32 `json:"couponDiscount"`
+	CouponThresholdCents int64 `json:"couponThresholdCents"`
+	CouponMaxDiscountCents int64 `json:"couponMaxDiscountCents"`
 }
 
 type CreateOrderResponse {
 	OrderID int64 `json:"orderId"`
 	OrderNo string `json:"orderNo"`
 	EstimatedPriceCents int64 `json:"estimatedPriceCents"`
+	OriginalPriceCents int64 `json:"originalPriceCents"`
+	DiscountAmountCents int64 `json:"discountAmountCents"`
+	PayableAmountCents int64 `json:"payableAmountCents"`
 	Status int32 `json:"status"`
 	CreatedAt int64 `json:"createdAt"`
 }
@@ -186,6 +210,12 @@ service passenger-api {
 
 	@handler LogoutHandler
 	post /api/passenger/v1/auth/logout returns (LogoutResponse)
+
+	@handler GetProfileHandler
+	post /api/passenger/v1/profile/me (GetProfileRequest) returns (GetProfileResponse)
+
+	@handler SubmitRealNameHandler
+	post /api/passenger/v1/profile/real-name (SubmitRealNameRequest) returns (SubmitRealNameResponse)
 
 	@handler CreateOrderHandler
 	post /api/passenger/v1/orders/create (CreateOrderRequest) returns (CreateOrderResponse)

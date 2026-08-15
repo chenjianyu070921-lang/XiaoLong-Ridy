@@ -5,8 +5,17 @@ import (
 	"math"
 )
 
+const (
+	// CouponTypeFixed 表示固定金额抵扣券。
+	CouponTypeFixed int32 = 1
+	// CouponTypeDiscount 表示折扣券，Discount 字段按百分比保存。
+	CouponTypeDiscount int32 = 2
+)
+
 // EstimatePriceRequest 表示预估价格所需的核心参数。
 type EstimatePriceRequest struct {
+	UserID          int64
+	CityCode        string
 	CarType         int32
 	FromLongitude   float64
 	FromLatitude    float64
@@ -14,6 +23,7 @@ type EstimatePriceRequest struct {
 	ToLatitude      float64
 	EstimatedMeters int64
 	EstimatedSecond int64
+	Timestamp       int64
 }
 
 // EstimatePriceResponse 返回预估价格、里程和时长。
@@ -21,6 +31,30 @@ type EstimatePriceResponse struct {
 	EstimatedPriceCents int64
 	EstimatedDistanceM  int64
 	EstimatedDurationS  int64
+}
+
+// Coupon 表示 passenger 传入的优惠券抵扣参数。
+type Coupon struct {
+	CouponID         int64
+	Type             int32
+	FaceValueCents   int64
+	Discount         int32
+	ThresholdCents   int64
+	MaxDiscountCents int64
+}
+
+// CalculateDiscountRequest 表示优惠抵扣计算请求。
+type CalculateDiscountRequest struct {
+	OrderID    int64
+	TotalCents int64
+	Coupon     Coupon
+}
+
+// CalculateDiscountResponse 表示优惠抵扣计算结果。
+type CalculateDiscountResponse struct {
+	DiscountAmountCents  int64
+	PlatformSubsidyCents int64
+	PayableAmountCents   int64
 }
 
 // LocalClient 是本地开发和测试使用的价格服务实现。
@@ -71,6 +105,38 @@ func (c *LocalClient) EstimatePrice(_ context.Context, req *EstimatePriceRequest
 		EstimatedPriceCents: priceCents,
 		EstimatedDistanceM:  distanceM,
 		EstimatedDurationS:  durationS,
+	}, nil
+}
+
+// CalculateDiscount 根据传入优惠券计算抵扣金额，供本地联调模拟 pricesvc 行为。
+func (c *LocalClient) CalculateDiscount(_ context.Context, req *CalculateDiscountRequest) (*CalculateDiscountResponse, error) {
+	total := req.TotalCents
+	if total < 0 {
+		total = 0
+	}
+	discount := int64(0)
+	if req.Coupon.CouponID > 0 && total >= req.Coupon.ThresholdCents {
+		switch req.Coupon.Type {
+		case CouponTypeFixed:
+			discount = req.Coupon.FaceValueCents
+		case CouponTypeDiscount:
+			if req.Coupon.Discount > 0 && req.Coupon.Discount < 100 {
+				discount = total * int64(100-req.Coupon.Discount) / 100
+				if req.Coupon.MaxDiscountCents > 0 && discount > req.Coupon.MaxDiscountCents {
+					discount = req.Coupon.MaxDiscountCents
+				}
+			}
+		}
+	}
+	if discount < 0 {
+		discount = 0
+	}
+	if discount > total {
+		discount = total
+	}
+	return &CalculateDiscountResponse{
+		DiscountAmountCents: discount,
+		PayableAmountCents:  total - discount,
 	}, nil
 }
 

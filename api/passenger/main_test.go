@@ -7,17 +7,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"XiaoLong-Ridy/api/passenger/internal/router"
 	"XiaoLong-Ridy/api/passenger/internal/svc"
 	"XiaoLong-Ridy/api/passenger/internal/types"
 	"XiaoLong-Ridy/rpc/usersvc/client"
 )
 
+// TestAuthHTTPFlow 验证乘客端短信登录、刷新令牌与退出登录的完整 HTTP 流程。
 func TestAuthHTTPFlow(t *testing.T) {
 	var smsCode string
 	userClient := client.NewLocalClient("test-signing-key", func(_ string, code string) {
 		smsCode = code
 	})
-	server := httptest.NewServer(newHTTPHandler(svc.NewServiceContext(userClient)))
+	server := httptest.NewServer(router.NewRouter(svc.NewServiceContext(userClient)))
 	defer server.Close()
 
 	sendResponse := callJSON(t, http.MethodPost, server.URL+"/api/passenger/v1/auth/send-sms-code", map[string]string{

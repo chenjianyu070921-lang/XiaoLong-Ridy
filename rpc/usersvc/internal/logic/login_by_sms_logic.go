@@ -96,6 +96,6 @@ func toUserInfo(user *model.User) *userproto.UserInfo {
 		Phone:          MaskPhone(user.Phone),
 		Nickname:       user.Nickname,
 		AvatarUrl:      user.AvatarURL,
-		RealNameStatus: model.RealNameStatusUnverified,
+		RealNameStatus: realNameStatus(user),
 	}
 }
