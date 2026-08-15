@@ -40,15 +40,19 @@ func (r *MemoryOrderRepository) Create(_ context.Context, order *model.RideOrder
 	}
 
 	now := time.Now()
+	createdAt := order.CreatedAt
+	if createdAt.IsZero() {
+		createdAt = now
+	}
 	copied := *order
 	copied.Id = r.nextID
-	copied.CreatedAt = now
+	copied.CreatedAt = createdAt
 	copied.UpdatedAt = now
 
 	logCopied := *statusLog
 	logCopied.Id = r.nextLogID
 	logCopied.OrderId = copied.Id
-	logCopied.CreatedAt = now
+	logCopied.CreatedAt = createdAt
 
 	r.nextID++
 	r.nextLogID++
@@ -200,6 +204,42 @@ func (r *MemoryOrderRepository) List(_ context.Context, userID, driverID uint64,
 		end = len(filtered)
 	}
 	return filtered[start:end], total, nil
+}
+
+// ListTimeoutOrders 查询超过超时时间的待接单订单，按创建时间升序。
+func (r *MemoryOrderRepository) ListTimeoutOrders(_ context.Context, before time.Time, page, pageSize int32) ([]model.RideOrder, int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	ids := make([]uint64, 0, len(r.orders))
+	for id, order := range r.orders {
+		if order.Status == constants.OrderStatusWaitAccept && !order.CreatedAt.After(before) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		left := r.orders[ids[i]]
+		right := r.orders[ids[j]]
+		if left.CreatedAt.Equal(right.CreatedAt) {
+			return left.Id < right.Id
+		}
+		return left.CreatedAt.Before(right.CreatedAt)
+	})
+
+	total := int64(len(ids))
+	start := int((page - 1) * pageSize)
+	if start >= len(ids) {
+		return []model.RideOrder{}, total, nil
+	}
+	end := start + int(pageSize)
+	if end > len(ids) {
+		end = len(ids)
+	}
+	out := make([]model.RideOrder, 0, end-start)
+	for _, id := range ids[start:end] {
+		out = append(out, *r.orders[id])
+	}
+	return out, total, nil
 }
 
 // ListStatusLogs 分页查询订单状态日志，按写入顺序返回。

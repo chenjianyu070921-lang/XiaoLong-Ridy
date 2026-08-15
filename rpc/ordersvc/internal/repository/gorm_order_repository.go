@@ -193,6 +193,24 @@ func (r *gormOrderRepository) List(ctx context.Context, userID, driverID uint64,
 	return list, total, nil
 }
 
+// ListTimeoutOrders 查询超过超时时间的待接单订单，按创建时间升序。
+func (r *gormOrderRepository) ListTimeoutOrders(ctx context.Context, before time.Time, page, pageSize int32) ([]model.RideOrder, int64, error) {
+	q := r.db.WithContext(ctx).Model(&model.RideOrder{}).
+		Where("status = ? AND created_at <= ? AND deleted_at IS NULL", constants.OrderStatusWaitAccept, before)
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var list []model.RideOrder
+	err := q.Order("created_at ASC, id ASC").Offset(int((page - 1) * pageSize)).Limit(int(pageSize)).Find(&list).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
 // ListStatusLogs 分页查询订单状态日志，按 ID 正序。
 func (r *gormOrderRepository) ListStatusLogs(ctx context.Context, orderID uint64, page, pageSize int32) ([]model.OrderStatusLog, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.OrderStatusLog{}).Where("order_id = ?", orderID)

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 )
@@ -32,6 +33,8 @@ type OrderRepository interface {
 	AppendStatusLog(ctx context.Context, statusLog *model.OrderStatusLog) error
 	// List 按用户/司机/状态分页查询订单。
 	List(ctx context.Context, userID, driverID uint64, status int8, page, pageSize int32) ([]model.RideOrder, int64, error)
+	// ListTimeoutOrders 查询创建时间早于 before 的待接单订单。
+	ListTimeoutOrders(ctx context.Context, before time.Time, page, pageSize int32) ([]model.RideOrder, int64, error)
 	// ListStatusLogs 分页查询订单状态日志。
 	ListStatusLogs(ctx context.Context, orderID uint64, page, pageSize int32) ([]model.OrderStatusLog, int64, error)
 }

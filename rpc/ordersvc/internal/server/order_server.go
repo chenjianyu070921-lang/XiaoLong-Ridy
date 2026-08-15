@@ -68,6 +68,11 @@ func (s *OrderServer) TimeoutCancel(ctx context.Context, in *proto.TimeoutCancel
 	return l.TimeoutCancel(in)
 }
 
+func (s *OrderServer) ListTimeoutOrders(ctx context.Context, in *proto.ListTimeoutOrdersRequest) (*proto.ListTimeoutOrdersResponse, error) {
+	l := logic.NewListTimeoutOrdersLogic(ctx, s.svcCtx)
+	return l.ListTimeoutOrders(in)
+}
+
 func (s *OrderServer) ListOrderStatusLogs(ctx context.Context, in *proto.ListOrderStatusLogsRequest) (*proto.ListOrderStatusLogsResponse, error) {
 	l := logic.NewListOrderStatusLogsLogic(ctx, s.svcCtx)
 	return l.ListOrderStatusLogs(in)
