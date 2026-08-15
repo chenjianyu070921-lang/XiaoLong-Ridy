@@ -6,6 +6,7 @@ import (
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/keyutil"
+	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
@@ -59,6 +60,17 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 	}
 	if err := l.svcCtx.OrderRepository.Create(l.ctx, order, statusLog); err != nil {
 		return nil, err
+	}
+	if l.svcCtx.DispatchClient != nil {
+		if _, err := l.svcCtx.DispatchClient.DispatchOrder(l.ctx, &dispatch.DispatchOrderRequest{
+			OrderId:       int64(order.Id),
+			FromLongitude: in.FromLongitude,
+			FromLatitude:  in.FromLatitude,
+			CarType:       in.CarType,
+		}); err != nil {
+			// 派单失败不阻塞下单，记录日志由后续任务补偿。
+			l.Logger.Errorf("dispatch order %d failed: %v", order.Id, err)
+		}
 	}
 
 	return &proto.CreateOrderResponse{

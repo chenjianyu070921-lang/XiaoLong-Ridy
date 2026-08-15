@@ -10,3 +10,5 @@ kafka:
     - 127.0.0.1:9092
   topic: order.created
   group: order-event-consumer
+dispatchrpc:
+  Target: 127.0.0.1:8083

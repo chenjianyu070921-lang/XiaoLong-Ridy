@@ -2,12 +2,33 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
+
+	"google.golang.org/grpc"
 )
+
+type fakeDispatchClient struct {
+	dispatchErr error
+	called      bool
+}
+
+func (f *fakeDispatchClient) DispatchOrder(_ context.Context, in *dispatch.DispatchOrderRequest, _ ...grpc.CallOption) (*dispatch.DispatchOrderResponse, error) {
+	f.called = true
+	if f.dispatchErr != nil {
+		return nil, f.dispatchErr
+	}
+	return &dispatch.DispatchOrderResponse{OrderId: in.OrderId}, nil
+}
+
+func (f *fakeDispatchClient) ListDispatchRecords(_ context.Context, _ *dispatch.ListDispatchRecordsRequest, _ ...grpc.CallOption) (*dispatch.ListDispatchRecordsResponse, error) {
+	return &dispatch.ListDispatchRecordsResponse{}, nil
+}
 
 func validCreateOrderRequest() *proto.CreateOrderRequest {
 	return &proto.CreateOrderRequest{
@@ -94,5 +115,25 @@ func TestCreateOrderRejectsInvalidParams(t *testing.T) {
 				t.Fatalf("CreateOrder() error = %v, want %v", err, ErrInvalidOrderParams)
 			}
 		})
+	}
+}
+
+func TestCreateOrderTriggersDispatchAndIgnoresDispatchError(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	dispatchClient := &fakeDispatchClient{dispatchErr: errors.New("dispatch down")}
+	l := NewCreateOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository: repo,
+		DispatchClient:  dispatchClient,
+	})
+
+	resp, err := l.CreateOrder(validCreateOrderRequest())
+	if err != nil {
+		t.Fatalf("CreateOrder() error = %v", err)
+	}
+	if resp.OrderId <= 0 {
+		t.Fatal("CreateOrder() returned empty order id")
+	}
+	if !dispatchClient.called {
+		t.Fatal("CreateOrder() did not trigger dispatch")
 	}
 }

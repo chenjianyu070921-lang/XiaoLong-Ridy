@@ -5,8 +5,9 @@ import "github.com/zeromicro/go-zero/zrpc"
 type Config struct {
 	zrpc.RpcServerConf
 
-	Mysql MysqlConf `yaml:"mysql" json:"mysql"`
-	Kafka KafkaConf `yaml:"kafka" json:"kafka"`
+	Mysql       MysqlConf         `yaml:"mysql" json:"mysql"`
+	Kafka       KafkaConf         `yaml:"kafka" json:"kafka"`
+	DispatchRPC zrpc.RpcClientConf `yaml:"dispatchrpc" json:"dispatchrpc"`
 }
 
 type MysqlConf struct {
