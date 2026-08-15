@@ -13,3 +13,7 @@ Cache:
 Session:
   SessionTTLHours: 24
   TokenPrefix: "admin:sess:"
+OrdersRPC:
+  Target: 127.0.0.1:50051
+DriversRPC:
+  Target: 127.0.0.1:8080

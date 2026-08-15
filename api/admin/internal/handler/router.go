@@ -394,23 +394,45 @@ func (r *Router) handleAbnormalOrders(w http.ResponseWriter, req *http.Request) 
 	writeSuccess(w, resp)
 }
 
-// handleOrderByID 返回订单详情。
+// handleOrderByID 处理订单详情和后台取消订单。
 func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	id, ok := idFromPath(req.URL.Path, "/admin/v1/orders/")
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/orders/")
 	if !ok {
 		writeError(w, http.StatusBadRequest, 40001, "invalid order id")
 		return
 	}
-	resp, err := logic.NewOrderLogic(r.ctx).Detail(req.Context(), id)
-	if err != nil {
+	orderLogic := logic.NewOrderLogic(r.ctx)
+	if action == "" {
+		if req.Method != http.MethodGet {
+			writeMethodNotAllowed(w)
+			return
+		}
+		resp, err := orderLogic.Detail(req.Context(), id)
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
+	if action != "cancel" {
+		http.NotFound(w, req)
+		return
+	}
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body types.OrderCancelRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	if err := orderLogic.Cancel(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
 		r.writeBizError(w, err)
 		return
 	}
-	writeSuccess(w, resp)
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
 }
 
 // handleCoupons 处理优惠券模板列表和新增。
