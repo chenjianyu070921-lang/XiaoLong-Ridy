@@ -11,7 +11,7 @@ import (
 )
 
 func writeSuccess(w http.ResponseWriter, data any) {
-	writeResponse(w, http.StatusOK, 0, "success", data)
+	writeResponse(w, http.StatusOK, codeSuccess, "success", data)
 }
 
 func writeError(w http.ResponseWriter, status, code int, message string) {

@@ -36,6 +36,8 @@ var (
 	ErrInvalidToken = errors.New("invalid token")
 	// ErrTokenExpired 表示用户令牌已经超过有效期。
 	ErrTokenExpired = errors.New("token expired")
+	// ErrInvalidRealNameInfo 表示实名资料缺少姓名或证件号。
+	ErrInvalidRealNameInfo = errors.New("invalid real name info")
 )
 
 // User 对应 user 表：保存乘客账号、认证状态和基础资料。

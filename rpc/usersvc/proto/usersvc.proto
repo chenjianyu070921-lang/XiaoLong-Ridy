@@ -13,6 +13,10 @@ service User {
   rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
   // Logout 注销当前登录态。
   rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // GetProfile 查询乘客个人中心基础资料。
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  // SubmitRealName 提交乘客实名信息。
+  rpc SubmitRealName(SubmitRealNameRequest) returns (SubmitRealNameResponse);
   // CreateAddress 新增乘客常用地址。
   rpc CreateAddress(CreateAddressRequest) returns (AddressInfo);
   // ListAddresses 查询乘客常用地址列表。
@@ -76,6 +80,28 @@ message LogoutRequest {
 // LogoutResponse 注销响应。
 message LogoutResponse {
   bool success = 1; // 是否注销成功
+}
+
+// GetProfileRequest 查询个人中心资料请求。
+message GetProfileRequest {
+  uint64 user_id = 1; // 用户 ID
+}
+
+// GetProfileResponse 查询个人中心资料响应。
+message GetProfileResponse {
+  UserInfo user = 1; // 用户基础信息
+}
+
+// SubmitRealNameRequest 提交实名信息请求。
+message SubmitRealNameRequest {
+  uint64 user_id = 1; // 用户 ID
+  string real_name = 2; // 真实姓名
+  string id_card_no = 3; // 身份证号
+}
+
+// SubmitRealNameResponse 提交实名信息响应。
+message SubmitRealNameResponse {
+  UserInfo user = 1; // 更新后的用户基础信息
 }
 
 // AddressInfo 表示乘客常用地址信息。

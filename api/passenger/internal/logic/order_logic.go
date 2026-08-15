@@ -41,6 +41,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 	}
 
 	price, err := priceClient.EstimatePrice(l.ctx, &priceclient.EstimatePriceRequest{
+		UserID:        int64(userID),
 		CarType:       req.CarType,
 		FromLongitude: req.FromLongitude,
 		FromLatitude:  req.FromLatitude,
@@ -49,6 +50,27 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 	})
 	if err != nil {
 		return nil, err
+	}
+	originalPriceCents := price.EstimatedPriceCents
+	discountAmountCents := int64(0)
+	payableAmountCents := originalPriceCents
+	if hasCoupon(req) {
+		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
+			TotalCents: originalPriceCents,
+			Coupon: priceclient.Coupon{
+				CouponID:         req.CouponID,
+				Type:             req.CouponType,
+				FaceValueCents:   req.CouponFaceValueCents,
+				Discount:         req.CouponDiscount,
+				ThresholdCents:   req.CouponThresholdCents,
+				MaxDiscountCents: req.CouponMaxDiscountCents,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		discountAmountCents = discount.DiscountAmountCents
+		payableAmountCents = discount.PayableAmountCents
 	}
 
 	order, err := orderClient.CreateOrder(l.ctx, &orderproto.CreateOrderRequest{
@@ -62,7 +84,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		ToLatitude:          req.ToLatitude,
 		EstimatedDistanceM:  price.EstimatedDistanceM,
 		EstimatedDurationS:  price.EstimatedDurationS,
-		EstimatedPriceCents: price.EstimatedPriceCents,
+		EstimatedPriceCents: payableAmountCents,
 	})
 	if err != nil {
 		return nil, err
@@ -71,6 +93,9 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		OrderID:             order.GetOrderId(),
 		OrderNo:             order.GetOrderNo(),
 		EstimatedPriceCents: order.GetEstimatedPriceCents(),
+		OriginalPriceCents:  originalPriceCents,
+		DiscountAmountCents: discountAmountCents,
+		PayableAmountCents:  payableAmountCents,
 		Status:              int32(order.GetStatus()),
 		CreatedAt:           order.GetCreatedAt(),
 	}, nil
@@ -80,6 +105,9 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 func (l *OrderLogic) ListOrders(req *types.ListOrdersRequest) (*types.ListOrdersResponse, error) {
 	userID, err := currentUserID(l.svcCtx, l.token)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateListOrders(req); err != nil {
 		return nil, err
 	}
 	orderClient, err := l.orderClient()
@@ -121,7 +149,7 @@ func (l *OrderLogic) GetOrder(req *types.GetOrderRequest) (*types.OrderDetail, e
 	if err != nil {
 		return nil, err
 	}
-	if req.OrderID <= 0 {
+	if req == nil || req.OrderID <= 0 {
 		return nil, ErrInvalidRequest
 	}
 	orderClient, err := l.orderClient()
@@ -144,7 +172,7 @@ func (l *OrderLogic) CancelOrder(req *types.CancelOrderRequest) (*types.CancelOr
 	if err != nil {
 		return nil, err
 	}
-	if req.OrderID <= 0 {
+	if req == nil || req.OrderID <= 0 {
 		return nil, ErrInvalidRequest
 	}
 	orderClient, err := l.orderClient()
@@ -178,7 +206,45 @@ func validateCreateOrder(req *types.CreateOrderRequest) error {
 	if req == nil || strings.TrimSpace(req.FromAddress) == "" || strings.TrimSpace(req.ToAddress) == "" {
 		return ErrInvalidRequest
 	}
-	if req.CarType <= 0 {
+	if req.CarType < 1 || req.CarType > 3 {
+		return ErrInvalidRequest
+	}
+	if !isValidLongitudeLatitude(req.FromLongitude, req.FromLatitude) ||
+		!isValidLongitudeLatitude(req.ToLongitude, req.ToLatitude) {
+		return ErrInvalidRequest
+	}
+	if hasCoupon(req) && !isValidCoupon(req) {
+		return ErrInvalidRequest
+	}
+	return nil
+}
+
+// hasCoupon 判断本次下单是否携带优惠券信息。
+func hasCoupon(req *types.CreateOrderRequest) bool {
+	return req != nil && req.CouponID > 0
+}
+
+// isValidCoupon 校验优惠券参数是否足以调用 pricesvc 抵扣计算。
+func isValidCoupon(req *types.CreateOrderRequest) bool {
+	switch req.CouponType {
+	case priceclient.CouponTypeFixed:
+		return req.CouponFaceValueCents > 0 && req.CouponThresholdCents >= 0
+	case priceclient.CouponTypeDiscount:
+		return req.CouponDiscount > 0 && req.CouponDiscount < 100 && req.CouponThresholdCents >= 0
+	default:
+		return false
+	}
+}
+
+// validateListOrders 校验订单列表筛选和分页参数，0 页码/页大小交给下游按默认值归一化。
+func validateListOrders(req *types.ListOrdersRequest) error {
+	if req == nil {
+		return ErrInvalidRequest
+	}
+	if req.Status < 0 || req.Status > int32(orderproto.OrderStatus_ORDER_STATUS_CANCELLED) {
+		return ErrInvalidRequest
+	}
+	if req.Page < 0 || req.PageSize < 0 || req.PageSize > 100 {
 		return ErrInvalidRequest
 	}
 	return nil

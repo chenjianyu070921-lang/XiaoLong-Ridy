@@ -55,13 +55,7 @@ func (l *AuthLogic) LoginBySMS(req *types.LoginBySMSRequest) (*types.LoginBySMSR
 		Token:        resp.GetToken(),
 		RefreshToken: resp.GetRefreshToken(),
 		IsNewUser:    resp.GetIsNewUser(),
-		User: types.UserInfo{
-			UserID:         user.GetUserId(),
-			Phone:          user.GetPhone(),
-			Nickname:       user.GetNickname(),
-			AvatarURL:      user.GetAvatarUrl(),
-			RealNameStatus: user.GetRealNameStatus(),
-		},
+		User:         toAPIUserInfo(user),
 	}, nil
 }
 

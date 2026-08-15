@@ -2,13 +2,19 @@ package types
 
 // CreateOrderRequest 表示乘客下单接口的请求参数。
 type CreateOrderRequest struct {
-	CarType       int32   `json:"carType"`
-	FromAddress   string  `json:"fromAddress"`
-	FromLongitude float64 `json:"fromLongitude"`
-	FromLatitude  float64 `json:"fromLatitude"`
-	ToAddress     string  `json:"toAddress"`
-	ToLongitude   float64 `json:"toLongitude"`
-	ToLatitude    float64 `json:"toLatitude"`
+	CarType                int32   `json:"carType"`
+	FromAddress            string  `json:"fromAddress"`
+	FromLongitude          float64 `json:"fromLongitude"`
+	FromLatitude           float64 `json:"fromLatitude"`
+	ToAddress              string  `json:"toAddress"`
+	ToLongitude            float64 `json:"toLongitude"`
+	ToLatitude             float64 `json:"toLatitude"`
+	CouponID               int64   `json:"couponId"`
+	CouponType             int32   `json:"couponType"`
+	CouponFaceValueCents   int64   `json:"couponFaceValueCents"`
+	CouponDiscount         int32   `json:"couponDiscount"`
+	CouponThresholdCents   int64   `json:"couponThresholdCents"`
+	CouponMaxDiscountCents int64   `json:"couponMaxDiscountCents"`
 }
 
 // CreateOrderResponse 表示乘客下单成功后的返回数据。
@@ -16,6 +22,9 @@ type CreateOrderResponse struct {
 	OrderID             int64  `json:"orderId"`
 	OrderNo             string `json:"orderNo"`
 	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
+	OriginalPriceCents  int64  `json:"originalPriceCents"`
+	DiscountAmountCents int64  `json:"discountAmountCents"`
+	PayableAmountCents  int64  `json:"payableAmountCents"`
 	Status              int32  `json:"status"`
 	CreatedAt           int64  `json:"createdAt"`
 }

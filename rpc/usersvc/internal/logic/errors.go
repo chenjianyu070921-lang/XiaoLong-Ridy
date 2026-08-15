@@ -21,4 +21,6 @@ var (
 	ErrInvalidToken = model.ErrInvalidToken
 	// ErrTokenExpired 表示令牌已经超过有效期。
 	ErrTokenExpired = model.ErrTokenExpired
+	// ErrInvalidRealNameInfo 表示实名资料缺少真实姓名或证件号。
+	ErrInvalidRealNameInfo = model.ErrInvalidRealNameInfo
 )
