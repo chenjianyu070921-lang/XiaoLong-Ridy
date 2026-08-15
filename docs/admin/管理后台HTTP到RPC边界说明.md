@@ -55,3 +55,28 @@
 2. 再启动 `api/admin`，默认读取 `api/admin/etc/admin.json` 中的 `admin_rpc.target`。
 3. 前端和 Postman 仍然调用原 HTTP 路径，不直接调用 RPC。
 4. MySQL 使用本地 Docker `3306`，Redis 使用本地 Docker `6379`。
+
+## 5. 2026-08-15 P0 当前实现补充
+
+### 5.1 后台订单取消
+
+当前已按 `api/admin -> rpc/adminsvc -> rpc/ordersvc` 边界落地后台订单取消。
+
+| 层级 | 已落地内容 |
+| --- | --- |
+| HTTP 路由 | `POST /admin/v1/orders/{id}/cancel` |
+| HTTP 职责 | 校验登录态，解析订单 ID、取消原因、管理员 ID、客户端 IP |
+| adminsvc RPC | `AdminService.CancelOrder(AdminCancelOrderRequest) returns (CommonResponse)` |
+| 下游 RPC | 同步调用 `ordersvc.CancelOrder` |
+| 下游入参 | `order_id`、`operator_type=admin`、`operator_id=admin_id`、`reason` |
+| 当前验证 | `go test ./api/admin/...`、`go test ./rpc/adminsvc/...` 已通过 |
+
+### 5.2 司机审核边界
+
+当前 HTTP 司机审核仍保持既有 `api/admin -> adminsvc` 路径，`adminsvc` 内部使用本地事务更新 `driver_certification`、`driver`、`driver_vehicle`，不在本次 P0 中强制切换到跨服务调用。
+
+`driversvc` 已预留 `ApproveCertification`、`RejectCertification` proto 与服务端逻辑，用于后续正式切换。正式切换前还需要补齐真实数据联调、幂等请求号、司机端可听单状态通知和 `pushsvc` MQ 通知。
+
+### 5.3 P1/P2 边界
+
+P1 优惠券发放任务、活动配置，P2 数据统计、导出、风控管理，本次仅保留设计文档和接口清单，不新增可执行业务代码。

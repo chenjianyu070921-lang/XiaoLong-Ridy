@@ -6,9 +6,11 @@ import "github.com/zeromicro/go-zero/zrpc"
 // Config 是 adminsvc 的完整配置，包含 go-zero RPC、MySQL、Redis 和鉴权参数。
 type Config struct {
 	zrpc.RpcServerConf
-	MySQL   MySQLConfig
-	Cache   RedisConfig `yaml:"cache"`
-	Session AuthConfig  `yaml:"session"`
+	MySQL      MySQLConfig        `json:"MySQL"`
+	Cache      RedisConfig        `json:"Cache"`
+	Session    AuthConfig         `json:"Session"`
+	OrdersRPC  zrpc.RpcClientConf `json:"OrdersRPC,optional"`
+	DriversRPC zrpc.RpcClientConf `json:"DriversRPC,optional"`
 }
 
 // MySQLConfig 定义本服务访问业务数据库所需的数据源。

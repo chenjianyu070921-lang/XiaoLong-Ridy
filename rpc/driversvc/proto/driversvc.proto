@@ -31,6 +31,10 @@ service Driversvc {
   rpc UpdateVehicle(UpdateVehicleRequest) returns(UpdateVehicleResponse);
   rpc DeleteVehicle(DeleteVehicleRequest) returns(DeleteVehicleResponse);
   rpc GetVehicle(GetVehicleRequest) returns(GetVehicleResponse);
+  // 审核通过司机资质。
+  rpc ApproveCertification(AuditCertificationRequest) returns(CommonResponse);
+  // 审核驳回司机资质。
+  rpc RejectCertification(AuditCertificationRequest) returns(CommonResponse);
 }
 
 // Driver 司机信息，对应 driver 表的完整记录。
@@ -166,4 +170,15 @@ message GetVehicleRequest {
 
 message GetVehicleResponse {
   Vehicle vehicle = 1;
+}
+
+message AuditCertificationRequest {
+  int64 certification_id = 1;
+  string remark = 2;
+  int64 operator_id = 3;
+  string ip = 4;
+}
+
+message CommonResponse {
+  string message = 1;
 }

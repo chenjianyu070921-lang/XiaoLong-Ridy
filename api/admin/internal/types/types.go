@@ -130,6 +130,11 @@ type AuditRequest struct {
 	Remark string `json:"remark"`
 }
 
+// OrderCancelRequest 表示后台人工取消订单的请求体。
+type OrderCancelRequest struct {
+	Reason string `json:"reason"`
+}
+
 // OrderListRequest 表示订单列表查询条件。
 type OrderListRequest struct {
 	Page      int

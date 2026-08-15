@@ -2,7 +2,9 @@ package logic
 
 import (
 	"context"
+	"strings"
 
+	"XiaoLong-Ridy/api/admin/internal/model"
 	"XiaoLong-Ridy/api/admin/internal/svc"
 	"XiaoLong-Ridy/api/admin/internal/types"
 	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
@@ -132,6 +134,21 @@ func (l *OrderLogic) Detail(ctx context.Context, id int64) (*types.OrderDetailDT
 		}
 	}
 	return detail, nil
+}
+
+// Cancel 调用 adminsvc 取消订单，HTTP 层只负责传递管理员、订单和取消原因。
+func (l *OrderLogic) Cancel(ctx context.Context, id int64, req types.OrderCancelRequest, session *model.AdminSession, ip string) error {
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		reason = "后台取消订单"
+	}
+	_, err := l.ctx.AdminSvc.CancelOrder(ctx, &adminclient.AdminCancelOrderRequest{
+		OrderId: id,
+		Reason:  reason,
+		AdminId: session.AdminID,
+		Ip:      ip,
+	})
+	return err
 }
 
 // orderPBToDTO 将订单 protobuf 对象转换为 HTTP DTO。
