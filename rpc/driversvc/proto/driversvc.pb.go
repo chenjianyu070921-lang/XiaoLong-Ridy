@@ -143,6 +143,7 @@ type Driver struct {
 	Status          DriverStatus           `protobuf:"varint,8,opt,name=status,proto3,enum=driversvc.DriverStatus" json:"status,omitempty"`
 	CreatedAt       int64                  `protobuf:"varint,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt       int64                  `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	OnlineStatus    int32                  `protobuf:"varint,11,opt,name=online_status,json=onlineStatus,proto3" json:"online_status,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -243,6 +244,13 @@ func (x *Driver) GetCreatedAt() int64 {
 func (x *Driver) GetUpdatedAt() int64 {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *Driver) GetOnlineStatus() int32 {
+	if x != nil {
+		return x.OnlineStatus
 	}
 	return 0
 }
@@ -735,6 +743,286 @@ func (x *GetDriverResponse) GetDriver() *Driver {
 	return nil
 }
 
+type SetDriverOnlineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetDriverOnlineRequest) Reset() {
+	*x = SetDriverOnlineRequest{}
+	mi := &file_proto_driversvc_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDriverOnlineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDriverOnlineRequest) ProtoMessage() {}
+
+func (x *SetDriverOnlineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDriverOnlineRequest.ProtoReflect.Descriptor instead.
+func (*SetDriverOnlineRequest) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SetDriverOnlineRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type SetDriverOnlineResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	OnlineStatus  int32                  `protobuf:"varint,2,opt,name=online_status,json=onlineStatus,proto3" json:"online_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetDriverOnlineResponse) Reset() {
+	*x = SetDriverOnlineResponse{}
+	mi := &file_proto_driversvc_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDriverOnlineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDriverOnlineResponse) ProtoMessage() {}
+
+func (x *SetDriverOnlineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDriverOnlineResponse.ProtoReflect.Descriptor instead.
+func (*SetDriverOnlineResponse) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SetDriverOnlineResponse) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *SetDriverOnlineResponse) GetOnlineStatus() int32 {
+	if x != nil {
+		return x.OnlineStatus
+	}
+	return 0
+}
+
+type SetDriverOfflineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetDriverOfflineRequest) Reset() {
+	*x = SetDriverOfflineRequest{}
+	mi := &file_proto_driversvc_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDriverOfflineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDriverOfflineRequest) ProtoMessage() {}
+
+func (x *SetDriverOfflineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDriverOfflineRequest.ProtoReflect.Descriptor instead.
+func (*SetDriverOfflineRequest) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SetDriverOfflineRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type SetDriverOfflineResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	OnlineStatus  int32                  `protobuf:"varint,2,opt,name=online_status,json=onlineStatus,proto3" json:"online_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetDriverOfflineResponse) Reset() {
+	*x = SetDriverOfflineResponse{}
+	mi := &file_proto_driversvc_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDriverOfflineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDriverOfflineResponse) ProtoMessage() {}
+
+func (x *SetDriverOfflineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDriverOfflineResponse.ProtoReflect.Descriptor instead.
+func (*SetDriverOfflineResponse) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SetDriverOfflineResponse) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *SetDriverOfflineResponse) GetOnlineStatus() int32 {
+	if x != nil {
+		return x.OnlineStatus
+	}
+	return 0
+}
+
+type GetDriverByPhoneRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Phone         string                 `protobuf:"bytes,1,opt,name=phone,proto3" json:"phone,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverByPhoneRequest) Reset() {
+	*x = GetDriverByPhoneRequest{}
+	mi := &file_proto_driversvc_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverByPhoneRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverByPhoneRequest) ProtoMessage() {}
+
+func (x *GetDriverByPhoneRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverByPhoneRequest.ProtoReflect.Descriptor instead.
+func (*GetDriverByPhoneRequest) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetDriverByPhoneRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+type GetDriverByPhoneResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Driver        *Driver                `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverByPhoneResponse) Reset() {
+	*x = GetDriverByPhoneResponse{}
+	mi := &file_proto_driversvc_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverByPhoneResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverByPhoneResponse) ProtoMessage() {}
+
+func (x *GetDriverByPhoneResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverByPhoneResponse.ProtoReflect.Descriptor instead.
+func (*GetDriverByPhoneResponse) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetDriverByPhoneResponse) GetDriver() *Driver {
+	if x != nil {
+		return x.Driver
+	}
+	return nil
+}
+
 // Vehicle 车辆信息，对应 driver_vehicle 表的完整记录。
 type Vehicle struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
@@ -757,7 +1045,7 @@ type Vehicle struct {
 
 func (x *Vehicle) Reset() {
 	*x = Vehicle{}
-	mi := &file_proto_driversvc_proto_msgTypes[9]
+	mi := &file_proto_driversvc_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -769,7 +1057,7 @@ func (x *Vehicle) String() string {
 func (*Vehicle) ProtoMessage() {}
 
 func (x *Vehicle) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[9]
+	mi := &file_proto_driversvc_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -782,7 +1070,7 @@ func (x *Vehicle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vehicle.ProtoReflect.Descriptor instead.
 func (*Vehicle) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{9}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Vehicle) GetId() int64 {
@@ -893,7 +1181,7 @@ type CreateVehicleRequest struct {
 
 func (x *CreateVehicleRequest) Reset() {
 	*x = CreateVehicleRequest{}
-	mi := &file_proto_driversvc_proto_msgTypes[10]
+	mi := &file_proto_driversvc_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -905,7 +1193,7 @@ func (x *CreateVehicleRequest) String() string {
 func (*CreateVehicleRequest) ProtoMessage() {}
 
 func (x *CreateVehicleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[10]
+	mi := &file_proto_driversvc_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -918,7 +1206,7 @@ func (x *CreateVehicleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateVehicleRequest.ProtoReflect.Descriptor instead.
 func (*CreateVehicleRequest) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{10}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateVehicleRequest) GetDriverId() int64 {
@@ -995,7 +1283,7 @@ type CreateVehicleResponse struct {
 
 func (x *CreateVehicleResponse) Reset() {
 	*x = CreateVehicleResponse{}
-	mi := &file_proto_driversvc_proto_msgTypes[11]
+	mi := &file_proto_driversvc_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1007,7 +1295,7 @@ func (x *CreateVehicleResponse) String() string {
 func (*CreateVehicleResponse) ProtoMessage() {}
 
 func (x *CreateVehicleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[11]
+	mi := &file_proto_driversvc_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1020,7 +1308,7 @@ func (x *CreateVehicleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateVehicleResponse.ProtoReflect.Descriptor instead.
 func (*CreateVehicleResponse) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{11}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateVehicleResponse) GetId() int64 {
@@ -1063,7 +1351,7 @@ type UpdateVehicleRequest struct {
 
 func (x *UpdateVehicleRequest) Reset() {
 	*x = UpdateVehicleRequest{}
-	mi := &file_proto_driversvc_proto_msgTypes[12]
+	mi := &file_proto_driversvc_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1075,7 +1363,7 @@ func (x *UpdateVehicleRequest) String() string {
 func (*UpdateVehicleRequest) ProtoMessage() {}
 
 func (x *UpdateVehicleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[12]
+	mi := &file_proto_driversvc_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1088,7 +1376,7 @@ func (x *UpdateVehicleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateVehicleRequest.ProtoReflect.Descriptor instead.
 func (*UpdateVehicleRequest) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{12}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateVehicleRequest) GetId() int64 {
@@ -1179,7 +1467,7 @@ type UpdateVehicleResponse struct {
 
 func (x *UpdateVehicleResponse) Reset() {
 	*x = UpdateVehicleResponse{}
-	mi := &file_proto_driversvc_proto_msgTypes[13]
+	mi := &file_proto_driversvc_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1191,7 +1479,7 @@ func (x *UpdateVehicleResponse) String() string {
 func (*UpdateVehicleResponse) ProtoMessage() {}
 
 func (x *UpdateVehicleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[13]
+	mi := &file_proto_driversvc_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1204,7 +1492,7 @@ func (x *UpdateVehicleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateVehicleResponse.ProtoReflect.Descriptor instead.
 func (*UpdateVehicleResponse) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{13}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpdateVehicleResponse) GetId() int64 {
@@ -1237,7 +1525,7 @@ type DeleteVehicleRequest struct {
 
 func (x *DeleteVehicleRequest) Reset() {
 	*x = DeleteVehicleRequest{}
-	mi := &file_proto_driversvc_proto_msgTypes[14]
+	mi := &file_proto_driversvc_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1249,7 +1537,7 @@ func (x *DeleteVehicleRequest) String() string {
 func (*DeleteVehicleRequest) ProtoMessage() {}
 
 func (x *DeleteVehicleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[14]
+	mi := &file_proto_driversvc_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1262,7 +1550,7 @@ func (x *DeleteVehicleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteVehicleRequest.ProtoReflect.Descriptor instead.
 func (*DeleteVehicleRequest) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{14}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteVehicleRequest) GetId() int64 {
@@ -1282,7 +1570,7 @@ type DeleteVehicleResponse struct {
 
 func (x *DeleteVehicleResponse) Reset() {
 	*x = DeleteVehicleResponse{}
-	mi := &file_proto_driversvc_proto_msgTypes[15]
+	mi := &file_proto_driversvc_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1294,7 +1582,7 @@ func (x *DeleteVehicleResponse) String() string {
 func (*DeleteVehicleResponse) ProtoMessage() {}
 
 func (x *DeleteVehicleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[15]
+	mi := &file_proto_driversvc_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1307,7 +1595,7 @@ func (x *DeleteVehicleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteVehicleResponse.ProtoReflect.Descriptor instead.
 func (*DeleteVehicleResponse) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{15}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DeleteVehicleResponse) GetId() int64 {
@@ -1333,7 +1621,7 @@ type GetVehicleRequest struct {
 
 func (x *GetVehicleRequest) Reset() {
 	*x = GetVehicleRequest{}
-	mi := &file_proto_driversvc_proto_msgTypes[16]
+	mi := &file_proto_driversvc_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1345,7 +1633,7 @@ func (x *GetVehicleRequest) String() string {
 func (*GetVehicleRequest) ProtoMessage() {}
 
 func (x *GetVehicleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[16]
+	mi := &file_proto_driversvc_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1358,7 +1646,7 @@ func (x *GetVehicleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVehicleRequest.ProtoReflect.Descriptor instead.
 func (*GetVehicleRequest) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{16}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetVehicleRequest) GetId() int64 {
@@ -1377,7 +1665,7 @@ type GetVehicleResponse struct {
 
 func (x *GetVehicleResponse) Reset() {
 	*x = GetVehicleResponse{}
-	mi := &file_proto_driversvc_proto_msgTypes[17]
+	mi := &file_proto_driversvc_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1389,7 +1677,7 @@ func (x *GetVehicleResponse) String() string {
 func (*GetVehicleResponse) ProtoMessage() {}
 
 func (x *GetVehicleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_driversvc_proto_msgTypes[17]
+	mi := &file_proto_driversvc_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1402,7 +1690,7 @@ func (x *GetVehicleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVehicleResponse.ProtoReflect.Descriptor instead.
 func (*GetVehicleResponse) Descriptor() ([]byte, []int) {
-	return file_proto_driversvc_proto_rawDescGZIP(), []int{17}
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetVehicleResponse) GetVehicle() *Vehicle {
@@ -1412,11 +1700,430 @@ func (x *GetVehicleResponse) GetVehicle() *Vehicle {
 	return nil
 }
 
+// ListDriversRequest 司机列表查询请求。
+type ListDriversRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`                                       // 页码，从 1 开始，缺省为 1
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`               // 每页条数，缺省为 20
+	Status        *DriverStatus          `protobuf:"varint,3,opt,name=status,proto3,enum=driversvc.DriverStatus,oneof" json:"status,omitempty"` // 可选状态过滤
+	Keyword       string                 `protobuf:"bytes,4,opt,name=keyword,proto3" json:"keyword,omitempty"`                                  // 可选关键字：模糊匹配手机号/姓名/车牌号
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDriversRequest) Reset() {
+	*x = ListDriversRequest{}
+	mi := &file_proto_driversvc_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDriversRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDriversRequest) ProtoMessage() {}
+
+func (x *ListDriversRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDriversRequest.ProtoReflect.Descriptor instead.
+func (*ListDriversRequest) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListDriversRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListDriversRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListDriversRequest) GetStatus() DriverStatus {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return DriverStatus_DRIVER_STATUS_UNSPECIFIED
+}
+
+func (x *ListDriversRequest) GetKeyword() string {
+	if x != nil {
+		return x.Keyword
+	}
+	return ""
+}
+
+// ListDriversResponse 司机列表查询响应。
+type ListDriversResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Drivers       []*Driver              `protobuf:"bytes,1,rep,name=drivers,proto3" json:"drivers,omitempty"` // 当前页司机列表
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`    // 符合条件的总记录数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDriversResponse) Reset() {
+	*x = ListDriversResponse{}
+	mi := &file_proto_driversvc_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDriversResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDriversResponse) ProtoMessage() {}
+
+func (x *ListDriversResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDriversResponse.ProtoReflect.Descriptor instead.
+func (*ListDriversResponse) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListDriversResponse) GetDrivers() []*Driver {
+	if x != nil {
+		return x.Drivers
+	}
+	return nil
+}
+
+func (x *ListDriversResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// LoginRequest 司机登录请求。
+type LoginRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Phone         string                 `protobuf:"bytes,1,opt,name=phone,proto3" json:"phone,omitempty"`       // 手机号
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"` // 明文密码
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginRequest) Reset() {
+	*x = LoginRequest{}
+	mi := &file_proto_driversvc_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginRequest) ProtoMessage() {}
+
+func (x *LoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
+func (*LoginRequest) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *LoginRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+// LoginResponse 司机登录响应。
+type LoginResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`                        // 登录凭证 JWT
+	ExpireIn      int64                  `protobuf:"varint,2,opt,name=expire_in,json=expireIn,proto3" json:"expire_in,omitempty"` // 有效期（秒）
+	Driver        *Driver                `protobuf:"bytes,3,opt,name=driver,proto3" json:"driver,omitempty"`                      // 司机简要信息
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginResponse) Reset() {
+	*x = LoginResponse{}
+	mi := &file_proto_driversvc_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginResponse) ProtoMessage() {}
+
+func (x *LoginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
+func (*LoginResponse) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *LoginResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *LoginResponse) GetExpireIn() int64 {
+	if x != nil {
+		return x.ExpireIn
+	}
+	return 0
+}
+
+func (x *LoginResponse) GetDriver() *Driver {
+	if x != nil {
+		return x.Driver
+	}
+	return nil
+}
+
+// NearbyDriver 附近司机摘要信息。
+type NearbyDriver struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	DriverId       int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`                   // 司机 ID
+	Longitude      float64                `protobuf:"fixed64,2,opt,name=longitude,proto3" json:"longitude,omitempty"`                                // 经度
+	Latitude       float64                `protobuf:"fixed64,3,opt,name=latitude,proto3" json:"latitude,omitempty"`                                  // 纬度
+	DistanceMeters int32                  `protobuf:"varint,4,opt,name=distance_meters,json=distanceMeters,proto3" json:"distance_meters,omitempty"` // 距查询中心点的距离（米）
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *NearbyDriver) Reset() {
+	*x = NearbyDriver{}
+	mi := &file_proto_driversvc_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NearbyDriver) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NearbyDriver) ProtoMessage() {}
+
+func (x *NearbyDriver) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NearbyDriver.ProtoReflect.Descriptor instead.
+func (*NearbyDriver) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *NearbyDriver) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *NearbyDriver) GetLongitude() float64 {
+	if x != nil {
+		return x.Longitude
+	}
+	return 0
+}
+
+func (x *NearbyDriver) GetLatitude() float64 {
+	if x != nil {
+		return x.Latitude
+	}
+	return 0
+}
+
+func (x *NearbyDriver) GetDistanceMeters() int32 {
+	if x != nil {
+		return x.DistanceMeters
+	}
+	return 0
+}
+
+// ListNearbyDriversRequest 附近司机查询请求。
+type ListNearbyDriversRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Longitude     float64                `protobuf:"fixed64,1,opt,name=longitude,proto3" json:"longitude,omitempty"`                           // 查询中心经度
+	Latitude      float64                `protobuf:"fixed64,2,opt,name=latitude,proto3" json:"latitude,omitempty"`                             // 查询中心纬度
+	RadiusMeters  float64                `protobuf:"fixed64,3,opt,name=radius_meters,json=radiusMeters,proto3" json:"radius_meters,omitempty"` // 搜索半径（米），缺省 3000
+	Limit         int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`                                    // 返回条数上限，缺省 20
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNearbyDriversRequest) Reset() {
+	*x = ListNearbyDriversRequest{}
+	mi := &file_proto_driversvc_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNearbyDriversRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNearbyDriversRequest) ProtoMessage() {}
+
+func (x *ListNearbyDriversRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNearbyDriversRequest.ProtoReflect.Descriptor instead.
+func (*ListNearbyDriversRequest) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ListNearbyDriversRequest) GetLongitude() float64 {
+	if x != nil {
+		return x.Longitude
+	}
+	return 0
+}
+
+func (x *ListNearbyDriversRequest) GetLatitude() float64 {
+	if x != nil {
+		return x.Latitude
+	}
+	return 0
+}
+
+func (x *ListNearbyDriversRequest) GetRadiusMeters() float64 {
+	if x != nil {
+		return x.RadiusMeters
+	}
+	return 0
+}
+
+func (x *ListNearbyDriversRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// ListNearbyDriversResponse 附近司机查询响应。
+type ListNearbyDriversResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Drivers       []*NearbyDriver        `protobuf:"bytes,1,rep,name=drivers,proto3" json:"drivers,omitempty"` // 附近在线司机列表（按距离升序）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNearbyDriversResponse) Reset() {
+	*x = ListNearbyDriversResponse{}
+	mi := &file_proto_driversvc_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNearbyDriversResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNearbyDriversResponse) ProtoMessage() {}
+
+func (x *ListNearbyDriversResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_driversvc_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNearbyDriversResponse.ProtoReflect.Descriptor instead.
+func (*ListNearbyDriversResponse) Descriptor() ([]byte, []int) {
+	return file_proto_driversvc_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ListNearbyDriversResponse) GetDrivers() []*NearbyDriver {
+	if x != nil {
+		return x.Drivers
+	}
+	return nil
+}
+
 var File_proto_driversvc_proto protoreflect.FileDescriptor
 
 const file_proto_driversvc_proto_rawDesc = "" +
 	"\n" +
-	"\x15proto/driversvc.proto\x12\tdriversvc\"\xc8\x02\n" +
+	"\x15proto/driversvc.proto\x12\tdriversvc\"\xed\x02\n" +
 	"\x06Driver\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
 	"\x05phone\x18\x02 \x01(\tR\x05phone\x12#\n" +
@@ -1432,7 +2139,8 @@ const file_proto_driversvc_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\x03R\tupdatedAt\"\xd6\x01\n" +
+	" \x01(\x03R\tupdatedAt\x12#\n" +
+	"\ronline_status\x18\v \x01(\x05R\fonlineStatus\"\xd6\x01\n" +
 	"\x13CreateDriverRequest\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12#\n" +
 	"\rpassword_hash\x18\x02 \x01(\tR\fpasswordHash\x12\x1b\n" +
@@ -1479,6 +2187,20 @@ const file_proto_driversvc_proto_rawDesc = "" +
 	"\x10GetDriverRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\">\n" +
 	"\x11GetDriverResponse\x12)\n" +
+	"\x06driver\x18\x01 \x01(\v2\x11.driversvc.DriverR\x06driver\"5\n" +
+	"\x16SetDriverOnlineRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\"[\n" +
+	"\x17SetDriverOnlineResponse\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12#\n" +
+	"\ronline_status\x18\x02 \x01(\x05R\fonlineStatus\"6\n" +
+	"\x17SetDriverOfflineRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\"\\\n" +
+	"\x18SetDriverOfflineResponse\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12#\n" +
+	"\ronline_status\x18\x02 \x01(\x05R\fonlineStatus\"/\n" +
+	"\x17GetDriverByPhoneRequest\x12\x14\n" +
+	"\x05phone\x18\x01 \x01(\tR\x05phone\"E\n" +
+	"\x18GetDriverByPhoneResponse\x12)\n" +
 	"\x06driver\x18\x01 \x01(\v2\x11.driversvc.DriverR\x06driver\"\xde\x03\n" +
 	"\aVehicle\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
@@ -1553,7 +2275,35 @@ const file_proto_driversvc_proto_rawDesc = "" +
 	"\x11GetVehicleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"B\n" +
 	"\x12GetVehicleResponse\x12,\n" +
-	"\avehicle\x18\x01 \x01(\v2\x12.driversvc.VehicleR\avehicle*\x99\x01\n" +
+	"\avehicle\x18\x01 \x01(\v2\x12.driversvc.VehicleR\avehicle\"\xa0\x01\n" +
+	"\x12ListDriversRequest\x12\x12\n" +
+	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x124\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x17.driversvc.DriverStatusH\x00R\x06status\x88\x01\x01\x12\x18\n" +
+	"\akeyword\x18\x04 \x01(\tR\akeywordB\t\n" +
+	"\a_status\"X\n" +
+	"\x13ListDriversResponse\x12+\n" +
+	"\adrivers\x18\x01 \x03(\v2\x11.driversvc.DriverR\adrivers\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\"@\n" +
+	"\fLoginRequest\x12\x14\n" +
+	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"m\n" +
+	"\rLoginResponse\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1b\n" +
+	"\texpire_in\x18\x02 \x01(\x03R\bexpireIn\x12)\n" +
+	"\x06driver\x18\x03 \x01(\v2\x11.driversvc.DriverR\x06driver\"\x8e\x01\n" +
+	"\fNearbyDriver\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x1c\n" +
+	"\tlongitude\x18\x02 \x01(\x01R\tlongitude\x12\x1a\n" +
+	"\blatitude\x18\x03 \x01(\x01R\blatitude\x12'\n" +
+	"\x0fdistance_meters\x18\x04 \x01(\x05R\x0edistanceMeters\"\x8f\x01\n" +
+	"\x18ListNearbyDriversRequest\x12\x1c\n" +
+	"\tlongitude\x18\x01 \x01(\x01R\tlongitude\x12\x1a\n" +
+	"\blatitude\x18\x02 \x01(\x01R\blatitude\x12#\n" +
+	"\rradius_meters\x18\x03 \x01(\x01R\fradiusMeters\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"N\n" +
+	"\x19ListNearbyDriversResponse\x121\n" +
+	"\adrivers\x18\x01 \x03(\v2\x17.driversvc.NearbyDriverR\adrivers*\x99\x01\n" +
 	"\fDriverStatus\x12\x1d\n" +
 	"\x19DRIVER_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15DRIVER_STATUS_PENDING\x10\x01\x12\x18\n" +
@@ -1564,17 +2314,23 @@ const file_proto_driversvc_proto_rawDesc = "" +
 	"\x1aVEHICLE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16VEHICLE_STATUS_PENDING\x10\x01\x12\x19\n" +
 	"\x15VEHICLE_STATUS_NORMAL\x10\x02\x12\x1b\n" +
-	"\x17VEHICLE_STATUS_DISABLED\x10\x032\x8d\x05\n" +
+	"\x17VEHICLE_STATUS_DISABLED\x10\x032\x8b\t\n" +
 	"\tDriversvc\x12O\n" +
 	"\fCreateDriver\x12\x1e.driversvc.CreateDriverRequest\x1a\x1f.driversvc.CreateDriverResponse\x12O\n" +
 	"\fUpdateDriver\x12\x1e.driversvc.UpdateDriverRequest\x1a\x1f.driversvc.UpdateDriverResponse\x12O\n" +
 	"\fDeleteDriver\x12\x1e.driversvc.DeleteDriverRequest\x1a\x1f.driversvc.DeleteDriverResponse\x12F\n" +
-	"\tGetDriver\x12\x1b.driversvc.GetDriverRequest\x1a\x1c.driversvc.GetDriverResponse\x12R\n" +
+	"\tGetDriver\x12\x1b.driversvc.GetDriverRequest\x1a\x1c.driversvc.GetDriverResponse\x12[\n" +
+	"\x10GetDriverByPhone\x12\".driversvc.GetDriverByPhoneRequest\x1a#.driversvc.GetDriverByPhoneResponse\x12X\n" +
+	"\x0fSetDriverOnline\x12!.driversvc.SetDriverOnlineRequest\x1a\".driversvc.SetDriverOnlineResponse\x12[\n" +
+	"\x10SetDriverOffline\x12\".driversvc.SetDriverOfflineRequest\x1a#.driversvc.SetDriverOfflineResponse\x12R\n" +
 	"\rCreateVehicle\x12\x1f.driversvc.CreateVehicleRequest\x1a .driversvc.CreateVehicleResponse\x12R\n" +
 	"\rUpdateVehicle\x12\x1f.driversvc.UpdateVehicleRequest\x1a .driversvc.UpdateVehicleResponse\x12R\n" +
 	"\rDeleteVehicle\x12\x1f.driversvc.DeleteVehicleRequest\x1a .driversvc.DeleteVehicleResponse\x12I\n" +
 	"\n" +
-	"GetVehicle\x12\x1c.driversvc.GetVehicleRequest\x1a\x1d.driversvc.GetVehicleResponseB\n" +
+	"GetVehicle\x12\x1c.driversvc.GetVehicleRequest\x1a\x1d.driversvc.GetVehicleResponse\x12L\n" +
+	"\vListDrivers\x12\x1d.driversvc.ListDriversRequest\x1a\x1e.driversvc.ListDriversResponse\x12:\n" +
+	"\x05Login\x12\x17.driversvc.LoginRequest\x1a\x18.driversvc.LoginResponse\x12^\n" +
+	"\x11ListNearbyDrivers\x12#.driversvc.ListNearbyDriversRequest\x1a$.driversvc.ListNearbyDriversResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
 var (
@@ -1590,28 +2346,41 @@ func file_proto_driversvc_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_driversvc_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_driversvc_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_proto_driversvc_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_proto_driversvc_proto_goTypes = []any{
-	(DriverStatus)(0),             // 0: driversvc.DriverStatus
-	(VehicleStatus)(0),            // 1: driversvc.VehicleStatus
-	(*Driver)(nil),                // 2: driversvc.Driver
-	(*CreateDriverRequest)(nil),   // 3: driversvc.CreateDriverRequest
-	(*CreateDriverResponse)(nil),  // 4: driversvc.CreateDriverResponse
-	(*UpdateDriverRequest)(nil),   // 5: driversvc.UpdateDriverRequest
-	(*UpdateDriverResponse)(nil),  // 6: driversvc.UpdateDriverResponse
-	(*DeleteDriverRequest)(nil),   // 7: driversvc.DeleteDriverRequest
-	(*DeleteDriverResponse)(nil),  // 8: driversvc.DeleteDriverResponse
-	(*GetDriverRequest)(nil),      // 9: driversvc.GetDriverRequest
-	(*GetDriverResponse)(nil),     // 10: driversvc.GetDriverResponse
-	(*Vehicle)(nil),               // 11: driversvc.Vehicle
-	(*CreateVehicleRequest)(nil),  // 12: driversvc.CreateVehicleRequest
-	(*CreateVehicleResponse)(nil), // 13: driversvc.CreateVehicleResponse
-	(*UpdateVehicleRequest)(nil),  // 14: driversvc.UpdateVehicleRequest
-	(*UpdateVehicleResponse)(nil), // 15: driversvc.UpdateVehicleResponse
-	(*DeleteVehicleRequest)(nil),  // 16: driversvc.DeleteVehicleRequest
-	(*DeleteVehicleResponse)(nil), // 17: driversvc.DeleteVehicleResponse
-	(*GetVehicleRequest)(nil),     // 18: driversvc.GetVehicleRequest
-	(*GetVehicleResponse)(nil),    // 19: driversvc.GetVehicleResponse
+	(DriverStatus)(0),                 // 0: driversvc.DriverStatus
+	(VehicleStatus)(0),                // 1: driversvc.VehicleStatus
+	(*Driver)(nil),                    // 2: driversvc.Driver
+	(*CreateDriverRequest)(nil),       // 3: driversvc.CreateDriverRequest
+	(*CreateDriverResponse)(nil),      // 4: driversvc.CreateDriverResponse
+	(*UpdateDriverRequest)(nil),       // 5: driversvc.UpdateDriverRequest
+	(*UpdateDriverResponse)(nil),      // 6: driversvc.UpdateDriverResponse
+	(*DeleteDriverRequest)(nil),       // 7: driversvc.DeleteDriverRequest
+	(*DeleteDriverResponse)(nil),      // 8: driversvc.DeleteDriverResponse
+	(*GetDriverRequest)(nil),          // 9: driversvc.GetDriverRequest
+	(*GetDriverResponse)(nil),         // 10: driversvc.GetDriverResponse
+	(*SetDriverOnlineRequest)(nil),    // 11: driversvc.SetDriverOnlineRequest
+	(*SetDriverOnlineResponse)(nil),   // 12: driversvc.SetDriverOnlineResponse
+	(*SetDriverOfflineRequest)(nil),   // 13: driversvc.SetDriverOfflineRequest
+	(*SetDriverOfflineResponse)(nil),  // 14: driversvc.SetDriverOfflineResponse
+	(*GetDriverByPhoneRequest)(nil),   // 15: driversvc.GetDriverByPhoneRequest
+	(*GetDriverByPhoneResponse)(nil),  // 16: driversvc.GetDriverByPhoneResponse
+	(*Vehicle)(nil),                   // 17: driversvc.Vehicle
+	(*CreateVehicleRequest)(nil),      // 18: driversvc.CreateVehicleRequest
+	(*CreateVehicleResponse)(nil),     // 19: driversvc.CreateVehicleResponse
+	(*UpdateVehicleRequest)(nil),      // 20: driversvc.UpdateVehicleRequest
+	(*UpdateVehicleResponse)(nil),     // 21: driversvc.UpdateVehicleResponse
+	(*DeleteVehicleRequest)(nil),      // 22: driversvc.DeleteVehicleRequest
+	(*DeleteVehicleResponse)(nil),     // 23: driversvc.DeleteVehicleResponse
+	(*GetVehicleRequest)(nil),         // 24: driversvc.GetVehicleRequest
+	(*GetVehicleResponse)(nil),        // 25: driversvc.GetVehicleResponse
+	(*ListDriversRequest)(nil),        // 26: driversvc.ListDriversRequest
+	(*ListDriversResponse)(nil),       // 27: driversvc.ListDriversResponse
+	(*LoginRequest)(nil),              // 28: driversvc.LoginRequest
+	(*LoginResponse)(nil),             // 29: driversvc.LoginResponse
+	(*NearbyDriver)(nil),              // 30: driversvc.NearbyDriver
+	(*ListNearbyDriversRequest)(nil),  // 31: driversvc.ListNearbyDriversRequest
+	(*ListNearbyDriversResponse)(nil), // 32: driversvc.ListNearbyDriversResponse
 }
 var file_proto_driversvc_proto_depIdxs = []int32{
 	0,  // 0: driversvc.Driver.status:type_name -> driversvc.DriverStatus
@@ -1619,32 +2388,49 @@ var file_proto_driversvc_proto_depIdxs = []int32{
 	0,  // 2: driversvc.UpdateDriverRequest.status:type_name -> driversvc.DriverStatus
 	0,  // 3: driversvc.UpdateDriverResponse.status:type_name -> driversvc.DriverStatus
 	2,  // 4: driversvc.GetDriverResponse.driver:type_name -> driversvc.Driver
-	1,  // 5: driversvc.Vehicle.status:type_name -> driversvc.VehicleStatus
-	1,  // 6: driversvc.CreateVehicleResponse.status:type_name -> driversvc.VehicleStatus
-	1,  // 7: driversvc.UpdateVehicleRequest.status:type_name -> driversvc.VehicleStatus
-	1,  // 8: driversvc.UpdateVehicleResponse.status:type_name -> driversvc.VehicleStatus
-	11, // 9: driversvc.GetVehicleResponse.vehicle:type_name -> driversvc.Vehicle
-	3,  // 10: driversvc.Driversvc.CreateDriver:input_type -> driversvc.CreateDriverRequest
-	5,  // 11: driversvc.Driversvc.UpdateDriver:input_type -> driversvc.UpdateDriverRequest
-	7,  // 12: driversvc.Driversvc.DeleteDriver:input_type -> driversvc.DeleteDriverRequest
-	9,  // 13: driversvc.Driversvc.GetDriver:input_type -> driversvc.GetDriverRequest
-	12, // 14: driversvc.Driversvc.CreateVehicle:input_type -> driversvc.CreateVehicleRequest
-	14, // 15: driversvc.Driversvc.UpdateVehicle:input_type -> driversvc.UpdateVehicleRequest
-	16, // 16: driversvc.Driversvc.DeleteVehicle:input_type -> driversvc.DeleteVehicleRequest
-	18, // 17: driversvc.Driversvc.GetVehicle:input_type -> driversvc.GetVehicleRequest
-	4,  // 18: driversvc.Driversvc.CreateDriver:output_type -> driversvc.CreateDriverResponse
-	6,  // 19: driversvc.Driversvc.UpdateDriver:output_type -> driversvc.UpdateDriverResponse
-	8,  // 20: driversvc.Driversvc.DeleteDriver:output_type -> driversvc.DeleteDriverResponse
-	10, // 21: driversvc.Driversvc.GetDriver:output_type -> driversvc.GetDriverResponse
-	13, // 22: driversvc.Driversvc.CreateVehicle:output_type -> driversvc.CreateVehicleResponse
-	15, // 23: driversvc.Driversvc.UpdateVehicle:output_type -> driversvc.UpdateVehicleResponse
-	17, // 24: driversvc.Driversvc.DeleteVehicle:output_type -> driversvc.DeleteVehicleResponse
-	19, // 25: driversvc.Driversvc.GetVehicle:output_type -> driversvc.GetVehicleResponse
-	18, // [18:26] is the sub-list for method output_type
-	10, // [10:18] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	2,  // 5: driversvc.GetDriverByPhoneResponse.driver:type_name -> driversvc.Driver
+	1,  // 6: driversvc.Vehicle.status:type_name -> driversvc.VehicleStatus
+	1,  // 7: driversvc.CreateVehicleResponse.status:type_name -> driversvc.VehicleStatus
+	1,  // 8: driversvc.UpdateVehicleRequest.status:type_name -> driversvc.VehicleStatus
+	1,  // 9: driversvc.UpdateVehicleResponse.status:type_name -> driversvc.VehicleStatus
+	17, // 10: driversvc.GetVehicleResponse.vehicle:type_name -> driversvc.Vehicle
+	0,  // 11: driversvc.ListDriversRequest.status:type_name -> driversvc.DriverStatus
+	2,  // 12: driversvc.ListDriversResponse.drivers:type_name -> driversvc.Driver
+	2,  // 13: driversvc.LoginResponse.driver:type_name -> driversvc.Driver
+	30, // 14: driversvc.ListNearbyDriversResponse.drivers:type_name -> driversvc.NearbyDriver
+	3,  // 15: driversvc.Driversvc.CreateDriver:input_type -> driversvc.CreateDriverRequest
+	5,  // 16: driversvc.Driversvc.UpdateDriver:input_type -> driversvc.UpdateDriverRequest
+	7,  // 17: driversvc.Driversvc.DeleteDriver:input_type -> driversvc.DeleteDriverRequest
+	9,  // 18: driversvc.Driversvc.GetDriver:input_type -> driversvc.GetDriverRequest
+	15, // 19: driversvc.Driversvc.GetDriverByPhone:input_type -> driversvc.GetDriverByPhoneRequest
+	11, // 20: driversvc.Driversvc.SetDriverOnline:input_type -> driversvc.SetDriverOnlineRequest
+	13, // 21: driversvc.Driversvc.SetDriverOffline:input_type -> driversvc.SetDriverOfflineRequest
+	18, // 22: driversvc.Driversvc.CreateVehicle:input_type -> driversvc.CreateVehicleRequest
+	20, // 23: driversvc.Driversvc.UpdateVehicle:input_type -> driversvc.UpdateVehicleRequest
+	22, // 24: driversvc.Driversvc.DeleteVehicle:input_type -> driversvc.DeleteVehicleRequest
+	24, // 25: driversvc.Driversvc.GetVehicle:input_type -> driversvc.GetVehicleRequest
+	26, // 26: driversvc.Driversvc.ListDrivers:input_type -> driversvc.ListDriversRequest
+	28, // 27: driversvc.Driversvc.Login:input_type -> driversvc.LoginRequest
+	31, // 28: driversvc.Driversvc.ListNearbyDrivers:input_type -> driversvc.ListNearbyDriversRequest
+	4,  // 29: driversvc.Driversvc.CreateDriver:output_type -> driversvc.CreateDriverResponse
+	6,  // 30: driversvc.Driversvc.UpdateDriver:output_type -> driversvc.UpdateDriverResponse
+	8,  // 31: driversvc.Driversvc.DeleteDriver:output_type -> driversvc.DeleteDriverResponse
+	10, // 32: driversvc.Driversvc.GetDriver:output_type -> driversvc.GetDriverResponse
+	16, // 33: driversvc.Driversvc.GetDriverByPhone:output_type -> driversvc.GetDriverByPhoneResponse
+	12, // 34: driversvc.Driversvc.SetDriverOnline:output_type -> driversvc.SetDriverOnlineResponse
+	14, // 35: driversvc.Driversvc.SetDriverOffline:output_type -> driversvc.SetDriverOfflineResponse
+	19, // 36: driversvc.Driversvc.CreateVehicle:output_type -> driversvc.CreateVehicleResponse
+	21, // 37: driversvc.Driversvc.UpdateVehicle:output_type -> driversvc.UpdateVehicleResponse
+	23, // 38: driversvc.Driversvc.DeleteVehicle:output_type -> driversvc.DeleteVehicleResponse
+	25, // 39: driversvc.Driversvc.GetVehicle:output_type -> driversvc.GetVehicleResponse
+	27, // 40: driversvc.Driversvc.ListDrivers:output_type -> driversvc.ListDriversResponse
+	29, // 41: driversvc.Driversvc.Login:output_type -> driversvc.LoginResponse
+	32, // 42: driversvc.Driversvc.ListNearbyDrivers:output_type -> driversvc.ListNearbyDriversResponse
+	29, // [29:43] is the sub-list for method output_type
+	15, // [15:29] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_proto_driversvc_proto_init() }
@@ -1653,16 +2439,17 @@ func file_proto_driversvc_proto_init() {
 		return
 	}
 	file_proto_driversvc_proto_msgTypes[3].OneofWrappers = []any{}
-	file_proto_driversvc_proto_msgTypes[9].OneofWrappers = []any{}
-	file_proto_driversvc_proto_msgTypes[10].OneofWrappers = []any{}
-	file_proto_driversvc_proto_msgTypes[12].OneofWrappers = []any{}
+	file_proto_driversvc_proto_msgTypes[15].OneofWrappers = []any{}
+	file_proto_driversvc_proto_msgTypes[16].OneofWrappers = []any{}
+	file_proto_driversvc_proto_msgTypes[18].OneofWrappers = []any{}
+	file_proto_driversvc_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_driversvc_proto_rawDesc), len(file_proto_driversvc_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   18,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

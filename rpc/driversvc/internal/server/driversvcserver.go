@@ -44,6 +44,24 @@ func (s *DriversvcServer) GetDriver(ctx context.Context, in *proto.GetDriverRequ
 	return l.GetDriver(in)
 }
 
+// 按手机号查询司机（登录场景使用）
+func (s *DriversvcServer) GetDriverByPhone(ctx context.Context, in *proto.GetDriverByPhoneRequest) (*proto.GetDriverByPhoneResponse, error) {
+	l := logic.NewGetDriverByPhoneLogic(ctx, s.svcCtx)
+	return l.GetDriverByPhone(in)
+}
+
+// 司机上线
+func (s *DriversvcServer) SetDriverOnline(ctx context.Context, in *proto.SetDriverOnlineRequest) (*proto.SetDriverOnlineResponse, error) {
+	l := logic.NewSetDriverOnlineLogic(ctx, s.svcCtx)
+	return l.SetDriverOnline(in)
+}
+
+// 司机下线
+func (s *DriversvcServer) SetDriverOffline(ctx context.Context, in *proto.SetDriverOfflineRequest) (*proto.SetDriverOfflineResponse, error) {
+	l := logic.NewSetDriverOfflineLogic(ctx, s.svcCtx)
+	return l.SetDriverOffline(in)
+}
+
 // 车辆 CRUD（司机绑定车辆增删改查）
 func (s *DriversvcServer) CreateVehicle(ctx context.Context, in *proto.CreateVehicleRequest) (*proto.CreateVehicleResponse, error) {
 	l := logic.NewCreateVehicleLogic(ctx, s.svcCtx)
@@ -63,4 +81,22 @@ func (s *DriversvcServer) DeleteVehicle(ctx context.Context, in *proto.DeleteVeh
 func (s *DriversvcServer) GetVehicle(ctx context.Context, in *proto.GetVehicleRequest) (*proto.GetVehicleResponse, error) {
 	l := logic.NewGetVehicleLogic(ctx, s.svcCtx)
 	return l.GetVehicle(in)
+}
+
+// 司机列表：分页 + 状态/关键字过滤。
+func (s *DriversvcServer) ListDrivers(ctx context.Context, in *proto.ListDriversRequest) (*proto.ListDriversResponse, error) {
+	l := logic.NewListDriversLogic(ctx, s.svcCtx)
+	return l.ListDrivers(in)
+}
+
+// 司机登录：校验手机号/状态/密码并签发 JWT。
+func (s *DriversvcServer) Login(ctx context.Context, in *proto.LoginRequest) (*proto.LoginResponse, error) {
+	l := logic.NewLoginLogic(ctx, s.svcCtx)
+	return l.Login(in)
+}
+
+// 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
+func (s *DriversvcServer) ListNearbyDrivers(ctx context.Context, in *proto.ListNearbyDriversRequest) (*proto.ListNearbyDriversResponse, error) {
+	l := logic.NewListNearbyDriversLogic(ctx, s.svcCtx)
+	return l.ListNearbyDrivers(in)
 }

@@ -59,6 +59,7 @@ type DriverDetail struct {
 	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号
 	AvatarURL       string `json:"avatarUrl"`       // 头像地址
 	Status          string `json:"status"`          // 账号状态
+	OnlineStatus    int    `json:"onlineStatus"`    // 在线状态：0离线 1在线
 	CreatedAt       int64  `json:"createdAt"`       // 创建时间（Unix 秒）
 	UpdatedAt       int64  `json:"updatedAt"`       // 更新时间（Unix 秒）
 }
@@ -72,4 +73,107 @@ type GetDriverResponse struct {
 type DeleteResponse struct {
 	ID      int64 `json:"id"`      // 资源 ID
 	Success bool  `json:"success"` // 是否删除成功
+}
+
+// ============ 司机登录认证 ============
+
+// SendSMSCodeRequest 发送登录短信验证码请求。
+type SendSMSCodeRequest struct {
+	Phone string `json:"phone"` // 手机号
+}
+
+// SendSMSCodeResponse 发送登录短信验证码响应。
+type SendSMSCodeResponse struct {
+	Success  bool `json:"success"`  // 是否发送成功
+	ExpireIn int  `json:"expireIn"` // 验证码有效期（秒）
+}
+
+// LoginByPasswordRequest 手机号 + 密码登录请求。
+type LoginByPasswordRequest struct {
+	Phone    string `json:"phone"`    // 手机号
+	Password string `json:"password"` // 明文密码
+}
+
+// LoginBySMSRequest 手机号 + 验证码登录请求。
+type LoginBySMSRequest struct {
+	Phone string `json:"phone"` // 手机号
+	Code  string `json:"code"`  // 短信验证码
+}
+
+// LoginResponse 登录响应，返回 JWT 与司机基础信息。
+type LoginResponse struct {
+	Token   string      `json:"token"`   // JWT 登录凭证
+	ExpireIn int64      `json:"expireIn"` // 有效期（秒）
+	Driver  DriverBrief `json:"driver"`  // 司机基础信息
+}
+
+// DriverBrief 司机登录后可暴露的简要信息（脱敏）。
+type DriverBrief struct {
+	ID     int64  `json:"id"`     // 司机 ID
+	Phone  string `json:"phone"`  // 脱敏手机号
+	Status string `json:"status"` // 账号状态
+}
+
+// ============ 司机上下线 ============
+
+// SetOnlineResponse 司机上线响应。
+type SetOnlineResponse struct {
+	DriverID     int64 `json:"driverId"`     // 司机 ID
+	OnlineStatus int   `json:"onlineStatus"` // 上线后状态：1在线
+}
+
+// SetOfflineResponse 司机下线响应。
+type SetOfflineResponse struct {
+	DriverID     int64 `json:"driverId"`     // 司机 ID
+	OnlineStatus int   `json:"onlineStatus"` // 下线后状态：0离线
+}
+
+// ============ 司机接单 / 行程 ============
+
+// AcceptOrderRequest 司机接单请求。
+type AcceptOrderRequest struct {
+	OrderID int64 `json:"orderId"` // 待接订单 ID
+}
+
+// AcceptOrderResponse 司机接单响应。
+type AcceptOrderResponse struct {
+	OrderID int64 `json:"orderId"` // 订单 ID
+	Status  int32 `json:"status"`  // 接单后订单状态（见 ordersvc OrderStatus 枚举）
+}
+
+// StartTripRequest 司机开始行程请求。
+type StartTripRequest struct {
+	OrderID int64 `json:"orderId"` // 订单 ID
+}
+
+// StartTripResponse 司机开始行程响应。
+type StartTripResponse struct {
+	OrderID int64 `json:"orderId"` // 订单 ID
+	Status  int32 `json:"status"`  // 行程开始后订单状态
+}
+
+// ConfirmArriveRequest 司机确认到达请求。
+type ConfirmArriveRequest struct {
+	OrderID int64 `json:"orderId"` // 订单 ID
+}
+
+// ConfirmArriveResponse 司机确认到达响应。
+type ConfirmArriveResponse struct {
+	OrderID int64 `json:"orderId"` // 订单 ID
+	Status  int32 `json:"status"`  // 确认到达后订单状态
+}
+
+// FinishTripRequest 司机结束行程请求。
+type FinishTripRequest struct {
+	OrderID           int64 `json:"orderId"`           // 订单 ID
+	ActualDistanceM   int64 `json:"actualDistanceM"`   // 实际里程（米）
+	ActualDurationS   int64 `json:"actualDurationS"`   // 实际时长（秒）
+	ActualPriceCents  int64 `json:"actualPriceCents"`  // 实际金额（分）
+}
+
+// FinishTripResponse 司机结束行程响应。
+type FinishTripResponse struct {
+	OrderID            int64 `json:"orderId"`            // 订单 ID
+	Status             int32 `json:"status"`             // 行程结束后订单状态
+	PayableAmountCents int64 `json:"payableAmountCents"` // 应付金额（分）
 }

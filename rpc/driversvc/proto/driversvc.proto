@@ -26,11 +26,23 @@ service Driversvc {
   rpc UpdateDriver(UpdateDriverRequest) returns(UpdateDriverResponse);
   rpc DeleteDriver(DeleteDriverRequest) returns(DeleteDriverResponse);
   rpc GetDriver(GetDriverRequest) returns(GetDriverResponse);
+  // 按手机号查询司机（登录场景使用，返回含密码哈希与状态）
+  rpc GetDriverByPhone(GetDriverByPhoneRequest) returns(GetDriverByPhoneResponse);
+  // 司机上线：将听单状态置为在线（1）。
+  rpc SetDriverOnline(SetDriverOnlineRequest) returns(SetDriverOnlineResponse);
+  // 司机下线：将听单状态置为离线（0）。
+  rpc SetDriverOffline(SetDriverOfflineRequest) returns(SetDriverOfflineResponse);
   // 车辆 CRUD（司机绑定车辆增删改查）
   rpc CreateVehicle(CreateVehicleRequest) returns(CreateVehicleResponse);
   rpc UpdateVehicle(UpdateVehicleRequest) returns(UpdateVehicleResponse);
   rpc DeleteVehicle(DeleteVehicleRequest) returns(DeleteVehicleResponse);
   rpc GetVehicle(GetVehicleRequest) returns(GetVehicleResponse);
+  // 司机列表：分页 + 可选状态/关键字过滤。
+  rpc ListDrivers(ListDriversRequest) returns(ListDriversResponse);
+  // 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
+  rpc Login(LoginRequest) returns(LoginResponse);
+  // 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
+  rpc ListNearbyDrivers(ListNearbyDriversRequest) returns(ListNearbyDriversResponse);
 }
 
 // Driver 司机信息，对应 driver 表的完整记录。
@@ -45,6 +57,7 @@ message Driver {
   DriverStatus status = 8;
   int64 created_at = 9;
   int64 updated_at = 10;
+  int32 online_status = 11;
 }
 
 message CreateDriverRequest {
@@ -93,6 +106,32 @@ message GetDriverRequest {
 }
 
 message GetDriverResponse {
+  Driver driver = 1;
+}
+
+message SetDriverOnlineRequest {
+  int64 driver_id = 1;
+}
+
+message SetDriverOnlineResponse {
+  int64 driver_id = 1;
+  int32 online_status = 2;
+}
+
+message SetDriverOfflineRequest {
+  int64 driver_id = 1;
+}
+
+message SetDriverOfflineResponse {
+  int64 driver_id = 1;
+  int32 online_status = 2;
+}
+
+message GetDriverByPhoneRequest {
+  string phone = 1;
+}
+
+message GetDriverByPhoneResponse {
   Driver driver = 1;
 }
 
@@ -166,4 +205,52 @@ message GetVehicleRequest {
 
 message GetVehicleResponse {
   Vehicle vehicle = 1;
+}
+
+// ListDriversRequest 司机列表查询请求。
+message ListDriversRequest {
+  int32 page = 1;       // 页码，从 1 开始，缺省为 1
+  int32 page_size = 2;  // 每页条数，缺省为 20
+  optional DriverStatus status = 3; // 可选状态过滤
+  string keyword = 4;   // 可选关键字：模糊匹配手机号/姓名/车牌号
+}
+
+// ListDriversResponse 司机列表查询响应。
+message ListDriversResponse {
+  repeated Driver drivers = 1; // 当前页司机列表
+  int64 total = 2;            // 符合条件的总记录数
+}
+
+// LoginRequest 司机登录请求。
+message LoginRequest {
+  string phone = 1;    // 手机号
+  string password = 2; // 明文密码
+}
+
+// LoginResponse 司机登录响应。
+message LoginResponse {
+  string token = 1;      // 登录凭证 JWT
+  int64 expire_in = 2;   // 有效期（秒）
+  Driver driver = 3;     // 司机简要信息
+}
+
+// NearbyDriver 附近司机摘要信息。
+message NearbyDriver {
+  int64 driver_id = 1;        // 司机 ID
+  double longitude = 2;       // 经度
+  double latitude = 3;        // 纬度
+  int32 distance_meters = 4;  // 距查询中心点的距离（米）
+}
+
+// ListNearbyDriversRequest 附近司机查询请求。
+message ListNearbyDriversRequest {
+  double longitude = 1;   // 查询中心经度
+  double latitude = 2;    // 查询中心纬度
+  double radius_meters = 3; // 搜索半径（米），缺省 3000
+  int32 limit = 4;         // 返回条数上限，缺省 20
+}
+
+// ListNearbyDriversResponse 附近司机查询响应。
+message ListNearbyDriversResponse {
+  repeated NearbyDriver drivers = 1; // 附近在线司机列表（按距离升序）
 }

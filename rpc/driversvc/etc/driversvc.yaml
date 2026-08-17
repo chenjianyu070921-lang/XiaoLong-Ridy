@@ -1,7 +1,9 @@
 Name: driversvc.rpc
 ListenOn: 0.0.0.0:8080
 mysql:
-  dsn: root:root123456@tcp(127.0.0.1:3306)/driver?charset=utf8mb4&parseTime=True&loc=Local
+  dsn: root:root123456@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+# 本地联调 JWT 签名密钥，需与 api/driver 端保持一致以便互相校验。
+signingKey: local-development-signing-key
 redis:
   host: 127.0.0.1:6379
   key: ordersvc

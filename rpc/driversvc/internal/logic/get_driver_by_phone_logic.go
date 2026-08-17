@@ -9,27 +9,27 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type GetDriverLogic struct {
+type GetDriverByPhoneLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logx.Logger
 }
 
-func NewGetDriverLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetDriverLogic {
-	return &GetDriverLogic{
+func NewGetDriverByPhoneLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetDriverByPhoneLogic {
+	return &GetDriverByPhoneLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
 		Logger: logx.WithContext(ctx),
 	}
 }
 
-// GetDriver 根据司机 ID 查询司机完整信息。
-func (l *GetDriverLogic) GetDriver(in *proto.GetDriverRequest) (*proto.GetDriverResponse, error) {
-	d, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.Id))
+// GetDriverByPhone 根据手机号查询司机完整信息（登录场景使用）。
+func (l *GetDriverByPhoneLogic) GetDriverByPhone(in *proto.GetDriverByPhoneRequest) (*proto.GetDriverByPhoneResponse, error) {
+	d, err := l.svcCtx.DriverRepository.GetByPhone(l.ctx, in.Phone)
 	if err != nil {
 		return nil, err
 	}
-	return &proto.GetDriverResponse{
+	return &proto.GetDriverByPhoneResponse{
 		Driver: &proto.Driver{
 			Id:              int64(d.Id),
 			Phone:           d.Phone,
@@ -39,7 +39,6 @@ func (l *GetDriverLogic) GetDriver(in *proto.GetDriverRequest) (*proto.GetDriver
 			DriverLicenseNo: d.DriverLicenseNo,
 			AvatarUrl:       d.AvatarUrl,
 			Status:          proto.DriverStatus(d.Status),
-			OnlineStatus:    int32(d.OnlineStatus),
 			CreatedAt:       d.CreatedAt.Unix(),
 			UpdatedAt:       d.UpdatedAt.Unix(),
 		},

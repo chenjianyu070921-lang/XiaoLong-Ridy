@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS `driver_score` (
 -- 司机提现表：保存司机的提现申请和打款结果。
 -- 必须有这张表：司机端收入管理需要查看提现记录，财务需要按状态对账和打款。
 CREATE TABLE IF NOT EXISTS `driver_withdraw` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '提现ID',
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '提现ID', 
   `driver_id` BIGINT UNSIGNED NOT NULL COMMENT '司机ID',
   `withdraw_no` VARCHAR(32) NOT NULL COMMENT '提现单号',
   `amount` DECIMAL(10,2) NOT NULL COMMENT '提现金额',
