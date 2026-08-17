@@ -6,9 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"XiaoLong-Ridy/rpc/ordersvc/internal/config"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
+	pay "XiaoLong-Ridy/rpc/paysvc/pay"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
+	price "XiaoLong-Ridy/rpc/pricesvc/price"
+
+	"google.golang.org/grpc"
 )
 
 func TestFinishTripSuccess(t *testing.T) {
@@ -91,5 +97,151 @@ func TestFinishTripRejectDriverMismatch(t *testing.T) {
 	})
 	if !errors.Is(err, ErrDriverNotMatched) {
 		t.Fatalf("FinishTrip() error = %v, want %v", err, ErrDriverNotMatched)
+	}
+}
+
+type fakePayClient struct {
+	createPayment func(ctx context.Context, in *pay.CreatePaymentRequest) (*pay.CreatePaymentResponse, error)
+	gotOrderId    int64
+	gotUserId     int64
+	gotAmountCents int64
+	gotChannel    payproto.PayChannel
+}
+
+func (f *fakePayClient) CreatePayment(_ context.Context, in *pay.CreatePaymentRequest, _ ...grpc.CallOption) (*pay.CreatePaymentResponse, error) {
+	f.gotOrderId = in.OrderId
+	f.gotUserId = in.UserId
+	f.gotAmountCents = in.AmountCents
+	f.gotChannel = in.Channel
+	if f.createPayment != nil {
+		return f.createPayment(nil, in)
+	}
+	return &pay.CreatePaymentResponse{PaymentNo: "PAY202608170001"}, nil
+}
+
+func TestFinishTripCreatesPayment(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	order := seedOrder(t, repo, 1001, 2002, 3)
+	pc := &fakePayClient{}
+	l := NewFinishTripLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository: repo,
+		PayClient:       pc,
+		Config:          config.Config{PayChannel: 2},
+	})
+
+	resp, err := l.FinishTrip(&proto.FinishTripRequest{
+		OrderId:          int64(order.Id),
+		DriverId:         2002,
+		ActualDistanceM:  15000,
+		ActualDurationS:  2400,
+		ActualPriceCents: 5200,
+	})
+	if err != nil {
+		t.Fatalf("FinishTrip() error = %v", err)
+	}
+	if resp.Status != proto.OrderStatus_ORDER_STATUS_WAIT_PAY {
+		t.Fatalf("FinishTrip() status = %v, want WAIT_PAY", resp.Status)
+	}
+	if resp.PayableAmountCents != 5200 {
+		t.Fatalf("FinishTrip() payable = %d, want 5200", resp.PayableAmountCents)
+	}
+	if pc.gotOrderId != int64(order.Id) {
+		t.Fatalf("payment order id = %d, want %d", pc.gotOrderId, order.Id)
+	}
+	if pc.gotUserId != 1001 {
+		t.Fatalf("payment user id = %d, want 1001", pc.gotUserId)
+	}
+	if pc.gotAmountCents != 5200 {
+		t.Fatalf("payment amount = %d, want 5200", pc.gotAmountCents)
+	}
+	if pc.gotChannel != 2 {
+		t.Fatalf("payment channel = %v, want 2", pc.gotChannel)
+	}
+}
+
+func TestFinishTripRejectPriceMismatch(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	order := seedOrder(t, repo, 1001, 2002, 3)
+	pc := &fakePriceClient{estimatePrice: func(_ context.Context, _ *price.EstimatePriceRequest) (*price.EstimatePriceResponse, error) {
+		return &price.EstimatePriceResponse{TotalCents: 5000}, nil
+	}}
+	l := NewFinishTripLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository: repo,
+		PriceClient:     pc,
+	})
+
+	// 服务端计价 5000 分，司机上报 6000 分偏差 20% > 10%，拒绝。
+	_, err := l.FinishTrip(&proto.FinishTripRequest{
+		OrderId:          int64(order.Id),
+		DriverId:         2002,
+		ActualDistanceM:  15000,
+		ActualDurationS:  2400,
+		ActualPriceCents: 6000,
+	})
+	if !errors.Is(err, ErrPriceMismatch) {
+		t.Fatalf("FinishTrip() error = %v, want %v", err, ErrPriceMismatch)
+	}
+}
+
+func TestFinishTripServerPriceAuthority(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	order := seedOrder(t, repo, 1001, 2002, 3)
+	pc := &fakePriceClient{estimatePrice: func(_ context.Context, _ *price.EstimatePriceRequest) (*price.EstimatePriceResponse, error) {
+		return &price.EstimatePriceResponse{TotalCents: 5600}, nil
+	}}
+	payc := &fakePayClient{}
+	l := NewFinishTripLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository: repo,
+		PriceClient:     pc,
+		PayClient:       payc,
+	})
+
+	// 服务端计价 5600 分，司机上报 5800 分偏差 3.6% < 10%，通过且支付单金额取服务端值。
+	resp, err := l.FinishTrip(&proto.FinishTripRequest{
+		OrderId:          int64(order.Id),
+		DriverId:         2002,
+		ActualDistanceM:  15000,
+		ActualDurationS:  2400,
+		ActualPriceCents: 5800,
+	})
+	if err != nil {
+		t.Fatalf("FinishTrip() error = %v", err)
+	}
+	if resp.PayableAmountCents != 5600 {
+		t.Fatalf("FinishTrip() payable = %d, want 5600", resp.PayableAmountCents)
+	}
+	if payc.gotAmountCents != 5600 {
+		t.Fatalf("payment amount = %d, want 5600", payc.gotAmountCents)
+	}
+}
+
+func TestFinishTripPaymentFailureNotBlocking(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	order := seedOrder(t, repo, 1001, 2002, 3)
+	pc := &fakePayClient{createPayment: func(_ context.Context, _ *pay.CreatePaymentRequest) (*pay.CreatePaymentResponse, error) {
+		return nil, errors.New("paysvc down")
+	}}
+	l := NewFinishTripLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository: repo,
+		PayClient:       pc,
+	})
+
+	resp, err := l.FinishTrip(&proto.FinishTripRequest{
+		OrderId:          int64(order.Id),
+		DriverId:         2002,
+		ActualPriceCents: 5200,
+	})
+	if err != nil {
+		t.Fatalf("FinishTrip() error = %v, want success despite payment failure", err)
+	}
+	if resp.Status != proto.OrderStatus_ORDER_STATUS_WAIT_PAY {
+		t.Fatalf("FinishTrip() status = %v, want WAIT_PAY", resp.Status)
+	}
+	fresh, err := repo.GetByID(context.Background(), order.Id)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if fresh.Status != 4 {
+		t.Fatalf("finished order status = %d, want 4", fresh.Status)
 	}
 }

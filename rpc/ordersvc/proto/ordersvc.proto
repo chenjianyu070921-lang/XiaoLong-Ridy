@@ -13,6 +13,7 @@ service Order {
   rpc ConfirmArrive(ConfirmArriveRequest) returns (ConfirmArriveResponse);
   rpc StartTrip(StartTripRequest) returns (StartTripResponse);
   rpc FinishTrip(FinishTripRequest) returns (FinishTripResponse);
+  rpc ConfirmPaid(ConfirmPaidRequest) returns (ConfirmPaidResponse);
   rpc TimeoutCancel(TimeoutCancelRequest) returns (TimeoutCancelResponse);
   rpc ListTimeoutOrders(ListTimeoutOrdersRequest) returns (ListTimeoutOrdersResponse);
   rpc ListOrderStatusLogs(ListOrderStatusLogsRequest) returns (ListOrderStatusLogsResponse);
@@ -41,6 +42,7 @@ message CreateOrderRequest {
   int64 estimated_distance_m = 9; // 预估距离（米）
   int64 estimated_duration_s = 10; // 预估时长（秒）
   int64 estimated_price_cents = 11; // 预估价格（分）
+  string city_code = 12; // 城市编码（行政区划码），空时按默认城市计价
 }
 
 message CreateOrderResponse {
@@ -213,4 +215,17 @@ message ListOrderStatusLogsResponse {
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;
+}
+
+// 支付成功确认：待支付变为已完成。
+message ConfirmPaidRequest {
+  int64 order_id = 1;
+  string payment_no = 2;
+  int64 amount_cents = 3;
+  int64 paid_at = 4; // Unix 秒
+}
+
+message ConfirmPaidResponse {
+  int64 order_id = 1;
+  OrderStatus status = 2;
 }

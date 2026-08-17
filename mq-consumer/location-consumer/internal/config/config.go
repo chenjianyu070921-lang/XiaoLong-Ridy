@@ -1,7 +1,12 @@
 package config
 
+import (
+	cfg "XiaoLong-Ridy/common/config"
+)
+
 type Config struct {
 	Kafka KafkaConfig
+	Redis cfg.RedisConf
 	Log   LogConfig
 }
 
