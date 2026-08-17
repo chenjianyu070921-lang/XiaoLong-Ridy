@@ -326,6 +326,125 @@ type CouponSaveResponse struct {
 	ID int64 `json:"id"`
 }
 
+// CouponIssueRequest 表示后台发券请求。
+// target_config 必须是 JSON，P1 当前支持 {"user_ids":[1,2,3]} 形式的显式用户发放。
+type CouponIssueRequest struct {
+	TargetType   string `json:"target_type"`
+	TargetConfig string `json:"target_config"`
+}
+
+// CouponIssueTaskDTO 表示后台发券任务列表项。
+type CouponIssueTaskDTO struct {
+	ID            int64  `json:"id"`
+	TaskNo        string `json:"task_no"`
+	CouponID      int64  `json:"coupon_id"`
+	TargetType    string `json:"target_type"`
+	TargetConfig  string `json:"target_config"`
+	TotalCount    int64  `json:"total_count"`
+	SuccessCount  int64  `json:"success_count"`
+	FailCount     int64  `json:"fail_count"`
+	Status        string `json:"status"`
+	FailureReason string `json:"failure_reason"`
+	OperatorID    int64  `json:"operator_id"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+}
+
+// CouponIssueResponse 表示发券任务创建结果。
+type CouponIssueResponse struct {
+	TaskNo       string `json:"task_no"`
+	TotalCount   int64  `json:"total_count"`
+	SuccessCount int64  `json:"success_count"`
+	FailCount    int64  `json:"fail_count"`
+	Status       string `json:"status"`
+}
+
+// PromotionActivityListRequest 表示活动配置列表查询条件。
+type PromotionActivityListRequest struct {
+	Page      int
+	PageSize  int
+	Keyword   string
+	Type      int32
+	Status    int32
+	StartTime string
+	EndTime   string
+}
+
+// PromotionActivitySaveRequest 表示活动配置新增和编辑请求体。
+type PromotionActivitySaveRequest struct {
+	Name    string `json:"name"`
+	Type    int32  `json:"type"`
+	Config  string `json:"config"`
+	StartAt string `json:"start_at"`
+	EndAt   string `json:"end_at"`
+	Status  int32  `json:"status"`
+}
+
+// PromotionActivityActionRequest 表示活动发布和回滚请求体。
+type PromotionActivityActionRequest struct {
+	PublishScope string `json:"publish_scope"`
+	TargetConfig string `json:"target_config"`
+}
+
+// PromotionActivityDTO 表示活动配置返回对象。
+type PromotionActivityDTO struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Type      int32  `json:"type"`
+	Config    string `json:"config"`
+	StartAt   string `json:"start_at"`
+	EndAt     string `json:"end_at"`
+	Status    int32  `json:"status"`
+	CreatedBy int64  `json:"created_by"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+// StatisticsRequest 表示后台统计查询条件。
+type StatisticsRequest struct {
+	StartTime string
+	EndTime   string
+	CityCode  string
+}
+
+// ExportTaskRequest 表示后台导出任务创建请求体。
+type ExportTaskRequest struct {
+	ExportType string `json:"export_type"`
+	Filters    string `json:"filters"`
+}
+
+// BlacklistRequest 表示风控黑名单新增和解除请求体。
+type BlacklistRequest struct {
+	TargetType string `json:"target_type"`
+	TargetID   int64  `json:"target_id"`
+	Reason     string `json:"reason"`
+}
+
+// BlacklistDTO 表示风控黑名单列表项。
+type BlacklistDTO struct {
+	ID         int64  `json:"id"`
+	TargetType string `json:"target_type"`
+	TargetID   int64  `json:"target_id"`
+	Reason     string `json:"reason"`
+	OperatorID int64  `json:"operator_id"`
+	Status     int32  `json:"status"`
+	CreatedAt  string `json:"created_at"`
+	UpdatedAt  string `json:"updated_at"`
+}
+
+// RiskHitRecordDTO 表示风控命中记录列表项。
+type RiskHitRecordDTO struct {
+	ID          int64  `json:"id"`
+	BlacklistID int64  `json:"blacklist_id"`
+	TargetType  string `json:"target_type"`
+	TargetID    int64  `json:"target_id"`
+	Scene       string `json:"scene"`
+	RiskLevel   int32  `json:"risk_level"`
+	HitReason   string `json:"hit_reason"`
+	RequestID   string `json:"request_id"`
+	CreatedAt   string `json:"created_at"`
+}
+
 // OperationLogListRequest 表示操作日志列表查询条件。
 type OperationLogListRequest struct {
 	Page       int

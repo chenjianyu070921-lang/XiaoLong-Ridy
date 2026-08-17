@@ -51,6 +51,38 @@ service AdminService {
   rpc UpdateCoupon(CouponRequest) returns (CommonResponse);
   // 下架优惠券模板。
   rpc DisableCoupon(CouponRequest) returns (CommonResponse);
+  // 创建优惠券发放任务并同步发放用户券。
+  rpc IssueCoupon(CouponIssueRequest) returns (CouponIssueResponse);
+  // 查询优惠券发放任务列表。
+  rpc ListCouponIssueTasks(CouponIssueTaskListRequest) returns (CouponIssueTaskListResponse);
+  // 查询活动配置列表。
+  rpc ListPromotionActivities(PromotionActivityListRequest) returns (PromotionActivityListResponse);
+  // 创建活动配置。
+  rpc CreatePromotionActivity(PromotionActivityRequest) returns (CommonResponse);
+  // 更新活动配置。
+  rpc UpdatePromotionActivity(PromotionActivityRequest) returns (CommonResponse);
+  // 发布活动配置。
+  rpc PublishPromotionActivity(PromotionActivityActionRequest) returns (CommonResponse);
+  // 回滚活动配置。
+  rpc RollbackPromotionActivity(PromotionActivityActionRequest) returns (CommonResponse);
+  // 查询运营总览统计。
+  rpc GetStatisticsOverview(StatisticsRequest) returns (StatisticsOverviewResponse);
+  // 查询订单统计。
+  rpc GetOrderStatistics(StatisticsRequest) returns (OrderStatisticsResponse);
+  // 查询优惠券统计。
+  rpc GetCouponStatistics(StatisticsRequest) returns (CouponStatisticsResponse);
+  // 创建导出任务。
+  rpc CreateExportTask(ExportTaskRequest) returns (ExportTaskResponse);
+  // 查询导出任务列表。
+  rpc ListExportTasks(ExportTaskListRequest) returns (ExportTaskListResponse);
+  // 查询风控黑名单列表。
+  rpc ListBlacklists(BlacklistListRequest) returns (BlacklistListResponse);
+  // 新增风控黑名单。
+  rpc AddBlacklist(BlacklistRequest) returns (CommonResponse);
+  // 解除风控黑名单。
+  rpc ReleaseBlacklist(BlacklistRequest) returns (CommonResponse);
+  // 查询风控命中记录。
+  rpc ListRiskHitRecords(RiskHitRecordListRequest) returns (RiskHitRecordListResponse);
 }
 
 message Admin {
@@ -451,6 +483,238 @@ message AbnormalOrder {
 
 message AbnormalOrderListResponse {
   repeated AbnormalOrder list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message CouponIssueRequest {
+  int64 coupon_id = 1;
+  string target_type = 2;
+  string target_config = 3;
+  int64 admin_id = 4;
+  string ip = 5;
+}
+
+message CouponIssueResponse {
+  string task_no = 1;
+  int64 total_count = 2;
+  int64 success_count = 3;
+  int64 fail_count = 4;
+  string status = 5;
+}
+
+message CouponIssueTaskListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int64 coupon_id = 3;
+  string status = 4;
+  string start_time = 5;
+  string end_time = 6;
+}
+
+message CouponIssueTask {
+  int64 id = 1;
+  string task_no = 2;
+  int64 coupon_id = 3;
+  string target_type = 4;
+  string target_config = 5;
+  int64 total_count = 6;
+  int64 success_count = 7;
+  int64 fail_count = 8;
+  string status = 9;
+  string failure_reason = 10;
+  int64 operator_id = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+message CouponIssueTaskListResponse {
+  repeated CouponIssueTask list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message PromotionActivityListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 type = 4;
+  int32 status = 5;
+  string start_time = 6;
+  string end_time = 7;
+}
+
+message PromotionActivityRequest {
+  int64 id = 1;
+  string name = 2;
+  int32 type = 3;
+  string config = 4;
+  string start_at = 5;
+  string end_at = 6;
+  int32 status = 7;
+  int64 admin_id = 8;
+  string ip = 9;
+}
+
+message PromotionActivityActionRequest {
+  int64 id = 1;
+  string publish_scope = 2;
+  string target_config = 3;
+  int64 admin_id = 4;
+  string ip = 5;
+}
+
+message PromotionActivity {
+  int64 id = 1;
+  string name = 2;
+  int32 type = 3;
+  string config = 4;
+  string start_at = 5;
+  string end_at = 6;
+  int32 status = 7;
+  int64 created_by = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message PromotionActivityListResponse {
+  repeated PromotionActivity list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message StatisticsRequest {
+  string start_time = 1;
+  string end_time = 2;
+  string city_code = 3;
+}
+
+message StatisticsOverviewResponse {
+  int64 user_count = 1;
+  int64 driver_count = 2;
+  int64 order_count = 3;
+  int64 completed_order_count = 4;
+  int64 abnormal_order_count = 5;
+  string gmv = 6;
+  int64 coupon_issue_count = 7;
+  int64 blacklist_count = 8;
+}
+
+message OrderStatisticsResponse {
+  int64 order_count = 1;
+  int64 completed_order_count = 2;
+  int64 canceled_order_count = 3;
+  int64 timeout_order_count = 4;
+  int64 payment_abnormal_count = 5;
+  string completion_rate = 6;
+  string cancel_rate = 7;
+}
+
+message CouponStatisticsResponse {
+  int64 coupon_count = 1;
+  int64 enabled_coupon_count = 2;
+  int64 issued_coupon_count = 3;
+  int64 used_coupon_count = 4;
+  int64 expired_coupon_count = 5;
+  string use_rate = 6;
+}
+
+message ExportTaskRequest {
+  string export_type = 1;
+  string filters = 2;
+  int64 admin_id = 3;
+  string ip = 4;
+}
+
+message ExportTaskResponse {
+  string task_no = 1;
+  string status = 2;
+  string message = 3;
+}
+
+message ExportTaskListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string export_type = 3;
+}
+
+message ExportTask {
+  string task_no = 1;
+  string export_type = 2;
+  string filters = 3;
+  string status = 4;
+  int64 admin_id = 5;
+  string created_at = 6;
+}
+
+message ExportTaskListResponse {
+  repeated ExportTask list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message BlacklistListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string target_type = 3;
+  int64 target_id = 4;
+  int32 status = 5;
+}
+
+message BlacklistRequest {
+  int64 id = 1;
+  string target_type = 2;
+  int64 target_id = 3;
+  string reason = 4;
+  int64 admin_id = 5;
+  string ip = 6;
+}
+
+message Blacklist {
+  int64 id = 1;
+  string target_type = 2;
+  int64 target_id = 3;
+  string reason = 4;
+  int64 operator_id = 5;
+  int32 status = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message BlacklistListResponse {
+  repeated Blacklist list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message RiskHitRecordListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string target_type = 3;
+  int64 target_id = 4;
+  string scene = 5;
+  int32 risk_level = 6;
+}
+
+message RiskHitRecord {
+  int64 id = 1;
+  int64 blacklist_id = 2;
+  string target_type = 3;
+  int64 target_id = 4;
+  string scene = 5;
+  int32 risk_level = 6;
+  string hit_reason = 7;
+  string request_id = 8;
+  string created_at = 9;
+}
+
+message RiskHitRecordListResponse {
+  repeated RiskHitRecord list = 1;
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;
