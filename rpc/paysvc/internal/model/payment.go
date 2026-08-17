@@ -2,6 +2,14 @@ package model
 
 import "time"
 
+// 支付状态
+const (
+	PaymentStatusPending = 1 // 待支付
+	PaymentStatusPaid    = 2 // 支付成功
+	PaymentStatusFailed  = 3 // 支付失败
+	PaymentStatusRefund  = 4 // 已退款
+)
+
 // Payment 对应 payment 表：支付单。
 type Payment struct {
 	Id            uint64     `gorm:"primaryKey;column:id" json:"id"`

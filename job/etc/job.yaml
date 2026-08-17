@@ -9,3 +9,7 @@ Log:
   ServiceName: job
   Mode: console
   Level: info
+
+orderrpc:
+  Target: 127.0.0.1:50051
+timeoutseconds: 300

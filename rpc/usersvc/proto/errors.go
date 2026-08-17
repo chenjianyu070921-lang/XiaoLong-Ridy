@@ -3,6 +3,8 @@ package proto
 import "errors"
 
 var (
+	// ErrUserNotFound 表示用户不存在或已不可用。
+	ErrUserNotFound = errors.New("user not found")
 	// ErrAddressNotFound 表示常用地址不存在或不属于当前用户。
 	ErrAddressNotFound = errors.New("address not found")
 	// ErrInvalidAddressPhone 表示常用地址联系人手机号格式错误。

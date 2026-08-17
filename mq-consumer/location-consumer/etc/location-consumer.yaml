@@ -6,6 +6,12 @@ Kafka:
   Topic: location-report
   Group: location-consumer-group
 
+Redis:
+  host: 127.0.0.1:6379
+  pass: ""
+  db: 0
+  poolSize: 20
+
 Log:
   ServiceName: location-consumer
   Mode: console

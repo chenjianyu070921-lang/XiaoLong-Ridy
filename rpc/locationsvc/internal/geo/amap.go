@@ -196,6 +196,93 @@ func (r *AmapRegeoResponse) CityStr() string {
 	return city
 }
 
+// AmapRouteResponse 高德驾车路径规划（direction/driving）响应结构
+type AmapRouteResponse struct {
+	Status string `json:"status"` // 1=成功
+	Info   string `json:"info"`   // 提示信息
+	Route  struct {
+		Origin      string `json:"origin"`
+		Destination string `json:"destination"`
+		Paths       []struct {
+			Distance string `json:"distance"` // 距离（米）
+			Duration string `json:"duration"` // 预计时间（秒）
+			Strategy string `json:"strategy"`
+			Steps    []struct {
+				Instruction string `json:"instruction"`
+				Polyline    string `json:"polyline"` // 路线点串 "lng,lat;lng,lat;..."
+			} `json:"steps"`
+		} `json:"paths"`
+	} `json:"route"`
+}
+
+// RoutePlan 调用高德"驾车路径规划"（direction/driving）接口，返回真实可行驶路线
+func (c *Client) RoutePlan(originLat, originLng, destLat, destLng float64) (*AmapRouteResponse, error) {
+	params := url.Values{}
+	params.Set("key", c.apiKey)
+	params.Set("origin", fmt.Sprintf("%.6f,%.6f", originLng, originLat))
+	params.Set("destination", fmt.Sprintf("%.6f,%.6f", destLng, destLat))
+	params.Set("extensions", "all") // all 才能拿到路线点串 polyline
+	params.Set("output", "json")
+
+	reqURL := fmt.Sprintf("%s/direction/driving?%s", c.baseURL, params.Encode())
+
+	httpResp, err := c.httpCli.Get(reqURL)
+	if err != nil {
+		return nil, fmt.Errorf("请求高德驾车路径规划失败: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	body, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取高德响应失败: %w", err)
+	}
+
+	var result AmapRouteResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析高德驾车路径规划响应失败: %w", err)
+	}
+	if result.Status != "1" {
+		return nil, fmt.Errorf("高德API返回错误: %s", result.Info)
+	}
+	if len(result.Route.Paths) == 0 {
+		return nil, fmt.Errorf("高德未返回可行路线")
+	}
+
+	return &result, nil
+}
+
+// Distance 返回第一条规划路线的距离（米）
+func (r *AmapRouteResponse) Distance() int32 {
+	if len(r.Route.Paths) == 0 {
+		return 0
+	}
+	n, _ := strconv.Atoi(r.Route.Paths[0].Distance)
+	return int32(n)
+}
+
+// Duration 返回第一条规划路线的预计时间（秒）
+func (r *AmapRouteResponse) Duration() int32 {
+	if len(r.Route.Paths) == 0 {
+		return 0
+	}
+	n, _ := strconv.Atoi(r.Route.Paths[0].Duration)
+	return int32(n)
+}
+
+// Polyline 把第一条路线各 step 的路线点串拼成完整的一条
+func (r *AmapRouteResponse) Polyline() string {
+	if len(r.Route.Paths) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, step := range r.Route.Paths[0].Steps {
+		if p := strings.Trim(step.Polyline, ";"); p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return strings.Join(parts, ";")
+}
+
 // parseLocation 解析高德坐标串 "经度,纬度"
 func parseLocation(loc string) (lng, lat float64, err error) {
 	parts := strings.Split(loc, ",")
