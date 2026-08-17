@@ -91,3 +91,13 @@
 | `PromotionPublishedEvent` | `pricesvc` | `pushsvc/reportsvc` | 活动发布 | `promotion_id,version,scope,effective_at` |
 | `RefundCompensationEvent` | `paysvc/adminsvc` | `job/refund-worker` | 退款资金不足或通道失败 | `refund_id,order_id,amount,reason` |
 | `RiskBlacklistChangedEvent` | `api/admin` | `usersvc/driversvc/risk-cache` | 黑名单新增或解除 | `blacklist_id,target_type,target_id,status` |
+
+## 五、2026-08-15 当前落地修订
+
+| 后台接口 | 当前实现 | 下游依赖 | 说明 |
+| --- | --- | --- | --- |
+| `POST /admin/v1/orders/{id}/cancel` | `api/admin` 做鉴权与参数转换，调用 `adminsvc.CancelOrder` | `ordersvc.CancelOrder` 同步 RPC | 已落地 P0，传入 `operator_type=admin`、`operator_id=admin_id`、`reason` |
+| `POST /admin/v1/driver-certifications/{id}/approve` | 保留 `adminsvc` 既有本地事务审核逻辑 | 后续切换 `driversvc.ApproveCertification` | 本次不强制切换，避免影响司机模块同事迭代 |
+| `POST /admin/v1/driver-certifications/{id}/reject` | 保留 `adminsvc` 既有本地事务审核逻辑 | 后续切换 `driversvc.RejectCertification` | `driversvc` 已预留 proto 与服务端逻辑，后续需补真实数据联调记录 |
+
+P1/P2 仅保留设计文档与接口清单：优惠券发放任务、活动配置、数据统计、导出、风控管理暂不新增运行时代码。

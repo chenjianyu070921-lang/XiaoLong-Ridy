@@ -39,6 +39,8 @@ service AdminService {
   rpc ListOrders(OrderListRequest) returns (OrderListResponse);
   // 查询订单详情。
   rpc GetOrder(OrderDetailRequest) returns (OrderDetail);
+  // 后台取消订单。
+  rpc CancelOrder(AdminCancelOrderRequest) returns (CommonResponse);
   // 查询异常订单列表。
   rpc ListAbnormalOrders(AbnormalOrderListRequest) returns (AbnormalOrderListResponse);
   // 查询优惠券模板列表。
@@ -247,6 +249,13 @@ message OrderListRequest {
 
 message OrderDetailRequest {
   int64 id = 1;
+}
+
+message AdminCancelOrderRequest {
+  int64 order_id = 1;
+  string reason = 2;
+  int64 admin_id = 3;
+  string ip = 4;
 }
 
 message Order {

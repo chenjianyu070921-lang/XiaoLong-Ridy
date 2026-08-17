@@ -118,6 +118,12 @@ func (s *AdminServiceServer) GetOrder(ctx context.Context, in *adminsvc.OrderDet
 	return l.GetOrder(in)
 }
 
+// 后台取消订单。
+func (s *AdminServiceServer) CancelOrder(ctx context.Context, in *adminsvc.AdminCancelOrderRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewCancelOrderLogic(ctx, s.svcCtx)
+	return l.CancelOrder(in)
+}
+
 // 查询异常订单列表。
 func (s *AdminServiceServer) ListAbnormalOrders(ctx context.Context, in *adminsvc.AbnormalOrderListRequest) (*adminsvc.AbnormalOrderListResponse, error) {
 	l := adminservicelogic.NewListAbnormalOrdersLogic(ctx, s.svcCtx)

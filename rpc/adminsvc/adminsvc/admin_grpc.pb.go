@@ -35,6 +35,7 @@ const (
 	AdminService_RejectDriverCertification_FullMethodName  = "/adminsvc.AdminService/RejectDriverCertification"
 	AdminService_ListOrders_FullMethodName                 = "/adminsvc.AdminService/ListOrders"
 	AdminService_GetOrder_FullMethodName                   = "/adminsvc.AdminService/GetOrder"
+	AdminService_CancelOrder_FullMethodName                = "/adminsvc.AdminService/CancelOrder"
 	AdminService_ListAbnormalOrders_FullMethodName         = "/adminsvc.AdminService/ListAbnormalOrders"
 	AdminService_ListCoupons_FullMethodName                = "/adminsvc.AdminService/ListCoupons"
 	AdminService_CreateCoupon_FullMethodName               = "/adminsvc.AdminService/CreateCoupon"
@@ -81,6 +82,8 @@ type AdminServiceClient interface {
 	ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
 	// 查询订单详情。
 	GetOrder(ctx context.Context, in *OrderDetailRequest, opts ...grpc.CallOption) (*OrderDetail, error)
+	// 后台取消订单。
+	CancelOrder(ctx context.Context, in *AdminCancelOrderRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询异常订单列表。
 	ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
 	// 查询优惠券模板列表。
@@ -261,6 +264,16 @@ func (c *adminServiceClient) GetOrder(ctx context.Context, in *OrderDetailReques
 	return out, nil
 }
 
+func (c *adminServiceClient) CancelOrder(ctx context.Context, in *AdminCancelOrderRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_CancelOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AbnormalOrderListResponse)
@@ -350,6 +363,8 @@ type AdminServiceServer interface {
 	ListOrders(context.Context, *OrderListRequest) (*OrderListResponse, error)
 	// 查询订单详情。
 	GetOrder(context.Context, *OrderDetailRequest) (*OrderDetail, error)
+	// 后台取消订单。
+	CancelOrder(context.Context, *AdminCancelOrderRequest) (*CommonResponse, error)
 	// 查询异常订单列表。
 	ListAbnormalOrders(context.Context, *AbnormalOrderListRequest) (*AbnormalOrderListResponse, error)
 	// 查询优惠券模板列表。
@@ -414,6 +429,9 @@ func (UnimplementedAdminServiceServer) ListOrders(context.Context, *OrderListReq
 }
 func (UnimplementedAdminServiceServer) GetOrder(context.Context, *OrderDetailRequest) (*OrderDetail, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) CancelOrder(context.Context, *AdminCancelOrderRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelOrder not implemented")
 }
 func (UnimplementedAdminServiceServer) ListAbnormalOrders(context.Context, *AbnormalOrderListRequest) (*AbnormalOrderListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListAbnormalOrders not implemented")
@@ -731,6 +749,24 @@ func _AdminService_GetOrder_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_CancelOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminCancelOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CancelOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CancelOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CancelOrder(ctx, req.(*AdminCancelOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_ListAbnormalOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AbnormalOrderListRequest)
 	if err := dec(in); err != nil {
@@ -891,6 +927,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOrder",
 			Handler:    _AdminService_GetOrder_Handler,
+		},
+		{
+			MethodName: "CancelOrder",
+			Handler:    _AdminService_CancelOrder_Handler,
 		},
 		{
 			MethodName: "ListAbnormalOrders",

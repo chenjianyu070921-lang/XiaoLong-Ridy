@@ -50,6 +50,16 @@ func (c *LocalClient) Logout(ctx context.Context, req *userproto.LogoutRequest) 
 	return c.service.Logout(ctx, req)
 }
 
+// GetProfile 转发个人中心资料查询 RPC。
+func (c *LocalClient) GetProfile(ctx context.Context, req *userproto.GetProfileRequest) (*userproto.GetProfileResponse, error) {
+	return c.service.GetProfile(ctx, req)
+}
+
+// SubmitRealName 转发实名资料提交 RPC。
+func (c *LocalClient) SubmitRealName(ctx context.Context, req *userproto.SubmitRealNameRequest) (*userproto.SubmitRealNameResponse, error) {
+	return c.service.SubmitRealName(ctx, req)
+}
+
 // CreateAddress 转发新增常用地址 RPC。
 func (c *LocalClient) CreateAddress(ctx context.Context, req *userproto.CreateAddressRequest) (*userproto.AddressInfo, error) {
 	return c.service.CreateAddress(ctx, req)

@@ -17,6 +17,7 @@ type (
 	AbnormalOrderListRequest         = adminsvc.AbnormalOrderListRequest
 	AbnormalOrderListResponse        = adminsvc.AbnormalOrderListResponse
 	Admin                            = adminsvc.Admin
+	AdminCancelOrderRequest          = adminsvc.AdminCancelOrderRequest
 	AuditDriverCertificationRequest  = adminsvc.AuditDriverCertificationRequest
 	AuthResponse                     = adminsvc.AuthResponse
 	ChangeUserStatusRequest          = adminsvc.ChangeUserStatusRequest
@@ -72,6 +73,7 @@ type (
 		RejectDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
 		GetOrder(ctx context.Context, in *OrderDetailRequest, opts ...grpc.CallOption) (*OrderDetail, error)
+		CancelOrder(ctx context.Context, in *AdminCancelOrderRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
 		ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error)
 		CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
@@ -150,6 +152,10 @@ func (m *defaultAdminService) ListOrders(ctx context.Context, in *OrderListReque
 
 func (m *defaultAdminService) GetOrder(ctx context.Context, in *OrderDetailRequest, opts ...grpc.CallOption) (*OrderDetail, error) {
 	return adminsvc.NewAdminServiceClient(m.cli.Conn()).GetOrder(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) CancelOrder(ctx context.Context, in *AdminCancelOrderRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).CancelOrder(ctx, in, opts...)
 }
 
 func (m *defaultAdminService) ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error) {

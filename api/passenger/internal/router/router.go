@@ -11,6 +11,7 @@ import (
 func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	mux := http.NewServeMux()
 	registerAuthRoutes(mux, svcCtx)
+	registerProfileRoutes(mux, svcCtx)
 	registerOrderRoutes(mux, svcCtx)
 	registerAddressRoutes(mux, svcCtx)
 	return mux
@@ -22,6 +23,12 @@ func registerAuthRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/auth/login-by-sms", handler.LoginBySMSHandler(svcCtx))
 	mux.HandleFunc("/api/passenger/v1/auth/refresh-token", handler.RefreshTokenHandler(svcCtx))
 	mux.HandleFunc("/api/passenger/v1/auth/logout", handler.LogoutHandler(svcCtx))
+}
+
+// registerProfileRoutes 注册乘客个人中心接口。
+func registerProfileRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
+	mux.HandleFunc("/api/passenger/v1/profile/me", handler.GetProfileHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/profile/real-name", handler.SubmitRealNameHandler(svcCtx))
 }
 
 // registerOrderRoutes 注册乘客订单接口。

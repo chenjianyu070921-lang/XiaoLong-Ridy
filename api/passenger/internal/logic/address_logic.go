@@ -28,7 +28,7 @@ func (l *AddressLogic) CreateAddress(req *types.CreateAddressRequest) (*types.Ad
 	if err != nil {
 		return nil, err
 	}
-	if err := validateAddress(req.ContactName, req.ContactPhone, req.Address); err != nil {
+	if err := validateAddress(req.ContactName, req.ContactPhone, req.Address, req.Longitude, req.Latitude); err != nil {
 		return nil, err
 	}
 	client, err := l.userClient()
@@ -82,7 +82,7 @@ func (l *AddressLogic) UpdateAddress(req *types.UpdateAddressRequest) (*types.Ad
 	if req.ID == 0 {
 		return nil, ErrInvalidRequest
 	}
-	if err := validateAddress(req.ContactName, req.ContactPhone, req.Address); err != nil {
+	if err := validateAddress(req.ContactName, req.ContactPhone, req.Address, req.Longitude, req.Latitude); err != nil {
 		return nil, err
 	}
 	client, err := l.userClient()
@@ -127,10 +127,16 @@ func (l *AddressLogic) DeleteAddress(req *types.DeleteAddressRequest) (*types.De
 	return &types.DeleteAddressResponse{Success: resp.GetSuccess()}, nil
 }
 
-// validateAddress 校验常用地址的联系人、电话和详细地址是否完整。
-func validateAddress(contactName, contactPhone, address string) error {
+// validateAddress 校验常用地址的联系人、电话、详细地址和经纬度是否完整合法。
+func validateAddress(contactName, contactPhone, address string, longitude, latitude float64) error {
 	if strings.TrimSpace(contactName) == "" || strings.TrimSpace(contactPhone) == "" || strings.TrimSpace(address) == "" {
 		return ErrInvalidRequest
+	}
+	if !isValidPassengerPhone(contactPhone) {
+		return userproto.ErrInvalidAddressPhone
+	}
+	if !isValidLongitudeLatitude(longitude, latitude) {
+		return userproto.ErrInvalidLongitudeLatitude
 	}
 	return nil
 }

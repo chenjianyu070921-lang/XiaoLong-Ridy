@@ -45,6 +45,18 @@ func (s *UserServer) Logout(ctx context.Context, req *userproto.LogoutRequest) (
 	return l.Logout(req)
 }
 
+// GetProfile 转发个人中心资料查询请求到对应 logic。
+func (s *UserServer) GetProfile(ctx context.Context, req *userproto.GetProfileRequest) (*userproto.GetProfileResponse, error) {
+	l := logic.NewGetProfileLogic(ctx, s.svcCtx)
+	return l.GetProfile(req)
+}
+
+// SubmitRealName 转发实名资料提交请求到对应 logic。
+func (s *UserServer) SubmitRealName(ctx context.Context, req *userproto.SubmitRealNameRequest) (*userproto.SubmitRealNameResponse, error) {
+	l := logic.NewSubmitRealNameLogic(ctx, s.svcCtx)
+	return l.SubmitRealName(req)
+}
+
 // CreateAddress 转发新增常用地址请求到对应 logic。
 func (s *UserServer) CreateAddress(ctx context.Context, req *userproto.CreateAddressRequest) (*userproto.AddressInfo, error) {
 	l := logic.NewCreateAddressLogic(ctx, s.svcCtx)
