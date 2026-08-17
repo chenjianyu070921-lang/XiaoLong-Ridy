@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
+	commonconfig "XiaoLong-Ridy/common/config"
+	"XiaoLong-Ridy/common/datasource"
+	commonSMS "XiaoLong-Ridy/common/sms"
 	"XiaoLong-Ridy/rpc/usersvc/internal/config"
 	"XiaoLong-Ridy/rpc/usersvc/internal/logic"
 	"XiaoLong-Ridy/rpc/usersvc/internal/repository"
@@ -42,18 +48,135 @@ func main() {
 	s.Start()
 }
 
-// newServiceContext 创建 usersvc 运行时依赖；当前阶段使用内存用户仓储和本地短信验证码服务。
+// newServiceContext 创建 usersvc 运行时依赖；正式服务统一使用 MySQL 和 Redis 持久化。
 func newServiceContext(c config.Config) *svc.ServiceContext {
 	signingKey := c.TokenAuth.SigningKey
 	if signingKey == "" {
 		signingKey = "local-development-signing-key"
 	}
 
-	users := repository.NewMemoryUserRepository()
-	addresses := repository.NewMemoryAddressRepository()
-	smsService := logic.NewMemorySMSCodeService(func(phone, code string) {
+	mysqlConf := normalizeMysqlConf(c.Mysql)
+	db, err := datasource.NewMysqlClient(commonconfig.MysqlConf{
+		Dsn:         mysqlConf.DSN,
+		MaxOpenConn: mysqlConf.MaxOpenConn,
+		MaxIdleConn: mysqlConf.MaxIdleConn,
+		MaxLifeTime: mysqlConf.MaxLifeTime,
+	})
+	if err != nil {
+		panic(fmt.Errorf("连接 usersvc mysql 失败: %w", err))
+	}
+
+	redisConf := normalizeRedisConf(c.CacheRedis)
+	redisClient := datasource.NewRedisClient(commonconfig.RedisConf{
+		Host:     redisConf.Host,
+		Pass:     redisConf.Pass,
+		Db:       redisConf.DB,
+		PoolSize: redisConf.PoolSize,
+	})
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		panic(fmt.Errorf("连接 usersvc redis 失败: %w", err))
+	}
+
+	users := repository.NewGormUserRepository(db)
+	addresses := repository.NewGormAddressRepository(db)
+	coupons := repository.NewGormCouponRepository(db)
+	smsMessageSender, err := newSMSMessageSender(c.SMS)
+	if err != nil {
+		panic(err)
+	}
+	smsService := logic.NewRedisSMSCodeService(redisClient, smsMessageSender, func(phone, code string) {
+		if smsMessageSender != nil {
+			log.Printf("短信验证码已提交腾讯云发送：phone=%s", phone)
+			return
+		}
 		log.Printf("本地短信验证码：phone=%s code=%s", phone, code)
 	})
-	tokens := logic.NewTokenManager(signingKey)
-	return svc.NewServiceContext(c, users, addresses, smsService, smsService, tokens)
+	tokens := logic.NewRedisTokenManager(redisClient, signingKey)
+	return svc.NewServiceContext(c, users, addresses, coupons, smsService, smsService, tokens)
+}
+
+// newSMSMessageSender 根据配置创建真实短信发送器；腾讯云配置齐全时作为首选通道。
+func newSMSMessageSender(c config.SMSConf) (commonSMS.Sender, error) {
+	c = normalizeSMSConf(c)
+	provider := strings.ToLower(strings.TrimSpace(c.Provider))
+	if provider == "" && hasTencentSMSConfig(c) {
+		provider = "tencent"
+	}
+
+	switch provider {
+	case "", "local", "log":
+		return nil, nil
+	case "tencent":
+		return commonSMS.NewTencentSender(commonSMS.TencentConfig{
+			SecretID:    c.SecretID,
+			SecretKey:   c.SecretKey,
+			Region:      c.Region,
+			SmsSdkAppID: c.SmsSdkAppID,
+			SignName:    c.SignName,
+			TemplateID:  c.TemplateID,
+		})
+	default:
+		return nil, fmt.Errorf("unsupported usersvc sms provider: %s", c.Provider)
+	}
+}
+
+// normalizeSMSConf 从环境变量补齐腾讯云短信配置，避免密钥硬编码在配置文件或代码里。
+func normalizeSMSConf(c config.SMSConf) config.SMSConf {
+	c.Provider = firstNonEmpty(os.Getenv("USERSVC_SMS_PROVIDER"), c.Provider)
+	c.Region = firstNonEmpty(os.Getenv("TENCENTCLOUD_REGION"), c.Region)
+	c.SecretID = firstNonEmpty(os.Getenv("TENCENTCLOUD_SECRET_ID"), c.SecretID)
+	c.SecretKey = firstNonEmpty(os.Getenv("TENCENTCLOUD_SECRET_KEY"), c.SecretKey)
+	c.SmsSdkAppID = firstNonEmpty(os.Getenv("TENCENTCLOUD_SMS_SDK_APP_ID"), c.SmsSdkAppID)
+	c.SignName = firstNonEmpty(os.Getenv("TENCENTCLOUD_SMS_SIGN_NAME"), c.SignName)
+	c.TemplateID = firstNonEmpty(os.Getenv("TENCENTCLOUD_SMS_TEMPLATE_ID"), c.TemplateID)
+	return c
+}
+
+// hasTencentSMSConfig 判断是否已经提供任一腾讯云短信关键配置，用于自动选择腾讯云通道。
+func hasTencentSMSConfig(c config.SMSConf) bool {
+	return strings.TrimSpace(c.SecretID) != "" ||
+		strings.TrimSpace(c.SecretKey) != "" ||
+		strings.TrimSpace(c.SmsSdkAppID) != "" ||
+		strings.TrimSpace(c.SignName) != "" ||
+		strings.TrimSpace(c.TemplateID) != ""
+}
+
+// firstNonEmpty 返回第一个非空字符串，统一处理配置和环境变量优先级。
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+// normalizeMysqlConf 校验并补齐 usersvc MySQL 连接池默认值。
+func normalizeMysqlConf(c config.MysqlConf) config.MysqlConf {
+	c.DSN = strings.TrimSpace(c.DSN)
+	if c.DSN == "" {
+		panic("usersvc mysql dsn is required")
+	}
+	if c.MaxOpenConn <= 0 {
+		c.MaxOpenConn = 200
+	}
+	if c.MaxIdleConn <= 0 {
+		c.MaxIdleConn = 30
+	}
+	if c.MaxLifeTime <= 0 {
+		c.MaxLifeTime = 3600
+	}
+	return c
+}
+
+// normalizeRedisConf 校验并补齐 usersvc Redis 连接池默认值。
+func normalizeRedisConf(c config.RedisConf) config.RedisConf {
+	c.Host = strings.TrimSpace(c.Host)
+	if c.Host == "" {
+		panic("usersvc redis host is required")
+	}
+	if c.PoolSize <= 0 {
+		c.PoolSize = 20
+	}
+	return c
 }

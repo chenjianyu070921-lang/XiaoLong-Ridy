@@ -2,12 +2,14 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/keyutil"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
+	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 
@@ -19,6 +21,8 @@ type CreateOrderLogic struct {
 	svcCtx *svc.ServiceContext
 	logx.Logger
 }
+
+const maxCreateOrderNoRetry = 3
 
 // NewCreateOrderLogic 创建订单逻辑对象。
 func NewCreateOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateOrderLogic {
@@ -35,7 +39,48 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 		return nil, err
 	}
 
-	order := &model.RideOrder{
+	for attempt := 0; attempt < maxCreateOrderNoRetry; attempt++ {
+		order := buildRideOrder(in)
+		statusLog := &model.OrderStatusLog{
+			FromStatus:   0,
+			ToStatus:     constants.OrderStatusWaitAccept,
+			OperatorType: constants.OperatorUser,
+			OperatorId:   uint64(in.UserId),
+			Remark:       "创建订单",
+		}
+		err := l.svcCtx.OrderRepository.Create(l.ctx, order, statusLog)
+		if err == nil {
+			if l.svcCtx.DispatchClient != nil {
+				if _, err := l.svcCtx.DispatchClient.DispatchOrder(l.ctx, &dispatch.DispatchOrderRequest{
+					OrderId:       int64(order.Id),
+					FromLongitude: in.FromLongitude,
+					FromLatitude:  in.FromLatitude,
+					CarType:       in.CarType,
+				}); err != nil {
+					// 派单失败不阻塞下单，记录日志由后续任务补偿。
+					l.Logger.Errorf("dispatch order %d failed: %v", order.Id, err)
+				}
+			}
+
+			return &proto.CreateOrderResponse{
+				OrderId:             int64(order.Id),
+				OrderNo:             order.OrderNo,
+				EstimatedPriceCents: in.EstimatedPriceCents,
+				Status:              proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+				CreatedAt:           order.CreatedAt.Unix(),
+			}, nil
+		}
+		if errors.Is(err, repository.ErrOrderNoExists) && attempt < maxCreateOrderNoRetry-1 {
+			continue
+		}
+		return nil, err
+	}
+	return nil, ErrInvalidOrderParams
+}
+
+// buildRideOrder 根据 RPC 入参构造待接单订单，每次调用都会生成新的订单号。
+func buildRideOrder(in *proto.CreateOrderRequest) *model.RideOrder {
+	return &model.RideOrder{
 		OrderNo:            keyutil.GenOrderID(),
 		UserId:             uint64(in.UserId),
 		DriverId:           0,
@@ -51,40 +96,12 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 		EstimatedPrice:     float64(in.EstimatedPriceCents) / 100,
 		Status:             constants.OrderStatusWaitAccept,
 	}
-	statusLog := &model.OrderStatusLog{
-		FromStatus:   0,
-		ToStatus:     constants.OrderStatusWaitAccept,
-		OperatorType: constants.OperatorUser,
-		OperatorId:   uint64(in.UserId),
-		Remark:       "创建订单",
-	}
-	if err := l.svcCtx.OrderRepository.Create(l.ctx, order, statusLog); err != nil {
-		return nil, err
-	}
-	if l.svcCtx.DispatchClient != nil {
-		if _, err := l.svcCtx.DispatchClient.DispatchOrder(l.ctx, &dispatch.DispatchOrderRequest{
-			OrderId:       int64(order.Id),
-			FromLongitude: in.FromLongitude,
-			FromLatitude:  in.FromLatitude,
-			CarType:       in.CarType,
-		}); err != nil {
-			// 派单失败不阻塞下单，记录日志由后续任务补偿。
-			l.Logger.Errorf("dispatch order %d failed: %v", order.Id, err)
-		}
-	}
-
-	return &proto.CreateOrderResponse{
-		OrderId:             int64(order.Id),
-		OrderNo:             order.OrderNo,
-		EstimatedPriceCents: in.EstimatedPriceCents,
-		Status:              proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
-		CreatedAt:           order.CreatedAt.Unix(),
-	}, nil
 }
 
 // validateCreateOrder 校验创建订单入参。
 func validateCreateOrder(in *proto.CreateOrderRequest) error {
-	if in.UserId <= 0 ||
+	if in == nil ||
+		in.UserId <= 0 ||
 		in.CarType < 1 || in.CarType > 3 ||
 		strings.TrimSpace(in.FromAddress) == "" ||
 		strings.TrimSpace(in.ToAddress) == "" ||

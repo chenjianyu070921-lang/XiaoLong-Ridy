@@ -71,3 +71,19 @@ func CancelOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+// PayOrderHandler 处理 POST /api/passenger/v1/orders/pay。
+func PayOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.PayOrderRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx, bearerToken(r)).PayOrder(&req)
+		if err != nil {
+			writeBusinessError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

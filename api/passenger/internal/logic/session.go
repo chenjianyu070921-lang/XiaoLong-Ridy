@@ -19,6 +19,10 @@ var (
 	ErrOrderClientNotConfigured = errors.New("order client not configured")
 	// ErrPriceClientNotConfigured 表示价格服务客户端未配置。
 	ErrPriceClientNotConfigured = errors.New("price client not configured")
+	// ErrPayClientNotConfigured 表示支付服务客户端未配置。
+	ErrPayClientNotConfigured = errors.New("pay client not configured")
+	// ErrOrderNotPayable 表示订单当前状态不能发起支付。
+	ErrOrderNotPayable = errors.New("order not payable")
 )
 
 // currentUserID 从乘客 JWT 中解析当前用户 ID。
