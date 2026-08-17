@@ -61,13 +61,14 @@ func main() {
 	fmt.Println("MySQL 连接成功")
 
 	// 连接 Redis
-	if err := datasource.NewRedisClient(c.RedisConf).Ping(context.Background()).Err(); err != nil {
+	redisClient := datasource.NewRedisClient(c.RedisConf)
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
 		panic(err)
 	}
 	fmt.Println("Redis 连接成功")
 
-	// 注入数据库与地图客户端
-	ctx := svc.NewServiceContext(c, mysqlDB)
+	// 注入数据库、Redis 与地图客户端
+	ctx := svc.NewServiceContext(c, mysqlDB, redisClient)
 
 	// ========== 配置热更新：etcd 配置变更后自动生效，无需重启 ==========
 	cc.AddListener(func() {

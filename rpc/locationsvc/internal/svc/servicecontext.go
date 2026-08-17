@@ -7,28 +7,36 @@ import (
 	"XiaoLong-Ridy/rpc/locationsvc/internal/geo"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/model"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
+// DriverGeoKey Redis GEO 集合 key：司机实时位置
+const DriverGeoKey = "driver:geo"
+
 type ServiceContext struct {
-	mu       sync.RWMutex
-	Config   config.Config
-	Db       *gorm.DB
-	Geo      *geo.Client
-	PoiModel *model.PoiModel
+	mu                  sync.RWMutex
+	Config              config.Config
+	Db                  *gorm.DB
+	Redis               *redis.Client
+	Geo                 *geo.Client
+	PoiModel            *model.PoiModel
+	DriverLocationModel *model.DriverLocationModel
 }
 
-func NewServiceContext(c config.Config, db *gorm.DB) *ServiceContext {
-	// 自动创建 poi 缓存表（表已存在时不会重复建，也不会动已有表）
-	if err := db.AutoMigrate(&model.Poi{}); err != nil {
+func NewServiceContext(c config.Config, db *gorm.DB, redisClient *redis.Client) *ServiceContext {
+	// 自动建 poi 缓存表 / 司机位置表（表已存在时不会重复建，也不会动已有表）
+	if err := db.AutoMigrate(&model.Poi{}, &model.DriverLocation{}); err != nil {
 		panic(err)
 	}
 
 	return &ServiceContext{
-		Config:   c,
-		Db:       db,
-		Geo:      geo.NewClient(c.MapService),
-		PoiModel: model.NewPoiModel(db),
+		Config:              c,
+		Db:                  db,
+		Redis:               redisClient,
+		Geo:                 geo.NewClient(c.MapService),
+		PoiModel:            model.NewPoiModel(db),
+		DriverLocationModel: model.NewDriverLocationModel(db),
 	}
 }
 

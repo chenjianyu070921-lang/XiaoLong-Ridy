@@ -1,13 +1,13 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"time"
 
 	"XiaoLong-Ridy/job/internal/config"
 	"XiaoLong-Ridy/job/internal/handler"
+	"XiaoLong-Ridy/job/internal/svc"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -23,7 +23,10 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
-	h := handler.NewCleanupHandler()
+	// 初始化服务上下文：连接 MySQL / Redis，并创建 ordersvc RPC 客户端
+	svcCtx := svc.NewServiceContext(c)
+
+	h := handler.NewCleanupHandler(svcCtx)
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
@@ -64,5 +67,3 @@ func main() {
 
 	select {}
 }
-
-var _ = context.Background

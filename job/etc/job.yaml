@@ -1,11 +1,26 @@
 Name: job-scheduler
 
-Etcd:
-  Hosts:
-    - 127.0.0.1:2379
-  Key: job-scheduler
-
 Log:
   ServiceName: job
   Mode: console
   Level: info
+
+Mysql:
+  Dsn: "root:root@tcp(127.0.0.1:3306)/xiaolongridy?charset=utf8mb4&parseTime=true&loc=Local"
+  MaxOpenConn: 100
+  MaxIdleConn: 10
+  MaxLifeTime: 3600
+
+RedisConf:
+  Host: "127.0.0.1:6379"
+  Pass: ""
+  Db: 0
+  PoolSize: 10
+
+# ordersvc RPC 客户端：通过 Etcd 发现服务
+OrderRPC:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: ordersvc.rpc
+  Timeout: 5000
