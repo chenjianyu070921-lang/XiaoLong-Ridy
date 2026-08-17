@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package usersvc;
+
+option go_package = "./;proto";
+
+service User {
+  // SendSMSCode 发送短信验证码。
+  rpc SendSMSCode(SendSMSCodeRequest) returns (SendSMSCodeResponse);
+  // LoginBySMS 通过短信验证码登录；首次登录自动创建乘客账号。
+  rpc LoginBySMS(LoginBySMSRequest) returns (LoginBySMSResponse);
+  // RefreshToken 刷新访问令牌。
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  // Logout 注销当前登录态。
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // GetProfile 查询乘客个人中心基础资料。
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  // SubmitRealName 提交乘客实名信息。
+  rpc SubmitRealName(SubmitRealNameRequest) returns (SubmitRealNameResponse);
+  // CreateAddress 新增乘客常用地址。
+  rpc CreateAddress(CreateAddressRequest) returns (AddressInfo);
+  // ListAddresses 查询乘客常用地址列表。
+  rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
+  // UpdateAddress 更新乘客常用地址。
+  rpc UpdateAddress(UpdateAddressRequest) returns (AddressInfo);
+  // DeleteAddress 删除乘客常用地址。
+  rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressResponse);
+}
+
+// SendSMSCodeRequest 发送短信验证码请求。
+message SendSMSCodeRequest {
+  string phone = 1; // 手机号
+}
+
+// SendSMSCodeResponse 发送短信验证码响应。
+message SendSMSCodeResponse {
+  bool success = 1; // 是否发送成功
+  int64 expire_in = 2; // 验证码有效期，单位：秒
+}
+
+// LoginBySMSRequest 短信验证码登录请求。
+message LoginBySMSRequest {
+  string phone = 1; // 手机号
+  string code = 2; // 短信验证码
+}
+
+// UserInfo 登录态中返回的用户基础信息。
+message UserInfo {
+  uint64 user_id = 1; // 用户 ID
+  string phone = 2; // 脱敏后的手机号
+  string nickname = 3; // 昵称
+  string avatar_url = 4; // 头像地址
+  string real_name_status = 5; // 实名认证状态：UNVERIFIED/VERIFIED
+}
+
+// LoginBySMSResponse 短信验证码登录响应。
+message LoginBySMSResponse {
+  string token = 1; // Access Token
+  string refresh_token = 2; // Refresh Token
+  bool is_new_user = 3; // 是否为首次创建的用户
+  UserInfo user = 4; // 用户基础信息
+}
+
+// RefreshTokenRequest 刷新令牌请求。
+message RefreshTokenRequest {
+  string refresh_token = 1; // Refresh Token
+}
+
+// RefreshTokenResponse 刷新令牌响应。
+message RefreshTokenResponse {
+  string token = 1; // 新的 Access Token
+  string refresh_token = 2; // 新的 Refresh Token
+}
+
+// LogoutRequest 注销请求。
+message LogoutRequest {
+  string token = 1; // 当前 Access Token
+}
+
+// LogoutResponse 注销响应。
+message LogoutResponse {
+  bool success = 1; // 是否注销成功
+}
+
+// GetProfileRequest 查询个人中心资料请求。
+message GetProfileRequest {
+  uint64 user_id = 1; // 用户 ID
+}
+
+// GetProfileResponse 查询个人中心资料响应。
+message GetProfileResponse {
+  UserInfo user = 1; // 用户基础信息
+}
+
+// SubmitRealNameRequest 提交实名信息请求。
+message SubmitRealNameRequest {
+  uint64 user_id = 1; // 用户 ID
+  string real_name = 2; // 真实姓名
+  string id_card_no = 3; // 身份证号
+}
+
+// SubmitRealNameResponse 提交实名信息响应。
+message SubmitRealNameResponse {
+  UserInfo user = 1; // 更新后的用户基础信息
+}
+
+// AddressInfo 表示乘客常用地址信息。
+message AddressInfo {
+  uint64 id = 1; // 地址 ID
+  uint64 user_id = 2; // 用户 ID
+  string contact_name = 3; // 联系人姓名
+  string contact_phone = 4; // 联系人手机号
+  string tag = 5; // 地址标签：home/work/other
+  string address = 6; // 详细地址
+  double longitude = 7; // 经度
+  double latitude = 8; // 纬度
+  bool is_default = 9; // 是否默认地址
+  int32 sort = 10; // 排序值
+}
+
+// CreateAddressRequest 新增常用地址请求。
+message CreateAddressRequest {
+  uint64 user_id = 1; // 用户 ID
+  string contact_name = 2; // 联系人姓名
+  string contact_phone = 3; // 联系人手机号
+  string tag = 4; // 地址标签
+  string address = 5; // 详细地址
+  double longitude = 6; // 经度
+  double latitude = 7; // 纬度
+  bool is_default = 8; // 是否默认地址
+  int32 sort = 9; // 排序值
+}
+
+// ListAddressesRequest 查询常用地址列表请求。
+message ListAddressesRequest {
+  uint64 user_id = 1; // 用户 ID
+}
+
+// ListAddressesResponse 常用地址列表响应。
+message ListAddressesResponse {
+  repeated AddressInfo list = 1; // 地址列表
+}
+
+// UpdateAddressRequest 更新常用地址请求。
+message UpdateAddressRequest {
+  uint64 id = 1; // 地址 ID
+  uint64 user_id = 2; // 用户 ID
+  string contact_name = 3; // 联系人姓名
+  string contact_phone = 4; // 联系人手机号
+  string tag = 5; // 地址标签
+  string address = 6; // 详细地址
+  double longitude = 7; // 经度
+  double latitude = 8; // 纬度
+  bool is_default = 9; // 是否默认地址
+  int32 sort = 10; // 排序值
+}
+
+// DeleteAddressRequest 删除常用地址请求。
+message DeleteAddressRequest {
+  uint64 id = 1; // 地址 ID
+  uint64 user_id = 2; // 用户 ID
+}
+
+// DeleteAddressResponse 删除常用地址响应。
+message DeleteAddressResponse {
+  bool success = 1; // 是否删除成功
+}
+

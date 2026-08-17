@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package driversvc;
+option go_package="./;proto";
+
+// DriverStatus 司机账号状态枚举。
+enum DriverStatus {
+  DRIVER_STATUS_UNSPECIFIED = 0;
+  DRIVER_STATUS_PENDING = 1;
+  DRIVER_STATUS_NORMAL = 2;
+  DRIVER_STATUS_FROZEN = 3;
+  DRIVER_STATUS_CANCELLED = 4;
+}
+
+// VehicleStatus 车辆状态枚举，对齐 driver_vehicle.status 字段。
+enum VehicleStatus {
+  VEHICLE_STATUS_UNSPECIFIED = 0;
+  VEHICLE_STATUS_PENDING = 1;
+  VEHICLE_STATUS_NORMAL = 2;
+  VEHICLE_STATUS_DISABLED = 3;
+}
+
+service Driversvc {
+  // 司机主表 CRUD（仅司机增删改查）
+  rpc CreateDriver(CreateDriverRequest) returns(CreateDriverResponse);
+  rpc UpdateDriver(UpdateDriverRequest) returns(UpdateDriverResponse);
+  rpc DeleteDriver(DeleteDriverRequest) returns(DeleteDriverResponse);
+  rpc GetDriver(GetDriverRequest) returns(GetDriverResponse);
+  // 车辆 CRUD（司机绑定车辆增删改查）
+  rpc CreateVehicle(CreateVehicleRequest) returns(CreateVehicleResponse);
+  rpc UpdateVehicle(UpdateVehicleRequest) returns(UpdateVehicleResponse);
+  rpc DeleteVehicle(DeleteVehicleRequest) returns(DeleteVehicleResponse);
+  rpc GetVehicle(GetVehicleRequest) returns(GetVehicleResponse);
+  // 审核通过司机资质。
+  rpc ApproveCertification(AuditCertificationRequest) returns(CommonResponse);
+  // 审核驳回司机资质。
+  rpc RejectCertification(AuditCertificationRequest) returns(CommonResponse);
+}
+
+// Driver 司机信息，对应 driver 表的完整记录。
+message Driver {
+  int64 id = 1;
+  string phone = 2;
+  string password_hash = 3;
+  string real_name = 4;
+  string id_card_no = 5;
+  string driver_license_no = 6;
+  string avatar_url = 7;
+  DriverStatus status = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+message CreateDriverRequest {
+  string phone = 1;
+  string password_hash = 2;
+  string real_name = 3;
+  string id_card_no = 4;
+  string driver_license_no = 5;
+  string avatar_url = 6;
+}
+
+message CreateDriverResponse {
+  int64 id = 1;
+  DriverStatus status = 2;
+  int64 created_at = 3;
+}
+
+message UpdateDriverRequest {
+  int64 id = 1;
+  optional string phone = 2;
+  optional string password_hash = 3;
+  optional string real_name = 4;
+  optional string id_card_no = 5;
+  optional string driver_license_no = 6;
+  optional string avatar_url = 7;
+  optional DriverStatus status = 8;
+}
+
+message UpdateDriverResponse {
+  int64 id = 1;
+  DriverStatus status = 2;
+  int64 updated_at = 3;
+}
+
+message DeleteDriverRequest {
+  int64 id = 1;
+}
+
+message DeleteDriverResponse {
+  int64 id = 1;
+  bool success = 2;
+}
+
+message GetDriverRequest {
+  int64 id = 1;
+}
+
+message GetDriverResponse {
+  Driver driver = 1;
+}
+
+// Vehicle 车辆信息，对应 driver_vehicle 表的完整记录。
+message Vehicle {
+  int64 id = 1;
+  int64 driver_id = 2;
+  string plate_no = 3;
+  string brand = 4;
+  string model = 5;
+  string color = 6;
+  int32 vehicle_type = 7;
+  optional int64 registration_date = 8;
+  string insurance_no = 9;
+  optional int64 insurance_expire_at = 10;
+  VehicleStatus status = 11;
+  int64 created_at = 12;
+  int64 updated_at = 13;
+}
+
+message CreateVehicleRequest {
+  int64 driver_id = 1;
+  string plate_no = 2;
+  string brand = 3;
+  string model = 4;
+  string color = 5;
+  int32 vehicle_type = 6;
+  optional int64 registration_date = 7;
+  string insurance_no = 8;
+  optional int64 insurance_expire_at = 9;
+}
+
+message CreateVehicleResponse {
+  int64 id = 1;
+  VehicleStatus status = 2;
+  int64 created_at = 3;
+}
+
+message UpdateVehicleRequest {
+  int64 id = 1;
+  optional int64 driver_id = 2;
+  optional string plate_no = 3;
+  optional string brand = 4;
+  optional string model = 5;
+  optional string color = 6;
+  optional int32 vehicle_type = 7;
+  optional int64 registration_date = 8;
+  optional string insurance_no = 9;
+  optional int64 insurance_expire_at = 10;
+  optional VehicleStatus status = 11;
+}
+
+message UpdateVehicleResponse {
+  int64 id = 1;
+  VehicleStatus status = 2;
+  int64 updated_at = 3;
+}
+
+message DeleteVehicleRequest {
+  int64 id = 1;
+}
+
+message DeleteVehicleResponse {
+  int64 id = 1;
+  bool success = 2;
+}
+
+message GetVehicleRequest {
+  int64 id = 1;
+}
+
+message GetVehicleResponse {
+  Vehicle vehicle = 1;
+}
+
+message AuditCertificationRequest {
+  int64 certification_id = 1;
+  string remark = 2;
+  int64 operator_id = 3;
+  string ip = 4;
+}
+
+message CommonResponse {
+  string message = 1;
+}

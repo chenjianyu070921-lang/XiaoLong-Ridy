@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package dispatchsvc;
+option go_package = "./;proto";
+
+// 派单服务：订单创建后为订单匹配候选司机并写入派单记录。
+service Dispatch {
+  // 对指定订单执行派单（P0 为 mock 直派），返回写入的派单记录。
+  rpc DispatchOrder(DispatchOrderRequest) returns (DispatchOrderResponse);
+  // 分页查询订单的派单记录。
+  rpc ListDispatchRecords(ListDispatchRecordsRequest) returns (ListDispatchRecordsResponse);
+}
+
+message DispatchOrderRequest {
+  int64 order_id = 1;
+  double from_longitude = 2;
+  double from_latitude = 3;
+  int32 car_type = 4;
+  string city_code = 5;
+}
+
+message DispatchOrderResponse {
+  int64 order_id = 1;
+  repeated DispatchRecord list = 2;
+}
+
+message DispatchRecord {
+  int64 id = 1;
+  int64 order_id = 2;
+  int64 driver_id = 3;
+  int32 dispatch_type = 4;
+  int32 status = 5;
+  double match_score = 6;
+  string remark = 7;
+  int64 created_at = 8;
+  int64 updated_at = 9;
+}
+
+message ListDispatchRecordsRequest {
+  int64 order_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListDispatchRecordsResponse {
+  repeated DispatchRecord list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}

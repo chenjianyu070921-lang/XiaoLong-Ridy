@@ -1,0 +1,82 @@
+package server
+
+import (
+	"context"
+
+	"XiaoLong-Ridy/rpc/usersvc/internal/logic"
+	"XiaoLong-Ridy/rpc/usersvc/internal/svc"
+	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
+)
+
+// UserServer 提供 usersvc 的 RPC 方法入口，保持与 goctl 生成 server 层一致的轻量转发职责。
+type UserServer struct {
+	svcCtx *svc.ServiceContext
+	userproto.UnimplementedUserServer
+}
+
+// NewUserServer 创建用户服务 RPC 入口实例。
+func NewUserServer(svcCtx *svc.ServiceContext) *UserServer {
+	return &UserServer{
+		svcCtx: svcCtx,
+	}
+}
+
+// SendSMSCode 转发发送短信验证码请求到对应 logic。
+func (s *UserServer) SendSMSCode(ctx context.Context, req *userproto.SendSMSCodeRequest) (*userproto.SendSMSCodeResponse, error) {
+	l := logic.NewSendSMSCodeLogic(ctx, s.svcCtx)
+	return l.SendSMSCode(req)
+}
+
+// LoginBySMS 转发短信登录请求到对应 logic。
+func (s *UserServer) LoginBySMS(ctx context.Context, req *userproto.LoginBySMSRequest) (*userproto.LoginBySMSResponse, error) {
+	l := logic.NewLoginBySMSLogic(ctx, s.svcCtx)
+	return l.LoginBySMS(req)
+}
+
+// RefreshToken 转发刷新令牌请求到对应 logic。
+func (s *UserServer) RefreshToken(ctx context.Context, req *userproto.RefreshTokenRequest) (*userproto.RefreshTokenResponse, error) {
+	l := logic.NewRefreshTokenLogic(ctx, s.svcCtx)
+	return l.RefreshToken(req)
+}
+
+// Logout 转发退出登录请求到对应 logic。
+func (s *UserServer) Logout(ctx context.Context, req *userproto.LogoutRequest) (*userproto.LogoutResponse, error) {
+	l := logic.NewLogoutLogic(ctx, s.svcCtx)
+	return l.Logout(req)
+}
+
+// GetProfile 转发个人中心资料查询请求到对应 logic。
+func (s *UserServer) GetProfile(ctx context.Context, req *userproto.GetProfileRequest) (*userproto.GetProfileResponse, error) {
+	l := logic.NewGetProfileLogic(ctx, s.svcCtx)
+	return l.GetProfile(req)
+}
+
+// SubmitRealName 转发实名资料提交请求到对应 logic。
+func (s *UserServer) SubmitRealName(ctx context.Context, req *userproto.SubmitRealNameRequest) (*userproto.SubmitRealNameResponse, error) {
+	l := logic.NewSubmitRealNameLogic(ctx, s.svcCtx)
+	return l.SubmitRealName(req)
+}
+
+// CreateAddress 转发新增常用地址请求到对应 logic。
+func (s *UserServer) CreateAddress(ctx context.Context, req *userproto.CreateAddressRequest) (*userproto.AddressInfo, error) {
+	l := logic.NewCreateAddressLogic(ctx, s.svcCtx)
+	return l.CreateAddress(req)
+}
+
+// ListAddresses 转发查询常用地址列表请求到对应 logic。
+func (s *UserServer) ListAddresses(ctx context.Context, req *userproto.ListAddressesRequest) (*userproto.ListAddressesResponse, error) {
+	l := logic.NewListAddressesLogic(ctx, s.svcCtx)
+	return l.ListAddresses(req)
+}
+
+// UpdateAddress 转发更新常用地址请求到对应 logic。
+func (s *UserServer) UpdateAddress(ctx context.Context, req *userproto.UpdateAddressRequest) (*userproto.AddressInfo, error) {
+	l := logic.NewUpdateAddressLogic(ctx, s.svcCtx)
+	return l.UpdateAddress(req)
+}
+
+// DeleteAddress 转发删除常用地址请求到对应 logic。
+func (s *UserServer) DeleteAddress(ctx context.Context, req *userproto.DeleteAddressRequest) (*userproto.DeleteAddressResponse, error) {
+	l := logic.NewDeleteAddressLogic(ctx, s.svcCtx)
+	return l.DeleteAddress(req)
+}
