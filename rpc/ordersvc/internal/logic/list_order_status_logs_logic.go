@@ -15,6 +15,7 @@ type ListOrderStatusLogsLogic struct {
 	logx.Logger
 }
 
+// NewListOrderStatusLogsLogic 创建状态日志列表逻辑对象。
 func NewListOrderStatusLogsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListOrderStatusLogsLogic {
 	return &ListOrderStatusLogsLogic{
 		ctx:    ctx,
@@ -23,8 +24,37 @@ func NewListOrderStatusLogsLogic(ctx context.Context, svcCtx *svc.ServiceContext
 	}
 }
 
+// ListOrderStatusLogs 分页查询订单状态日志。
 func (l *ListOrderStatusLogsLogic) ListOrderStatusLogs(in *proto.ListOrderStatusLogsRequest) (*proto.ListOrderStatusLogsResponse, error) {
-	// todo: add your logic here and delete this line
+	if in.OrderId <= 0 {
+		return nil, ErrInvalidOrderParams
+	}
+	page := normalizePage(in.Page)
+	pageSize := normalizePageSize(in.PageSize)
 
-	return &proto.ListOrderStatusLogsResponse{}, nil
+	list, total, err := l.svcCtx.OrderRepository.ListStatusLogs(l.ctx, uint64(in.OrderId), page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]*proto.OrderStatusLog, 0, len(list))
+	for i := range list {
+		item := list[i]
+		items = append(items, &proto.OrderStatusLog{
+			Id:           int64(item.Id),
+			OrderId:      int64(item.OrderId),
+			FromStatus:   int32(item.FromStatus),
+			ToStatus:     int32(item.ToStatus),
+			OperatorType: item.OperatorType,
+			OperatorId:   int64(item.OperatorId),
+			Remark:       item.Remark,
+			CreatedAt:    item.CreatedAt.Unix(),
+		})
+	}
+
+	return &proto.ListOrderStatusLogsResponse{
+		List:     items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
 }

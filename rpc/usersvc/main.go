@@ -1,24 +1,58 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
-	"XiaoLong-Ridy/rpc/usersvc/client"
+	"XiaoLong-Ridy/rpc/usersvc/internal/config"
+	"XiaoLong-Ridy/rpc/usersvc/internal/logic"
+	"XiaoLong-Ridy/rpc/usersvc/internal/repository"
+	"XiaoLong-Ridy/rpc/usersvc/internal/server"
+	"XiaoLong-Ridy/rpc/usersvc/internal/svc"
+	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
+
+	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/service"
+	"github.com/zeromicro/go-zero/zrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
-// main 是 usersvc 的开发期启动入口。
-// 当前 HTTP 网关通过本地 client 访问 usersvc；接入 gRPC 后可将此处替换为 RPC Server。
+var configFile = flag.String("f", "etc/usersvc.yaml", "the config file")
+
+// main 是 usersvc 的 go-zero RPC 启动入口，负责加载配置、组装依赖并注册 gRPC 服务。
 func main() {
-	_ = client.NewLocalClient("local-development-signing-key", func(phone, code string) {
+	flag.Parse()
+
+	var c config.Config
+	conf.MustLoad(*configFile, &c)
+	ctx := newServiceContext(c)
+
+	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+		userproto.RegisterUserServer(grpcServer, server.NewUserServer(ctx))
+
+		if c.Mode == service.DevMode || c.Mode == service.TestMode {
+			reflection.Register(grpcServer)
+		}
+	})
+	defer s.Stop()
+
+	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
+	s.Start()
+}
+
+// newServiceContext 创建 usersvc 运行时依赖；当前阶段使用内存用户仓储和本地短信验证码服务。
+func newServiceContext(c config.Config) *svc.ServiceContext {
+	signingKey := c.TokenAuth.SigningKey
+	if signingKey == "" {
+		signingKey = "local-development-signing-key"
+	}
+
+	users := repository.NewMemoryUserRepository()
+	smsService := logic.NewMemorySMSCodeService(func(phone, code string) {
 		log.Printf("本地短信验证码：phone=%s code=%s", phone, code)
 	})
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	log.Println("usersvc started, waiting for gRPC transport integration...")
-	<-stop
-	log.Println("usersvc stopped")
+	tokens := logic.NewTokenManager(signingKey)
+	return svc.NewServiceContext(c, users, smsService, smsService, tokens)
 }

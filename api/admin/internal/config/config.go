@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/zeromicro/go-zero/zrpc"
 )
 
 // Config 定义管理后台 HTTP 服务、MySQL、Redis 和鉴权相关的完整配置。
 type Config struct {
-	HTTPAddr string      `json:"http_addr"`
-	MySQL    MySQLConfig `json:"mysql"`
-	Redis    RedisConfig `json:"redis"`
-	Auth     AuthConfig  `json:"auth"`
+	HTTPAddr string             `json:"http_addr"`
+	MySQL    MySQLConfig        `json:"mysql"`
+	Redis    RedisConfig        `json:"redis"`
+	Auth     AuthConfig         `json:"auth"`
+	AdminRPC zrpc.RpcClientConf `json:"admin_rpc"`
 }
 
 // MySQLConfig 定义 MySQL 数据源连接字符串。
@@ -52,6 +55,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Auth.TokenPrefix == "" {
 		cfg.Auth.TokenPrefix = "admin:sess:"
+	}
+	if len(cfg.AdminRPC.Endpoints) == 0 && cfg.AdminRPC.Target == "" {
+		cfg.AdminRPC.Target = "127.0.0.1:8080"
 	}
 	return &cfg, nil
 }

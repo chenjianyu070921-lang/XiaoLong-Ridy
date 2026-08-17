@@ -25,6 +25,51 @@ func NewOrderRepository(db *sql.DB) *OrderRepository {
 	return &OrderRepository{db: db}
 }
 
+// ListAbnormal 查询后台异常订单列表。
+// 异常来源包含订单取消、支付失败或退款、派单拒绝/超时/取消等信号，接口只做查询不修改订单状态。
+func (r *OrderRepository) ListAbnormal(ctx context.Context, req types.AbnormalOrderListRequest) ([]types.AbnormalOrderDTO, int64, error) {
+	where, args := buildAbnormalOrderWhere(req)
+	countSQL := `
+		SELECT COUNT(1)
+		FROM ride_order o
+	` + where
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	offset := normalizeOffset(req.Page, req.PageSize)
+	limit := normalizePageSize(req.PageSize)
+	queryArgs := append(args, limit, offset)
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT o.id, o.order_no, o.user_id, o.driver_id, o.car_type, o.from_address,
+		       CAST(o.from_longitude AS CHAR), CAST(o.from_latitude AS CHAR), o.to_address,
+		       CAST(o.to_longitude AS CHAR), CAST(o.to_latitude AS CHAR),
+		       o.estimated_distance_m, o.estimated_duration_s, CAST(o.estimated_price AS CHAR),
+		       o.status, o.cancel_reason, o.cancel_by, o.created_at, o.updated_at, o.deleted_at,
+		       COALESCE((SELECT MAX(p.status) FROM payment p WHERE p.order_id = o.id), 0) AS payment_status,
+		       COALESCE((SELECT MAX(d.status) FROM dispatch_record d WHERE d.order_id = o.id), 0) AS dispatch_status
+		FROM ride_order o
+	`+where+`
+		ORDER BY o.id DESC
+		LIMIT ? OFFSET ?
+	`, queryArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	list := make([]types.AbnormalOrderDTO, 0)
+	for rows.Next() {
+		item, err := scanAbnormalOrderRows(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		list = append(list, *item)
+	}
+	return list, total, rows.Err()
+}
+
 // List 查询订单列表。
 func (r *OrderRepository) List(ctx context.Context, req types.OrderListRequest) ([]model.RideOrder, int64, error) {
 	where, args := buildOrderWhere(req)
@@ -244,6 +289,50 @@ func buildOrderWhere(req types.OrderListRequest) (string, []any) {
 	return "WHERE " + strings.Join(parts, " AND "), args
 }
 
+// buildAbnormalOrderWhere 组装异常订单查询条件。
+// 为避免重复 JOIN 导致行数膨胀，查询结果会在 ListAbnormal 中按订单 ID 聚合。
+func buildAbnormalOrderWhere(req types.AbnormalOrderListRequest) (string, []any) {
+	parts := []string{"o.deleted_at IS NULL"}
+	args := make([]any, 0)
+
+	switch req.AbnormalType {
+	case "cancel":
+		parts = append(parts, "(o.status = 6 OR o.cancel_reason <> '')")
+	case "payment":
+		parts = append(parts, "EXISTS (SELECT 1 FROM payment p WHERE p.order_id = o.id AND p.status IN (3, 4))")
+	case "dispatch":
+		parts = append(parts, "EXISTS (SELECT 1 FROM dispatch_record d WHERE d.order_id = o.id AND d.status IN (3, 4, 5))")
+	default:
+		parts = append(parts, `(
+			(o.status = 6 OR o.cancel_reason <> '')
+			OR EXISTS (SELECT 1 FROM payment p WHERE p.order_id = o.id AND p.status IN (3, 4))
+			OR EXISTS (SELECT 1 FROM dispatch_record d WHERE d.order_id = o.id AND d.status IN (3, 4, 5))
+		)`)
+	}
+
+	if req.Keyword != "" {
+		parts = append(parts, "o.order_no LIKE ?")
+		args = append(args, "%"+req.Keyword+"%")
+	}
+	if req.UserID > 0 {
+		parts = append(parts, "o.user_id = ?")
+		args = append(args, req.UserID)
+	}
+	if req.DriverID > 0 {
+		parts = append(parts, "o.driver_id = ?")
+		args = append(args, req.DriverID)
+	}
+	if req.StartTime != "" {
+		parts = append(parts, "o.created_at >= ?")
+		args = append(args, req.StartTime)
+	}
+	if req.EndTime != "" {
+		parts = append(parts, "o.created_at <= ?")
+		args = append(args, req.EndTime)
+	}
+	return "WHERE " + strings.Join(parts, " AND "), args
+}
+
 // scanOrderRows 从订单列表查询结果中扫描订单模型。
 func scanOrderRows(rows *sql.Rows) (*model.RideOrder, error) {
 	var item model.RideOrder
@@ -261,4 +350,95 @@ func scanOrderRows(rows *sql.Rows) (*model.RideOrder, error) {
 		item.DeletedAt = &deletedAt.Time
 	}
 	return &item, nil
+}
+
+// scanAbnormalOrderRows 扫描异常订单聚合查询结果。
+// 该函数会补充异常类型和原因，前端可直接展示到异常订单列表。
+func scanAbnormalOrderRows(rows *sql.Rows) (*types.AbnormalOrderDTO, error) {
+	order, paymentStatus, dispatchStatus, err := scanOrderWithStatuses(rows)
+	if err != nil {
+		return nil, err
+	}
+	dto := types.AbnormalOrderDTO{
+		OrderDTO:       orderToDTO(order),
+		PaymentStatus:  paymentStatus,
+		DispatchStatus: dispatchStatus,
+	}
+	dto.AbnormalType, dto.AbnormalReason = resolveAbnormalReason(order, paymentStatus, dispatchStatus)
+	return &dto, nil
+}
+
+// scanOrderWithStatuses 扫描订单基础字段以及支付、派单状态。
+// 该函数只服务异常订单聚合查询，避免影响原有订单列表扫描逻辑。
+func scanOrderWithStatuses(rows *sql.Rows) (model.RideOrder, int32, int32, error) {
+	var item model.RideOrder
+	var deletedAt sql.NullTime
+	var paymentStatus, dispatchStatus int32
+	err := rows.Scan(
+		&item.ID, &item.OrderNo, &item.UserID, &item.DriverID, &item.CarType, &item.FromAddress,
+		&item.FromLongitude, &item.FromLatitude, &item.ToAddress, &item.ToLongitude, &item.ToLatitude,
+		&item.EstimatedDistanceM, &item.EstimatedDurationS, &item.EstimatedPrice,
+		&item.Status, &item.CancelReason, &item.CancelBy, &item.CreatedAt, &item.UpdatedAt, &deletedAt,
+		&paymentStatus, &dispatchStatus,
+	)
+	if err != nil {
+		return item, 0, 0, fmt.Errorf("scan abnormal order row: %w", err)
+	}
+	if deletedAt.Valid {
+		item.DeletedAt = &deletedAt.Time
+	}
+	return item, paymentStatus, dispatchStatus, nil
+}
+
+// orderToDTO 将订单模型转换为异常订单接口内嵌的 DTO。
+// 这里放在 repository 内部用于避免与 logic 包形成循环依赖。
+func orderToDTO(order model.RideOrder) types.OrderDTO {
+	return types.OrderDTO{
+		ID:                 order.ID,
+		OrderNo:            order.OrderNo,
+		UserID:             order.UserID,
+		DriverID:           order.DriverID,
+		CarType:            order.CarType,
+		FromAddress:        order.FromAddress,
+		FromLongitude:      order.FromLongitude,
+		FromLatitude:       order.FromLatitude,
+		ToAddress:          order.ToAddress,
+		ToLongitude:        order.ToLongitude,
+		ToLatitude:         order.ToLatitude,
+		EstimatedDistanceM: order.EstimatedDistanceM,
+		EstimatedDurationS: order.EstimatedDurationS,
+		EstimatedPrice:     order.EstimatedPrice,
+		Status:             order.Status,
+		CancelReason:       order.CancelReason,
+		CancelBy:           order.CancelBy,
+		CreatedAt:          FormatTime(order.CreatedAt),
+		UpdatedAt:          FormatTime(order.UpdatedAt),
+	}
+}
+
+// resolveAbnormalReason 根据订单、支付和派单状态推导异常类型与原因。
+// 推导优先级为取消 > 支付 > 派单，保证一个订单在列表中只有一个主异常标签。
+func resolveAbnormalReason(order model.RideOrder, paymentStatus, dispatchStatus int32) (string, string) {
+	if order.Status == 6 || order.CancelReason != "" {
+		if order.CancelReason != "" {
+			return "cancel", order.CancelReason
+		}
+		return "cancel", "订单已取消"
+	}
+	if paymentStatus == 3 {
+		return "payment", "支付失败"
+	}
+	if paymentStatus == 4 {
+		return "payment", "订单存在退款记录"
+	}
+	if dispatchStatus == 3 {
+		return "dispatch", "司机拒绝接单"
+	}
+	if dispatchStatus == 4 {
+		return "dispatch", "派单超时"
+	}
+	if dispatchStatus == 5 {
+		return "dispatch", "派单已取消"
+	}
+	return "unknown", "未知异常"
 }

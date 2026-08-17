@@ -8,9 +8,11 @@ import (
 
 	"XiaoLong-Ridy/api/admin/internal/config"
 	"XiaoLong-Ridy/api/admin/internal/repository"
+	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/zrpc"
 )
 
 // ServiceContext 是管理后台服务的依赖容器。
@@ -19,12 +21,15 @@ type ServiceContext struct {
 	Config                 *config.Config
 	MySQL                  *sql.DB
 	Redis                  *redis.Client
+	AdminSvc               adminclient.AdminService
+	AdminRPCClient         zrpc.Client
 	AdminRepository        *repository.AdminRepository
 	SessionRepository      *repository.SessionRepository
 	OperationLogRepository *repository.OperationLogRepository
 	UserRepository         *repository.UserRepository
 	DriverRepository       *repository.DriverRepository
 	OrderRepository        *repository.OrderRepository
+	CouponRepository       *repository.CouponRepository
 }
 
 // NewServiceContext 初始化服务依赖。
@@ -59,17 +64,26 @@ func NewServiceContext(cfg *config.Config) (*ServiceContext, error) {
 	sessionTTL := time.Duration(cfg.Auth.SessionTTLHours) * time.Hour
 	adminRepo := repository.NewAdminRepository(db)
 	sessionRepo := repository.NewSessionRepository(redisClient, cfg.Auth.TokenPrefix, sessionTTL)
+	adminRPCClient, adminSvc, err := newAdminRPCClient(cfg.AdminRPC)
+	if err != nil {
+		_ = db.Close()
+		_ = redisClient.Close()
+		return nil, err
+	}
 
 	return &ServiceContext{
 		Config:                 cfg,
 		MySQL:                  db,
 		Redis:                  redisClient,
+		AdminSvc:               adminSvc,
+		AdminRPCClient:         adminRPCClient,
 		AdminRepository:        adminRepo,
 		SessionRepository:      sessionRepo,
 		OperationLogRepository: repository.NewOperationLogRepository(db),
 		UserRepository:         repository.NewUserRepository(db),
 		DriverRepository:       repository.NewDriverRepository(db),
 		OrderRepository:        repository.NewOrderRepository(db),
+		CouponRepository:       repository.NewCouponRepository(db),
 	}, nil
 }
 
@@ -82,4 +96,17 @@ func (s *ServiceContext) Close() {
 	if s.MySQL != nil {
 		_ = s.MySQL.Close()
 	}
+}
+
+// newAdminRPCClient 按配置初始化 adminsvc 的 gRPC 客户端。
+// HTTP 网关只负责鉴权和参数转换，真正的业务操作通过该客户端下沉到 adminsvc。
+func newAdminRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, adminclient.AdminService, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:8080"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("new admin rpc client: %w", err)
+	}
+	return client, adminclient.NewAdminService(client), nil
 }
