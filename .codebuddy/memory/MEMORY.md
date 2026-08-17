@@ -37,3 +37,6 @@
 - Windows，PowerShell。python 只有 WindowsApps stub（不可用），无 pandoc，无 py launcher
 - 读取 docx 需用 PowerShell + .NET ZipFile 解压 word/document.xml（注意 GBK 编码坑）
 - 中文路径在 PS 脚本里易乱码，需用 [System.IO.Directory] 枚举
+
+## 用户偏好（必须遵守）
+- **代码提交**：AI 完成工作后**不要自动 git commit / push**，提交动作由用户自己完成。AI 只写代码 + 编译 + 跑测试验证。（2026-08-14 明确要求）
