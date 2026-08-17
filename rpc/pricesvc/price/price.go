@@ -14,18 +14,22 @@ import (
 )
 
 type (
-	CalculateDiscountRequest  = proto.CalculateDiscountRequest
-	CalculateDiscountResponse = proto.CalculateDiscountResponse
-	Coupon                    = proto.Coupon
-	EstimatePriceRequest      = proto.EstimatePriceRequest
-	EstimatePriceResponse     = proto.EstimatePriceResponse
-	PriceDetail               = proto.PriceDetail
+	CalculateDiscountRequest     = proto.CalculateDiscountRequest
+	CalculateDiscountResponse    = proto.CalculateDiscountResponse
+	Coupon                       = proto.Coupon
+	EstimatePriceRequest         = proto.EstimatePriceRequest
+	EstimatePriceResponse        = proto.EstimatePriceResponse
+	PriceDetail                  = proto.PriceDetail
+	SaveActualOrderPriceRequest  = proto.SaveActualOrderPriceRequest
+	SaveActualOrderPriceResponse = proto.SaveActualOrderPriceResponse
 
 	Price interface {
 		// 行程价格预估：根据计价规则 + 里程/时长估算费用。
 		EstimatePrice(ctx context.Context, in *EstimatePriceRequest, opts ...grpc.CallOption) (*EstimatePriceResponse, error)
 		// 优惠券抵扣计算：根据优惠券计算折扣与实付金额。
 		CalculateDiscount(ctx context.Context, in *CalculateDiscountRequest, opts ...grpc.CallOption) (*CalculateDiscountResponse, error)
+		// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
+		SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error)
 	}
 
 	defaultPrice struct {
@@ -49,4 +53,10 @@ func (m *defaultPrice) EstimatePrice(ctx context.Context, in *EstimatePriceReque
 func (m *defaultPrice) CalculateDiscount(ctx context.Context, in *CalculateDiscountRequest, opts ...grpc.CallOption) (*CalculateDiscountResponse, error) {
 	client := proto.NewPriceClient(m.cli.Conn())
 	return client.CalculateDiscount(ctx, in, opts...)
+}
+
+// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
+func (m *defaultPrice) SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error) {
+	client := proto.NewPriceClient(m.cli.Conn())
+	return client.SaveActualOrderPrice(ctx, in, opts...)
 }

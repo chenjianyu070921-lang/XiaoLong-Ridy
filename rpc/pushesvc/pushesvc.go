@@ -28,8 +28,6 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
-	ctx := svc.NewServiceContext(c)
-
 	// 连接 MySQL
 	mysqlDB, err := datasource.NewMysqlClient(c.Mysql)
 	if err != nil {
@@ -43,6 +41,9 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("MySQL 连接成功")
+
+	// 注入数据库
+	ctx := svc.NewServiceContext(c, mysqlDB)
 
 	// 连接 Redis
 	if err := datasource.NewRedisClient(c.RedisConf).Ping(context.Background()).Err(); err != nil {

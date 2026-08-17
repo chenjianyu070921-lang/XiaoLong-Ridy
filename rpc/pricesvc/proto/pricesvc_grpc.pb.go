@@ -19,20 +19,23 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Price_EstimatePrice_FullMethodName     = "/pricesvc.Price/EstimatePrice"
-	Price_CalculateDiscount_FullMethodName = "/pricesvc.Price/CalculateDiscount"
+	Price_EstimatePrice_FullMethodName        = "/pricesvc.Price/EstimatePrice"
+	Price_CalculateDiscount_FullMethodName    = "/pricesvc.Price/CalculateDiscount"
+	Price_SaveActualOrderPrice_FullMethodName = "/pricesvc.Price/SaveActualOrderPrice"
 )
 
 // PriceClient is the client API for Price service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// 计价服务：行程价格预估与优惠抵扣。
+// 计价服务：行程价格预估、优惠抵扣与实际费用落库。
 type PriceClient interface {
 	// 行程价格预估：根据计价规则 + 里程/时长估算费用。
 	EstimatePrice(ctx context.Context, in *EstimatePriceRequest, opts ...grpc.CallOption) (*EstimatePriceResponse, error)
 	// 优惠券抵扣计算：根据优惠券计算折扣与实付金额。
 	CalculateDiscount(ctx context.Context, in *CalculateDiscountRequest, opts ...grpc.CallOption) (*CalculateDiscountResponse, error)
+	// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
+	SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error)
 }
 
 type priceClient struct {
@@ -63,16 +66,28 @@ func (c *priceClient) CalculateDiscount(ctx context.Context, in *CalculateDiscou
 	return out, nil
 }
 
+func (c *priceClient) SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SaveActualOrderPriceResponse)
+	err := c.cc.Invoke(ctx, Price_SaveActualOrderPrice_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PriceServer is the server API for Price service.
 // All implementations must embed UnimplementedPriceServer
 // for forward compatibility.
 //
-// 计价服务：行程价格预估与优惠抵扣。
+// 计价服务：行程价格预估、优惠抵扣与实际费用落库。
 type PriceServer interface {
 	// 行程价格预估：根据计价规则 + 里程/时长估算费用。
 	EstimatePrice(context.Context, *EstimatePriceRequest) (*EstimatePriceResponse, error)
 	// 优惠券抵扣计算：根据优惠券计算折扣与实付金额。
 	CalculateDiscount(context.Context, *CalculateDiscountRequest) (*CalculateDiscountResponse, error)
+	// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
+	SaveActualOrderPrice(context.Context, *SaveActualOrderPriceRequest) (*SaveActualOrderPriceResponse, error)
 	mustEmbedUnimplementedPriceServer()
 }
 
@@ -88,6 +103,9 @@ func (UnimplementedPriceServer) EstimatePrice(context.Context, *EstimatePriceReq
 }
 func (UnimplementedPriceServer) CalculateDiscount(context.Context, *CalculateDiscountRequest) (*CalculateDiscountResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CalculateDiscount not implemented")
+}
+func (UnimplementedPriceServer) SaveActualOrderPrice(context.Context, *SaveActualOrderPriceRequest) (*SaveActualOrderPriceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SaveActualOrderPrice not implemented")
 }
 func (UnimplementedPriceServer) mustEmbedUnimplementedPriceServer() {}
 func (UnimplementedPriceServer) testEmbeddedByValue()               {}
@@ -146,6 +164,24 @@ func _Price_CalculateDiscount_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Price_SaveActualOrderPrice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SaveActualOrderPriceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PriceServer).SaveActualOrderPrice(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Price_SaveActualOrderPrice_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PriceServer).SaveActualOrderPrice(ctx, req.(*SaveActualOrderPriceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Price_ServiceDesc is the grpc.ServiceDesc for Price service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -160,6 +196,10 @@ var Price_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CalculateDiscount",
 			Handler:    _Price_CalculateDiscount_Handler,
+		},
+		{
+			MethodName: "SaveActualOrderPrice",
+			Handler:    _Price_SaveActualOrderPrice_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

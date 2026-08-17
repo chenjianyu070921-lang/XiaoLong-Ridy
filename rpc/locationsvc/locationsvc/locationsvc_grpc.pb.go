@@ -22,6 +22,8 @@ const (
 	LocationService_ReverseGeocode_FullMethodName = "/locationsvc.LocationService/ReverseGeocode"
 	LocationService_POISearch_FullMethodName      = "/locationsvc.LocationService/POISearch"
 	LocationService_RoutePlan_FullMethodName      = "/locationsvc.LocationService/RoutePlan"
+	LocationService_ReportLocation_FullMethodName = "/locationsvc.LocationService/ReportLocation"
+	LocationService_NearbyDrivers_FullMethodName  = "/locationsvc.LocationService/NearbyDrivers"
 )
 
 // LocationServiceClient is the client API for LocationService service.
@@ -36,6 +38,10 @@ type LocationServiceClient interface {
 	POISearch(ctx context.Context, in *POISearchReq, opts ...grpc.CallOption) (*POISearchResp, error)
 	// 路径规划（计算距离和预计时间）
 	RoutePlan(ctx context.Context, in *RoutePlanReq, opts ...grpc.CallOption) (*RoutePlanResp, error)
+	// 司机位置上报
+	ReportLocation(ctx context.Context, in *ReportLocationReq, opts ...grpc.CallOption) (*ReportLocationResp, error)
+	// 附近司机查询
+	NearbyDrivers(ctx context.Context, in *NearbyDriversReq, opts ...grpc.CallOption) (*NearbyDriversResp, error)
 }
 
 type locationServiceClient struct {
@@ -76,6 +82,26 @@ func (c *locationServiceClient) RoutePlan(ctx context.Context, in *RoutePlanReq,
 	return out, nil
 }
 
+func (c *locationServiceClient) ReportLocation(ctx context.Context, in *ReportLocationReq, opts ...grpc.CallOption) (*ReportLocationResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReportLocationResp)
+	err := c.cc.Invoke(ctx, LocationService_ReportLocation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *locationServiceClient) NearbyDrivers(ctx context.Context, in *NearbyDriversReq, opts ...grpc.CallOption) (*NearbyDriversResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NearbyDriversResp)
+	err := c.cc.Invoke(ctx, LocationService_NearbyDrivers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LocationServiceServer is the server API for LocationService service.
 // All implementations must embed UnimplementedLocationServiceServer
 // for forward compatibility
@@ -88,6 +114,10 @@ type LocationServiceServer interface {
 	POISearch(context.Context, *POISearchReq) (*POISearchResp, error)
 	// 路径规划（计算距离和预计时间）
 	RoutePlan(context.Context, *RoutePlanReq) (*RoutePlanResp, error)
+	// 司机位置上报
+	ReportLocation(context.Context, *ReportLocationReq) (*ReportLocationResp, error)
+	// 附近司机查询
+	NearbyDrivers(context.Context, *NearbyDriversReq) (*NearbyDriversResp, error)
 	mustEmbedUnimplementedLocationServiceServer()
 }
 
@@ -103,6 +133,12 @@ func (UnimplementedLocationServiceServer) POISearch(context.Context, *POISearchR
 }
 func (UnimplementedLocationServiceServer) RoutePlan(context.Context, *RoutePlanReq) (*RoutePlanResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RoutePlan not implemented")
+}
+func (UnimplementedLocationServiceServer) ReportLocation(context.Context, *ReportLocationReq) (*ReportLocationResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReportLocation not implemented")
+}
+func (UnimplementedLocationServiceServer) NearbyDrivers(context.Context, *NearbyDriversReq) (*NearbyDriversResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NearbyDrivers not implemented")
 }
 func (UnimplementedLocationServiceServer) mustEmbedUnimplementedLocationServiceServer() {}
 
@@ -171,6 +207,42 @@ func _LocationService_RoutePlan_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LocationService_ReportLocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportLocationReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LocationServiceServer).ReportLocation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LocationService_ReportLocation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LocationServiceServer).ReportLocation(ctx, req.(*ReportLocationReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LocationService_NearbyDrivers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NearbyDriversReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LocationServiceServer).NearbyDrivers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LocationService_NearbyDrivers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LocationServiceServer).NearbyDrivers(ctx, req.(*NearbyDriversReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LocationService_ServiceDesc is the grpc.ServiceDesc for LocationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -189,6 +261,14 @@ var LocationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RoutePlan",
 			Handler:    _LocationService_RoutePlan_Handler,
+		},
+		{
+			MethodName: "ReportLocation",
+			Handler:    _LocationService_ReportLocation_Handler,
+		},
+		{
+			MethodName: "NearbyDrivers",
+			Handler:    _LocationService_NearbyDrivers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

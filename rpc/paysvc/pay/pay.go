@@ -16,10 +16,26 @@ import (
 type (
 	CreatePaymentRequest  = proto.CreatePaymentRequest
 	CreatePaymentResponse = proto.CreatePaymentResponse
+	GetPaymentRequest     = proto.GetPaymentRequest
+	GetPaymentResponse    = proto.GetPaymentResponse
+	NotifyPaymentRequest  = proto.NotifyPaymentRequest
+	NotifyPaymentResponse = proto.NotifyPaymentResponse
+	RefundPaymentRequest  = proto.RefundPaymentRequest
+	RefundPaymentResponse = proto.RefundPaymentResponse
+	SettleOrderRequest    = proto.SettleOrderRequest
+	SettleOrderResponse   = proto.SettleOrderResponse
 
 	Pay interface {
 		// 支付预下单：创建支付单并调第三方下单（本期为 mock）。
 		CreatePayment(ctx context.Context, in *CreatePaymentRequest, opts ...grpc.CallOption) (*CreatePaymentResponse, error)
+		// 支付回调：处理第三方支付结果通知（验签 + 更新状态）。
+		NotifyPayment(ctx context.Context, in *NotifyPaymentRequest, opts ...grpc.CallOption) (*NotifyPaymentResponse, error)
+		// 支付查询：按支付单号或订单ID查询支付状态。
+		GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...grpc.CallOption) (*GetPaymentResponse, error)
+		// 退款：退款并回写支付单。
+		RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error)
+		// 司机结算：计算平台抽成与司机实收。
+		SettleOrder(ctx context.Context, in *SettleOrderRequest, opts ...grpc.CallOption) (*SettleOrderResponse, error)
 	}
 
 	defaultPay struct {
@@ -37,4 +53,28 @@ func NewPay(cli zrpc.Client) Pay {
 func (m *defaultPay) CreatePayment(ctx context.Context, in *CreatePaymentRequest, opts ...grpc.CallOption) (*CreatePaymentResponse, error) {
 	client := proto.NewPayClient(m.cli.Conn())
 	return client.CreatePayment(ctx, in, opts...)
+}
+
+// 支付回调：处理第三方支付结果通知（验签 + 更新状态）。
+func (m *defaultPay) NotifyPayment(ctx context.Context, in *NotifyPaymentRequest, opts ...grpc.CallOption) (*NotifyPaymentResponse, error) {
+	client := proto.NewPayClient(m.cli.Conn())
+	return client.NotifyPayment(ctx, in, opts...)
+}
+
+// 支付查询：按支付单号或订单ID查询支付状态。
+func (m *defaultPay) GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...grpc.CallOption) (*GetPaymentResponse, error) {
+	client := proto.NewPayClient(m.cli.Conn())
+	return client.GetPayment(ctx, in, opts...)
+}
+
+// 退款：退款并回写支付单。
+func (m *defaultPay) RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error) {
+	client := proto.NewPayClient(m.cli.Conn())
+	return client.RefundPayment(ctx, in, opts...)
+}
+
+// 司机结算：计算平台抽成与司机实收。
+func (m *defaultPay) SettleOrder(ctx context.Context, in *SettleOrderRequest, opts ...grpc.CallOption) (*SettleOrderResponse, error) {
+	client := proto.NewPayClient(m.cli.Conn())
+	return client.SettleOrder(ctx, in, opts...)
 }

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v3.19.4
-// source: admin.proto
+// source: rpc/adminsvc/admin.proto
 
 package adminsvc
 
@@ -41,6 +41,22 @@ const (
 	AdminService_CreateCoupon_FullMethodName               = "/adminsvc.AdminService/CreateCoupon"
 	AdminService_UpdateCoupon_FullMethodName               = "/adminsvc.AdminService/UpdateCoupon"
 	AdminService_DisableCoupon_FullMethodName              = "/adminsvc.AdminService/DisableCoupon"
+	AdminService_IssueCoupon_FullMethodName                = "/adminsvc.AdminService/IssueCoupon"
+	AdminService_ListCouponIssueTasks_FullMethodName       = "/adminsvc.AdminService/ListCouponIssueTasks"
+	AdminService_ListPromotionActivities_FullMethodName    = "/adminsvc.AdminService/ListPromotionActivities"
+	AdminService_CreatePromotionActivity_FullMethodName    = "/adminsvc.AdminService/CreatePromotionActivity"
+	AdminService_UpdatePromotionActivity_FullMethodName    = "/adminsvc.AdminService/UpdatePromotionActivity"
+	AdminService_PublishPromotionActivity_FullMethodName   = "/adminsvc.AdminService/PublishPromotionActivity"
+	AdminService_RollbackPromotionActivity_FullMethodName  = "/adminsvc.AdminService/RollbackPromotionActivity"
+	AdminService_GetStatisticsOverview_FullMethodName      = "/adminsvc.AdminService/GetStatisticsOverview"
+	AdminService_GetOrderStatistics_FullMethodName         = "/adminsvc.AdminService/GetOrderStatistics"
+	AdminService_GetCouponStatistics_FullMethodName        = "/adminsvc.AdminService/GetCouponStatistics"
+	AdminService_CreateExportTask_FullMethodName           = "/adminsvc.AdminService/CreateExportTask"
+	AdminService_ListExportTasks_FullMethodName            = "/adminsvc.AdminService/ListExportTasks"
+	AdminService_ListBlacklists_FullMethodName             = "/adminsvc.AdminService/ListBlacklists"
+	AdminService_AddBlacklist_FullMethodName               = "/adminsvc.AdminService/AddBlacklist"
+	AdminService_ReleaseBlacklist_FullMethodName           = "/adminsvc.AdminService/ReleaseBlacklist"
+	AdminService_ListRiskHitRecords_FullMethodName         = "/adminsvc.AdminService/ListRiskHitRecords"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -94,6 +110,38 @@ type AdminServiceClient interface {
 	UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 下架优惠券模板。
 	DisableCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 创建优惠券发放任务并同步发放用户券。
+	IssueCoupon(ctx context.Context, in *CouponIssueRequest, opts ...grpc.CallOption) (*CouponIssueResponse, error)
+	// 查询优惠券发放任务列表。
+	ListCouponIssueTasks(ctx context.Context, in *CouponIssueTaskListRequest, opts ...grpc.CallOption) (*CouponIssueTaskListResponse, error)
+	// 查询活动配置列表。
+	ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error)
+	// 创建活动配置。
+	CreatePromotionActivity(ctx context.Context, in *PromotionActivityRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 更新活动配置。
+	UpdatePromotionActivity(ctx context.Context, in *PromotionActivityRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 发布活动配置。
+	PublishPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 回滚活动配置。
+	RollbackPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询运营总览统计。
+	GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error)
+	// 查询订单统计。
+	GetOrderStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*OrderStatisticsResponse, error)
+	// 查询优惠券统计。
+	GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
+	// 创建导出任务。
+	CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error)
+	// 查询导出任务列表。
+	ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error)
+	// 查询风控黑名单列表。
+	ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error)
+	// 新增风控黑名单。
+	AddBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 解除风控黑名单。
+	ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询风控命中记录。
+	ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
 }
 
 type adminServiceClient struct {
@@ -324,6 +372,166 @@ func (c *adminServiceClient) DisableCoupon(ctx context.Context, in *CouponReques
 	return out, nil
 }
 
+func (c *adminServiceClient) IssueCoupon(ctx context.Context, in *CouponIssueRequest, opts ...grpc.CallOption) (*CouponIssueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CouponIssueResponse)
+	err := c.cc.Invoke(ctx, AdminService_IssueCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListCouponIssueTasks(ctx context.Context, in *CouponIssueTaskListRequest, opts ...grpc.CallOption) (*CouponIssueTaskListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CouponIssueTaskListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListCouponIssueTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PromotionActivityListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListPromotionActivities_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreatePromotionActivity(ctx context.Context, in *PromotionActivityRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_CreatePromotionActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdatePromotionActivity(ctx context.Context, in *PromotionActivityRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UpdatePromotionActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) PublishPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_PublishPromotionActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) RollbackPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_RollbackPromotionActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StatisticsOverviewResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetStatisticsOverview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetOrderStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*OrderStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OrderStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetOrderStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CouponStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetCouponStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportTaskResponse)
+	err := c.cc.Invoke(ctx, AdminService_CreateExportTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportTaskListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListExportTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BlacklistListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListBlacklists_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) AddBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_AddBlacklist_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_ReleaseBlacklist_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RiskHitRecordListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListRiskHitRecords_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AdminServiceServer is the server API for AdminService service.
 // All implementations must embed UnimplementedAdminServiceServer
 // for forward compatibility
@@ -375,6 +583,38 @@ type AdminServiceServer interface {
 	UpdateCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
 	// 下架优惠券模板。
 	DisableCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
+	// 创建优惠券发放任务并同步发放用户券。
+	IssueCoupon(context.Context, *CouponIssueRequest) (*CouponIssueResponse, error)
+	// 查询优惠券发放任务列表。
+	ListCouponIssueTasks(context.Context, *CouponIssueTaskListRequest) (*CouponIssueTaskListResponse, error)
+	// 查询活动配置列表。
+	ListPromotionActivities(context.Context, *PromotionActivityListRequest) (*PromotionActivityListResponse, error)
+	// 创建活动配置。
+	CreatePromotionActivity(context.Context, *PromotionActivityRequest) (*CommonResponse, error)
+	// 更新活动配置。
+	UpdatePromotionActivity(context.Context, *PromotionActivityRequest) (*CommonResponse, error)
+	// 发布活动配置。
+	PublishPromotionActivity(context.Context, *PromotionActivityActionRequest) (*CommonResponse, error)
+	// 回滚活动配置。
+	RollbackPromotionActivity(context.Context, *PromotionActivityActionRequest) (*CommonResponse, error)
+	// 查询运营总览统计。
+	GetStatisticsOverview(context.Context, *StatisticsRequest) (*StatisticsOverviewResponse, error)
+	// 查询订单统计。
+	GetOrderStatistics(context.Context, *StatisticsRequest) (*OrderStatisticsResponse, error)
+	// 查询优惠券统计。
+	GetCouponStatistics(context.Context, *StatisticsRequest) (*CouponStatisticsResponse, error)
+	// 创建导出任务。
+	CreateExportTask(context.Context, *ExportTaskRequest) (*ExportTaskResponse, error)
+	// 查询导出任务列表。
+	ListExportTasks(context.Context, *ExportTaskListRequest) (*ExportTaskListResponse, error)
+	// 查询风控黑名单列表。
+	ListBlacklists(context.Context, *BlacklistListRequest) (*BlacklistListResponse, error)
+	// 新增风控黑名单。
+	AddBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error)
+	// 解除风控黑名单。
+	ReleaseBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error)
+	// 查询风控命中记录。
+	ListRiskHitRecords(context.Context, *RiskHitRecordListRequest) (*RiskHitRecordListResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -447,6 +687,54 @@ func (UnimplementedAdminServiceServer) UpdateCoupon(context.Context, *CouponRequ
 }
 func (UnimplementedAdminServiceServer) DisableCoupon(context.Context, *CouponRequest) (*CommonResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DisableCoupon not implemented")
+}
+func (UnimplementedAdminServiceServer) IssueCoupon(context.Context, *CouponIssueRequest) (*CouponIssueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IssueCoupon not implemented")
+}
+func (UnimplementedAdminServiceServer) ListCouponIssueTasks(context.Context, *CouponIssueTaskListRequest) (*CouponIssueTaskListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListCouponIssueTasks not implemented")
+}
+func (UnimplementedAdminServiceServer) ListPromotionActivities(context.Context, *PromotionActivityListRequest) (*PromotionActivityListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPromotionActivities not implemented")
+}
+func (UnimplementedAdminServiceServer) CreatePromotionActivity(context.Context, *PromotionActivityRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePromotionActivity not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdatePromotionActivity(context.Context, *PromotionActivityRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePromotionActivity not implemented")
+}
+func (UnimplementedAdminServiceServer) PublishPromotionActivity(context.Context, *PromotionActivityActionRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PublishPromotionActivity not implemented")
+}
+func (UnimplementedAdminServiceServer) RollbackPromotionActivity(context.Context, *PromotionActivityActionRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RollbackPromotionActivity not implemented")
+}
+func (UnimplementedAdminServiceServer) GetStatisticsOverview(context.Context, *StatisticsRequest) (*StatisticsOverviewResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStatisticsOverview not implemented")
+}
+func (UnimplementedAdminServiceServer) GetOrderStatistics(context.Context, *StatisticsRequest) (*OrderStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) GetCouponStatistics(context.Context, *StatisticsRequest) (*CouponStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCouponStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateExportTask(context.Context, *ExportTaskRequest) (*ExportTaskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateExportTask not implemented")
+}
+func (UnimplementedAdminServiceServer) ListExportTasks(context.Context, *ExportTaskListRequest) (*ExportTaskListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListExportTasks not implemented")
+}
+func (UnimplementedAdminServiceServer) ListBlacklists(context.Context, *BlacklistListRequest) (*BlacklistListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBlacklists not implemented")
+}
+func (UnimplementedAdminServiceServer) AddBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddBlacklist not implemented")
+}
+func (UnimplementedAdminServiceServer) ReleaseBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReleaseBlacklist not implemented")
+}
+func (UnimplementedAdminServiceServer) ListRiskHitRecords(context.Context, *RiskHitRecordListRequest) (*RiskHitRecordListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRiskHitRecords not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 
@@ -857,6 +1145,294 @@ func _AdminService_DisableCoupon_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_IssueCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponIssueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).IssueCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_IssueCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).IssueCoupon(ctx, req.(*CouponIssueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListCouponIssueTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponIssueTaskListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListCouponIssueTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListCouponIssueTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListCouponIssueTasks(ctx, req.(*CouponIssueTaskListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListPromotionActivities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListPromotionActivities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListPromotionActivities_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListPromotionActivities(ctx, req.(*PromotionActivityListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreatePromotionActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreatePromotionActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreatePromotionActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreatePromotionActivity(ctx, req.(*PromotionActivityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdatePromotionActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdatePromotionActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdatePromotionActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdatePromotionActivity(ctx, req.(*PromotionActivityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_PublishPromotionActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).PublishPromotionActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_PublishPromotionActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).PublishPromotionActivity(ctx, req.(*PromotionActivityActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_RollbackPromotionActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).RollbackPromotionActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_RollbackPromotionActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).RollbackPromotionActivity(ctx, req.(*PromotionActivityActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetStatisticsOverview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetStatisticsOverview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetStatisticsOverview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetStatisticsOverview(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetOrderStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetOrderStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetOrderStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetOrderStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetCouponStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetCouponStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetCouponStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetCouponStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreateExportTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateExportTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateExportTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateExportTask(ctx, req.(*ExportTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListExportTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportTaskListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListExportTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListExportTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListExportTasks(ctx, req.(*ExportTaskListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListBlacklists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlacklistListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListBlacklists(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListBlacklists_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListBlacklists(ctx, req.(*BlacklistListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_AddBlacklist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlacklistRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).AddBlacklist(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_AddBlacklist_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).AddBlacklist(ctx, req.(*BlacklistRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ReleaseBlacklist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlacklistRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ReleaseBlacklist(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ReleaseBlacklist_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ReleaseBlacklist(ctx, req.(*BlacklistRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListRiskHitRecords_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RiskHitRecordListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListRiskHitRecords(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListRiskHitRecords_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListRiskHitRecords(ctx, req.(*RiskHitRecordListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AdminService_ServiceDesc is the grpc.ServiceDesc for AdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -952,7 +1528,71 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "DisableCoupon",
 			Handler:    _AdminService_DisableCoupon_Handler,
 		},
+		{
+			MethodName: "IssueCoupon",
+			Handler:    _AdminService_IssueCoupon_Handler,
+		},
+		{
+			MethodName: "ListCouponIssueTasks",
+			Handler:    _AdminService_ListCouponIssueTasks_Handler,
+		},
+		{
+			MethodName: "ListPromotionActivities",
+			Handler:    _AdminService_ListPromotionActivities_Handler,
+		},
+		{
+			MethodName: "CreatePromotionActivity",
+			Handler:    _AdminService_CreatePromotionActivity_Handler,
+		},
+		{
+			MethodName: "UpdatePromotionActivity",
+			Handler:    _AdminService_UpdatePromotionActivity_Handler,
+		},
+		{
+			MethodName: "PublishPromotionActivity",
+			Handler:    _AdminService_PublishPromotionActivity_Handler,
+		},
+		{
+			MethodName: "RollbackPromotionActivity",
+			Handler:    _AdminService_RollbackPromotionActivity_Handler,
+		},
+		{
+			MethodName: "GetStatisticsOverview",
+			Handler:    _AdminService_GetStatisticsOverview_Handler,
+		},
+		{
+			MethodName: "GetOrderStatistics",
+			Handler:    _AdminService_GetOrderStatistics_Handler,
+		},
+		{
+			MethodName: "GetCouponStatistics",
+			Handler:    _AdminService_GetCouponStatistics_Handler,
+		},
+		{
+			MethodName: "CreateExportTask",
+			Handler:    _AdminService_CreateExportTask_Handler,
+		},
+		{
+			MethodName: "ListExportTasks",
+			Handler:    _AdminService_ListExportTasks_Handler,
+		},
+		{
+			MethodName: "ListBlacklists",
+			Handler:    _AdminService_ListBlacklists_Handler,
+		},
+		{
+			MethodName: "AddBlacklist",
+			Handler:    _AdminService_AddBlacklist_Handler,
+		},
+		{
+			MethodName: "ReleaseBlacklist",
+			Handler:    _AdminService_ReleaseBlacklist_Handler,
+		},
+		{
+			MethodName: "ListRiskHitRecords",
+			Handler:    _AdminService_ListRiskHitRecords_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "admin.proto",
+	Metadata: "rpc/adminsvc/admin.proto",
 }

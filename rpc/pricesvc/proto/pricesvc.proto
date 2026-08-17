@@ -4,12 +4,14 @@ package pricesvc;
 
 option go_package = "./;proto";
 
-// 计价服务：行程价格预估与优惠抵扣。
+// 计价服务：行程价格预估、优惠抵扣与实际费用落库。
 service Price {
   // 行程价格预估：根据计价规则 + 里程/时长估算费用。
   rpc EstimatePrice(EstimatePriceRequest) returns (EstimatePriceResponse);
   // 优惠券抵扣计算：根据优惠券计算折扣与实付金额。
   rpc CalculateDiscount(CalculateDiscountRequest) returns (CalculateDiscountResponse);
+  // 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
+  rpc SaveActualOrderPrice(SaveActualOrderPriceRequest) returns (SaveActualOrderPriceResponse);
 }
 
 // 优惠券类型
@@ -68,4 +70,18 @@ message CalculateDiscountResponse {
   int64 discount_amount_cents = 1;  // 优惠券抵扣金额（分）
   int64 platform_subsidy_cents = 2; // 平台补贴金额（分）
   int64 payable_amount_cents = 3;   // 乘客实付金额（分）
+}
+
+// 实际费用落库请求：行程结束时由订单模块调用。
+message SaveActualOrderPriceRequest {
+  int64 order_id = 1;            // 订单ID
+  int64 price_rule_id = 2;       // 命中的计价规则ID（可选，0 表示无）
+  int64 actual_price_cents = 3;  // 实际总价（分）
+  PriceDetail detail = 4;        // 费用明细（分），可为空（仅落总价）
+}
+
+// 实际费用落库响应
+message SaveActualOrderPriceResponse {
+  bool success = 1;
+  int64 order_price_id = 2;      // order_price 记录ID
 }
