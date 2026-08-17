@@ -73,6 +73,65 @@ func (l *CouponLogic) Disable(ctx context.Context, id int64, session *model.Admi
 	return err
 }
 
+// Issue 创建优惠券发放任务。
+func (l *CouponLogic) Issue(ctx context.Context, couponID int64, req types.CouponIssueRequest, session *model.AdminSession, ip string) (*types.CouponIssueResponse, error) {
+	adminID := int64(0)
+	if session != nil {
+		adminID = session.AdminID
+	}
+	resp, err := l.ctx.AdminSvc.IssueCoupon(ctx, &adminclient.CouponIssueRequest{
+		CouponId:     couponID,
+		TargetType:   req.TargetType,
+		TargetConfig: req.TargetConfig,
+		AdminId:      adminID,
+		Ip:           ip,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.CouponIssueResponse{
+		TaskNo:       resp.TaskNo,
+		TotalCount:   resp.TotalCount,
+		SuccessCount: resp.SuccessCount,
+		FailCount:    resp.FailCount,
+		Status:       resp.Status,
+	}, nil
+}
+
+// ListIssueTasks 查询优惠券发放任务。
+func (l *CouponLogic) ListIssueTasks(ctx context.Context, req types.CouponListRequest, couponID int64, status string) (*types.PageResult, error) {
+	resp, err := l.ctx.AdminSvc.ListCouponIssueTasks(ctx, &adminclient.CouponIssueTaskListRequest{
+		Page:      int32(req.Page),
+		PageSize:  int32(req.PageSize),
+		CouponId:  couponID,
+		Status:    status,
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]types.CouponIssueTaskDTO, 0, len(resp.List))
+	for _, item := range resp.List {
+		items = append(items, types.CouponIssueTaskDTO{
+			ID:            item.Id,
+			TaskNo:        item.TaskNo,
+			CouponID:      item.CouponId,
+			TargetType:    item.TargetType,
+			TargetConfig:  item.TargetConfig,
+			TotalCount:    item.TotalCount,
+			SuccessCount:  item.SuccessCount,
+			FailCount:     item.FailCount,
+			Status:        item.Status,
+			FailureReason: item.FailureReason,
+			OperatorID:    item.OperatorId,
+			CreatedAt:     item.CreatedAt,
+			UpdatedAt:     item.UpdatedAt,
+		})
+	}
+	return &types.PageResult{List: items, Total: resp.Total, Page: int(resp.Page), PageSize: int(resp.PageSize)}, nil
+}
+
 // couponRequestToPB 将 HTTP 请求体转换为 RPC 请求体。
 func couponRequestToPB(id int64, req types.CouponSaveRequest, session *model.AdminSession, ip string) *adminclient.CouponRequest {
 	adminID := int64(0)

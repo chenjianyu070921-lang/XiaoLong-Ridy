@@ -37,15 +37,35 @@
 | `GET /admin/v1/coupons` | 解析优惠券筛选条件 | `AdminService.ListCoupons` |
 | `POST /admin/v1/coupons` | 解析优惠券模板请求体、管理员 ID、IP | `AdminService.CreateCoupon` |
 | `PUT /admin/v1/coupons/{id}` | 解析优惠券 ID、模板请求体、管理员 ID、IP | `AdminService.UpdateCoupon` |
+| `POST /admin/v1/coupons/{id}/issue` | 解析优惠券 ID、发券目标、管理员 ID、IP | `AdminService.IssueCoupon` |
+| `GET /admin/v1/coupon-issue-tasks` | 解析发券任务筛选条件 | `AdminService.ListCouponIssueTasks` |
+| `GET /admin/v1/promotion-activities` | 解析活动筛选条件 | `AdminService.ListPromotionActivities` |
+| `POST /admin/v1/promotion-activities` | 解析活动配置、管理员 ID、IP | `AdminService.CreatePromotionActivity` |
+| `PUT /admin/v1/promotion-activities/{id}` | 解析活动 ID、活动配置、管理员 ID、IP | `AdminService.UpdatePromotionActivity` |
+| `POST /admin/v1/promotion-activities/{id}/publish` | 解析发布范围和灰度配置 | `AdminService.PublishPromotionActivity` |
+| `POST /admin/v1/promotion-activities/{id}/rollback` | 解析回滚配置 | `AdminService.RollbackPromotionActivity` |
+| `GET /admin/v1/statistics/overview` | 解析统计时间范围 | `AdminService.GetStatisticsOverview` |
+| `GET /admin/v1/statistics/orders` | 解析统计时间范围 | `AdminService.GetOrderStatistics` |
+| `GET /admin/v1/statistics/coupons` | 解析统计时间范围 | `AdminService.GetCouponStatistics` |
+| `POST /admin/v1/export-tasks` | 解析导出类型、筛选条件、管理员 ID、IP | `AdminService.CreateExportTask` |
+| `GET /admin/v1/export-tasks` | 解析导出任务筛选条件 | `AdminService.ListExportTasks` |
+| `GET /admin/v1/blacklist` | 解析黑名单筛选条件 | `AdminService.ListBlacklists` |
+| `POST /admin/v1/blacklist` | 解析拉黑对象、原因、管理员 ID、IP | `AdminService.AddBlacklist` |
+| `POST /admin/v1/blacklist/{id}/release` | 解析黑名单 ID、解除原因 | `AdminService.ReleaseBlacklist` |
+| `GET /admin/v1/risk/hit-records` | 解析风控命中筛选条件 | `AdminService.ListRiskHitRecords` |
 | `GET /admin/v1/operation-logs` | 解析日志筛选条件 | `AdminService.ListOperationLogs` |
 
 ## 3. 数据写入边界
 
 | 操作 | 写入位置 | 说明 |
 | --- | --- | --- |
-| 司机审核通过 | `rpc/adminsvc` | 更新 `driver_certification`，同步更新司机和车辆状态为可用 |
-| 司机审核驳回 | `rpc/adminsvc` | 更新 `driver_certification` 审核状态和驳回原因 |
+| 司机审核通过 | `rpc/driversvc` + `rpc/adminsvc` | `adminsvc` 同步调用 `driversvc.ApproveCertification`；driversvc 更新 `driver_certification`、`driver`、`driver_vehicle`；adminsvc 写审计日志 |
+| 司机审核驳回 | `rpc/driversvc` + `rpc/adminsvc` | `adminsvc` 同步调用 `driversvc.RejectCertification`；driversvc 更新审核状态；adminsvc 写审计日志 |
 | 优惠券新增/编辑/下架 | `rpc/adminsvc` | 写入或更新 `coupon` 表 |
+| 优惠券发放任务 | `rpc/adminsvc` | 写入 `admin_coupon_issue_task`，同步写入 `user_coupon`，更新 `coupon.received_count` |
+| 活动配置发布/回滚 | `rpc/adminsvc` | 更新 `promotion_activity.status`，写入 `admin_operation_log` |
+| 风控黑名单 | `rpc/adminsvc` | 写入或更新 `blacklist`，查询 `risk_blacklist_hit_record` |
+| 导出任务 | `rpc/adminsvc` | 当前不新增导出任务表，使用 `admin_operation_log` 记录可追踪任务 |
 | 用户冻结/解封 | `rpc/adminsvc` | 更新 `user.status` |
 | 操作审计 | `rpc/adminsvc` | 写入 `admin_operation_log` |
 
@@ -73,10 +93,19 @@
 
 ### 5.2 司机审核边界
 
-当前 HTTP 司机审核仍保持既有 `api/admin -> adminsvc` 路径，`adminsvc` 内部使用本地事务更新 `driver_certification`、`driver`、`driver_vehicle`，不在本次 P0 中强制切换到跨服务调用。
+当前已切换为 `api/admin -> adminsvc -> driversvc`：
 
-`driversvc` 已预留 `ApproveCertification`、`RejectCertification` proto 与服务端逻辑，用于后续正式切换。正式切换前还需要补齐真实数据联调、幂等请求号、司机端可听单状态通知和 `pushsvc` MQ 通知。
+| 动作 | adminsvc 职责 | driversvc 职责 |
+| --- | --- | --- |
+| 审核通过 | 参数校验、调用 `driversvc.ApproveCertification`、写 `admin_operation_log` | 事务更新 `driver_certification.audit_status=2`、`driver.status=2`、`driver_vehicle.status=2` |
+| 审核驳回 | 参数校验、调用 `driversvc.RejectCertification`、写 `admin_operation_log` | 事务更新 `driver_certification.audit_status=3` 和驳回原因 |
 
-### 5.3 P1/P2 边界
+### 5.3 P1/P2 当前落地边界
 
-P1 优惠券发放任务、活动配置，P2 数据统计、导出、风控管理，本次仅保留设计文档和接口清单，不新增可执行业务代码。
+| 模块 | 当前落地 |
+| --- | --- |
+| 优惠券发放任务 | `POST /admin/v1/coupons/{id}/issue` 同步创建任务并写 `user_coupon`；`GET /admin/v1/coupon-issue-tasks` 查询任务 |
+| 活动配置 | 支持活动列表、新增、编辑、发布、回滚；发布和回滚当前更新 `promotion_activity.status` 并写操作日志 |
+| 数据统计 | 支持运营总览、订单统计、优惠券统计，基于现有业务表实时聚合 |
+| 导出任务 | 支持创建和查询导出任务；当前 SQL 未定义独立导出表，先使用 `admin_operation_log` 承载任务记录 |
+| 风控管理 | 支持黑名单列表、新增、解除，以及命中记录查询 |
