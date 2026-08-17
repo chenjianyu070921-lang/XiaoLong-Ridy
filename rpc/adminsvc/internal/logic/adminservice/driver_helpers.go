@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
+	driversvcproto "XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -62,7 +62,8 @@ func scanCertificationRows(rows *sql.Rows) (*adminsvc.DriverCertification, error
 	return &item, nil
 }
 
-// auditCertification 在事务中执行司机认证审核。
+// auditCertification 通过 driversvc 执行司机认证审核。
+// 管理后台只负责鉴权、参数转换和审计留痕，司机认证状态、司机可听单状态、车辆状态由 driversvc 在本地事务中维护。
 func auditCertification(ctx context.Context, svcCtx *svc.ServiceContext, in *adminsvc.AuditDriverCertificationRequest, auditStatus int32) error {
 	if in.GetId() <= 0 {
 		return status.Error(codes.InvalidArgument, "审核记录ID不能为空")
@@ -70,55 +71,26 @@ func auditCertification(ctx context.Context, svcCtx *svc.ServiceContext, in *adm
 	if in.GetAdminId() <= 0 {
 		return status.Error(codes.InvalidArgument, "管理员ID不能为空")
 	}
-	tx, err := svcCtx.MySQL.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	now := time.Now()
-	res, err := tx.ExecContext(ctx, `
-		UPDATE driver_certification
-		SET audit_status = ?, audit_remark = ?, audited_by = ?, audited_at = ?, updated_at = ?
-		WHERE id = ?
-	`, auditStatus, in.GetRemark(), in.GetAdminId(), now, now, in.GetId())
-	if err != nil {
-		return err
-	}
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if affected == 0 {
-		return status.Error(codes.NotFound, "司机审核记录不存在")
-	}
-	if auditStatus == 2 {
-		var driverID, vehicleID int64
-		if err := tx.QueryRowContext(ctx, `SELECT driver_id, vehicle_id FROM driver_certification WHERE id = ?`, in.GetId()).Scan(&driverID, &vehicleID); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE driver SET status = 2, updated_at = ? WHERE id = ?`, now, driverID); err != nil {
-			return err
-		}
-		if vehicleID > 0 {
-			if _, err := tx.ExecContext(ctx, `UPDATE driver_vehicle SET status = 2, updated_at = ? WHERE id = ?`, now, vehicleID); err != nil {
-				return err
-			}
-		}
+	rpcReq := &driversvcproto.AuditCertificationRequest{
+		CertificationId: in.GetId(),
+		Remark:          in.GetRemark(),
+		OperatorId:      in.GetAdminId(),
+		Ip:              in.GetIp(),
 	}
 	action := "reject"
-	detail := "司机认证驳回"
+	detail := "司机认证驳回，已同步 driversvc"
 	if auditStatus == 2 {
+		if _, err := svcCtx.DriversSvc.ApproveCertification(ctx, rpcReq); err != nil {
+			return err
+		}
 		action = "approve"
-		detail = "司机认证通过"
+		detail = "司机认证通过，已同步 driversvc 并联动司机可听单状态"
+	} else {
+		if _, err := svcCtx.DriversSvc.RejectCertification(ctx, rpcReq); err != nil {
+			return err
+		}
 	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO admin_operation_log (admin_id, module, action, target_type, target_id, detail, ip)
-		VALUES (?, 'driver', ?, 'driver_certification', ?, ?, ?)
-	`, in.GetAdminId(), action, in.GetId(), detail, in.GetIp()); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return createOperationLog(ctx, svcCtx, in.GetAdminId(), "driver", action, "driver_certification", in.GetId(), detail, in.GetIp())
 }
 
 // scanCertificationRow 处理司机审核详情单行结果。

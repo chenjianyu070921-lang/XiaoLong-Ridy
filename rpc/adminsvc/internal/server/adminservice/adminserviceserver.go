@@ -153,3 +153,83 @@ func (s *AdminServiceServer) DisableCoupon(ctx context.Context, in *adminsvc.Cou
 	l := adminservicelogic.NewDisableCouponLogic(ctx, s.svcCtx)
 	return l.DisableCoupon(in)
 }
+
+func (s *AdminServiceServer) IssueCoupon(ctx context.Context, in *adminsvc.CouponIssueRequest) (*adminsvc.CouponIssueResponse, error) {
+	l := adminservicelogic.NewIssueCouponLogic(ctx, s.svcCtx)
+	return l.IssueCoupon(in)
+}
+
+func (s *AdminServiceServer) ListCouponIssueTasks(ctx context.Context, in *adminsvc.CouponIssueTaskListRequest) (*adminsvc.CouponIssueTaskListResponse, error) {
+	l := adminservicelogic.NewListCouponIssueTasksLogic(ctx, s.svcCtx)
+	return l.ListCouponIssueTasks(in)
+}
+
+func (s *AdminServiceServer) ListPromotionActivities(ctx context.Context, in *adminsvc.PromotionActivityListRequest) (*adminsvc.PromotionActivityListResponse, error) {
+	l := adminservicelogic.NewListPromotionActivitiesLogic(ctx, s.svcCtx)
+	return l.ListPromotionActivities(in)
+}
+
+func (s *AdminServiceServer) CreatePromotionActivity(ctx context.Context, in *adminsvc.PromotionActivityRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewCreatePromotionActivityLogic(ctx, s.svcCtx)
+	return l.CreatePromotionActivity(in)
+}
+
+func (s *AdminServiceServer) UpdatePromotionActivity(ctx context.Context, in *adminsvc.PromotionActivityRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewUpdatePromotionActivityLogic(ctx, s.svcCtx)
+	return l.UpdatePromotionActivity(in)
+}
+
+func (s *AdminServiceServer) PublishPromotionActivity(ctx context.Context, in *adminsvc.PromotionActivityActionRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewPublishPromotionActivityLogic(ctx, s.svcCtx)
+	return l.PublishPromotionActivity(in)
+}
+
+func (s *AdminServiceServer) RollbackPromotionActivity(ctx context.Context, in *adminsvc.PromotionActivityActionRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewRollbackPromotionActivityLogic(ctx, s.svcCtx)
+	return l.RollbackPromotionActivity(in)
+}
+
+func (s *AdminServiceServer) GetStatisticsOverview(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.StatisticsOverviewResponse, error) {
+	l := adminservicelogic.NewGetStatisticsOverviewLogic(ctx, s.svcCtx)
+	return l.GetStatisticsOverview(in)
+}
+
+func (s *AdminServiceServer) GetOrderStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.OrderStatisticsResponse, error) {
+	l := adminservicelogic.NewGetOrderStatisticsLogic(ctx, s.svcCtx)
+	return l.GetOrderStatistics(in)
+}
+
+func (s *AdminServiceServer) GetCouponStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.CouponStatisticsResponse, error) {
+	l := adminservicelogic.NewGetCouponStatisticsLogic(ctx, s.svcCtx)
+	return l.GetCouponStatistics(in)
+}
+
+func (s *AdminServiceServer) CreateExportTask(ctx context.Context, in *adminsvc.ExportTaskRequest) (*adminsvc.ExportTaskResponse, error) {
+	l := adminservicelogic.NewCreateExportTaskLogic(ctx, s.svcCtx)
+	return l.CreateExportTask(in)
+}
+
+func (s *AdminServiceServer) ListExportTasks(ctx context.Context, in *adminsvc.ExportTaskListRequest) (*adminsvc.ExportTaskListResponse, error) {
+	l := adminservicelogic.NewListExportTasksLogic(ctx, s.svcCtx)
+	return l.ListExportTasks(in)
+}
+
+func (s *AdminServiceServer) ListBlacklists(ctx context.Context, in *adminsvc.BlacklistListRequest) (*adminsvc.BlacklistListResponse, error) {
+	l := adminservicelogic.NewListBlacklistsLogic(ctx, s.svcCtx)
+	return l.ListBlacklists(in)
+}
+
+func (s *AdminServiceServer) AddBlacklist(ctx context.Context, in *adminsvc.BlacklistRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewAddBlacklistLogic(ctx, s.svcCtx)
+	return l.AddBlacklist(in)
+}
+
+func (s *AdminServiceServer) ReleaseBlacklist(ctx context.Context, in *adminsvc.BlacklistRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewReleaseBlacklistLogic(ctx, s.svcCtx)
+	return l.ReleaseBlacklist(in)
+}
+
+func (s *AdminServiceServer) ListRiskHitRecords(ctx context.Context, in *adminsvc.RiskHitRecordListRequest) (*adminsvc.RiskHitRecordListResponse, error) {
+	l := adminservicelogic.NewListRiskHitRecordsLogic(ctx, s.svcCtx)
+	return l.ListRiskHitRecords(in)
+}

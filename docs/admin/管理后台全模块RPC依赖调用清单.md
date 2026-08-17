@@ -72,14 +72,21 @@
 
 | 后台接口 | 当前实现 | 后续 RPC 切换目标 |
 | --- | --- | --- |
-| `GET /admin/v1/users` | `api/admin` 直查 `user` 表 | `usersvc.ListUsers` |
-| `GET /admin/v1/driver-certifications` | `api/admin` 直查司机审核表 | `driversvc.ListCertifications` |
-| `POST /admin/v1/driver-certifications/{id}/approve` | 本地事务更新司机/车辆/审核表 | `driversvc.ApproveCertification` + `pushsvc` MQ |
-| `GET /admin/v1/orders` | `api/admin` 直查 `ride_order` | `ordersvc.ListOrders` |
-| `GET /admin/v1/orders/abnormal` | 本地聚合订单/支付/派单状态 | `ordersvc.ListAbnormalOrders` |
-| `GET /admin/v1/coupons` | `api/admin` 直查 `coupon` | `couponsvc.ListCouponTemplates` |
-| `POST /admin/v1/coupons` | 本地写 `coupon` + 操作日志 | `couponsvc.SaveCouponTemplate` |
-| `PUT /admin/v1/coupons/{id}` | 本地更新 `coupon` + 操作日志 | `couponsvc.SaveCouponTemplate` |
+| `GET /admin/v1/users` | `api/admin -> adminsvc.ListUsers` | 后续可切 `usersvc.ListUsers` |
+| `GET /admin/v1/driver-certifications` | `api/admin -> adminsvc.ListDriverCertifications` | 后续可切 `driversvc.ListCertifications` |
+| `POST /admin/v1/driver-certifications/{id}/approve` | `api/admin -> adminsvc.ApproveDriverCertification -> driversvc.ApproveCertification` | 后续补 `pushsvc` MQ 通知司机端 |
+| `POST /admin/v1/driver-certifications/{id}/reject` | `api/admin -> adminsvc.RejectDriverCertification -> driversvc.RejectCertification` | 后续补 `pushsvc` MQ 通知司机端 |
+| `GET /admin/v1/orders` | `api/admin -> adminsvc.ListOrders` | 后续可切 `ordersvc.ListOrders` 聚合实现 |
+| `GET /admin/v1/orders/abnormal` | `api/admin -> adminsvc.ListAbnormalOrders` | 后续可切 `ordersvc.ListAbnormalOrders` |
+| `GET /admin/v1/coupons` | `api/admin -> adminsvc.ListCoupons` | 后续独立 `couponsvc.ListCouponTemplates` |
+| `POST /admin/v1/coupons` | `api/admin -> adminsvc.CreateCoupon` | 后续独立 `couponsvc.SaveCouponTemplate` |
+| `PUT /admin/v1/coupons/{id}` | `api/admin -> adminsvc.UpdateCoupon` | 后续独立 `couponsvc.SaveCouponTemplate` |
+| `POST /admin/v1/coupons/{id}/issue` | `api/admin -> adminsvc.IssueCoupon`，同步写 `admin_coupon_issue_task/user_coupon` | 后续切 MQ/Job 异步批量发券 |
+| `GET /admin/v1/promotion-activities` | `api/admin -> adminsvc.ListPromotionActivities` | 后续联动 `pricesvc.CheckPromotionConflict` |
+| `POST /admin/v1/promotion-activities/{id}/publish` | `api/admin -> adminsvc.PublishPromotionActivity` | 后续联动 `pricesvc.PublishPromotionRule` |
+| `GET /admin/v1/statistics/overview` | `api/admin -> adminsvc.GetStatisticsOverview` | 后续独立 `reportsvc` |
+| `POST /admin/v1/export-tasks` | `api/admin -> adminsvc.CreateExportTask`，当前用操作日志承载任务 | 后续独立导出任务表 + 文件生成 Job |
+| `GET /admin/v1/blacklist` | `api/admin -> adminsvc.ListBlacklists` | 后续联动风控缓存刷新 |
 
 ## 四、异步消息清单
 
@@ -97,7 +104,7 @@
 | 后台接口 | 当前实现 | 下游依赖 | 说明 |
 | --- | --- | --- | --- |
 | `POST /admin/v1/orders/{id}/cancel` | `api/admin` 做鉴权与参数转换，调用 `adminsvc.CancelOrder` | `ordersvc.CancelOrder` 同步 RPC | 已落地 P0，传入 `operator_type=admin`、`operator_id=admin_id`、`reason` |
-| `POST /admin/v1/driver-certifications/{id}/approve` | 保留 `adminsvc` 既有本地事务审核逻辑 | 后续切换 `driversvc.ApproveCertification` | 本次不强制切换，避免影响司机模块同事迭代 |
-| `POST /admin/v1/driver-certifications/{id}/reject` | 保留 `adminsvc` 既有本地事务审核逻辑 | 后续切换 `driversvc.RejectCertification` | `driversvc` 已预留 proto 与服务端逻辑，后续需补真实数据联调记录 |
+| `POST /admin/v1/driver-certifications/{id}/approve` | `api/admin` 做鉴权与参数转换，调用 `adminsvc.ApproveDriverCertification` | `driversvc.ApproveCertification` 同步 RPC | 已切换 P0；driversvc 负责司机、车辆、认证状态事务更新 |
+| `POST /admin/v1/driver-certifications/{id}/reject` | `api/admin` 做鉴权与参数转换，调用 `adminsvc.RejectDriverCertification` | `driversvc.RejectCertification` 同步 RPC | 已切换 P0；adminsvc 负责审核成功后的操作日志 |
 
-P1/P2 仅保留设计文档与接口清单：优惠券发放任务、活动配置、数据统计、导出、风控管理暂不新增运行时代码。
+P1/P2 当前已补基础可调用接口：优惠券发放任务、活动配置、数据统计、导出任务、风控黑名单均已接入 `api/admin -> adminsvc`。其中批量发券和导出文件生成暂未引入 MQ/Job，后续按异步任务演进。
