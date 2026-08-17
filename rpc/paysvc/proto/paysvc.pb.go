@@ -220,6 +220,566 @@ func (x *CreatePaymentResponse) GetStatus() int32 {
 	return 0
 }
 
+// 支付回调请求（支付宝异步通知）
+type NotifyPaymentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PaymentNo     string                 `protobuf:"bytes,1,opt,name=payment_no,json=paymentNo,proto3" json:"payment_no,omitempty"`             // 平台支付单号（商户订单号 out_trade_no）
+	TradeStatus   string                 `protobuf:"bytes,2,opt,name=trade_status,json=tradeStatus,proto3" json:"trade_status,omitempty"`       // 支付宝交易状态：TRADE_SUCCESS / TRADE_CLOSED 等
+	TransactionId string                 `protobuf:"bytes,3,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"` // 第三方流水号（支付宝 trade_no）
+	Sign          string                 `protobuf:"bytes,4,opt,name=sign,proto3" json:"sign,omitempty"`                                        // 签名
+	SignType      string                 `protobuf:"bytes,5,opt,name=sign_type,json=signType,proto3" json:"sign_type,omitempty"`                // 签名类型 RSA2
+	PaidAt        int64                  `protobuf:"varint,6,opt,name=paid_at,json=paidAt,proto3" json:"paid_at,omitempty"`                     // 支付时间（Unix 秒）
+	NotifyRaw     string                 `protobuf:"bytes,7,opt,name=notify_raw,json=notifyRaw,proto3" json:"notify_raw,omitempty"`             // 原始回调参数字符串（验签用，url.Values 序列化）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyPaymentRequest) Reset() {
+	*x = NotifyPaymentRequest{}
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyPaymentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyPaymentRequest) ProtoMessage() {}
+
+func (x *NotifyPaymentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyPaymentRequest.ProtoReflect.Descriptor instead.
+func (*NotifyPaymentRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *NotifyPaymentRequest) GetPaymentNo() string {
+	if x != nil {
+		return x.PaymentNo
+	}
+	return ""
+}
+
+func (x *NotifyPaymentRequest) GetTradeStatus() string {
+	if x != nil {
+		return x.TradeStatus
+	}
+	return ""
+}
+
+func (x *NotifyPaymentRequest) GetTransactionId() string {
+	if x != nil {
+		return x.TransactionId
+	}
+	return ""
+}
+
+func (x *NotifyPaymentRequest) GetSign() string {
+	if x != nil {
+		return x.Sign
+	}
+	return ""
+}
+
+func (x *NotifyPaymentRequest) GetSignType() string {
+	if x != nil {
+		return x.SignType
+	}
+	return ""
+}
+
+func (x *NotifyPaymentRequest) GetPaidAt() int64 {
+	if x != nil {
+		return x.PaidAt
+	}
+	return 0
+}
+
+func (x *NotifyPaymentRequest) GetNotifyRaw() string {
+	if x != nil {
+		return x.NotifyRaw
+	}
+	return ""
+}
+
+// 支付回调响应
+type NotifyPaymentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"` // 是否处理成功（成功应回 "success" 给支付宝）
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyPaymentResponse) Reset() {
+	*x = NotifyPaymentResponse{}
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyPaymentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyPaymentResponse) ProtoMessage() {}
+
+func (x *NotifyPaymentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyPaymentResponse.ProtoReflect.Descriptor instead.
+func (*NotifyPaymentResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *NotifyPaymentResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *NotifyPaymentResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+// 支付查询请求
+type GetPaymentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PaymentNo     string                 `protobuf:"bytes,1,opt,name=payment_no,json=paymentNo,proto3" json:"payment_no,omitempty"` // 按支付单号查（优先）
+	OrderId       int64                  `protobuf:"varint,2,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`      // 或按订单ID查
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPaymentRequest) Reset() {
+	*x = GetPaymentRequest{}
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPaymentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPaymentRequest) ProtoMessage() {}
+
+func (x *GetPaymentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPaymentRequest.ProtoReflect.Descriptor instead.
+func (*GetPaymentRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetPaymentRequest) GetPaymentNo() string {
+	if x != nil {
+		return x.PaymentNo
+	}
+	return ""
+}
+
+func (x *GetPaymentRequest) GetOrderId() int64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+// 支付查询响应
+type GetPaymentResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	PaymentId         int64                  `protobuf:"varint,1,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
+	PaymentNo         string                 `protobuf:"bytes,2,opt,name=payment_no,json=paymentNo,proto3" json:"payment_no,omitempty"`
+	OrderId           int64                  `protobuf:"varint,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	AmountCents       int64                  `protobuf:"varint,4,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"` // 支付金额（分）
+	Channel           string                 `protobuf:"bytes,5,opt,name=channel,proto3" json:"channel,omitempty"`
+	Status            int32                  `protobuf:"varint,6,opt,name=status,proto3" json:"status,omitempty"` // 1待支付 2支付成功 3支付失败 4已退款
+	TransactionId     string                 `protobuf:"bytes,7,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"`
+	RefundAmountCents int64                  `protobuf:"varint,8,opt,name=refund_amount_cents,json=refundAmountCents,proto3" json:"refund_amount_cents,omitempty"` // 已退款金额（分）
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetPaymentResponse) Reset() {
+	*x = GetPaymentResponse{}
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPaymentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPaymentResponse) ProtoMessage() {}
+
+func (x *GetPaymentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPaymentResponse.ProtoReflect.Descriptor instead.
+func (*GetPaymentResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetPaymentResponse) GetPaymentId() int64 {
+	if x != nil {
+		return x.PaymentId
+	}
+	return 0
+}
+
+func (x *GetPaymentResponse) GetPaymentNo() string {
+	if x != nil {
+		return x.PaymentNo
+	}
+	return ""
+}
+
+func (x *GetPaymentResponse) GetOrderId() int64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *GetPaymentResponse) GetAmountCents() int64 {
+	if x != nil {
+		return x.AmountCents
+	}
+	return 0
+}
+
+func (x *GetPaymentResponse) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
+}
+
+func (x *GetPaymentResponse) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *GetPaymentResponse) GetTransactionId() string {
+	if x != nil {
+		return x.TransactionId
+	}
+	return ""
+}
+
+func (x *GetPaymentResponse) GetRefundAmountCents() int64 {
+	if x != nil {
+		return x.RefundAmountCents
+	}
+	return 0
+}
+
+// 退款请求
+type RefundPaymentRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	PaymentNo         string                 `protobuf:"bytes,1,opt,name=payment_no,json=paymentNo,proto3" json:"payment_no,omitempty"`
+	RefundAmountCents int64                  `protobuf:"varint,2,opt,name=refund_amount_cents,json=refundAmountCents,proto3" json:"refund_amount_cents,omitempty"` // 退款金额（分）
+	Reason            string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *RefundPaymentRequest) Reset() {
+	*x = RefundPaymentRequest{}
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefundPaymentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefundPaymentRequest) ProtoMessage() {}
+
+func (x *RefundPaymentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefundPaymentRequest.ProtoReflect.Descriptor instead.
+func (*RefundPaymentRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RefundPaymentRequest) GetPaymentNo() string {
+	if x != nil {
+		return x.PaymentNo
+	}
+	return ""
+}
+
+func (x *RefundPaymentRequest) GetRefundAmountCents() int64 {
+	if x != nil {
+		return x.RefundAmountCents
+	}
+	return 0
+}
+
+func (x *RefundPaymentRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// 退款响应
+type RefundPaymentResponse struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Success             bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	RefundNo            string                 `protobuf:"bytes,2,opt,name=refund_no,json=refundNo,proto3" json:"refund_no,omitempty"`                                     // 退款单号（mock）
+	RefundedAmountCents int64                  `protobuf:"varint,3,opt,name=refunded_amount_cents,json=refundedAmountCents,proto3" json:"refunded_amount_cents,omitempty"` // 累计已退款金额（分）
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *RefundPaymentResponse) Reset() {
+	*x = RefundPaymentResponse{}
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefundPaymentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefundPaymentResponse) ProtoMessage() {}
+
+func (x *RefundPaymentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefundPaymentResponse.ProtoReflect.Descriptor instead.
+func (*RefundPaymentResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RefundPaymentResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *RefundPaymentResponse) GetRefundNo() string {
+	if x != nil {
+		return x.RefundNo
+	}
+	return ""
+}
+
+func (x *RefundPaymentResponse) GetRefundedAmountCents() int64 {
+	if x != nil {
+		return x.RefundedAmountCents
+	}
+	return 0
+}
+
+// 司机结算请求
+type SettleOrderRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	OrderId          int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	DriverId         int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`                           // 司机ID
+	TotalAmountCents int64                  `protobuf:"varint,3,opt,name=total_amount_cents,json=totalAmountCents,proto3" json:"total_amount_cents,omitempty"` // 订单实际总金额（分）
+	CommissionRate   float64                `protobuf:"fixed64,4,opt,name=commission_rate,json=commissionRate,proto3" json:"commission_rate,omitempty"`        // 平台抽成比例（%），如 20 表示 20%
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SettleOrderRequest) Reset() {
+	*x = SettleOrderRequest{}
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettleOrderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettleOrderRequest) ProtoMessage() {}
+
+func (x *SettleOrderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettleOrderRequest.ProtoReflect.Descriptor instead.
+func (*SettleOrderRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SettleOrderRequest) GetOrderId() int64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *SettleOrderRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *SettleOrderRequest) GetTotalAmountCents() int64 {
+	if x != nil {
+		return x.TotalAmountCents
+	}
+	return 0
+}
+
+func (x *SettleOrderRequest) GetCommissionRate() float64 {
+	if x != nil {
+		return x.CommissionRate
+	}
+	return 0
+}
+
+// 司机结算响应
+type SettleOrderResponse struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	SettlementId            int64                  `protobuf:"varint,1,opt,name=settlement_id,json=settlementId,proto3" json:"settlement_id,omitempty"`
+	SettlementNo            string                 `protobuf:"bytes,2,opt,name=settlement_no,json=settlementNo,proto3" json:"settlement_no,omitempty"`
+	PlatformCommissionCents int64                  `protobuf:"varint,3,opt,name=platform_commission_cents,json=platformCommissionCents,proto3" json:"platform_commission_cents,omitempty"` // 平台抽成（分）
+	DriverIncomeCents       int64                  `protobuf:"varint,4,opt,name=driver_income_cents,json=driverIncomeCents,proto3" json:"driver_income_cents,omitempty"`                   // 司机实收（分）
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *SettleOrderResponse) Reset() {
+	*x = SettleOrderResponse{}
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettleOrderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettleOrderResponse) ProtoMessage() {}
+
+func (x *SettleOrderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_paysvc_proto_paysvc_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettleOrderResponse.ProtoReflect.Descriptor instead.
+func (*SettleOrderResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SettleOrderResponse) GetSettlementId() int64 {
+	if x != nil {
+		return x.SettlementId
+	}
+	return 0
+}
+
+func (x *SettleOrderResponse) GetSettlementNo() string {
+	if x != nil {
+		return x.SettlementNo
+	}
+	return ""
+}
+
+func (x *SettleOrderResponse) GetPlatformCommissionCents() int64 {
+	if x != nil {
+		return x.PlatformCommissionCents
+	}
+	return 0
+}
+
+func (x *SettleOrderResponse) GetDriverIncomeCents() int64 {
+	if x != nil {
+		return x.DriverIncomeCents
+	}
+	return 0
+}
+
 var File_rpc_paysvc_proto_paysvc_proto protoreflect.FileDescriptor
 
 const file_rpc_paysvc_proto_paysvc_proto_rawDesc = "" +
@@ -238,15 +798,67 @@ const file_rpc_paysvc_proto_paysvc_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\x03 \x01(\tR\rtransactionId\x12\x1d\n" +
 	"\n" +
 	"pay_params\x18\x04 \x01(\tR\tpayParams\x12\x16\n" +
-	"\x06status\x18\x05 \x01(\x05R\x06status*r\n" +
+	"\x06status\x18\x05 \x01(\x05R\x06status\"\xe8\x01\n" +
+	"\x14NotifyPaymentRequest\x12\x1d\n" +
+	"\n" +
+	"payment_no\x18\x01 \x01(\tR\tpaymentNo\x12!\n" +
+	"\ftrade_status\x18\x02 \x01(\tR\vtradeStatus\x12%\n" +
+	"\x0etransaction_id\x18\x03 \x01(\tR\rtransactionId\x12\x12\n" +
+	"\x04sign\x18\x04 \x01(\tR\x04sign\x12\x1b\n" +
+	"\tsign_type\x18\x05 \x01(\tR\bsignType\x12\x17\n" +
+	"\apaid_at\x18\x06 \x01(\x03R\x06paidAt\x12\x1d\n" +
+	"\n" +
+	"notify_raw\x18\a \x01(\tR\tnotifyRaw\"K\n" +
+	"\x15NotifyPaymentResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"M\n" +
+	"\x11GetPaymentRequest\x12\x1d\n" +
+	"\n" +
+	"payment_no\x18\x01 \x01(\tR\tpaymentNo\x12\x19\n" +
+	"\border_id\x18\x02 \x01(\x03R\aorderId\"\x99\x02\n" +
+	"\x12GetPaymentResponse\x12\x1d\n" +
+	"\n" +
+	"payment_id\x18\x01 \x01(\x03R\tpaymentId\x12\x1d\n" +
+	"\n" +
+	"payment_no\x18\x02 \x01(\tR\tpaymentNo\x12\x19\n" +
+	"\border_id\x18\x03 \x01(\x03R\aorderId\x12!\n" +
+	"\famount_cents\x18\x04 \x01(\x03R\vamountCents\x12\x18\n" +
+	"\achannel\x18\x05 \x01(\tR\achannel\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\x05R\x06status\x12%\n" +
+	"\x0etransaction_id\x18\a \x01(\tR\rtransactionId\x12.\n" +
+	"\x13refund_amount_cents\x18\b \x01(\x03R\x11refundAmountCents\"}\n" +
+	"\x14RefundPaymentRequest\x12\x1d\n" +
+	"\n" +
+	"payment_no\x18\x01 \x01(\tR\tpaymentNo\x12.\n" +
+	"\x13refund_amount_cents\x18\x02 \x01(\x03R\x11refundAmountCents\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x82\x01\n" +
+	"\x15RefundPaymentResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1b\n" +
+	"\trefund_no\x18\x02 \x01(\tR\brefundNo\x122\n" +
+	"\x15refunded_amount_cents\x18\x03 \x01(\x03R\x13refundedAmountCents\"\xa3\x01\n" +
+	"\x12SettleOrderRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\x12,\n" +
+	"\x12total_amount_cents\x18\x03 \x01(\x03R\x10totalAmountCents\x12'\n" +
+	"\x0fcommission_rate\x18\x04 \x01(\x01R\x0ecommissionRate\"\xcb\x01\n" +
+	"\x13SettleOrderResponse\x12#\n" +
+	"\rsettlement_id\x18\x01 \x01(\x03R\fsettlementId\x12#\n" +
+	"\rsettlement_no\x18\x02 \x01(\tR\fsettlementNo\x12:\n" +
+	"\x19platform_commission_cents\x18\x03 \x01(\x03R\x17platformCommissionCents\x12.\n" +
+	"\x13driver_income_cents\x18\x04 \x01(\x03R\x11driverIncomeCents*r\n" +
 	"\n" +
 	"PayChannel\x12\x1b\n" +
 	"\x17PAY_CHANNEL_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12PAY_CHANNEL_WECHAT\x10\x01\x12\x16\n" +
 	"\x12PAY_CHANNEL_ALIPAY\x10\x02\x12\x17\n" +
-	"\x13PAY_CHANNEL_BALANCE\x10\x032S\n" +
+	"\x13PAY_CHANNEL_BALANCE\x10\x032\xfc\x02\n" +
 	"\x03Pay\x12L\n" +
-	"\rCreatePayment\x12\x1c.paysvc.CreatePaymentRequest\x1a\x1d.paysvc.CreatePaymentResponseB\n" +
+	"\rCreatePayment\x12\x1c.paysvc.CreatePaymentRequest\x1a\x1d.paysvc.CreatePaymentResponse\x12L\n" +
+	"\rNotifyPayment\x12\x1c.paysvc.NotifyPaymentRequest\x1a\x1d.paysvc.NotifyPaymentResponse\x12C\n" +
+	"\n" +
+	"GetPayment\x12\x19.paysvc.GetPaymentRequest\x1a\x1a.paysvc.GetPaymentResponse\x12L\n" +
+	"\rRefundPayment\x12\x1c.paysvc.RefundPaymentRequest\x1a\x1d.paysvc.RefundPaymentResponse\x12F\n" +
+	"\vSettleOrder\x12\x1a.paysvc.SettleOrderRequest\x1a\x1b.paysvc.SettleOrderResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
 var (
@@ -262,21 +874,37 @@ func file_rpc_paysvc_proto_paysvc_proto_rawDescGZIP() []byte {
 }
 
 var file_rpc_paysvc_proto_paysvc_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_rpc_paysvc_proto_paysvc_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_rpc_paysvc_proto_paysvc_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_rpc_paysvc_proto_paysvc_proto_goTypes = []any{
 	(PayChannel)(0),               // 0: paysvc.PayChannel
 	(*CreatePaymentRequest)(nil),  // 1: paysvc.CreatePaymentRequest
 	(*CreatePaymentResponse)(nil), // 2: paysvc.CreatePaymentResponse
+	(*NotifyPaymentRequest)(nil),  // 3: paysvc.NotifyPaymentRequest
+	(*NotifyPaymentResponse)(nil), // 4: paysvc.NotifyPaymentResponse
+	(*GetPaymentRequest)(nil),     // 5: paysvc.GetPaymentRequest
+	(*GetPaymentResponse)(nil),    // 6: paysvc.GetPaymentResponse
+	(*RefundPaymentRequest)(nil),  // 7: paysvc.RefundPaymentRequest
+	(*RefundPaymentResponse)(nil), // 8: paysvc.RefundPaymentResponse
+	(*SettleOrderRequest)(nil),    // 9: paysvc.SettleOrderRequest
+	(*SettleOrderResponse)(nil),   // 10: paysvc.SettleOrderResponse
 }
 var file_rpc_paysvc_proto_paysvc_proto_depIdxs = []int32{
-	0, // 0: paysvc.CreatePaymentRequest.channel:type_name -> paysvc.PayChannel
-	1, // 1: paysvc.Pay.CreatePayment:input_type -> paysvc.CreatePaymentRequest
-	2, // 2: paysvc.Pay.CreatePayment:output_type -> paysvc.CreatePaymentResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0,  // 0: paysvc.CreatePaymentRequest.channel:type_name -> paysvc.PayChannel
+	1,  // 1: paysvc.Pay.CreatePayment:input_type -> paysvc.CreatePaymentRequest
+	3,  // 2: paysvc.Pay.NotifyPayment:input_type -> paysvc.NotifyPaymentRequest
+	5,  // 3: paysvc.Pay.GetPayment:input_type -> paysvc.GetPaymentRequest
+	7,  // 4: paysvc.Pay.RefundPayment:input_type -> paysvc.RefundPaymentRequest
+	9,  // 5: paysvc.Pay.SettleOrder:input_type -> paysvc.SettleOrderRequest
+	2,  // 6: paysvc.Pay.CreatePayment:output_type -> paysvc.CreatePaymentResponse
+	4,  // 7: paysvc.Pay.NotifyPayment:output_type -> paysvc.NotifyPaymentResponse
+	6,  // 8: paysvc.Pay.GetPayment:output_type -> paysvc.GetPaymentResponse
+	8,  // 9: paysvc.Pay.RefundPayment:output_type -> paysvc.RefundPaymentResponse
+	10, // 10: paysvc.Pay.SettleOrder:output_type -> paysvc.SettleOrderResponse
+	6,  // [6:11] is the sub-list for method output_type
+	1,  // [1:6] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_rpc_paysvc_proto_paysvc_proto_init() }
@@ -290,7 +918,7 @@ func file_rpc_paysvc_proto_paysvc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_paysvc_proto_paysvc_proto_rawDesc), len(file_rpc_paysvc_proto_paysvc_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   2,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

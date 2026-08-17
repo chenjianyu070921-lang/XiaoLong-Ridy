@@ -28,3 +28,27 @@ func (s *PayServer) CreatePayment(ctx context.Context, in *proto.CreatePaymentRe
 	l := logic.NewCreatePaymentLogic(ctx, s.svcCtx)
 	return l.CreatePayment(in)
 }
+
+// 支付回调：处理第三方支付结果通知（验签 + 更新状态）。
+func (s *PayServer) NotifyPayment(ctx context.Context, in *proto.NotifyPaymentRequest) (*proto.NotifyPaymentResponse, error) {
+	l := logic.NewNotifyPaymentLogic(ctx, s.svcCtx)
+	return l.NotifyPayment(in)
+}
+
+// 支付查询：按支付单号或订单ID查询支付状态。
+func (s *PayServer) GetPayment(ctx context.Context, in *proto.GetPaymentRequest) (*proto.GetPaymentResponse, error) {
+	l := logic.NewGetPaymentLogic(ctx, s.svcCtx)
+	return l.GetPayment(in)
+}
+
+// 退款：退款并回写支付单。
+func (s *PayServer) RefundPayment(ctx context.Context, in *proto.RefundPaymentRequest) (*proto.RefundPaymentResponse, error) {
+	l := logic.NewRefundPaymentLogic(ctx, s.svcCtx)
+	return l.RefundPayment(in)
+}
+
+// 司机结算：计算平台抽成与司机实收。
+func (s *PayServer) SettleOrder(ctx context.Context, in *proto.SettleOrderRequest) (*proto.SettleOrderResponse, error) {
+	l := logic.NewSettleOrderLogic(ctx, s.svcCtx)
+	return l.SettleOrder(in)
+}

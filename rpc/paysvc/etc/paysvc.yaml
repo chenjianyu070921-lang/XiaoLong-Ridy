@@ -13,3 +13,9 @@ alipay:
   charset: utf-8
   timeoutExpress: 30m
   sandbox: true
+kafka:
+  brokers:
+    - 127.0.0.1:9092
+  topic: order.paid
+ordersvc:
+  target: 127.0.0.1:50051
