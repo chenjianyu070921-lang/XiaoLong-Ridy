@@ -1,0 +1,7 @@
+./doc.go
+./generated_expansion.go
+./podschedulingcontext.go
+./resource_client.go
+./resourceclaim.go
+./resourceclaimtemplate.go
+./resourceclass.go

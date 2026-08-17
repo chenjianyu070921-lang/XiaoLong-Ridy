@@ -1,0 +1,6 @@
+./ipaddress.go
+./ipaddressspec.go
+./parentreference.go
+./servicecidr.go
+./servicecidrspec.go
+./servicecidrstatus.go
