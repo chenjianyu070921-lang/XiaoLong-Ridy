@@ -12,15 +12,15 @@ const (
 
 // CouponInput 优惠券信息（金额均为分）。
 type CouponInput struct {
-	Type            int32 // 1固定金额 2折扣
-	FaceValueCents  int64 // 固定金额券面额（分）
-	Discount        int32 // 折扣券折扣，80 表示 8 折
-	ThresholdCents  int64 // 使用门槛（分），0 表示无门槛
+	Type             int32 // 1固定金额 2折扣
+	FaceValueCents   int64 // 固定金额券面额（分）
+	Discount         int32 // 折扣券折扣，80 表示 8 折
+	ThresholdCents   int64 // 使用门槛（分），0 表示无门槛
 	MaxDiscountCents int64 // 折扣券最大优惠金额（分），0 表示不限制
 }
 
 var (
-	ErrCouponNotMeetThreshold = errors.New("order amount does not meet coupon threshold")
+	ErrCouponNotMeetThreshold = errors.New("orderclient amount does not meet coupon threshold")
 )
 
 // DiscountResult 优惠计算结果（金额均为分）。

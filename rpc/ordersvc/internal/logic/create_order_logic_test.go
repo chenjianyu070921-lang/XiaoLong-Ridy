@@ -56,10 +56,10 @@ func TestCreateOrderSuccess(t *testing.T) {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
 	if resp.OrderId <= 0 {
-		t.Fatal("CreateOrder() returned empty order id")
+		t.Fatal("CreateOrder() returned empty orderclient id")
 	}
 	if resp.OrderNo == "" {
-		t.Fatal("CreateOrder() returned empty order no")
+		t.Fatal("CreateOrder() returned empty orderclient no")
 	}
 	if resp.Status != proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
 		t.Fatalf("CreateOrder() status = %v, want WAIT_ACCEPT", resp.Status)
@@ -76,7 +76,7 @@ func TestCreateOrderSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if order.UserId != 1001 || order.Status != 1 {
-		t.Fatalf("stored order = %+v", order)
+		t.Fatalf("stored orderclient = %+v", order)
 	}
 	if order.EstimatedPrice != 36 {
 		t.Fatalf("stored estimated price = %v, want 36", order.EstimatedPrice)
@@ -132,7 +132,7 @@ func TestCreateOrderTriggersDispatchAndIgnoresDispatchError(t *testing.T) {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
 	if resp.OrderId <= 0 {
-		t.Fatal("CreateOrder() returned empty order id")
+		t.Fatal("CreateOrder() returned empty orderclient id")
 	}
 	if !dispatchClient.called {
 		t.Fatal("CreateOrder() did not trigger dispatch")

@@ -6,7 +6,7 @@ import (
 
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/job/internal/config"
-	"XiaoLong-Ridy/rpc/ordersvc/ordersvcclient"
+	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -14,10 +14,10 @@ import (
 )
 
 type ServiceContext struct {
-	Config     config.Config
-	Db         *gorm.DB
-	Redis      *redis.Client
-	OrderClient ordersvcclient.Order
+	Config      config.Config
+	Db          *gorm.DB
+	Redis       *redis.Client
+	OrderClient order.Order
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -39,7 +39,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	fmt.Println("Redis 连接成功")
 
 	// 创建 ordersvc RPC 客户端（通过 Etcd 服务发现）
-	orderClient := ordersvcclient.NewOrder(zrpc.MustNewClient(c.OrderRPC))
+	orderClient := order.NewOrder(zrpc.MustNewClient(c.OrderRPC))
 
 	return &ServiceContext{
 		Config:      c,

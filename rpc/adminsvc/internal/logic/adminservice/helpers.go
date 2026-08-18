@@ -184,7 +184,7 @@ func mapMenus(role int32) []*adminsvc.MenuItem {
 	items := []*adminsvc.MenuItem{
 		{Name: "用户管理", Path: "/users", Icon: "User", Perm: "user:list"},
 		{Name: "司机审核", Path: "/driver-certifications", Icon: "BadgeCheck", Perm: "driver:audit"},
-		{Name: "订单监控", Path: "/orders", Icon: "ClipboardList", Perm: "order:list"},
+		{Name: "订单监控", Path: "/orders", Icon: "ClipboardList", Perm: "orderclient:list"},
 		{Name: "操作日志", Path: "/operation-logs", Icon: "ScrollText", Perm: "log:list"},
 	}
 	if role == 1 {

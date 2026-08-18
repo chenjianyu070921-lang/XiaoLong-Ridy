@@ -13,6 +13,7 @@ import (
 	"XiaoLong-Ridy/api/admin/internal/repository"
 	"XiaoLong-Ridy/api/admin/internal/svc"
 	"XiaoLong-Ridy/api/admin/internal/types"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -155,7 +156,7 @@ func (l *AuthLogic) GetMenus(session *model.AdminSession) []types.MenuItem {
 			{Name: "工作台", Path: "/dashboard", Perm: "dashboard:view"},
 			{Name: "用户管理", Path: "/users", Perm: "user:view"},
 			{Name: "司机管理", Path: "/drivers", Perm: "driver:view"},
-			{Name: "订单管理", Path: "/orders", Perm: "order:view"},
+			{Name: "订单管理", Path: "/orders", Perm: "orderclient:view"},
 			{Name: "营销管理", Path: "/marketing", Perm: "coupon:view"},
 			{Name: "风控管理", Path: "/risk", Perm: "risk:view"},
 			{Name: "系统管理", Path: "/system", Perm: "system:view"},
@@ -165,7 +166,7 @@ func (l *AuthLogic) GetMenus(session *model.AdminSession) []types.MenuItem {
 			{Name: "工作台", Path: "/dashboard", Perm: "dashboard:view"},
 			{Name: "用户管理", Path: "/users", Perm: "user:view"},
 			{Name: "司机管理", Path: "/drivers", Perm: "driver:view"},
-			{Name: "订单管理", Path: "/orders", Perm: "order:view"},
+			{Name: "订单管理", Path: "/orders", Perm: "orderclient:view"},
 			{Name: "营销管理", Path: "/marketing", Perm: "coupon:view"},
 			{Name: "操作日志", Path: "/operation-logs", Perm: "log:view"},
 		}
@@ -173,7 +174,7 @@ func (l *AuthLogic) GetMenus(session *model.AdminSession) []types.MenuItem {
 		return []types.MenuItem{
 			{Name: "工作台", Path: "/dashboard", Perm: "dashboard:view"},
 			{Name: "用户管理", Path: "/users", Perm: "user:view"},
-			{Name: "订单管理", Path: "/orders", Perm: "order:view"},
+			{Name: "订单管理", Path: "/orders", Perm: "orderclient:view"},
 			{Name: "操作日志", Path: "/operation-logs", Perm: "log:view"},
 		}
 	default:

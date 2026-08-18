@@ -83,7 +83,7 @@ func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.Acc
 			"to_status":   constants.OrderStatusAccepted,
 		})
 		if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderStatusChanged, payload); err != nil {
-			l.Logger.Errorf("publish order.status.changed failed: %v", err)
+			l.Logger.Errorf("publish orderclient.status.changed failed: %v", err)
 		}
 	}
 

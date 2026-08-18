@@ -31,7 +31,7 @@ func TestAcceptOrderSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 2 || fresh.DriverId != 2002 {
-		t.Fatalf("accepted order = %+v", fresh)
+		t.Fatalf("accepted orderclient = %+v", fresh)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != 1 || logs[1].ToStatus != 2 || logs[1].OperatorType != "driver" {

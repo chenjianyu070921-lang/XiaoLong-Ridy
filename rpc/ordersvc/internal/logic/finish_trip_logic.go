@@ -10,8 +10,6 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
-	pay "XiaoLong-Ridy/rpc/paysvc/pay"
-	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -130,24 +128,25 @@ func (l *FinishTripLogic) settleAmountCents(order *model.RideOrder, in *proto.Fi
 
 // createPayment 调 paysvc 生成支付单，返回支付单号；失败返回空串（不阻断订单状态）。
 func (l *FinishTripLogic) createPayment(order *model.RideOrder, amountCents int64) string {
-	if l.svcCtx.PayClient == nil {
-		l.Logger.Errorf("pay client not configured, skip create payment, orderId=%d", order.Id)
-		return ""
-	}
-	channel := l.svcCtx.Config.PayChannel
-	if channel <= 0 {
-		channel = 1 // 默认微信
-	}
-	resp, err := l.svcCtx.PayClient.CreatePayment(l.ctx, &pay.CreatePaymentRequest{
-		OrderId:     int64(order.Id),
-		UserId:      int64(order.UserId),
-		AmountCents: amountCents,
-		Channel:     payproto.PayChannel(channel),
-	})
-	if err != nil || resp == nil {
-		l.Logger.Errorf("create payment failed, orderId=%d: %v", order.Id, err)
-		return ""
-	}
-	l.Logger.Infof("create payment success, orderId=%d paymentNo=%s", order.Id, resp.PaymentNo)
-	return resp.PaymentNo
+	//if l.svcCtx.PayClient == nil {
+	//	l.Logger.Errorf("pay client not configured, skip create payment, orderId=%d", orderclient.Id)
+	//	return ""
+	//}
+	//channel := l.svcCtx.Config.PayChannel
+	//if channel <= 0 {
+	//	channel = 1 // 默认微信
+	//}
+	//resp, err := l.svcCtx.PayClient.CreatePayment(l.ctx, &pay.CreatePaymentRequest{
+	//	OrderId:     int64(orderclient.Id),
+	//	UserId:      int64(orderclient.UserId),
+	//	AmountCents: amountCents,
+	//	Channel:     payproto.PayChannel(channel),
+	//})
+	//if err != nil || resp == nil {
+	//	l.Logger.Errorf("create payment failed, orderId=%d: %v", orderclient.Id, err)
+	//	return ""
+	//}
+	//l.Logger.Infof("create payment success, orderId=%d paymentNo=%s", orderclient.Id, resp.PaymentNo)
+	//return resp.PaymentNo
+	return ""
 }

@@ -44,7 +44,7 @@ func TestFinishTripSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 4 {
-		t.Fatalf("finished order status = %d, want 4", fresh.Status)
+		t.Fatalf("finished orderclient status = %d, want 4", fresh.Status)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != 3 || logs[1].ToStatus != 4 {
@@ -101,11 +101,11 @@ func TestFinishTripRejectDriverMismatch(t *testing.T) {
 }
 
 type fakePayClient struct {
-	createPayment func(ctx context.Context, in *pay.CreatePaymentRequest) (*pay.CreatePaymentResponse, error)
-	gotOrderId    int64
-	gotUserId     int64
+	createPayment  func(ctx context.Context, in *pay.CreatePaymentRequest) (*pay.CreatePaymentResponse, error)
+	gotOrderId     int64
+	gotUserId      int64
 	gotAmountCents int64
-	gotChannel    payproto.PayChannel
+	gotChannel     payproto.PayChannel
 }
 
 func (f *fakePayClient) CreatePayment(_ context.Context, in *pay.CreatePaymentRequest, _ ...grpc.CallOption) (*pay.CreatePaymentResponse, error) {
@@ -146,7 +146,7 @@ func TestFinishTripCreatesPayment(t *testing.T) {
 		t.Fatalf("FinishTrip() payable = %d, want 5200", resp.PayableAmountCents)
 	}
 	if pc.gotOrderId != int64(order.Id) {
-		t.Fatalf("payment order id = %d, want %d", pc.gotOrderId, order.Id)
+		t.Fatalf("payment orderclient id = %d, want %d", pc.gotOrderId, order.Id)
 	}
 	if pc.gotUserId != 1001 {
 		t.Fatalf("payment user id = %d, want 1001", pc.gotUserId)
@@ -242,6 +242,6 @@ func TestFinishTripPaymentFailureNotBlocking(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 4 {
-		t.Fatalf("finished order status = %d, want 4", fresh.Status)
+		t.Fatalf("finished orderclient status = %d, want 4", fresh.Status)
 	}
 }

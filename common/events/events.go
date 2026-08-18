@@ -12,7 +12,7 @@ import (
 )
 
 // DefaultStream 订单事件默认 Redis Stream。
-const DefaultStream = "order:event:stream"
+const DefaultStream = "orderclient:event:stream"
 
 // Event 事件信封，写入 Redis Stream 时整体序列化。
 type Event struct {

@@ -15,11 +15,11 @@ import (
 
 // 订单业务错误定义。
 var (
-	ErrInvalidOrderParams       = errors.New("invalid order params")
+	ErrInvalidOrderParams       = errors.New("invalid orderclient params")
 	ErrCancelReasonRequired     = errors.New("cancel reason required")
-	ErrOrderStatusNotCancelable = errors.New("order status not cancelable")
-	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this order")
-	ErrOrderStatusNotAllowed    = errors.New("order status not allowed")
+	ErrOrderStatusNotCancelable = errors.New("orderclient status not cancelable")
+	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this orderclient")
+	ErrOrderStatusNotAllowed    = errors.New("orderclient status not allowed")
 	ErrDriverNotMatched         = errors.New("driver not matched")
 )
 

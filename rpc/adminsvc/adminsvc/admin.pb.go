@@ -2864,7 +2864,7 @@ type OrderDetail struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Order           *Order            `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	Order           *Order            `protobuf:"bytes,1,opt,name=orderclient,proto3" json:"orderclient,omitempty"`
 	StatusLogs      []*OrderStatusLog `protobuf:"bytes,2,rep,name=status_logs,json=statusLogs,proto3" json:"status_logs,omitempty"`
 	DispatchRecords []*DispatchRecord `protobuf:"bytes,3,rep,name=dispatch_records,json=dispatchRecords,proto3" json:"dispatch_records,omitempty"`
 	Price           *OrderPrice       `protobuf:"bytes,4,opt,name=price,proto3" json:"price,omitempty"`
@@ -7301,7 +7301,7 @@ var file_rpc_adminsvc_admin_proto_depIdxs = []int32{
 	12, // 4: adminsvc.OperationLogListResponse.list:type_name -> adminsvc.OperationLog
 	17, // 5: adminsvc.UserListResponse.list:type_name -> adminsvc.User
 	22, // 6: adminsvc.DriverCertificationListResponse.list:type_name -> adminsvc.DriverCertification
-	27, // 7: adminsvc.OrderDetail.order:type_name -> adminsvc.Order
+	27, // 7: adminsvc.OrderDetail.orderclient:type_name -> adminsvc.Order
 	28, // 8: adminsvc.OrderDetail.status_logs:type_name -> adminsvc.OrderStatusLog
 	29, // 9: adminsvc.OrderDetail.dispatch_records:type_name -> adminsvc.DispatchRecord
 	30, // 10: adminsvc.OrderDetail.price:type_name -> adminsvc.OrderPrice

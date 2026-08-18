@@ -24,10 +24,10 @@ const (
 
 // 订单操作方
 const (
-	OperatorUser   = "user"
-	OperatorDriver = "driver"
-	OperatorSystem = "system"
-	OperatorAdmin  = "admin"
+	OperatorUser      = "user"
+	OperatorDriver    = "driver"
+	OperatorSystem    = "system"
+	OperatorAdmin     = "admin"
 	RedisDriverPos    = "driver:pos:%d"   // 司机位置
 	RedisOrderInfo    = "order:info:%d"   // 订单信息
 	RedisSmsCode      = "sms:code:%s"     // 验证码
@@ -45,6 +45,7 @@ const (
 	TopicOrderCancelled     = "order.canceled"       // 订单取消
 	TopicDispatchNew        = "dispatch.new"         // 派单通知
 	TopicDispatchResult     = "dispatch.result"      // 派单结果
+	TopicOrderPaid          = "order.paid"            // 支付成功
 )
 
 // 事件流

@@ -92,7 +92,7 @@ Expected: each method appears in proto, generated interface, and client.
 // ServiceContext holds repos and clients required by adminsvc logic.
 type ServiceContext struct {
     config.Config
-    // add repositories/clients here for user, driver, order, coupon, and log access
+    // add repositories/clients here for user, driver, orderclient, coupon, and log access
 }
 ```
 

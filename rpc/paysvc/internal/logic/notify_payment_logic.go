@@ -83,7 +83,7 @@ func (l *NotifyPaymentLogic) NotifyPayment(in *proto.NotifyPaymentRequest) (*pro
 
 	// 6. 发 Kafka「支付成功」事件（失败不阻断主流程）
 	if err := l.publishPaidEvent(p, in.PaidAt); err != nil {
-		l.Errorf("publish order.paid event failed: %v", err)
+		l.Errorf("publish orderclient.paid event failed: %v", err)
 	}
 
 	// 7. 触发司机结算（失败不阻断主流程）
@@ -112,11 +112,11 @@ func (l *NotifyPaymentLogic) settleAfterPaid(p *model.Payment) {
 	// 调 ordersvc 拿司机ID
 	driverId, err := l.svcCtx.OrderClient.GetDriverId(l.ctx, int64(p.OrderId))
 	if err != nil {
-		l.Errorf("get driver_id for order %d failed: %v, skip settle", p.OrderId, err)
+		l.Errorf("get driver_id for orderclient %d failed: %v, skip settle", p.OrderId, err)
 		return
 	}
 	if driverId == 0 {
-		l.Infof("order %d has no driver, skip settle", p.OrderId)
+		l.Infof("orderclient %d has no driver, skip settle", p.OrderId)
 		return
 	}
 
@@ -128,6 +128,6 @@ func (l *NotifyPaymentLogic) settleAfterPaid(p *model.Payment) {
 		TotalAmountCents: priceutil.YuanToCents(p.Amount),
 		CommissionRate:   defaultCommissionRate,
 	}); err != nil {
-		l.Errorf("settle order %d failed: %v", p.OrderId, err)
+		l.Errorf("settle orderclient %d failed: %v", p.OrderId, err)
 	}
 }

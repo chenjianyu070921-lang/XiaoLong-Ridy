@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/job/internal/svc"
-	"XiaoLong-Ridy/rpc/ordersvc/ordersvcclient"
+	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -68,7 +68,7 @@ func (t *Task) SyncOrderStatus() error {
 	var canceled, failed int64
 
 	for {
-		resp, err := t.svcCtx.OrderClient.ListTimeoutOrders(ctx, &ordersvcclient.ListTimeoutOrdersRequest{
+		resp, err := t.svcCtx.OrderClient.ListTimeoutOrders(ctx, &order.ListTimeoutOrdersRequest{
 			TimeoutSeconds: timeoutSeconds,
 			Page:           page,
 			PageSize:       pageSize,
@@ -80,7 +80,7 @@ func (t *Task) SyncOrderStatus() error {
 			break
 		}
 		for _, o := range resp.List {
-			if _, err := t.svcCtx.OrderClient.TimeoutCancel(ctx, &ordersvcclient.TimeoutCancelRequest{
+			if _, err := t.svcCtx.OrderClient.TimeoutCancel(ctx, &order.TimeoutCancelRequest{
 				OrderId: o.OrderId,
 				Reason:  "系统定时任务：超时未接单自动取消",
 			}); err != nil {
@@ -112,7 +112,7 @@ func (t *Task) DailyReport() error {
 
 	var total, completed, cancelled, other int64
 	for {
-		resp, err := t.svcCtx.OrderClient.ListOrders(ctx, &ordersvcclient.ListOrdersRequest{
+		resp, err := t.svcCtx.OrderClient.ListOrders(ctx, &order.ListOrdersRequest{
 			Page:     page,
 			PageSize: pageSize,
 		})

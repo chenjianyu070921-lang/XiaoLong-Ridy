@@ -30,7 +30,7 @@ func TestConfirmPaidSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != constants.OrderStatusCompleted {
-		t.Fatalf("completed order status = %d, want %d", fresh.Status, constants.OrderStatusCompleted)
+		t.Fatalf("completed orderclient status = %d, want %d", fresh.Status, constants.OrderStatusCompleted)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != constants.OrderStatusWaitPay || logs[1].ToStatus != constants.OrderStatusCompleted {

@@ -9,7 +9,7 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	Mysql MysqlConf     `yaml:"mysql" json:"mysql"`
-	Redis cfg.RedisConf `yaml:"redis" json:"redis"`
+	Redis cfg.RedisConf `yaml:"myredis" json:"myredis"`
 }
 
 type MysqlConf struct {

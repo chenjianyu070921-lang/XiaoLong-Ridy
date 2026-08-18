@@ -1,4 +1,4 @@
-Name: order-event-consumer
+Name: orderclient-event-consumer
 
 Redis:
   host: 127.0.0.1:6379
@@ -10,6 +10,6 @@ DispatchRPC:
   Target: 127.0.0.1:8083
 
 Log:
-  ServiceName: order-event-consumer
+  ServiceName: orderclient-event-consumer
   Mode: console
   Level: info

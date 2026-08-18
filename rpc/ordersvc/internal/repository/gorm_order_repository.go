@@ -12,7 +12,7 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 )
 
-var errOrderNotUpdated = errors.New("order not updated")
+var errOrderNotUpdated = errors.New("orderclient not updated")
 
 type gormOrderRepository struct {
 	db *gorm.DB

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"XiaoLong-Ridy/job/internal/svc"
-	order "XiaoLong-Ridy/rpc/ordersvc/order"
+	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

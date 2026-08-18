@@ -30,7 +30,7 @@ func NewOrderConsumer(svcCtx *svc.ServiceContext) *OrderConsumer {
 
 // Start 阻塞消费订单事件流。
 func (c *OrderConsumer) Start(ctx context.Context) error {
-	return c.svcCtx.EventBus.Consume(ctx, "order-event-consumer", c.handle)
+	return c.svcCtx.EventBus.Consume(ctx, "orderclient-event-consumer", c.handle)
 }
 
 func (c *OrderConsumer) handle(ctx context.Context, topic string, payload []byte) error {
