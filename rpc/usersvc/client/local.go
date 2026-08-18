@@ -22,9 +22,10 @@ type LocalClient struct {
 func NewLocalClient(signingKey string, onSMSCode func(phone, code string)) *LocalClient {
 	users := repository.NewMemoryUserRepository()
 	addresses := repository.NewMemoryAddressRepository()
+	coupons := repository.NewMemoryCouponRepository()
 	smsService := logic.NewMemorySMSCodeService(onSMSCode)
 	tokens := logic.NewTokenManager(signingKey)
-	svcCtx := svc.NewServiceContext(config.Config{}, users, addresses, smsService, smsService, tokens)
+	svcCtx := svc.NewServiceContext(config.Config{}, users, addresses, coupons, smsService, smsService, tokens)
 	return &LocalClient{
 		service: server.NewUserServer(svcCtx),
 	}
@@ -78,4 +79,24 @@ func (c *LocalClient) UpdateAddress(ctx context.Context, req *userproto.UpdateAd
 // DeleteAddress 转发删除常用地址 RPC。
 func (c *LocalClient) DeleteAddress(ctx context.Context, req *userproto.DeleteAddressRequest) (*userproto.DeleteAddressResponse, error) {
 	return c.service.DeleteAddress(ctx, req)
+}
+
+// ClaimCoupon 转发领取优惠券 RPC。
+func (c *LocalClient) ClaimCoupon(ctx context.Context, req *userproto.ClaimCouponRequest) (*userproto.ClaimCouponResponse, error) {
+	return c.service.ClaimCoupon(ctx, req)
+}
+
+// ListMyCoupons 转发我的优惠券列表 RPC。
+func (c *LocalClient) ListMyCoupons(ctx context.Context, req *userproto.ListMyCouponsRequest) (*userproto.ListMyCouponsResponse, error) {
+	return c.service.ListMyCoupons(ctx, req)
+}
+
+// LockUserCoupon 转发下单锁券 RPC。
+func (c *LocalClient) LockUserCoupon(ctx context.Context, req *userproto.LockUserCouponRequest) (*userproto.LockUserCouponResponse, error) {
+	return c.service.LockUserCoupon(ctx, req)
+}
+
+// ReleaseUserCoupon 转发释放锁券 RPC。
+func (c *LocalClient) ReleaseUserCoupon(ctx context.Context, req *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error) {
+	return c.service.ReleaseUserCoupon(ctx, req)
 }

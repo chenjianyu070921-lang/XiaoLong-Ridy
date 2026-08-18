@@ -10,16 +10,24 @@ const (
 	OrderStatusCancelled  = 6 // 已取消
 )
 
+// 派单类型
+const (
+	DispatchTypeAuto = 1 // 自动派单
+)
+
+// 派单记录状态
+const (
+	DispatchStatusPending   = 1 // 派单中
+	DispatchStatusAccepted  = 2 // 已接受
+	DispatchStatusCancelled = 5 // 已取消
+)
+
 // 订单操作方
 const (
 	OperatorUser   = "user"
 	OperatorDriver = "driver"
 	OperatorSystem = "system"
 	OperatorAdmin  = "admin"
-)
-
-// Redis Key 模板（用的时候 fmt.Sprintf 填入 ID）
-const (
 	RedisDriverPos    = "driver:pos:%d"   // 司机位置
 	RedisOrderInfo    = "order:info:%d"   // 订单信息
 	RedisSmsCode      = "sms:code:%s"     // 验证码

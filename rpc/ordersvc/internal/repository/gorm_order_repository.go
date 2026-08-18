@@ -80,21 +80,71 @@ func (r *gormOrderRepository) Cancel(ctx context.Context, orderID uint64, wantSt
 	return true, nil
 }
 
-// Accept 条件更新待接单订单为已接单并绑定司机。
-func (r *gormOrderRepository) Accept(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error) {
+// TimeoutCancel 原子取消仍处于待接单且没有司机接单的订单，避免旧超时任务取消已接单订单。
+func (r *gormOrderRepository) TimeoutCancel(ctx context.Context, orderID uint64, reason string, statusLog *model.OrderStatusLog) (bool, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&model.RideOrder{}).
-			Where("id = ? AND driver_id = 0 AND status = ? AND deleted_at IS NULL", orderID, constants.OrderStatusWaitAccept).
+			Where("id = ? AND status = ? AND driver_id = 0 AND deleted_at IS NULL", orderID, constants.OrderStatusWaitAccept).
 			Updates(map[string]interface{}{
-				"driver_id":  driverID,
-				"status":     constants.OrderStatusAccepted,
-				"updated_at": time.Now(),
+				"status":        constants.OrderStatusCancelled,
+				"cancel_by":     constants.OperatorSystem,
+				"cancel_reason": reason,
+				"updated_at":    time.Now(),
 			})
 		if res.Error != nil {
 			return res.Error
 		}
 		if res.RowsAffected == 0 {
 			return errOrderNotUpdated
+		}
+		statusLog.OrderId = orderID
+		return tx.Create(statusLog).Error
+	})
+	if errors.Is(err, errOrderNotUpdated) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Accept 条件更新待接单订单为已接单并绑定司机。
+func (r *gormOrderRepository) Accept(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error) {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		dispatchRes := tx.Model(&model.DispatchRecord{}).
+			Where("order_id = ? AND driver_id = ? AND status = ?", orderID, driverID, constants.DispatchStatusPending).
+			Updates(map[string]interface{}{
+				"status":     constants.DispatchStatusAccepted,
+				"updated_at": now,
+			})
+		if dispatchRes.Error != nil {
+			return dispatchRes.Error
+		}
+		if dispatchRes.RowsAffected == 0 {
+			return errOrderNotUpdated
+		}
+		res := tx.Model(&model.RideOrder{}).
+			Where("id = ? AND driver_id = 0 AND status = ? AND deleted_at IS NULL", orderID, constants.OrderStatusWaitAccept).
+			Updates(map[string]interface{}{
+				"driver_id":  driverID,
+				"status":     constants.OrderStatusAccepted,
+				"updated_at": now,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errOrderNotUpdated
+		}
+		if err := tx.Model(&model.DispatchRecord{}).
+			Where("order_id = ? AND driver_id <> ? AND status = ?", orderID, driverID, constants.DispatchStatusPending).
+			Updates(map[string]interface{}{
+				"status":     constants.DispatchStatusCancelled,
+				"updated_at": now,
+			}).Error; err != nil {
+			return err
 		}
 		statusLog.OrderId = orderID
 		return tx.Create(statusLog).Error

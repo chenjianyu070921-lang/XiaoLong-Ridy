@@ -36,7 +36,7 @@ func (l *StartTripLogic) StartTrip(in *proto.StartTripRequest) (*proto.StartTrip
 	if err != nil {
 		return nil, err
 	}
-	if order.Status != constants.OrderStatusAccepted {
+	if !CanTransit(order.Status, constants.OrderStatusOnTrip) {
 		return nil, ErrOrderStatusNotAllowed
 	}
 	if order.DriverId != uint64(in.DriverId) {

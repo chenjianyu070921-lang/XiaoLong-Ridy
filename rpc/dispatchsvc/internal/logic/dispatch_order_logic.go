@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/model"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/svc"
 	"XiaoLong-Ridy/rpc/dispatchsvc/proto"
@@ -47,8 +48,8 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 		record := &model.DispatchRecord{
 			OrderId:      uint64(in.OrderId),
 			DriverId:     candidate.DriverID,
-			DispatchType: 1,
-			Status:       1,
+			DispatchType: constants.DispatchTypeAuto,
+			Status:       constants.DispatchStatusPending,
 			MatchScore:   candidate.MatchScore,
 			Remark:       "mock直派",
 		}

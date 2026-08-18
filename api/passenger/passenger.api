@@ -44,6 +44,8 @@ type RefreshTokenResponse {
 	RefreshToken string `json:"refreshToken"`
 }
 
+type LogoutRequest {}
+
 type LogoutResponse {
 	Success bool `json:"success"`
 }
@@ -71,6 +73,7 @@ type CreateOrderRequest {
 	ToAddress string `json:"toAddress"`
 	ToLongitude float64 `json:"toLongitude"`
 	ToLatitude float64 `json:"toLatitude"`
+	UserCouponID uint64 `json:"userCouponId"`
 	CouponID int64 `json:"couponId"`
 	CouponType int32 `json:"couponType"`
 	CouponFaceValueCents int64 `json:"couponFaceValueCents"`
@@ -86,6 +89,7 @@ type CreateOrderResponse {
 	OriginalPriceCents int64 `json:"originalPriceCents"`
 	DiscountAmountCents int64 `json:"discountAmountCents"`
 	PayableAmountCents int64 `json:"payableAmountCents"`
+	UserCouponID uint64 `json:"userCouponId"`
 	Status int32 `json:"status"`
 	CreatedAt int64 `json:"createdAt"`
 }
@@ -149,6 +153,19 @@ type CancelOrderResponse {
 	Status int32 `json:"status"`
 }
 
+type PayOrderRequest {
+	OrderID int64 `json:"orderId"`
+	Channel int32 `json:"channel"`
+}
+
+type PayOrderResponse {
+	PaymentID int64 `json:"paymentId"`
+	PaymentNo string `json:"paymentNo"`
+	TransactionID string `json:"transactionId"`
+	PayParams string `json:"payParams"`
+	Status int32 `json:"status"`
+}
+
 type AddressInfo {
 	ID uint64 `json:"id"`
 	ContactName string `json:"contactName"`
@@ -198,6 +215,37 @@ type DeleteAddressResponse {
 	Success bool `json:"success"`
 }
 
+type ClaimCouponRequest {
+	CouponID uint64 `json:"couponId"`
+}
+
+type ClaimCouponResponse {
+	UserCoupon CouponInfo `json:"userCoupon"`
+}
+
+type ListMyCouponsRequest {
+	Status int32 `json:"status"`
+}
+
+type ListMyCouponsResponse {
+	List []CouponInfo `json:"list"`
+}
+
+type CouponInfo {
+	UserCouponID uint64 `json:"userCouponId"`
+	CouponID uint64 `json:"couponId"`
+	Name string `json:"name"`
+	Type int32 `json:"type"`
+	FaceValueCents int64 `json:"faceValueCents"`
+	Discount int32 `json:"discount"`
+	ThresholdCents int64 `json:"thresholdCents"`
+	CarType int32 `json:"carType"`
+	CityCode string `json:"cityCode"`
+	Status int32 `json:"status"`
+	ReceivedAt int64 `json:"receivedAt"`
+	ExpireAt int64 `json:"expireAt"`
+}
+
 service passenger-api {
 	@handler SendSMSCodeHandler
 	post /api/passenger/v1/auth/send-sms-code (SendSMSCodeRequest) returns (SendSMSCodeResponse)
@@ -209,7 +257,7 @@ service passenger-api {
 	post /api/passenger/v1/auth/refresh-token (RefreshTokenRequest) returns (RefreshTokenResponse)
 
 	@handler LogoutHandler
-	post /api/passenger/v1/auth/logout returns (LogoutResponse)
+	post /api/passenger/v1/auth/logout (LogoutRequest) returns (LogoutResponse)
 
 	@handler GetProfileHandler
 	post /api/passenger/v1/profile/me (GetProfileRequest) returns (GetProfileResponse)
@@ -229,6 +277,9 @@ service passenger-api {
 	@handler CancelOrderHandler
 	post /api/passenger/v1/orders/cancel (CancelOrderRequest) returns (CancelOrderResponse)
 
+	@handler PayOrderHandler
+	post /api/passenger/v1/orders/pay (PayOrderRequest) returns (PayOrderResponse)
+
 	@handler CreateAddressHandler
 	post /api/passenger/v1/addresses/create (CreateAddressRequest) returns (AddressInfo)
 
@@ -240,5 +291,11 @@ service passenger-api {
 
 	@handler DeleteAddressHandler
 	post /api/passenger/v1/addresses/delete (DeleteAddressRequest) returns (DeleteAddressResponse)
+
+	@handler ClaimCouponHandler
+	post /api/passenger/v1/coupons/claim (ClaimCouponRequest) returns (ClaimCouponResponse)
+
+	@handler ListMyCouponsHandler
+	post /api/passenger/v1/coupons/my (ListMyCouponsRequest) returns (ListMyCouponsResponse)
 }
 

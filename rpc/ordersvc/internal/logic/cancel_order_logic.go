@@ -102,7 +102,7 @@ func validOperatorType(operatorType string) bool {
 
 // canCancelStatus 判断订单状态是否允许取消。
 func canCancelStatus(status int8) bool {
-	return status == constants.OrderStatusWaitAccept || status == constants.OrderStatusAccepted
+	return CanTransit(status, constants.OrderStatusCancelled)
 }
 
 // canCancelByOperator 校验取消方是否有权取消该订单。

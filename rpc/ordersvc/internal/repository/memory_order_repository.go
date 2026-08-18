@@ -11,20 +11,24 @@ import (
 )
 
 type MemoryOrderRepository struct {
-	mu        sync.RWMutex
-	nextID    uint64
-	nextLogID uint64
-	orders    map[uint64]*model.RideOrder
-	orderLogs map[uint64][]model.OrderStatusLog
+	mu              sync.RWMutex
+	nextID          uint64
+	nextLogID       uint64
+	nextDispatchID  uint64
+	orders          map[uint64]*model.RideOrder
+	orderLogs       map[uint64][]model.OrderStatusLog
+	dispatchRecords map[uint64]*model.DispatchRecord
 }
 
 // NewMemoryOrderRepository 创建用于本地开发与测试的内存订单仓储。
 func NewMemoryOrderRepository() *MemoryOrderRepository {
 	return &MemoryOrderRepository{
-		nextID:    1,
-		nextLogID: 1,
-		orders:    make(map[uint64]*model.RideOrder),
-		orderLogs: make(map[uint64][]model.OrderStatusLog),
+		nextID:          1,
+		nextLogID:       1,
+		nextDispatchID:  1,
+		orders:          make(map[uint64]*model.RideOrder),
+		orderLogs:       make(map[uint64][]model.OrderStatusLog),
+		dispatchRecords: make(map[uint64]*model.DispatchRecord),
 	}
 }
 
@@ -103,8 +107,8 @@ func (r *MemoryOrderRepository) Cancel(_ context.Context, orderID uint64, wantSt
 	return true, nil
 }
 
-// Accept 将待接单订单改为已接单并绑定司机。
-func (r *MemoryOrderRepository) Accept(_ context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error) {
+// TimeoutCancel 只允许超时任务取消仍处于待接单且未绑定司机的订单。
+func (r *MemoryOrderRepository) TimeoutCancel(_ context.Context, orderID uint64, reason string, statusLog *model.OrderStatusLog) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -117,6 +121,35 @@ func (r *MemoryOrderRepository) Accept(_ context.Context, orderID, driverID uint
 	}
 
 	now := time.Now()
+	order.Status = constants.OrderStatusCancelled
+	order.CancelBy = constants.OperatorSystem
+	order.CancelReason = reason
+	order.UpdatedAt = now
+	r.appendLogLocked(orderID, statusLog, now)
+	return true, nil
+}
+
+// Accept 将待接单订单改为已接单并绑定司机。
+func (r *MemoryOrderRepository) Accept(_ context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	order, ok := r.orders[orderID]
+	if !ok {
+		return false, ErrOrderNotFound
+	}
+	if order.Status != constants.OrderStatusWaitAccept || order.DriverId != 0 {
+		return false, nil
+	}
+	dispatchRecord := r.findPendingDispatchRecordLocked(orderID, driverID)
+	if dispatchRecord == nil {
+		return false, nil
+	}
+
+	now := time.Now()
+	dispatchRecord.Status = constants.DispatchStatusAccepted
+	dispatchRecord.UpdatedAt = now
+	r.cancelOtherPendingDispatchRecordsLocked(orderID, driverID, now)
 	order.Status = constants.OrderStatusAccepted
 	order.DriverId = driverID
 	order.UpdatedAt = now
@@ -284,6 +317,55 @@ func (r *MemoryOrderRepository) StatusLogs(orderID uint64) []model.OrderStatusLo
 	logs := make([]model.OrderStatusLog, len(r.orderLogs[orderID]))
 	copy(logs, r.orderLogs[orderID])
 	return logs
+}
+
+// CreateDispatchRecord 写入派单记录，供本地联调和测试模拟 dispatchsvc 已生成候选司机。
+func (r *MemoryOrderRepository) CreateDispatchRecord(_ context.Context, record *model.DispatchRecord) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := time.Now()
+	copied := *record
+	copied.Id = r.nextDispatchID
+	copied.CreatedAt = now
+	copied.UpdatedAt = now
+	r.nextDispatchID++
+	r.dispatchRecords[copied.Id] = &copied
+	*record = copied
+	return nil
+}
+
+// DispatchRecords 返回指定订单派单记录副本，供测试断言 claim 结果。
+func (r *MemoryOrderRepository) DispatchRecords(orderID uint64) []model.DispatchRecord {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	records := make([]model.DispatchRecord, 0)
+	for _, record := range r.dispatchRecords {
+		if record.OrderId == orderID {
+			records = append(records, *record)
+		}
+	}
+	sort.Slice(records, func(i, j int) bool { return records[i].Id < records[j].Id })
+	return records
+}
+
+func (r *MemoryOrderRepository) findPendingDispatchRecordLocked(orderID, driverID uint64) *model.DispatchRecord {
+	for _, record := range r.dispatchRecords {
+		if record.OrderId == orderID && record.DriverId == driverID && record.Status == constants.DispatchStatusPending {
+			return record
+		}
+	}
+	return nil
+}
+
+func (r *MemoryOrderRepository) cancelOtherPendingDispatchRecordsLocked(orderID, acceptedDriverID uint64, now time.Time) {
+	for _, record := range r.dispatchRecords {
+		if record.OrderId == orderID && record.DriverId != acceptedDriverID && record.Status == constants.DispatchStatusPending {
+			record.Status = constants.DispatchStatusCancelled
+			record.UpdatedAt = now
+		}
+	}
 }
 
 // containsStatus 判断状态列表是否包含指定状态。

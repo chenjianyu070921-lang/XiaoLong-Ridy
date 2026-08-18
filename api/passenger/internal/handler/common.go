@@ -8,6 +8,7 @@ import (
 	"XiaoLong-Ridy/api/passenger/internal/logic"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -25,9 +26,13 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, codeForbidden, "无权访问该资源")
 	case errors.Is(err, logic.ErrInvalidRequest):
 		writeError(w, http.StatusBadRequest, codeInvalidRequest, "请求参数不合法")
+	case errors.Is(err, logic.ErrOrderNotPayable):
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "订单当前状态不可支付")
 	case errors.Is(err, logic.ErrOrderClientNotConfigured),
 		errors.Is(err, logic.ErrPriceClientNotConfigured),
-		errors.Is(err, logic.ErrUserClientNotConfigured):
+		errors.Is(err, logic.ErrPayClientNotConfigured),
+		errors.Is(err, logic.ErrUserClientNotConfigured),
+		isDownstreamGRPCError(err):
 		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "下游服务不可用")
 	case matchesBusinessError(err, userproto.ErrInvalidAddressPhone):
 		writeError(w, http.StatusBadRequest, codeInvalidAddressPhone, "异常_电话格式错误")
@@ -37,8 +42,24 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, codeAddressNotFound, "地址不存在")
 	case matchesBusinessError(err, userproto.ErrUserNotFound):
 		writeError(w, http.StatusNotFound, codeUserNotFound, "用户不存在")
+	case matchesBusinessError(err, userproto.ErrCouponNotFound):
+		writeError(w, http.StatusNotFound, codeInvalidRequest, "优惠券不存在")
+	case matchesBusinessError(err, userproto.ErrCouponUnavailable):
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "优惠券不可领取")
+	case matchesBusinessError(err, userproto.ErrCouponReceiveLimit):
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "优惠券领取次数已达上限")
 	default:
 		writeError(w, http.StatusInternalServerError, codeInternalError, "服务器内部错误")
+	}
+}
+
+// isDownstreamGRPCError 判断错误是否来自下游 RPC 服务不可达或超时。
+func isDownstreamGRPCError(err error) bool {
+	switch status.Code(err) {
+	case codes.Unavailable, codes.DeadlineExceeded:
+		return true
+	default:
+		return false
 	}
 }
 

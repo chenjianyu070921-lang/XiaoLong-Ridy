@@ -19,16 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	User_SendSMSCode_FullMethodName    = "/usersvc.User/SendSMSCode"
-	User_LoginBySMS_FullMethodName     = "/usersvc.User/LoginBySMS"
-	User_RefreshToken_FullMethodName   = "/usersvc.User/RefreshToken"
-	User_Logout_FullMethodName         = "/usersvc.User/Logout"
-	User_GetProfile_FullMethodName     = "/usersvc.User/GetProfile"
-	User_SubmitRealName_FullMethodName = "/usersvc.User/SubmitRealName"
-	User_CreateAddress_FullMethodName  = "/usersvc.User/CreateAddress"
-	User_ListAddresses_FullMethodName  = "/usersvc.User/ListAddresses"
-	User_UpdateAddress_FullMethodName  = "/usersvc.User/UpdateAddress"
-	User_DeleteAddress_FullMethodName  = "/usersvc.User/DeleteAddress"
+	User_SendSMSCode_FullMethodName       = "/usersvc.User/SendSMSCode"
+	User_LoginBySMS_FullMethodName        = "/usersvc.User/LoginBySMS"
+	User_RefreshToken_FullMethodName      = "/usersvc.User/RefreshToken"
+	User_Logout_FullMethodName            = "/usersvc.User/Logout"
+	User_GetProfile_FullMethodName        = "/usersvc.User/GetProfile"
+	User_SubmitRealName_FullMethodName    = "/usersvc.User/SubmitRealName"
+	User_CreateAddress_FullMethodName     = "/usersvc.User/CreateAddress"
+	User_ListAddresses_FullMethodName     = "/usersvc.User/ListAddresses"
+	User_UpdateAddress_FullMethodName     = "/usersvc.User/UpdateAddress"
+	User_DeleteAddress_FullMethodName     = "/usersvc.User/DeleteAddress"
+	User_ClaimCoupon_FullMethodName       = "/usersvc.User/ClaimCoupon"
+	User_ListMyCoupons_FullMethodName     = "/usersvc.User/ListMyCoupons"
+	User_LockUserCoupon_FullMethodName    = "/usersvc.User/LockUserCoupon"
+	User_ReleaseUserCoupon_FullMethodName = "/usersvc.User/ReleaseUserCoupon"
 )
 
 // UserClient is the client API for User service.
@@ -55,6 +59,14 @@ type UserClient interface {
 	UpdateAddress(ctx context.Context, in *UpdateAddressRequest, opts ...grpc.CallOption) (*AddressInfo, error)
 	// DeleteAddress 删除乘客常用地址。
 	DeleteAddress(ctx context.Context, in *DeleteAddressRequest, opts ...grpc.CallOption) (*DeleteAddressResponse, error)
+	// ClaimCoupon 领取优惠券。
+	ClaimCoupon(ctx context.Context, in *ClaimCouponRequest, opts ...grpc.CallOption) (*ClaimCouponResponse, error)
+	// ListMyCoupons 查询我的优惠券。
+	ListMyCoupons(ctx context.Context, in *ListMyCouponsRequest, opts ...grpc.CallOption) (*ListMyCouponsResponse, error)
+	// LockUserCoupon 下单前锁定用户券，防止重复使用。
+	LockUserCoupon(ctx context.Context, in *LockUserCouponRequest, opts ...grpc.CallOption) (*LockUserCouponResponse, error)
+	// ReleaseUserCoupon 下单失败时释放用户券锁定。
+	ReleaseUserCoupon(ctx context.Context, in *ReleaseUserCouponRequest, opts ...grpc.CallOption) (*ReleaseUserCouponResponse, error)
 }
 
 type userClient struct {
@@ -165,6 +177,46 @@ func (c *userClient) DeleteAddress(ctx context.Context, in *DeleteAddressRequest
 	return out, nil
 }
 
+func (c *userClient) ClaimCoupon(ctx context.Context, in *ClaimCouponRequest, opts ...grpc.CallOption) (*ClaimCouponResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClaimCouponResponse)
+	err := c.cc.Invoke(ctx, User_ClaimCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) ListMyCoupons(ctx context.Context, in *ListMyCouponsRequest, opts ...grpc.CallOption) (*ListMyCouponsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMyCouponsResponse)
+	err := c.cc.Invoke(ctx, User_ListMyCoupons_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) LockUserCoupon(ctx context.Context, in *LockUserCouponRequest, opts ...grpc.CallOption) (*LockUserCouponResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LockUserCouponResponse)
+	err := c.cc.Invoke(ctx, User_LockUserCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) ReleaseUserCoupon(ctx context.Context, in *ReleaseUserCouponRequest, opts ...grpc.CallOption) (*ReleaseUserCouponResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReleaseUserCouponResponse)
+	err := c.cc.Invoke(ctx, User_ReleaseUserCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServer is the server API for User service.
 // All implementations must embed UnimplementedUserServer
 // for forward compatibility.
@@ -189,6 +241,14 @@ type UserServer interface {
 	UpdateAddress(context.Context, *UpdateAddressRequest) (*AddressInfo, error)
 	// DeleteAddress 删除乘客常用地址。
 	DeleteAddress(context.Context, *DeleteAddressRequest) (*DeleteAddressResponse, error)
+	// ClaimCoupon 领取优惠券。
+	ClaimCoupon(context.Context, *ClaimCouponRequest) (*ClaimCouponResponse, error)
+	// ListMyCoupons 查询我的优惠券。
+	ListMyCoupons(context.Context, *ListMyCouponsRequest) (*ListMyCouponsResponse, error)
+	// LockUserCoupon 下单前锁定用户券，防止重复使用。
+	LockUserCoupon(context.Context, *LockUserCouponRequest) (*LockUserCouponResponse, error)
+	// ReleaseUserCoupon 下单失败时释放用户券锁定。
+	ReleaseUserCoupon(context.Context, *ReleaseUserCouponRequest) (*ReleaseUserCouponResponse, error)
 	mustEmbedUnimplementedUserServer()
 }
 
@@ -228,6 +288,18 @@ func (UnimplementedUserServer) UpdateAddress(context.Context, *UpdateAddressRequ
 }
 func (UnimplementedUserServer) DeleteAddress(context.Context, *DeleteAddressRequest) (*DeleteAddressResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteAddress not implemented")
+}
+func (UnimplementedUserServer) ClaimCoupon(context.Context, *ClaimCouponRequest) (*ClaimCouponResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClaimCoupon not implemented")
+}
+func (UnimplementedUserServer) ListMyCoupons(context.Context, *ListMyCouponsRequest) (*ListMyCouponsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMyCoupons not implemented")
+}
+func (UnimplementedUserServer) LockUserCoupon(context.Context, *LockUserCouponRequest) (*LockUserCouponResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LockUserCoupon not implemented")
+}
+func (UnimplementedUserServer) ReleaseUserCoupon(context.Context, *ReleaseUserCouponRequest) (*ReleaseUserCouponResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReleaseUserCoupon not implemented")
 }
 func (UnimplementedUserServer) mustEmbedUnimplementedUserServer() {}
 func (UnimplementedUserServer) testEmbeddedByValue()              {}
@@ -430,6 +502,78 @@ func _User_DeleteAddress_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _User_ClaimCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClaimCouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).ClaimCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_ClaimCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).ClaimCoupon(ctx, req.(*ClaimCouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_ListMyCoupons_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMyCouponsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).ListMyCoupons(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_ListMyCoupons_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).ListMyCoupons(ctx, req.(*ListMyCouponsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_LockUserCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LockUserCouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).LockUserCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_LockUserCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).LockUserCoupon(ctx, req.(*LockUserCouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_ReleaseUserCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReleaseUserCouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).ReleaseUserCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_ReleaseUserCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).ReleaseUserCoupon(ctx, req.(*ReleaseUserCouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // User_ServiceDesc is the grpc.ServiceDesc for User service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -476,6 +620,22 @@ var User_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteAddress",
 			Handler:    _User_DeleteAddress_Handler,
+		},
+		{
+			MethodName: "ClaimCoupon",
+			Handler:    _User_ClaimCoupon_Handler,
+		},
+		{
+			MethodName: "ListMyCoupons",
+			Handler:    _User_ListMyCoupons_Handler,
+		},
+		{
+			MethodName: "LockUserCoupon",
+			Handler:    _User_LockUserCoupon_Handler,
+		},
+		{
+			MethodName: "ReleaseUserCoupon",
+			Handler:    _User_ReleaseUserCoupon_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

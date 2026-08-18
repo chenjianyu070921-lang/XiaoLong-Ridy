@@ -2,11 +2,14 @@ package svc
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
 	orderlocal "XiaoLong-Ridy/rpc/ordersvc/client"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	paylocal "XiaoLong-Ridy/rpc/paysvc/pay"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
 	userlocal "XiaoLong-Ridy/rpc/usersvc/client"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
@@ -17,17 +20,25 @@ import (
 const (
 	defaultHTTPAddr        = ":8091"
 	defaultTokenSigningKey = "local-development-signing-key"
+	clientModeGRPC         = "grpc"
+	clientModeLocal        = "local"
+	defaultUserRPCAddr     = "127.0.0.1:50052"
+	defaultOrderRPCAddr    = "127.0.0.1:50051"
+	defaultPriceRPCAddr    = "127.0.0.1:50053"
+	defaultPayRPCAddr      = "127.0.0.1:50054"
 	defaultPriceCityCode   = "110000"
 )
 
 // RuntimeConfig 保存 passenger API 启动时需要的运行参数。
-// RPC 地址为空时会使用本地内存客户端，便于没有中间件的本地演示。
+// RPC 地址为空时会补充本地默认 gRPC 地址，运行时不再创建本地内存客户端。
 type RuntimeConfig struct {
 	HTTPAddr        string
 	TokenSigningKey string
 	UserRPCAddr     string
 	OrderRPCAddr    string
 	PriceRPCAddr    string
+	PayRPCAddr      string
+	ClientMode      string
 	PriceCityCode   string
 }
 
@@ -43,6 +54,10 @@ type UserClient interface {
 	ListAddresses(ctx context.Context, req *userproto.ListAddressesRequest) (*userproto.ListAddressesResponse, error)
 	UpdateAddress(ctx context.Context, req *userproto.UpdateAddressRequest) (*userproto.AddressInfo, error)
 	DeleteAddress(ctx context.Context, req *userproto.DeleteAddressRequest) (*userproto.DeleteAddressResponse, error)
+	ClaimCoupon(ctx context.Context, req *userproto.ClaimCouponRequest) (*userproto.ClaimCouponResponse, error)
+	ListMyCoupons(ctx context.Context, req *userproto.ListMyCouponsRequest) (*userproto.ListMyCouponsResponse, error)
+	LockUserCoupon(ctx context.Context, req *userproto.LockUserCouponRequest) (*userproto.LockUserCouponResponse, error)
+	ReleaseUserCoupon(ctx context.Context, req *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error)
 }
 
 // OrderClient 定义 passenger API 调用 ordersvc 的 RPC 契约。
@@ -59,6 +74,11 @@ type PriceClient interface {
 	CalculateDiscount(ctx context.Context, req *priceclient.CalculateDiscountRequest) (*priceclient.CalculateDiscountResponse, error)
 }
 
+// PayClient 定义 passenger API 调用 paysvc 创建支付单的 RPC 契约。
+type PayClient interface {
+	CreatePayment(ctx context.Context, req *payproto.CreatePaymentRequest) (*payproto.CreatePaymentResponse, error)
+}
+
 // Option 用于在本地联调和测试时按需注入下游客户端与配置。
 type Option func(*ServiceContext)
 
@@ -67,6 +87,7 @@ type ServiceContext struct {
 	UserClient      UserClient
 	OrderClient     OrderClient
 	PriceClient     PriceClient
+	PayClient       PayClient
 	TokenSigningKey string
 	grpcConns       []*grpc.ClientConn
 }
@@ -84,7 +105,7 @@ func NewServiceContext(userClient UserClient, opts ...Option) *ServiceContext {
 }
 
 // LoadRuntimeConfigFromEnv 从环境变量加载 passenger API 配置。
-// PASSENGER_* 变量缺省时使用本地演示配置，不影响现有启动方式。
+// PASSENGER_* 变量缺省时使用本地默认 gRPC 地址，确保启动后连接真实微服务。
 func LoadRuntimeConfigFromEnv() RuntimeConfig {
 	cfg := RuntimeConfig{
 		HTTPAddr:        strings.TrimSpace(os.Getenv("PASSENGER_HTTP_ADDR")),
@@ -92,36 +113,26 @@ func LoadRuntimeConfigFromEnv() RuntimeConfig {
 		UserRPCAddr:     strings.TrimSpace(os.Getenv("PASSENGER_USERSVC_ADDR")),
 		OrderRPCAddr:    strings.TrimSpace(os.Getenv("PASSENGER_ORDERSVC_ADDR")),
 		PriceRPCAddr:    strings.TrimSpace(os.Getenv("PASSENGER_PRICESVC_ADDR")),
+		PayRPCAddr:      strings.TrimSpace(os.Getenv("PASSENGER_PAYSVC_ADDR")),
+		ClientMode:      strings.TrimSpace(os.Getenv("PASSENGER_CLIENT_MODE")),
 		PriceCityCode:   strings.TrimSpace(os.Getenv("PASSENGER_PRICE_CITY_CODE")),
 	}
-	if cfg.HTTPAddr == "" {
-		cfg.HTTPAddr = defaultHTTPAddr
-	}
-	if cfg.TokenSigningKey == "" {
-		cfg.TokenSigningKey = defaultTokenSigningKey
-	}
-	if cfg.PriceCityCode == "" {
-		cfg.PriceCityCode = defaultPriceCityCode
-	}
-	return cfg
+	return applyRuntimeDefaults(cfg)
 }
 
 // NewServiceContextFromConfig 按配置创建 ServiceContext。
-// 未提供 RPC 地址时保留 LocalClient 回退，提供地址时注入真实 gRPC 客户端。
+// 未提供 RPC 地址时使用默认 gRPC 地址，禁止静默回退到本地内存客户端。
 func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
-	return NewServiceContextFromConfigWithSMSLogger(cfg, nil)
-}
+	cfg = applyRuntimeDefaults(cfg)
 
-// NewServiceContextFromConfigWithSMSLogger 创建 ServiceContext，并允许 main 注入本地验证码日志回调。
-func NewServiceContextFromConfigWithSMSLogger(cfg RuntimeConfig, onSMSCode func(phone, code string)) (*ServiceContext, error) {
-	if cfg.TokenSigningKey == "" {
-		cfg.TokenSigningKey = defaultTokenSigningKey
+	if cfg.ClientMode == clientModeLocal {
+		return newLocalServiceContext(cfg), nil
 	}
-	if cfg.PriceCityCode == "" {
-		cfg.PriceCityCode = defaultPriceCityCode
+	if cfg.ClientMode != clientModeGRPC {
+		return nil, fmt.Errorf("unsupported passenger client mode: %s", cfg.ClientMode)
 	}
 
-	userClient, userConn, err := buildUserClient(cfg.UserRPCAddr, cfg.TokenSigningKey, onSMSCode)
+	userClient, userConn, err := buildUserClient(cfg.UserRPCAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -135,18 +146,64 @@ func NewServiceContextFromConfigWithSMSLogger(cfg RuntimeConfig, onSMSCode func(
 		closeGRPCConns(userConn, orderConn)
 		return nil, err
 	}
+	payClient, payConn, err := buildPayClient(cfg.PayRPCAddr)
+	if err != nil {
+		closeGRPCConns(userConn, orderConn, priceConn)
+		return nil, err
+	}
 
 	ctx := NewServiceContext(
 		userClient,
 		WithOrderClient(orderClient),
 		WithPriceClient(priceClient),
+		WithPayClient(payClient),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 	)
-	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn)
+	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn)
 	return ctx, nil
 }
 
-// Close 关闭真实 gRPC 连接；LocalClient 回退场景没有额外资源。
+// newLocalServiceContext 创建显式 local 模式下的本地客户端集合，仅用于测试和无下游依赖的本地演示。
+func newLocalServiceContext(cfg RuntimeConfig) *ServiceContext {
+	return NewServiceContext(
+		userlocal.NewLocalClient(cfg.TokenSigningKey, nil),
+		WithOrderClient(orderlocal.NewLocalClient()),
+		WithPriceClient(priceclient.NewLocalClient()),
+		WithPayClient(paylocal.NewLocalClient()),
+		WithTokenSigningKey(cfg.TokenSigningKey),
+	)
+}
+
+// applyRuntimeDefaults 补齐乘客端网关默认运行参数，默认下游均为真实 gRPC 服务地址。
+func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
+	if cfg.HTTPAddr == "" {
+		cfg.HTTPAddr = defaultHTTPAddr
+	}
+	if cfg.TokenSigningKey == "" {
+		cfg.TokenSigningKey = defaultTokenSigningKey
+	}
+	if cfg.UserRPCAddr == "" {
+		cfg.UserRPCAddr = defaultUserRPCAddr
+	}
+	if cfg.OrderRPCAddr == "" {
+		cfg.OrderRPCAddr = defaultOrderRPCAddr
+	}
+	if cfg.PriceRPCAddr == "" {
+		cfg.PriceRPCAddr = defaultPriceRPCAddr
+	}
+	if cfg.PayRPCAddr == "" {
+		cfg.PayRPCAddr = defaultPayRPCAddr
+	}
+	if cfg.ClientMode == "" {
+		cfg.ClientMode = clientModeGRPC
+	}
+	if cfg.PriceCityCode == "" {
+		cfg.PriceCityCode = defaultPriceCityCode
+	}
+	return cfg
+}
+
+// Close 关闭真实 gRPC 连接。
 func (ctx *ServiceContext) Close() {
 	if ctx == nil {
 		return
@@ -169,6 +226,13 @@ func WithPriceClient(client PriceClient) Option {
 	}
 }
 
+// WithPayClient 注入支付服务客户端。
+func WithPayClient(client PayClient) Option {
+	return func(ctx *ServiceContext) {
+		ctx.PayClient = client
+	}
+}
+
 // WithTokenSigningKey 设置 JWT 解析签名密钥。
 func WithTokenSigningKey(signingKey string) Option {
 	return func(ctx *ServiceContext) {
@@ -178,10 +242,10 @@ func WithTokenSigningKey(signingKey string) Option {
 	}
 }
 
-// buildUserClient 根据地址决定使用真实 usersvc gRPC 客户端或本地内存客户端。
-func buildUserClient(addr, signingKey string, onSMSCode func(phone, code string)) (UserClient, *grpc.ClientConn, error) {
+// buildUserClient 根据 usersvc 地址创建真实 gRPC 客户端。
+func buildUserClient(addr string) (UserClient, *grpc.ClientConn, error) {
 	if strings.TrimSpace(addr) == "" {
-		return userlocal.NewLocalClient(signingKey, onSMSCode), nil, nil
+		return nil, nil, fmt.Errorf("usersvc grpc addr is required")
 	}
 	conn, err := newInsecureGRPCConn(addr)
 	if err != nil {
@@ -190,10 +254,10 @@ func buildUserClient(addr, signingKey string, onSMSCode func(phone, code string)
 	return newGRPCUserClient(userproto.NewUserClient(conn)), conn, nil
 }
 
-// buildOrderClient 根据地址决定使用真实 ordersvc gRPC 客户端或本地内存客户端。
+// buildOrderClient 根据 ordersvc 地址创建真实 gRPC 客户端。
 func buildOrderClient(addr string) (OrderClient, *grpc.ClientConn, error) {
 	if strings.TrimSpace(addr) == "" {
-		return orderlocal.NewLocalClient(), nil, nil
+		return nil, nil, fmt.Errorf("ordersvc grpc addr is required")
 	}
 	conn, err := newInsecureGRPCConn(addr)
 	if err != nil {
@@ -202,16 +266,28 @@ func buildOrderClient(addr string) (OrderClient, *grpc.ClientConn, error) {
 	return newGRPCOrderClient(orderproto.NewOrderClient(conn)), conn, nil
 }
 
-// buildPriceClient 根据地址决定使用真实 pricesvc gRPC 客户端或本地计价客户端。
+// buildPriceClient 根据 pricesvc 地址创建真实 gRPC 客户端。
 func buildPriceClient(addr, cityCode string) (PriceClient, *grpc.ClientConn, error) {
 	if strings.TrimSpace(addr) == "" {
-		return priceclient.NewLocalClient(), nil, nil
+		return nil, nil, fmt.Errorf("pricesvc grpc addr is required")
 	}
 	conn, err := newInsecureGRPCConn(addr)
 	if err != nil {
 		return nil, nil, err
 	}
 	return newGRPCPriceClient(conn, cityCode), conn, nil
+}
+
+// buildPayClient 根据 paysvc 地址创建真实 gRPC 客户端。
+func buildPayClient(addr string) (PayClient, *grpc.ClientConn, error) {
+	if strings.TrimSpace(addr) == "" {
+		return nil, nil, fmt.Errorf("paysvc grpc addr is required")
+	}
+	conn, err := newInsecureGRPCConn(addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return newGRPCPayClient(payproto.NewPayClient(conn)), conn, nil
 }
 
 // closeGRPCConns 关闭非空 gRPC 连接，忽略关闭阶段错误。

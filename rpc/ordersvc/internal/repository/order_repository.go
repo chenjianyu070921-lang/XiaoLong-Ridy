@@ -23,6 +23,8 @@ type OrderRepository interface {
 	GetByID(ctx context.Context, id uint64) (*model.RideOrder, error)
 	// Cancel 将订单从允许取消的状态改为已取消，并写入取消日志。
 	Cancel(ctx context.Context, orderID uint64, wantStatuses []int8, cancelBy, reason string, statusLog *model.OrderStatusLog) (bool, error)
+	// TimeoutCancel 仅将未接单且未绑定司机的订单改为超时取消，并写入状态日志。
+	TimeoutCancel(ctx context.Context, orderID uint64, reason string, statusLog *model.OrderStatusLog) (bool, error)
 	// Accept 将待接单订单改为已接单并绑定司机。
 	Accept(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error)
 	// StartTrip 将已接单订单改为行程中。
