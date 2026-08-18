@@ -1,0 +1,7 @@
+./bufferpool.go
+./nopcloser.go
+./pipe.go
+./read.go
+./tee.go
+./textfile.go
+./textlinescanner.go

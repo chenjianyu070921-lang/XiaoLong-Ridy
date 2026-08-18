@@ -1,0 +1,10 @@
+./accountmanager.go
+./etcdclient.go
+./etcdclient_mock.go
+./listener.go
+./registry.go
+./statewatcher.go
+./statewatcher_mock.go
+./updatelistener.go
+./updatelistener_mock.go
+./vars.go

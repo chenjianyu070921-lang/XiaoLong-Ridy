@@ -1,0 +1,5 @@
+./admissionregistration_client.go
+./doc.go
+./generated_expansion.go
+./mutatingwebhookconfiguration.go
+./validatingwebhookconfiguration.go
