@@ -41,7 +41,7 @@ func (l *TimeoutCancelLogic) TimeoutCancel(in *proto.TimeoutCancelRequest) (*pro
 	if err != nil {
 		return nil, err
 	}
-	if order.Status != constants.OrderStatusWaitAccept && order.Status != constants.OrderStatusAccepted {
+	if order.Status != constants.OrderStatusWaitAccept || order.DriverId != 0 {
 		return nil, ErrOrderStatusNotCancelable
 	}
 
@@ -52,10 +52,7 @@ func (l *TimeoutCancelLogic) TimeoutCancel(in *proto.TimeoutCancelRequest) (*pro
 		OperatorId:   0,
 		Remark:       reason,
 	}
-	ok, err := l.svcCtx.OrderRepository.Cancel(l.ctx, order.Id, []int8{
-		constants.OrderStatusWaitAccept,
-		constants.OrderStatusAccepted,
-	}, constants.OperatorSystem, reason, statusLog)
+	ok, err := l.svcCtx.OrderRepository.TimeoutCancel(l.ctx, order.Id, reason, statusLog)
 	if err != nil {
 		return nil, err
 	}

@@ -51,7 +51,7 @@ func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.Acc
 	if err != nil {
 		return nil, err
 	}
-	if order.Status != constants.OrderStatusWaitAccept {
+	if !CanTransit(order.Status, constants.OrderStatusAccepted) {
 		return nil, ErrOrderStatusNotAllowed
 	}
 

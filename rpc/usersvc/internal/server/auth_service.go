@@ -80,3 +80,27 @@ func (s *UserServer) DeleteAddress(ctx context.Context, req *userproto.DeleteAdd
 	l := logic.NewDeleteAddressLogic(ctx, s.svcCtx)
 	return l.DeleteAddress(req)
 }
+
+// ClaimCoupon 转发领取优惠券请求到对应 logic。
+func (s *UserServer) ClaimCoupon(ctx context.Context, req *userproto.ClaimCouponRequest) (*userproto.ClaimCouponResponse, error) {
+	l := logic.NewClaimCouponLogic(ctx, s.svcCtx)
+	return l.ClaimCoupon(req)
+}
+
+// ListMyCoupons 转发查询我的优惠券请求到对应 logic。
+func (s *UserServer) ListMyCoupons(ctx context.Context, req *userproto.ListMyCouponsRequest) (*userproto.ListMyCouponsResponse, error) {
+	l := logic.NewListMyCouponsLogic(ctx, s.svcCtx)
+	return l.ListMyCoupons(req)
+}
+
+// LockUserCoupon 转发下单锁券请求到对应 logic。
+func (s *UserServer) LockUserCoupon(ctx context.Context, req *userproto.LockUserCouponRequest) (*userproto.LockUserCouponResponse, error) {
+	l := logic.NewLockUserCouponLogic(ctx, s.svcCtx)
+	return l.LockUserCoupon(req)
+}
+
+// ReleaseUserCoupon 转发释放锁券请求到对应 logic。
+func (s *UserServer) ReleaseUserCoupon(ctx context.Context, req *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error) {
+	l := logic.NewReleaseUserCouponLogic(ctx, s.svcCtx)
+	return l.ReleaseUserCoupon(req)
+}

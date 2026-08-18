@@ -7,6 +7,7 @@ import (
 	"time"
 
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
 	priceproto "XiaoLong-Ridy/rpc/pricesvc/proto"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
@@ -65,6 +66,24 @@ func (c *grpcUserClient) DeleteAddress(ctx context.Context, req *userproto.Delet
 	return c.cli.DeleteAddress(ctx, req)
 }
 
+func (c *grpcUserClient) ClaimCoupon(ctx context.Context, req *userproto.ClaimCouponRequest) (*userproto.ClaimCouponResponse, error) {
+	return c.cli.ClaimCoupon(ctx, req)
+}
+
+func (c *grpcUserClient) ListMyCoupons(ctx context.Context, req *userproto.ListMyCouponsRequest) (*userproto.ListMyCouponsResponse, error) {
+	return c.cli.ListMyCoupons(ctx, req)
+}
+
+// LockUserCoupon 调用 usersvc 锁定用户券，供下单前状态校验和防重复使用。
+func (c *grpcUserClient) LockUserCoupon(ctx context.Context, req *userproto.LockUserCouponRequest) (*userproto.LockUserCouponResponse, error) {
+	return c.cli.LockUserCoupon(ctx, req)
+}
+
+// ReleaseUserCoupon 调用 usersvc 释放下单失败时已锁定的用户券。
+func (c *grpcUserClient) ReleaseUserCoupon(ctx context.Context, req *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error) {
+	return c.cli.ReleaseUserCoupon(ctx, req)
+}
+
 // grpcOrderClient 将 ordersvc 生成的 gRPC 客户端适配为 passenger 的 OrderClient 接口。
 type grpcOrderClient struct {
 	cli orderproto.OrderClient
@@ -89,6 +108,21 @@ func (c *grpcOrderClient) GetOrder(ctx context.Context, req *orderproto.GetOrder
 
 func (c *grpcOrderClient) ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
 	return c.cli.ListOrders(ctx, req)
+}
+
+// grpcPayClient 将 paysvc 生成的 gRPC 客户端适配为 passenger 的 PayClient 接口。
+type grpcPayClient struct {
+	cli payproto.PayClient
+}
+
+// newGRPCPayClient 创建 paysvc gRPC adapter。
+func newGRPCPayClient(cli payproto.PayClient) *grpcPayClient {
+	return &grpcPayClient{cli: cli}
+}
+
+// CreatePayment 调用 paysvc 创建支付单。
+func (c *grpcPayClient) CreatePayment(ctx context.Context, req *payproto.CreatePaymentRequest) (*payproto.CreatePaymentResponse, error) {
+	return c.cli.CreatePayment(ctx, req)
 }
 
 // grpcPriceClient 将 pricesvc proto 客户端适配为 passenger 当前的价格预估接口。

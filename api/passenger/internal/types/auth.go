@@ -45,6 +45,9 @@ type RefreshTokenResponse struct {
 	RefreshToken string `json:"refreshToken"`
 }
 
+// LogoutRequest 对应登出接口的请求参数，当前业务只依赖 Authorization 头。
+type LogoutRequest struct{}
+
 // LogoutResponse 对应登出接口的响应数据。
 type LogoutResponse struct {
 	Success bool `json:"success"`

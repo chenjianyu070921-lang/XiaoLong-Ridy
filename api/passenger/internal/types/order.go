@@ -9,6 +9,7 @@ type CreateOrderRequest struct {
 	ToAddress              string  `json:"toAddress"`
 	ToLongitude            float64 `json:"toLongitude"`
 	ToLatitude             float64 `json:"toLatitude"`
+	UserCouponID           uint64  `json:"userCouponId"`
 	CouponID               int64   `json:"couponId"`
 	CouponType             int32   `json:"couponType"`
 	CouponFaceValueCents   int64   `json:"couponFaceValueCents"`
@@ -25,6 +26,7 @@ type CreateOrderResponse struct {
 	OriginalPriceCents  int64  `json:"originalPriceCents"`
 	DiscountAmountCents int64  `json:"discountAmountCents"`
 	PayableAmountCents  int64  `json:"payableAmountCents"`
+	UserCouponID        uint64 `json:"userCouponId"`
 	Status              int32  `json:"status"`
 	CreatedAt           int64  `json:"createdAt"`
 }
@@ -93,4 +95,19 @@ type CancelOrderRequest struct {
 type CancelOrderResponse struct {
 	OrderID int64 `json:"orderId"`
 	Status  int32 `json:"status"`
+}
+
+// PayOrderRequest 表示乘客发起支付预下单的请求参数。
+type PayOrderRequest struct {
+	OrderID int64 `json:"orderId"`
+	Channel int32 `json:"channel"`
+}
+
+// PayOrderResponse 表示 paysvc 创建支付单后的返回数据。
+type PayOrderResponse struct {
+	PaymentID     int64  `json:"paymentId"`
+	PaymentNo     string `json:"paymentNo"`
+	TransactionID string `json:"transactionId"`
+	PayParams     string `json:"payParams"`
+	Status        int32  `json:"status"`
 }

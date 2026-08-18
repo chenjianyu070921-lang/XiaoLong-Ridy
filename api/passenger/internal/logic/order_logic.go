@@ -3,11 +3,14 @@ package logic
 import (
 	"context"
 	"strings"
+	"time"
 
 	"XiaoLong-Ridy/api/passenger/internal/svc"
 	"XiaoLong-Ridy/api/passenger/internal/types"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
+	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
 )
 
 // OrderLogic 封装乘客端订单相关业务流程。
@@ -54,19 +57,32 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 	originalPriceCents := price.EstimatedPriceCents
 	discountAmountCents := int64(0)
 	payableAmountCents := originalPriceCents
-	if hasCoupon(req) {
-		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
-			TotalCents: originalPriceCents,
-			Coupon: priceclient.Coupon{
-				CouponID:         req.CouponID,
-				Type:             req.CouponType,
-				FaceValueCents:   req.CouponFaceValueCents,
-				Discount:         req.CouponDiscount,
-				ThresholdCents:   req.CouponThresholdCents,
-				MaxDiscountCents: req.CouponMaxDiscountCents,
-			},
+	lockOrderID := uint64(0)
+	if hasUserCoupon(req) {
+		userClient, err := l.userClient()
+		if err != nil {
+			return nil, err
+		}
+		lockOrderID = couponLockOrderID()
+		lockedCoupon, err := userClient.LockUserCoupon(l.ctx, &userproto.LockUserCouponRequest{
+			UserId:       userID,
+			UserCouponId: req.UserCouponID,
+			OrderId:      lockOrderID,
+			CarType:      req.CarType,
 		})
 		if err != nil {
+			return nil, err
+		}
+		if lockedCoupon.GetCoupon() == nil {
+			return nil, ErrInvalidRequest
+		}
+		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
+			TotalCents: originalPriceCents,
+			OrderID:    int64(lockOrderID),
+			Coupon:     toPriceCoupon(lockedCoupon.GetCoupon()),
+		})
+		if err != nil {
+			releaseLockedCoupon(l.ctx, userClient, userID, req.UserCouponID, lockOrderID)
 			return nil, err
 		}
 		discountAmountCents = discount.DiscountAmountCents
@@ -87,6 +103,12 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		EstimatedPriceCents: payableAmountCents,
 	})
 	if err != nil {
+		if hasUserCoupon(req) {
+			userClient, clientErr := l.userClient()
+			if clientErr == nil {
+				releaseLockedCoupon(l.ctx, userClient, userID, req.UserCouponID, lockOrderID)
+			}
+		}
 		return nil, err
 	}
 	return &types.CreateOrderResponse{
@@ -96,6 +118,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		OriginalPriceCents:  originalPriceCents,
 		DiscountAmountCents: discountAmountCents,
 		PayableAmountCents:  payableAmountCents,
+		UserCouponID:        req.UserCouponID,
 		Status:              int32(order.GetStatus()),
 		CreatedAt:           order.GetCreatedAt(),
 	}, nil
@@ -201,6 +224,60 @@ func (l *OrderLogic) CancelOrder(req *types.CancelOrderRequest) (*types.CancelOr
 	}, nil
 }
 
+// PayOrder 校验当前乘客订单并调用 paysvc 创建支付单。
+func (l *OrderLogic) PayOrder(req *types.PayOrderRequest) (*types.PayOrderResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	channel, err := toPayChannel(req.Channel)
+	if err != nil {
+		return nil, err
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	payClient, err := l.payClient()
+	if err != nil {
+		return nil, err
+	}
+
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetUserId() != int64(userID) {
+		return nil, ErrForbidden
+	}
+	if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_PAY {
+		return nil, ErrOrderNotPayable
+	}
+	if order.GetEstimatedPriceCents() <= 0 {
+		return nil, ErrInvalidRequest
+	}
+
+	payment, err := payClient.CreatePayment(l.ctx, &payproto.CreatePaymentRequest{
+		OrderId:     req.OrderID,
+		UserId:      int64(userID),
+		AmountCents: order.GetEstimatedPriceCents(),
+		Channel:     channel,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.PayOrderResponse{
+		PaymentID:     payment.GetPaymentId(),
+		PaymentNo:     payment.GetPaymentNo(),
+		TransactionID: payment.GetTransactionId(),
+		PayParams:     payment.GetPayParams(),
+		Status:        payment.GetStatus(),
+	}, nil
+}
+
 // validateCreateOrder 校验下单请求中的必填地址和车型参数。
 func validateCreateOrder(req *types.CreateOrderRequest) error {
 	if req == nil || strings.TrimSpace(req.FromAddress) == "" || strings.TrimSpace(req.ToAddress) == "" {
@@ -213,27 +290,43 @@ func validateCreateOrder(req *types.CreateOrderRequest) error {
 		!isValidLongitudeLatitude(req.ToLongitude, req.ToLatitude) {
 		return ErrInvalidRequest
 	}
-	if hasCoupon(req) && !isValidCoupon(req) {
-		return ErrInvalidRequest
-	}
 	return nil
 }
 
-// hasCoupon 判断本次下单是否携带优惠券信息。
-func hasCoupon(req *types.CreateOrderRequest) bool {
-	return req != nil && req.CouponID > 0
+// hasUserCoupon 判断本次下单是否使用“用户已领取的券”，不信任前端传入的券模板面额。
+func hasUserCoupon(req *types.CreateOrderRequest) bool {
+	return req != nil && req.UserCouponID > 0
 }
 
-// isValidCoupon 校验优惠券参数是否足以调用 pricesvc 抵扣计算。
-func isValidCoupon(req *types.CreateOrderRequest) bool {
-	switch req.CouponType {
-	case priceclient.CouponTypeFixed:
-		return req.CouponFaceValueCents > 0 && req.CouponThresholdCents >= 0
-	case priceclient.CouponTypeDiscount:
-		return req.CouponDiscount > 0 && req.CouponDiscount < 100 && req.CouponThresholdCents >= 0
-	default:
-		return false
+// couponLockOrderID 生成下单前锁券使用的临时锁标识，后续释放锁必须携带同一个值。
+func couponLockOrderID() uint64 {
+	return uint64(time.Now().UnixNano())
+}
+
+// toPriceCoupon 将 usersvc 校验并锁定后的券信息转换为 pricesvc 抵扣计算参数。
+func toPriceCoupon(coupon *userproto.CouponInfo) priceclient.Coupon {
+	if coupon == nil {
+		return priceclient.Coupon{}
 	}
+	return priceclient.Coupon{
+		CouponID:       int64(coupon.GetCouponId()),
+		Type:           coupon.GetType(),
+		FaceValueCents: coupon.GetFaceValueCents(),
+		Discount:       coupon.GetDiscount(),
+		ThresholdCents: coupon.GetThresholdCents(),
+	}
+}
+
+// releaseLockedCoupon 在订单创建或抵扣计算失败时释放已锁定用户券，避免用户券长期卡在锁定状态。
+func releaseLockedCoupon(ctx context.Context, userClient svc.UserClient, userID, userCouponID, lockOrderID uint64) {
+	if userClient == nil || userID == 0 || userCouponID == 0 || lockOrderID == 0 {
+		return
+	}
+	_, _ = userClient.ReleaseUserCoupon(ctx, &userproto.ReleaseUserCouponRequest{
+		UserId:       userID,
+		UserCouponId: userCouponID,
+		OrderId:      lockOrderID,
+	})
 }
 
 // validateListOrders 校验订单列表筛选和分页参数，0 页码/页大小交给下游按默认值归一化。
@@ -264,6 +357,34 @@ func (l *OrderLogic) priceClient() (svc.PriceClient, error) {
 		return nil, ErrPriceClientNotConfigured
 	}
 	return l.svcCtx.PriceClient, nil
+}
+
+// userClient 获取用户服务客户端，供下单前锁定用户券使用。
+func (l *OrderLogic) userClient() (svc.UserClient, error) {
+	if l.svcCtx == nil || l.svcCtx.UserClient == nil {
+		return nil, ErrUserClientNotConfigured
+	}
+	return l.svcCtx.UserClient, nil
+}
+
+// payClient 获取支付服务客户端，供订单支付入口创建支付单使用。
+func (l *OrderLogic) payClient() (svc.PayClient, error) {
+	if l.svcCtx == nil || l.svcCtx.PayClient == nil {
+		return nil, ErrPayClientNotConfigured
+	}
+	return l.svcCtx.PayClient, nil
+}
+
+// toPayChannel 将乘客端数字渠道转换为 paysvc proto 枚举。
+func toPayChannel(channel int32) (payproto.PayChannel, error) {
+	switch payproto.PayChannel(channel) {
+	case payproto.PayChannel_PAY_CHANNEL_WECHAT,
+		payproto.PayChannel_PAY_CHANNEL_ALIPAY,
+		payproto.PayChannel_PAY_CHANNEL_BALANCE:
+		return payproto.PayChannel(channel), nil
+	default:
+		return payproto.PayChannel_PAY_CHANNEL_UNSPECIFIED, ErrInvalidRequest
+	}
 }
 
 // toOrderDetail 将 ordersvc 的订单详情响应转换为乘客端 API 响应结构。

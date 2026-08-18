@@ -11,11 +11,27 @@ import (
 const (
 	smsCodeTTL      = 5 * time.Minute
 	smsCodeCooldown = time.Minute
+
+	registeredSMSHourlyLimit   = 5
+	registeredSMSDailyLimit    = 10
+	unregisteredSMSHourlyLimit = 3
+	unregisteredSMSDailyLimit  = 5
 )
+
+// SMSRatePolicy 描述同一手机号在固定时间窗口内允许发送验证码的次数。
+type SMSRatePolicy struct {
+	HourLimit int
+	DayLimit  int
+}
 
 // SMSCodeSender 负责向短信服务提交验证码。
 type SMSCodeSender interface {
 	Send(ctx context.Context, phone string) (expireIn int64, err error)
+}
+
+// SMSCodePolicySender 支持按注册状态使用不同频控阈值的验证码发送器。
+type SMSCodePolicySender interface {
+	SendWithPolicy(ctx context.Context, phone string, policy SMSRatePolicy) (expireIn int64, err error)
 }
 
 // SMSCodeVerifier 负责校验手机号和验证码是否匹配。
@@ -33,6 +49,7 @@ type smsCodeRecord struct {
 type MemorySMSCodeService struct {
 	mu     sync.Mutex
 	codes  map[string]smsCodeRecord
+	sends  map[string][]time.Time
 	onSent func(phone, code string)
 }
 
@@ -40,18 +57,27 @@ type MemorySMSCodeService struct {
 func NewMemorySMSCodeService(onSent func(phone, code string)) *MemorySMSCodeService {
 	return &MemorySMSCodeService{
 		codes:  make(map[string]smsCodeRecord),
+		sends:  make(map[string][]time.Time),
 		onSent: onSent,
 	}
 }
 
 // Send 生成并保存验证码，同时执行每手机号 60 秒一次的发送限制。
-func (s *MemorySMSCodeService) Send(_ context.Context, phone string) (int64, error) {
+func (s *MemorySMSCodeService) Send(ctx context.Context, phone string) (int64, error) {
+	return s.SendWithPolicy(ctx, phone, registeredSMSRatePolicy())
+}
+
+// SendWithPolicy 生成并保存验证码，同时执行冷却、小时和天级频控。
+func (s *MemorySMSCodeService) SendWithPolicy(_ context.Context, phone string, policy SMSRatePolicy) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	now := time.Now()
 	// 同一手机号仍在冷却窗口内时，拒绝重复发送。
 	if record, ok := s.codes[phone]; ok && now.Sub(record.sentAt) < smsCodeCooldown {
+		return 0, ErrSMSCodeSendTooFrequent
+	}
+	if exceedsSMSRateLimit(s.sends[phone], now, policy) {
 		return 0, ErrSMSCodeSendTooFrequent
 	}
 
@@ -65,6 +91,7 @@ func (s *MemorySMSCodeService) Send(_ context.Context, phone string) (int64, err
 		sentAt:    now,
 		expiresAt: now.Add(smsCodeTTL),
 	}
+	s.sends[phone] = appendSMSHistory(s.sends[phone], now)
 	if s.onSent != nil {
 		s.onSent(phone, code)
 	}
@@ -97,4 +124,41 @@ func generateSMSCode() (string, error) {
 	}
 	value := uint32(bytes[0])<<24 | uint32(bytes[1])<<16 | uint32(bytes[2])<<8 | uint32(bytes[3])
 	return fmt.Sprintf("%06d", value%1000000), nil
+}
+
+// registeredSMSRatePolicy 返回已注册手机号的短信频控基线。
+func registeredSMSRatePolicy() SMSRatePolicy {
+	return SMSRatePolicy{HourLimit: registeredSMSHourlyLimit, DayLimit: registeredSMSDailyLimit}
+}
+
+// unregisteredSMSRatePolicy 返回未注册手机号的更严格短信频控规则。
+func unregisteredSMSRatePolicy() SMSRatePolicy {
+	return SMSRatePolicy{HourLimit: unregisteredSMSHourlyLimit, DayLimit: unregisteredSMSDailyLimit}
+}
+
+// exceedsSMSRateLimit 判断发送历史是否已经达到小时或天级上限。
+func exceedsSMSRateLimit(history []time.Time, now time.Time, policy SMSRatePolicy) bool {
+	hourCount := 0
+	dayCount := 0
+	for _, sentAt := range history {
+		if now.Sub(sentAt) < time.Hour {
+			hourCount++
+		}
+		if now.Sub(sentAt) < 24*time.Hour {
+			dayCount++
+		}
+	}
+	return policy.HourLimit > 0 && hourCount >= policy.HourLimit ||
+		policy.DayLimit > 0 && dayCount >= policy.DayLimit
+}
+
+// appendSMSHistory 追加本次发送时间，并清理超过 24 小时的历史记录。
+func appendSMSHistory(history []time.Time, now time.Time) []time.Time {
+	out := make([]time.Time, 0, len(history)+1)
+	for _, sentAt := range history {
+		if now.Sub(sentAt) < 24*time.Hour {
+			out = append(out, sentAt)
+		}
+	}
+	return append(out, now)
 }

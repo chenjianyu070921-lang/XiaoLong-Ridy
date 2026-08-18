@@ -29,6 +29,7 @@ type ServiceContext struct {
 	Config      config.Config
 	Users       repository.UserRepository
 	Addresses   repository.AddressRepository
+	Coupons     repository.CouponRepository
 	SMSSender   SMSCodeSender
 	SMSVerifier SMSCodeVerifier
 	Tokens      TokenManager
@@ -39,6 +40,7 @@ func NewServiceContext(
 	c config.Config,
 	users repository.UserRepository,
 	addresses repository.AddressRepository,
+	coupons repository.CouponRepository,
 	smsSender SMSCodeSender,
 	smsVerifier SMSCodeVerifier,
 	tokens TokenManager,
@@ -47,6 +49,7 @@ func NewServiceContext(
 		Config:      c,
 		Users:       users,
 		Addresses:   addresses,
+		Coupons:     coupons,
 		SMSSender:   smsSender,
 		SMSVerifier: smsVerifier,
 		Tokens:      tokens,

@@ -52,7 +52,7 @@ func (l *FinishTripLogic) FinishTrip(in *proto.FinishTripRequest) (*proto.Finish
 	if err != nil {
 		return nil, err
 	}
-	if order.Status != constants.OrderStatusOnTrip {
+	if !CanTransit(order.Status, constants.OrderStatusWaitPay) {
 		return nil, ErrOrderStatusNotAllowed
 	}
 	if order.DriverId != uint64(in.DriverId) {

@@ -1233,6 +1233,563 @@ func (x *DeleteAddressResponse) GetSuccess() bool {
 	return false
 }
 
+// CouponInfo 表示乘客端展示的优惠券信息。
+type CouponInfo struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserCouponId   uint64                 `protobuf:"varint,1,opt,name=user_coupon_id,json=userCouponId,proto3" json:"user_coupon_id,omitempty"`       // 用户优惠券实例 ID
+	CouponId       uint64                 `protobuf:"varint,2,opt,name=coupon_id,json=couponId,proto3" json:"coupon_id,omitempty"`                     // 优惠券模板 ID
+	Name           string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`                                              // 优惠券名称
+	Type           int32                  `protobuf:"varint,4,opt,name=type,proto3" json:"type,omitempty"`                                             // 类型：1满减 2折扣 3立减
+	FaceValueCents int64                  `protobuf:"varint,5,opt,name=face_value_cents,json=faceValueCents,proto3" json:"face_value_cents,omitempty"` // 面值，单位：分
+	Discount       int32                  `protobuf:"varint,6,opt,name=discount,proto3" json:"discount,omitempty"`                                     // 折扣率百分比，如 85 表示 8.5 折
+	ThresholdCents int64                  `protobuf:"varint,7,opt,name=threshold_cents,json=thresholdCents,proto3" json:"threshold_cents,omitempty"`   // 使用门槛，单位：分
+	CarType        int32                  `protobuf:"varint,8,opt,name=car_type,json=carType,proto3" json:"car_type,omitempty"`                        // 适用车型，0 表示全部
+	CityCode       string                 `protobuf:"bytes,9,opt,name=city_code,json=cityCode,proto3" json:"city_code,omitempty"`                      // 适用城市，空表示不限
+	Status         int32                  `protobuf:"varint,10,opt,name=status,proto3" json:"status,omitempty"`                                        // 用户券状态：1未用 2已用 3过期 4锁定
+	ReceivedAt     int64                  `protobuf:"varint,11,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`              // 领取时间 Unix 秒
+	ExpireAt       int64                  `protobuf:"varint,12,opt,name=expire_at,json=expireAt,proto3" json:"expire_at,omitempty"`                    // 过期时间 Unix 秒
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CouponInfo) Reset() {
+	*x = CouponInfo{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CouponInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CouponInfo) ProtoMessage() {}
+
+func (x *CouponInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CouponInfo.ProtoReflect.Descriptor instead.
+func (*CouponInfo) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CouponInfo) GetUserCouponId() uint64 {
+	if x != nil {
+		return x.UserCouponId
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetCouponId() uint64 {
+	if x != nil {
+		return x.CouponId
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CouponInfo) GetType() int32 {
+	if x != nil {
+		return x.Type
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetFaceValueCents() int64 {
+	if x != nil {
+		return x.FaceValueCents
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetDiscount() int32 {
+	if x != nil {
+		return x.Discount
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetThresholdCents() int64 {
+	if x != nil {
+		return x.ThresholdCents
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetCarType() int32 {
+	if x != nil {
+		return x.CarType
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetCityCode() string {
+	if x != nil {
+		return x.CityCode
+	}
+	return ""
+}
+
+func (x *CouponInfo) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetReceivedAt() int64 {
+	if x != nil {
+		return x.ReceivedAt
+	}
+	return 0
+}
+
+func (x *CouponInfo) GetExpireAt() int64 {
+	if x != nil {
+		return x.ExpireAt
+	}
+	return 0
+}
+
+// ClaimCouponRequest 领取优惠券请求。
+type ClaimCouponRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`       // 用户 ID
+	CouponId      uint64                 `protobuf:"varint,2,opt,name=coupon_id,json=couponId,proto3" json:"coupon_id,omitempty"` // 优惠券模板 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimCouponRequest) Reset() {
+	*x = ClaimCouponRequest{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimCouponRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimCouponRequest) ProtoMessage() {}
+
+func (x *ClaimCouponRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimCouponRequest.ProtoReflect.Descriptor instead.
+func (*ClaimCouponRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ClaimCouponRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ClaimCouponRequest) GetCouponId() uint64 {
+	if x != nil {
+		return x.CouponId
+	}
+	return 0
+}
+
+// ClaimCouponResponse 领取优惠券响应。
+type ClaimCouponResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserCoupon    *CouponInfo            `protobuf:"bytes,1,opt,name=user_coupon,json=userCoupon,proto3" json:"user_coupon,omitempty"` // 已领取的用户券
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimCouponResponse) Reset() {
+	*x = ClaimCouponResponse{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimCouponResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimCouponResponse) ProtoMessage() {}
+
+func (x *ClaimCouponResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimCouponResponse.ProtoReflect.Descriptor instead.
+func (*ClaimCouponResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ClaimCouponResponse) GetUserCoupon() *CouponInfo {
+	if x != nil {
+		return x.UserCoupon
+	}
+	return nil
+}
+
+// ListMyCouponsRequest 查询我的优惠券请求。
+type ListMyCouponsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // 用户 ID
+	Status        int32                  `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"`               // 0 表示全部；1未用 2已用 3过期 4锁定
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMyCouponsRequest) Reset() {
+	*x = ListMyCouponsRequest{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMyCouponsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMyCouponsRequest) ProtoMessage() {}
+
+func (x *ListMyCouponsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMyCouponsRequest.ProtoReflect.Descriptor instead.
+func (*ListMyCouponsRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListMyCouponsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListMyCouponsRequest) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+// ListMyCouponsResponse 查询我的优惠券响应。
+type ListMyCouponsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          []*CouponInfo          `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"` // 优惠券列表
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMyCouponsResponse) Reset() {
+	*x = ListMyCouponsResponse{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMyCouponsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMyCouponsResponse) ProtoMessage() {}
+
+func (x *ListMyCouponsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMyCouponsResponse.ProtoReflect.Descriptor instead.
+func (*ListMyCouponsResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListMyCouponsResponse) GetList() []*CouponInfo {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+// LockUserCouponRequest 下单锁券请求。
+type LockUserCouponRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`                     // 用户 ID
+	UserCouponId  uint64                 `protobuf:"varint,2,opt,name=user_coupon_id,json=userCouponId,proto3" json:"user_coupon_id,omitempty"` // 用户优惠券实例 ID
+	OrderId       uint64                 `protobuf:"varint,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`                  // 预占订单 ID，下单前未知时可传请求链路 ID 转换值
+	CarType       int32                  `protobuf:"varint,4,opt,name=car_type,json=carType,proto3" json:"car_type,omitempty"`                  // 本次下单车型
+	CityCode      string                 `protobuf:"bytes,5,opt,name=city_code,json=cityCode,proto3" json:"city_code,omitempty"`                // 本次下单城市
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LockUserCouponRequest) Reset() {
+	*x = LockUserCouponRequest{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LockUserCouponRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LockUserCouponRequest) ProtoMessage() {}
+
+func (x *LockUserCouponRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LockUserCouponRequest.ProtoReflect.Descriptor instead.
+func (*LockUserCouponRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *LockUserCouponRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *LockUserCouponRequest) GetUserCouponId() uint64 {
+	if x != nil {
+		return x.UserCouponId
+	}
+	return 0
+}
+
+func (x *LockUserCouponRequest) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *LockUserCouponRequest) GetCarType() int32 {
+	if x != nil {
+		return x.CarType
+	}
+	return 0
+}
+
+func (x *LockUserCouponRequest) GetCityCode() string {
+	if x != nil {
+		return x.CityCode
+	}
+	return ""
+}
+
+// LockUserCouponResponse 下单锁券响应。
+type LockUserCouponResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Coupon        *CouponInfo            `protobuf:"bytes,1,opt,name=coupon,proto3" json:"coupon,omitempty"` // 已锁定的优惠券信息
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LockUserCouponResponse) Reset() {
+	*x = LockUserCouponResponse{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LockUserCouponResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LockUserCouponResponse) ProtoMessage() {}
+
+func (x *LockUserCouponResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LockUserCouponResponse.ProtoReflect.Descriptor instead.
+func (*LockUserCouponResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *LockUserCouponResponse) GetCoupon() *CouponInfo {
+	if x != nil {
+		return x.Coupon
+	}
+	return nil
+}
+
+// ReleaseUserCouponRequest 释放锁券请求。
+type ReleaseUserCouponRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`                     // 用户 ID
+	UserCouponId  uint64                 `protobuf:"varint,2,opt,name=user_coupon_id,json=userCouponId,proto3" json:"user_coupon_id,omitempty"` // 用户优惠券实例 ID
+	OrderId       uint64                 `protobuf:"varint,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`                  // 锁定时写入的订单 ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReleaseUserCouponRequest) Reset() {
+	*x = ReleaseUserCouponRequest{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReleaseUserCouponRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReleaseUserCouponRequest) ProtoMessage() {}
+
+func (x *ReleaseUserCouponRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReleaseUserCouponRequest.ProtoReflect.Descriptor instead.
+func (*ReleaseUserCouponRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ReleaseUserCouponRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ReleaseUserCouponRequest) GetUserCouponId() uint64 {
+	if x != nil {
+		return x.UserCouponId
+	}
+	return 0
+}
+
+func (x *ReleaseUserCouponRequest) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+// ReleaseUserCouponResponse 释放锁券响应。
+type ReleaseUserCouponResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"` // 是否释放成功
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReleaseUserCouponResponse) Reset() {
+	*x = ReleaseUserCouponResponse{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReleaseUserCouponResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReleaseUserCouponResponse) ProtoMessage() {}
+
+func (x *ReleaseUserCouponResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReleaseUserCouponResponse.ProtoReflect.Descriptor instead.
+func (*ReleaseUserCouponResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ReleaseUserCouponResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 var File_rpc_usersvc_proto_usersvc_proto protoreflect.FileDescriptor
 
 const file_rpc_usersvc_proto_usersvc_proto_rawDesc = "" +
@@ -1323,7 +1880,48 @@ const file_rpc_usersvc_proto_usersvc_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\"1\n" +
 	"\x15DeleteAddressResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\xe5\x05\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\xf4\x02\n" +
+	"\n" +
+	"CouponInfo\x12$\n" +
+	"\x0euser_coupon_id\x18\x01 \x01(\x04R\fuserCouponId\x12\x1b\n" +
+	"\tcoupon_id\x18\x02 \x01(\x04R\bcouponId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x04 \x01(\x05R\x04type\x12(\n" +
+	"\x10face_value_cents\x18\x05 \x01(\x03R\x0efaceValueCents\x12\x1a\n" +
+	"\bdiscount\x18\x06 \x01(\x05R\bdiscount\x12'\n" +
+	"\x0fthreshold_cents\x18\a \x01(\x03R\x0ethresholdCents\x12\x19\n" +
+	"\bcar_type\x18\b \x01(\x05R\acarType\x12\x1b\n" +
+	"\tcity_code\x18\t \x01(\tR\bcityCode\x12\x16\n" +
+	"\x06status\x18\n" +
+	" \x01(\x05R\x06status\x12\x1f\n" +
+	"\vreceived_at\x18\v \x01(\x03R\n" +
+	"receivedAt\x12\x1b\n" +
+	"\texpire_at\x18\f \x01(\x03R\bexpireAt\"J\n" +
+	"\x12ClaimCouponRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1b\n" +
+	"\tcoupon_id\x18\x02 \x01(\x04R\bcouponId\"K\n" +
+	"\x13ClaimCouponResponse\x124\n" +
+	"\vuser_coupon\x18\x01 \x01(\v2\x13.usersvc.CouponInfoR\n" +
+	"userCoupon\"G\n" +
+	"\x14ListMyCouponsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\x05R\x06status\"@\n" +
+	"\x15ListMyCouponsResponse\x12'\n" +
+	"\x04list\x18\x01 \x03(\v2\x13.usersvc.CouponInfoR\x04list\"\xa9\x01\n" +
+	"\x15LockUserCouponRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12$\n" +
+	"\x0euser_coupon_id\x18\x02 \x01(\x04R\fuserCouponId\x12\x19\n" +
+	"\border_id\x18\x03 \x01(\x04R\aorderId\x12\x19\n" +
+	"\bcar_type\x18\x04 \x01(\x05R\acarType\x12\x1b\n" +
+	"\tcity_code\x18\x05 \x01(\tR\bcityCode\"E\n" +
+	"\x16LockUserCouponResponse\x12+\n" +
+	"\x06coupon\x18\x01 \x01(\v2\x13.usersvc.CouponInfoR\x06coupon\"t\n" +
+	"\x18ReleaseUserCouponRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12$\n" +
+	"\x0euser_coupon_id\x18\x02 \x01(\x04R\fuserCouponId\x12\x19\n" +
+	"\border_id\x18\x03 \x01(\x04R\aorderId\"5\n" +
+	"\x19ReleaseUserCouponResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\xae\b\n" +
 	"\x04User\x12H\n" +
 	"\vSendSMSCode\x12\x1b.usersvc.SendSMSCodeRequest\x1a\x1c.usersvc.SendSMSCodeResponse\x12E\n" +
 	"\n" +
@@ -1336,7 +1934,11 @@ const file_rpc_usersvc_proto_usersvc_proto_rawDesc = "" +
 	"\rCreateAddress\x12\x1d.usersvc.CreateAddressRequest\x1a\x14.usersvc.AddressInfo\x12N\n" +
 	"\rListAddresses\x12\x1d.usersvc.ListAddressesRequest\x1a\x1e.usersvc.ListAddressesResponse\x12D\n" +
 	"\rUpdateAddress\x12\x1d.usersvc.UpdateAddressRequest\x1a\x14.usersvc.AddressInfo\x12N\n" +
-	"\rDeleteAddress\x12\x1d.usersvc.DeleteAddressRequest\x1a\x1e.usersvc.DeleteAddressResponseB\n" +
+	"\rDeleteAddress\x12\x1d.usersvc.DeleteAddressRequest\x1a\x1e.usersvc.DeleteAddressResponse\x12H\n" +
+	"\vClaimCoupon\x12\x1b.usersvc.ClaimCouponRequest\x1a\x1c.usersvc.ClaimCouponResponse\x12N\n" +
+	"\rListMyCoupons\x12\x1d.usersvc.ListMyCouponsRequest\x1a\x1e.usersvc.ListMyCouponsResponse\x12Q\n" +
+	"\x0eLockUserCoupon\x12\x1e.usersvc.LockUserCouponRequest\x1a\x1f.usersvc.LockUserCouponResponse\x12Z\n" +
+	"\x11ReleaseUserCoupon\x12!.usersvc.ReleaseUserCouponRequest\x1a\".usersvc.ReleaseUserCouponResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
 var (
@@ -1351,59 +1953,79 @@ func file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP() []byte {
 	return file_rpc_usersvc_proto_usersvc_proto_rawDescData
 }
 
-var file_rpc_usersvc_proto_usersvc_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_rpc_usersvc_proto_usersvc_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_rpc_usersvc_proto_usersvc_proto_goTypes = []any{
-	(*SendSMSCodeRequest)(nil),     // 0: usersvc.SendSMSCodeRequest
-	(*SendSMSCodeResponse)(nil),    // 1: usersvc.SendSMSCodeResponse
-	(*LoginBySMSRequest)(nil),      // 2: usersvc.LoginBySMSRequest
-	(*UserInfo)(nil),               // 3: usersvc.UserInfo
-	(*LoginBySMSResponse)(nil),     // 4: usersvc.LoginBySMSResponse
-	(*RefreshTokenRequest)(nil),    // 5: usersvc.RefreshTokenRequest
-	(*RefreshTokenResponse)(nil),   // 6: usersvc.RefreshTokenResponse
-	(*LogoutRequest)(nil),          // 7: usersvc.LogoutRequest
-	(*LogoutResponse)(nil),         // 8: usersvc.LogoutResponse
-	(*GetProfileRequest)(nil),      // 9: usersvc.GetProfileRequest
-	(*GetProfileResponse)(nil),     // 10: usersvc.GetProfileResponse
-	(*SubmitRealNameRequest)(nil),  // 11: usersvc.SubmitRealNameRequest
-	(*SubmitRealNameResponse)(nil), // 12: usersvc.SubmitRealNameResponse
-	(*AddressInfo)(nil),            // 13: usersvc.AddressInfo
-	(*CreateAddressRequest)(nil),   // 14: usersvc.CreateAddressRequest
-	(*ListAddressesRequest)(nil),   // 15: usersvc.ListAddressesRequest
-	(*ListAddressesResponse)(nil),  // 16: usersvc.ListAddressesResponse
-	(*UpdateAddressRequest)(nil),   // 17: usersvc.UpdateAddressRequest
-	(*DeleteAddressRequest)(nil),   // 18: usersvc.DeleteAddressRequest
-	(*DeleteAddressResponse)(nil),  // 19: usersvc.DeleteAddressResponse
+	(*SendSMSCodeRequest)(nil),        // 0: usersvc.SendSMSCodeRequest
+	(*SendSMSCodeResponse)(nil),       // 1: usersvc.SendSMSCodeResponse
+	(*LoginBySMSRequest)(nil),         // 2: usersvc.LoginBySMSRequest
+	(*UserInfo)(nil),                  // 3: usersvc.UserInfo
+	(*LoginBySMSResponse)(nil),        // 4: usersvc.LoginBySMSResponse
+	(*RefreshTokenRequest)(nil),       // 5: usersvc.RefreshTokenRequest
+	(*RefreshTokenResponse)(nil),      // 6: usersvc.RefreshTokenResponse
+	(*LogoutRequest)(nil),             // 7: usersvc.LogoutRequest
+	(*LogoutResponse)(nil),            // 8: usersvc.LogoutResponse
+	(*GetProfileRequest)(nil),         // 9: usersvc.GetProfileRequest
+	(*GetProfileResponse)(nil),        // 10: usersvc.GetProfileResponse
+	(*SubmitRealNameRequest)(nil),     // 11: usersvc.SubmitRealNameRequest
+	(*SubmitRealNameResponse)(nil),    // 12: usersvc.SubmitRealNameResponse
+	(*AddressInfo)(nil),               // 13: usersvc.AddressInfo
+	(*CreateAddressRequest)(nil),      // 14: usersvc.CreateAddressRequest
+	(*ListAddressesRequest)(nil),      // 15: usersvc.ListAddressesRequest
+	(*ListAddressesResponse)(nil),     // 16: usersvc.ListAddressesResponse
+	(*UpdateAddressRequest)(nil),      // 17: usersvc.UpdateAddressRequest
+	(*DeleteAddressRequest)(nil),      // 18: usersvc.DeleteAddressRequest
+	(*DeleteAddressResponse)(nil),     // 19: usersvc.DeleteAddressResponse
+	(*CouponInfo)(nil),                // 20: usersvc.CouponInfo
+	(*ClaimCouponRequest)(nil),        // 21: usersvc.ClaimCouponRequest
+	(*ClaimCouponResponse)(nil),       // 22: usersvc.ClaimCouponResponse
+	(*ListMyCouponsRequest)(nil),      // 23: usersvc.ListMyCouponsRequest
+	(*ListMyCouponsResponse)(nil),     // 24: usersvc.ListMyCouponsResponse
+	(*LockUserCouponRequest)(nil),     // 25: usersvc.LockUserCouponRequest
+	(*LockUserCouponResponse)(nil),    // 26: usersvc.LockUserCouponResponse
+	(*ReleaseUserCouponRequest)(nil),  // 27: usersvc.ReleaseUserCouponRequest
+	(*ReleaseUserCouponResponse)(nil), // 28: usersvc.ReleaseUserCouponResponse
 }
 var file_rpc_usersvc_proto_usersvc_proto_depIdxs = []int32{
 	3,  // 0: usersvc.LoginBySMSResponse.user:type_name -> usersvc.UserInfo
 	3,  // 1: usersvc.GetProfileResponse.user:type_name -> usersvc.UserInfo
 	3,  // 2: usersvc.SubmitRealNameResponse.user:type_name -> usersvc.UserInfo
 	13, // 3: usersvc.ListAddressesResponse.list:type_name -> usersvc.AddressInfo
-	0,  // 4: usersvc.User.SendSMSCode:input_type -> usersvc.SendSMSCodeRequest
-	2,  // 5: usersvc.User.LoginBySMS:input_type -> usersvc.LoginBySMSRequest
-	5,  // 6: usersvc.User.RefreshToken:input_type -> usersvc.RefreshTokenRequest
-	7,  // 7: usersvc.User.Logout:input_type -> usersvc.LogoutRequest
-	9,  // 8: usersvc.User.GetProfile:input_type -> usersvc.GetProfileRequest
-	11, // 9: usersvc.User.SubmitRealName:input_type -> usersvc.SubmitRealNameRequest
-	14, // 10: usersvc.User.CreateAddress:input_type -> usersvc.CreateAddressRequest
-	15, // 11: usersvc.User.ListAddresses:input_type -> usersvc.ListAddressesRequest
-	17, // 12: usersvc.User.UpdateAddress:input_type -> usersvc.UpdateAddressRequest
-	18, // 13: usersvc.User.DeleteAddress:input_type -> usersvc.DeleteAddressRequest
-	1,  // 14: usersvc.User.SendSMSCode:output_type -> usersvc.SendSMSCodeResponse
-	4,  // 15: usersvc.User.LoginBySMS:output_type -> usersvc.LoginBySMSResponse
-	6,  // 16: usersvc.User.RefreshToken:output_type -> usersvc.RefreshTokenResponse
-	8,  // 17: usersvc.User.Logout:output_type -> usersvc.LogoutResponse
-	10, // 18: usersvc.User.GetProfile:output_type -> usersvc.GetProfileResponse
-	12, // 19: usersvc.User.SubmitRealName:output_type -> usersvc.SubmitRealNameResponse
-	13, // 20: usersvc.User.CreateAddress:output_type -> usersvc.AddressInfo
-	16, // 21: usersvc.User.ListAddresses:output_type -> usersvc.ListAddressesResponse
-	13, // 22: usersvc.User.UpdateAddress:output_type -> usersvc.AddressInfo
-	19, // 23: usersvc.User.DeleteAddress:output_type -> usersvc.DeleteAddressResponse
-	14, // [14:24] is the sub-list for method output_type
-	4,  // [4:14] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	20, // 4: usersvc.ClaimCouponResponse.user_coupon:type_name -> usersvc.CouponInfo
+	20, // 5: usersvc.ListMyCouponsResponse.list:type_name -> usersvc.CouponInfo
+	20, // 6: usersvc.LockUserCouponResponse.coupon:type_name -> usersvc.CouponInfo
+	0,  // 7: usersvc.User.SendSMSCode:input_type -> usersvc.SendSMSCodeRequest
+	2,  // 8: usersvc.User.LoginBySMS:input_type -> usersvc.LoginBySMSRequest
+	5,  // 9: usersvc.User.RefreshToken:input_type -> usersvc.RefreshTokenRequest
+	7,  // 10: usersvc.User.Logout:input_type -> usersvc.LogoutRequest
+	9,  // 11: usersvc.User.GetProfile:input_type -> usersvc.GetProfileRequest
+	11, // 12: usersvc.User.SubmitRealName:input_type -> usersvc.SubmitRealNameRequest
+	14, // 13: usersvc.User.CreateAddress:input_type -> usersvc.CreateAddressRequest
+	15, // 14: usersvc.User.ListAddresses:input_type -> usersvc.ListAddressesRequest
+	17, // 15: usersvc.User.UpdateAddress:input_type -> usersvc.UpdateAddressRequest
+	18, // 16: usersvc.User.DeleteAddress:input_type -> usersvc.DeleteAddressRequest
+	21, // 17: usersvc.User.ClaimCoupon:input_type -> usersvc.ClaimCouponRequest
+	23, // 18: usersvc.User.ListMyCoupons:input_type -> usersvc.ListMyCouponsRequest
+	25, // 19: usersvc.User.LockUserCoupon:input_type -> usersvc.LockUserCouponRequest
+	27, // 20: usersvc.User.ReleaseUserCoupon:input_type -> usersvc.ReleaseUserCouponRequest
+	1,  // 21: usersvc.User.SendSMSCode:output_type -> usersvc.SendSMSCodeResponse
+	4,  // 22: usersvc.User.LoginBySMS:output_type -> usersvc.LoginBySMSResponse
+	6,  // 23: usersvc.User.RefreshToken:output_type -> usersvc.RefreshTokenResponse
+	8,  // 24: usersvc.User.Logout:output_type -> usersvc.LogoutResponse
+	10, // 25: usersvc.User.GetProfile:output_type -> usersvc.GetProfileResponse
+	12, // 26: usersvc.User.SubmitRealName:output_type -> usersvc.SubmitRealNameResponse
+	13, // 27: usersvc.User.CreateAddress:output_type -> usersvc.AddressInfo
+	16, // 28: usersvc.User.ListAddresses:output_type -> usersvc.ListAddressesResponse
+	13, // 29: usersvc.User.UpdateAddress:output_type -> usersvc.AddressInfo
+	19, // 30: usersvc.User.DeleteAddress:output_type -> usersvc.DeleteAddressResponse
+	22, // 31: usersvc.User.ClaimCoupon:output_type -> usersvc.ClaimCouponResponse
+	24, // 32: usersvc.User.ListMyCoupons:output_type -> usersvc.ListMyCouponsResponse
+	26, // 33: usersvc.User.LockUserCoupon:output_type -> usersvc.LockUserCouponResponse
+	28, // 34: usersvc.User.ReleaseUserCoupon:output_type -> usersvc.ReleaseUserCouponResponse
+	21, // [21:35] is the sub-list for method output_type
+	7,  // [7:21] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_rpc_usersvc_proto_usersvc_proto_init() }
@@ -1417,7 +2039,7 @@ func file_rpc_usersvc_proto_usersvc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_usersvc_proto_usersvc_proto_rawDesc), len(file_rpc_usersvc_proto_usersvc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

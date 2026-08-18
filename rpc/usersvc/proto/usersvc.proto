@@ -25,6 +25,14 @@ service User {
   rpc UpdateAddress(UpdateAddressRequest) returns (AddressInfo);
   // DeleteAddress 删除乘客常用地址。
   rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressResponse);
+  // ClaimCoupon 领取优惠券。
+  rpc ClaimCoupon(ClaimCouponRequest) returns (ClaimCouponResponse);
+  // ListMyCoupons 查询我的优惠券。
+  rpc ListMyCoupons(ListMyCouponsRequest) returns (ListMyCouponsResponse);
+  // LockUserCoupon 下单前锁定用户券，防止重复使用。
+  rpc LockUserCoupon(LockUserCouponRequest) returns (LockUserCouponResponse);
+  // ReleaseUserCoupon 下单失败时释放用户券锁定。
+  rpc ReleaseUserCoupon(ReleaseUserCouponRequest) returns (ReleaseUserCouponResponse);
 }
 
 // SendSMSCodeRequest 发送短信验证码请求。
@@ -166,3 +174,66 @@ message DeleteAddressResponse {
   bool success = 1; // 是否删除成功
 }
 
+// CouponInfo 表示乘客端展示的优惠券信息。
+message CouponInfo {
+  uint64 user_coupon_id = 1; // 用户优惠券实例 ID
+  uint64 coupon_id = 2; // 优惠券模板 ID
+  string name = 3; // 优惠券名称
+  int32 type = 4; // 类型：1满减 2折扣 3立减
+  int64 face_value_cents = 5; // 面值，单位：分
+  int32 discount = 6; // 折扣率百分比，如 85 表示 8.5 折
+  int64 threshold_cents = 7; // 使用门槛，单位：分
+  int32 car_type = 8; // 适用车型，0 表示全部
+  string city_code = 9; // 适用城市，空表示不限
+  int32 status = 10; // 用户券状态：1未用 2已用 3过期 4锁定
+  int64 received_at = 11; // 领取时间 Unix 秒
+  int64 expire_at = 12; // 过期时间 Unix 秒
+}
+
+// ClaimCouponRequest 领取优惠券请求。
+message ClaimCouponRequest {
+  uint64 user_id = 1; // 用户 ID
+  uint64 coupon_id = 2; // 优惠券模板 ID
+}
+
+// ClaimCouponResponse 领取优惠券响应。
+message ClaimCouponResponse {
+  CouponInfo user_coupon = 1; // 已领取的用户券
+}
+
+// ListMyCouponsRequest 查询我的优惠券请求。
+message ListMyCouponsRequest {
+  uint64 user_id = 1; // 用户 ID
+  int32 status = 2; // 0 表示全部；1未用 2已用 3过期 4锁定
+}
+
+// ListMyCouponsResponse 查询我的优惠券响应。
+message ListMyCouponsResponse {
+  repeated CouponInfo list = 1; // 优惠券列表
+}
+
+// LockUserCouponRequest 下单锁券请求。
+message LockUserCouponRequest {
+  uint64 user_id = 1; // 用户 ID
+  uint64 user_coupon_id = 2; // 用户优惠券实例 ID
+  uint64 order_id = 3; // 预占订单 ID，下单前未知时可传请求链路 ID 转换值
+  int32 car_type = 4; // 本次下单车型
+  string city_code = 5; // 本次下单城市
+}
+
+// LockUserCouponResponse 下单锁券响应。
+message LockUserCouponResponse {
+  CouponInfo coupon = 1; // 已锁定的优惠券信息
+}
+
+// ReleaseUserCouponRequest 释放锁券请求。
+message ReleaseUserCouponRequest {
+  uint64 user_id = 1; // 用户 ID
+  uint64 user_coupon_id = 2; // 用户优惠券实例 ID
+  uint64 order_id = 3; // 锁定时写入的订单 ID
+}
+
+// ReleaseUserCouponResponse 释放锁券响应。
+message ReleaseUserCouponResponse {
+  bool success = 1; // 是否释放成功
+}
