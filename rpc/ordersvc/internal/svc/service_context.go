@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"XiaoLong-Ridy/rpc/paysvc/pay"
 	"time"
 
 	cfg "XiaoLong-Ridy/common/config"
@@ -25,7 +26,7 @@ type ServiceContext struct {
 	OrderRepository repository.OrderRepository
 	DispatchClient  dispatch.Dispatch
 	PriceClient     price.Price
-	//PayClient       pay.Pay
+	PayClient       pay.Pay
 }
 
 // NewServiceContext 初始化 MySQL、Redis、事件总线与订单仓储。
@@ -61,14 +62,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(err)
 	}
 
-	//payRPC := c.PayRPC
-	//if payRPC.Target == "" && len(payRPC.Endpoints) == 0 {
-	//	payRPC.Target = "127.0.0.1:50054"
-	//}
-	//payClient, err := zrpc.NewClient(payRPC)
-	//if err != nil {
-	//	panic(err)
-	//}
+	payRPC := c.PayRPC
+	if payRPC.Target == "" && len(payRPC.Endpoints) == 0 {
+		payRPC.Target = "127.0.0.1:50054"
+	}
+	payClient, err := zrpc.NewClient(payRPC)
+	if err != nil {
+		panic(err)
+	}
 
 	return &ServiceContext{
 		Config:          c,
@@ -78,6 +79,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		OrderRepository: repository.NewGormOrderRepository(client),
 		DispatchClient:  dispatch.NewDispatch(dispatchClient),
 		PriceClient:     price.NewPrice(priceClient),
-		//PayClient:       pay.NewPay(payClient),
+		PayClient:       pay.NewPay(payClient),
 	}
 }

@@ -14,7 +14,7 @@ type Config struct {
 	Kafka       KafkaConf          `yaml:"kafka" json:"kafka"`
 	DispatchRPC zrpc.RpcClientConf `yaml:"dispatchrpc" json:"dispatchrpc"`
 	PriceRPC    zrpc.RpcClientConf `yaml:"pricerpc" json:"pricerpc"`
-	//PayRPC      zrpc.RpcClientConf `yaml:"payrpc" json:"payrpc"`
+	PayRPC      zrpc.RpcClientConf `yaml:"payrpc" json:"payrpc"`
 
 	// PayChannel 默认支付渠道（1=微信，2=支付宝，3=余额），FinishTrip 生成支付单时使用
 	PayChannel int32 `yaml:"paychannel" json:"paychannel"`
