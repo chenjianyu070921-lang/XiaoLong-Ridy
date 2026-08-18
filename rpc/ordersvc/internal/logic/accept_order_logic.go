@@ -2,6 +2,9 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
@@ -26,10 +29,22 @@ func NewAcceptOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Accep
 	}
 }
 
-// AcceptOrder 将待接单订单改为已接单并绑定司机，写入接单日志。
+// AcceptOrder 加 Redis 分布式锁保证同一订单只有一个司机接单成功。
 func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.AcceptOrderResponse, error) {
 	if in.OrderId <= 0 || in.DriverId <= 0 {
 		return nil, ErrInvalidOrderParams
+	}
+
+	if l.svcCtx.Redis != nil {
+		lockKey := fmt.Sprintf(constants.RedisOrderLock, in.OrderId)
+		ok, err := l.svcCtx.Redis.SetNX(l.ctx, lockKey, "1", 10*time.Second).Result()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrOrderStatusNotAllowed
+		}
+		defer func() { _ = l.svcCtx.Redis.Del(l.ctx, lockKey).Err() }()
 	}
 
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
@@ -53,6 +68,23 @@ func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.Acc
 	}
 	if !ok {
 		return nil, ErrOrderStatusNotAllowed
+	}
+
+	// 闭环派单记录：司机接单后派单记录置为已接受。
+	if err := l.svcCtx.OrderRepository.MarkDispatchAccepted(l.ctx, order.Id, uint64(in.DriverId)); err != nil {
+		l.Logger.Errorf("mark dispatch accepted failed, orderId=%d driverId=%d: %v", order.Id, in.DriverId, err)
+	}
+
+	if l.svcCtx.EventBus != nil {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"order_id":    in.OrderId,
+			"driver_id":   in.DriverId,
+			"from_status": constants.OrderStatusWaitAccept,
+			"to_status":   constants.OrderStatusAccepted,
+		})
+		if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderStatusChanged, payload); err != nil {
+			l.Logger.Errorf("publish order.status.changed failed: %v", err)
+		}
 	}
 
 	return &proto.AcceptOrderResponse{

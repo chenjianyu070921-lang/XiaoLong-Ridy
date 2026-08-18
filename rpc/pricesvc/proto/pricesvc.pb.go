@@ -509,6 +509,128 @@ func (x *CalculateDiscountResponse) GetPayableAmountCents() int64 {
 	return 0
 }
 
+// 实际费用落库请求：行程结束时由订单模块调用。
+type SaveActualOrderPriceRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	OrderId          int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`                              // 订单ID
+	PriceRuleId      int64                  `protobuf:"varint,2,opt,name=price_rule_id,json=priceRuleId,proto3" json:"price_rule_id,omitempty"`                // 命中的计价规则ID（可选，0 表示无）
+	ActualPriceCents int64                  `protobuf:"varint,3,opt,name=actual_price_cents,json=actualPriceCents,proto3" json:"actual_price_cents,omitempty"` // 实际总价（分）
+	Detail           *PriceDetail           `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`                                                // 费用明细（分），可为空（仅落总价）
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SaveActualOrderPriceRequest) Reset() {
+	*x = SaveActualOrderPriceRequest{}
+	mi := &file_rpc_pricesvc_proto_pricesvc_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveActualOrderPriceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveActualOrderPriceRequest) ProtoMessage() {}
+
+func (x *SaveActualOrderPriceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_pricesvc_proto_pricesvc_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveActualOrderPriceRequest.ProtoReflect.Descriptor instead.
+func (*SaveActualOrderPriceRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_pricesvc_proto_pricesvc_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SaveActualOrderPriceRequest) GetOrderId() int64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *SaveActualOrderPriceRequest) GetPriceRuleId() int64 {
+	if x != nil {
+		return x.PriceRuleId
+	}
+	return 0
+}
+
+func (x *SaveActualOrderPriceRequest) GetActualPriceCents() int64 {
+	if x != nil {
+		return x.ActualPriceCents
+	}
+	return 0
+}
+
+func (x *SaveActualOrderPriceRequest) GetDetail() *PriceDetail {
+	if x != nil {
+		return x.Detail
+	}
+	return nil
+}
+
+// 实际费用落库响应
+type SaveActualOrderPriceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	OrderPriceId  int64                  `protobuf:"varint,2,opt,name=order_price_id,json=orderPriceId,proto3" json:"order_price_id,omitempty"` // order_price 记录ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveActualOrderPriceResponse) Reset() {
+	*x = SaveActualOrderPriceResponse{}
+	mi := &file_rpc_pricesvc_proto_pricesvc_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveActualOrderPriceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveActualOrderPriceResponse) ProtoMessage() {}
+
+func (x *SaveActualOrderPriceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_pricesvc_proto_pricesvc_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveActualOrderPriceResponse.ProtoReflect.Descriptor instead.
+func (*SaveActualOrderPriceResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_pricesvc_proto_pricesvc_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SaveActualOrderPriceResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SaveActualOrderPriceResponse) GetOrderPriceId() int64 {
+	if x != nil {
+		return x.OrderPriceId
+	}
+	return 0
+}
+
 var File_rpc_pricesvc_proto_pricesvc_proto protoreflect.FileDescriptor
 
 const file_rpc_pricesvc_proto_pricesvc_proto_rawDesc = "" +
@@ -551,15 +673,24 @@ const file_rpc_pricesvc_proto_pricesvc_proto_rawDesc = "" +
 	"\x19CalculateDiscountResponse\x122\n" +
 	"\x15discount_amount_cents\x18\x01 \x01(\x03R\x13discountAmountCents\x124\n" +
 	"\x16platform_subsidy_cents\x18\x02 \x01(\x03R\x14platformSubsidyCents\x120\n" +
-	"\x14payable_amount_cents\x18\x03 \x01(\x03R\x12payableAmountCents*Z\n" +
+	"\x14payable_amount_cents\x18\x03 \x01(\x03R\x12payableAmountCents\"\xb9\x01\n" +
+	"\x1bSaveActualOrderPriceRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\"\n" +
+	"\rprice_rule_id\x18\x02 \x01(\x03R\vpriceRuleId\x12,\n" +
+	"\x12actual_price_cents\x18\x03 \x01(\x03R\x10actualPriceCents\x12-\n" +
+	"\x06detail\x18\x04 \x01(\v2\x15.pricesvc.PriceDetailR\x06detail\"^\n" +
+	"\x1cSaveActualOrderPriceResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12$\n" +
+	"\x0eorder_price_id\x18\x02 \x01(\x03R\forderPriceId*Z\n" +
 	"\n" +
 	"CouponType\x12\x1b\n" +
 	"\x17COUPON_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11COUPON_TYPE_FIXED\x10\x01\x12\x18\n" +
-	"\x14COUPON_TYPE_DISCOUNT\x10\x022\xb7\x01\n" +
+	"\x14COUPON_TYPE_DISCOUNT\x10\x022\x9e\x02\n" +
 	"\x05Price\x12P\n" +
 	"\rEstimatePrice\x12\x1e.pricesvc.EstimatePriceRequest\x1a\x1f.pricesvc.EstimatePriceResponse\x12\\\n" +
-	"\x11CalculateDiscount\x12\".pricesvc.CalculateDiscountRequest\x1a#.pricesvc.CalculateDiscountResponseB\n" +
+	"\x11CalculateDiscount\x12\".pricesvc.CalculateDiscountRequest\x1a#.pricesvc.CalculateDiscountResponse\x12e\n" +
+	"\x14SaveActualOrderPrice\x12%.pricesvc.SaveActualOrderPriceRequest\x1a&.pricesvc.SaveActualOrderPriceResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
 var (
@@ -575,29 +706,34 @@ func file_rpc_pricesvc_proto_pricesvc_proto_rawDescGZIP() []byte {
 }
 
 var file_rpc_pricesvc_proto_pricesvc_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_rpc_pricesvc_proto_pricesvc_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_rpc_pricesvc_proto_pricesvc_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_rpc_pricesvc_proto_pricesvc_proto_goTypes = []any{
-	(CouponType)(0),                   // 0: pricesvc.CouponType
-	(*PriceDetail)(nil),               // 1: pricesvc.PriceDetail
-	(*EstimatePriceRequest)(nil),      // 2: pricesvc.EstimatePriceRequest
-	(*EstimatePriceResponse)(nil),     // 3: pricesvc.EstimatePriceResponse
-	(*Coupon)(nil),                    // 4: pricesvc.Coupon
-	(*CalculateDiscountRequest)(nil),  // 5: pricesvc.CalculateDiscountRequest
-	(*CalculateDiscountResponse)(nil), // 6: pricesvc.CalculateDiscountResponse
+	(CouponType)(0),                      // 0: pricesvc.CouponType
+	(*PriceDetail)(nil),                  // 1: pricesvc.PriceDetail
+	(*EstimatePriceRequest)(nil),         // 2: pricesvc.EstimatePriceRequest
+	(*EstimatePriceResponse)(nil),        // 3: pricesvc.EstimatePriceResponse
+	(*Coupon)(nil),                       // 4: pricesvc.Coupon
+	(*CalculateDiscountRequest)(nil),     // 5: pricesvc.CalculateDiscountRequest
+	(*CalculateDiscountResponse)(nil),    // 6: pricesvc.CalculateDiscountResponse
+	(*SaveActualOrderPriceRequest)(nil),  // 7: pricesvc.SaveActualOrderPriceRequest
+	(*SaveActualOrderPriceResponse)(nil), // 8: pricesvc.SaveActualOrderPriceResponse
 }
 var file_rpc_pricesvc_proto_pricesvc_proto_depIdxs = []int32{
 	1, // 0: pricesvc.EstimatePriceResponse.detail:type_name -> pricesvc.PriceDetail
 	0, // 1: pricesvc.Coupon.type:type_name -> pricesvc.CouponType
 	4, // 2: pricesvc.CalculateDiscountRequest.coupon:type_name -> pricesvc.Coupon
-	2, // 3: pricesvc.Price.EstimatePrice:input_type -> pricesvc.EstimatePriceRequest
-	5, // 4: pricesvc.Price.CalculateDiscount:input_type -> pricesvc.CalculateDiscountRequest
-	3, // 5: pricesvc.Price.EstimatePrice:output_type -> pricesvc.EstimatePriceResponse
-	6, // 6: pricesvc.Price.CalculateDiscount:output_type -> pricesvc.CalculateDiscountResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1, // 3: pricesvc.SaveActualOrderPriceRequest.detail:type_name -> pricesvc.PriceDetail
+	2, // 4: pricesvc.Price.EstimatePrice:input_type -> pricesvc.EstimatePriceRequest
+	5, // 5: pricesvc.Price.CalculateDiscount:input_type -> pricesvc.CalculateDiscountRequest
+	7, // 6: pricesvc.Price.SaveActualOrderPrice:input_type -> pricesvc.SaveActualOrderPriceRequest
+	3, // 7: pricesvc.Price.EstimatePrice:output_type -> pricesvc.EstimatePriceResponse
+	6, // 8: pricesvc.Price.CalculateDiscount:output_type -> pricesvc.CalculateDiscountResponse
+	8, // 9: pricesvc.Price.SaveActualOrderPrice:output_type -> pricesvc.SaveActualOrderPriceResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_rpc_pricesvc_proto_pricesvc_proto_init() }
@@ -611,7 +747,7 @@ func file_rpc_pricesvc_proto_pricesvc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_pricesvc_proto_pricesvc_proto_rawDesc), len(file_rpc_pricesvc_proto_pricesvc_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -2,6 +2,12 @@ package model
 
 import "time"
 
+// 结算状态
+const (
+	SettlementStatusPending = 1 // 待结算
+	SettlementStatusSettled = 2 // 已结算
+)
+
 // Settlement 对应 settlement 表：订单结算。
 type Settlement struct {
 	Id                     uint64     `gorm:"primaryKey;column:id" json:"id"`

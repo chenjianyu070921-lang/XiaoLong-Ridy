@@ -59,7 +59,13 @@ func (l *EstimatePriceLogic) EstimatePrice(in *proto.EstimatePriceRequest) (*pro
 	}
 	isNight := rule.IsNightTime(now, nightStart, nightEnd)
 
-	// 3. 调计价引擎计算费用明细
+	// 3. 计算动态调价 factor：高峰时段自动上调
+	factor := 1.0
+	if rule.IsPeakTime(now) {
+		factor = rule.PeakFactor
+	}
+
+	// 4. 调计价引擎计算费用明细
 	detail, err := rule.Estimate(rule.PriceRuleInput{
 		BasePriceCents:      priceutil.YuanToCents(pr.BasePrice),
 		BaseDistanceM:       int64(pr.BaseDistanceKm * 1000),
@@ -67,7 +73,7 @@ func (l *EstimatePriceLogic) EstimatePrice(in *proto.EstimatePriceRequest) (*pro
 		PerMinutePriceCents: priceutil.YuanToCents(pr.PerMinutePrice),
 		NightSurchargeCents: priceutil.YuanToCents(pr.NightSurcharge),
 		DynamicMaxFactor:    pr.DynamicMaxFactor,
-	}, in.DistanceM, in.DurationS, isNight, 1.0)
+	}, in.DistanceM, in.DurationS, isNight, factor)
 	if err != nil {
 		return nil, err
 	}

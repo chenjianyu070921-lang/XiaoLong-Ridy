@@ -39,7 +39,7 @@ func (l *POISearchLogic) POISearch(in *locationsvc.POISearchReq) (*locationsvc.P
 	}
 
 	// 2. 本地没有，调高德 API
-	amapResp, err := l.svcCtx.Geo.SearchPoi(in.Keyword, in.Lat, in.Lng, in.Radius, in.Page, in.Size)
+	amapResp, err := l.svcCtx.GetGeo().SearchPoi(in.Keyword, in.Lat, in.Lng, in.Radius, in.Page, in.Size)
 	if err != nil {
 		l.Errorf("调用高德POI搜索失败: %v", err)
 		return nil, err

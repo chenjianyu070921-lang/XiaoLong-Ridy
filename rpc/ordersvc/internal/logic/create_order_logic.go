@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
+	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -33,14 +35,26 @@ func NewCreateOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Creat
 	}
 }
 
-// CreateOrder 校验参数并创建待接单订单，同时写入创建状态日志。
+type orderCreatedEvent struct {
+	OrderId       int64   `json:"order_id"`
+	OrderNo       string  `json:"order_no"`
+	FromLongitude float64 `json:"from_longitude"`
+	FromLatitude  float64 `json:"from_latitude"`
+	CarType       int32   `json:"car_type"`
+	CityCode      string  `json:"city_code"`
+}
+
+// CreateOrder 校验参数并创建待接单订单，同时写入创建状态日志并发布订单创建事件。
 func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.CreateOrderResponse, error) {
 	if err := validateCreateOrder(in); err != nil {
 		return nil, err
 	}
 
+	// 服务端计价快照：优先调 pricesvc 复核，失败降级为入参预估价格。
+	estimatedPriceCents := l.estimatePriceSnapshot(in)
+
 	for attempt := 0; attempt < maxCreateOrderNoRetry; attempt++ {
-		order := buildRideOrder(in)
+		order := buildRideOrder(in, estimatedPriceCents)
 		statusLog := &model.OrderStatusLog{
 			FromStatus:   0,
 			ToStatus:     constants.OrderStatusWaitAccept,
@@ -48,38 +62,59 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 			OperatorId:   uint64(in.UserId),
 			Remark:       "创建订单",
 		}
-		err := l.svcCtx.OrderRepository.Create(l.ctx, order, statusLog)
-		if err == nil {
-			if l.svcCtx.DispatchClient != nil {
-				if _, err := l.svcCtx.DispatchClient.DispatchOrder(l.ctx, &dispatch.DispatchOrderRequest{
-					OrderId:       int64(order.Id),
-					FromLongitude: in.FromLongitude,
-					FromLatitude:  in.FromLatitude,
-					CarType:       in.CarType,
-				}); err != nil {
-					// 派单失败不阻塞下单，记录日志由后续任务补偿。
-					l.Logger.Errorf("dispatch order %d failed: %v", order.Id, err)
-				}
-			}
 
-			return &proto.CreateOrderResponse{
-				OrderId:             int64(order.Id),
-				OrderNo:             order.OrderNo,
-				EstimatedPriceCents: in.EstimatedPriceCents,
-				Status:              proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
-				CreatedAt:           order.CreatedAt.Unix(),
-			}, nil
+		if err := l.svcCtx.OrderRepository.Create(l.ctx, order, statusLog); err != nil {
+			if errors.Is(err, repository.ErrOrderNoExists) && attempt < maxCreateOrderNoRetry-1 {
+				continue
+			}
+			return nil, err
 		}
-		if errors.Is(err, repository.ErrOrderNoExists) && attempt < maxCreateOrderNoRetry-1 {
-			continue
+
+		// 优先发布 order.created 事件，由 order-event-consumer 触发派单。
+		published := false
+		if l.svcCtx.EventBus != nil {
+			payload, _ := json.Marshal(orderCreatedEvent{
+				OrderId:       int64(order.Id),
+				OrderNo:       order.OrderNo,
+				FromLongitude: in.FromLongitude,
+				FromLatitude:  in.FromLatitude,
+				CarType:       in.CarType,
+				CityCode:      strings.TrimSpace(in.CityCode),
+			})
+			if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderCreated, payload); err != nil {
+				l.Logger.Errorf("publish order.created failed: %v", err)
+			} else {
+				published = true
+			}
 		}
-		return nil, err
+
+		// 事件不可用时回退为同步直派，保证 demo 可跑通。
+		if !published && l.svcCtx.DispatchClient != nil {
+			if _, err := l.svcCtx.DispatchClient.DispatchOrder(l.ctx, &dispatch.DispatchOrderRequest{
+				OrderId:       int64(order.Id),
+				FromLongitude: in.FromLongitude,
+				FromLatitude:  in.FromLatitude,
+				CarType:       in.CarType,
+				CityCode:      in.CityCode,
+			}); err != nil {
+				l.Logger.Errorf("dispatch order %d failed: %v", order.Id, err)
+			}
+		}
+
+		return &proto.CreateOrderResponse{
+			OrderId:             int64(order.Id),
+			OrderNo:             order.OrderNo,
+			EstimatedPriceCents: estimatedPriceCents,
+			Status:              proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+			CreatedAt:           order.CreatedAt.Unix(),
+		}, nil
 	}
+
 	return nil, ErrInvalidOrderParams
 }
 
 // buildRideOrder 根据 RPC 入参构造待接单订单，每次调用都会生成新的订单号。
-func buildRideOrder(in *proto.CreateOrderRequest) *model.RideOrder {
+func buildRideOrder(in *proto.CreateOrderRequest, estimatedPriceCents int64) *model.RideOrder {
 	return &model.RideOrder{
 		OrderNo:            keyutil.GenOrderID(),
 		UserId:             uint64(in.UserId),
@@ -93,9 +128,35 @@ func buildRideOrder(in *proto.CreateOrderRequest) *model.RideOrder {
 		ToLatitude:         in.ToLatitude,
 		EstimatedDistanceM: int(in.EstimatedDistanceM),
 		EstimatedDurationS: int(in.EstimatedDurationS),
-		EstimatedPrice:     float64(in.EstimatedPriceCents) / 100,
+		EstimatedPrice:     float64(estimatedPriceCents) / 100,
 		Status:             constants.OrderStatusWaitAccept,
 	}
+}
+
+// defaultCityCode 兜底城市编码，与 api 网关默认值保持一致。
+const defaultCityCode = "110000"
+
+// estimatePriceSnapshot 调 pricesvc 落计价快照；客户端缺失或计价失败时降级为入参预估价格。
+func (l *CreateOrderLogic) estimatePriceSnapshot(in *proto.CreateOrderRequest) int64 {
+	if l.svcCtx.PriceClient == nil {
+		return in.EstimatedPriceCents
+	}
+	cityCode := strings.TrimSpace(in.CityCode)
+	if cityCode == "" {
+		cityCode = defaultCityCode
+	}
+	resp, err := l.svcCtx.PriceClient.EstimatePrice(l.ctx, &price.EstimatePriceRequest{
+		UserId:    in.UserId,
+		CityCode:  cityCode,
+		CarType:   in.CarType,
+		DistanceM: in.EstimatedDistanceM,
+		DurationS: in.EstimatedDurationS,
+	})
+	if err != nil || resp == nil || resp.TotalCents <= 0 {
+		l.Logger.Errorf("estimate price failed, fallback to input %d: %v", in.EstimatedPriceCents, err)
+		return in.EstimatedPriceCents
+	}
+	return resp.TotalCents
 }
 
 // validateCreateOrder 校验创建订单入参。

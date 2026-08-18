@@ -31,3 +31,10 @@ func (m *MockChannel) CreateOrder(ctx context.Context, paymentNo string, amountC
 		PayParams:     payParams,
 	}, nil
 }
+
+// Refund 模拟退款：生成假的退款单号。
+func (m *MockChannel) Refund(ctx context.Context, paymentNo string, refundNo string, amountCents int64) (*RefundResult, error) {
+	return &RefundResult{
+		RefundNo: refundNo,
+	}, nil
+}

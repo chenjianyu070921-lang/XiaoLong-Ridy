@@ -28,7 +28,7 @@ func NewReverseGeocodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Re
 func (l *ReverseGeocodeLogic) ReverseGeocode(in *locationsvc.ReverseGeocodeReq) (*locationsvc.ReverseGeocodeResp, error) {
 	l.Infof("ReverseGeocode: lat=%f, lng=%f", in.Lat, in.Lng)
 
-	regeo, err := l.svcCtx.Geo.ReverseGeocode(in.Lat, in.Lng)
+	regeo, err := l.svcCtx.GetGeo().ReverseGeocode(in.Lat, in.Lng)
 	if err != nil {
 		l.Errorf("调用高德逆地理编码失败: %v", err)
 		return nil, err

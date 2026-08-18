@@ -79,7 +79,21 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/driver-certifications/", r.authRequired(r.handleDriverCertificationByID))
 
 	r.mux.HandleFunc("/admin/v1/coupons", r.authRequired(r.handleCoupons))
+	r.mux.HandleFunc("/admin/v1/coupon-issue-tasks", r.authRequired(r.handleCouponIssueTasks))
 	r.mux.HandleFunc("/admin/v1/coupons/", r.authRequired(r.handleCouponByID))
+
+	r.mux.HandleFunc("/admin/v1/promotion-activities", r.authRequired(r.handlePromotionActivities))
+	r.mux.HandleFunc("/admin/v1/promotion-activities/", r.authRequired(r.handlePromotionActivityByID))
+
+	r.mux.HandleFunc("/admin/v1/statistics/overview", r.authRequired(r.handleStatisticsOverview))
+	r.mux.HandleFunc("/admin/v1/statistics/orders", r.authRequired(r.handleStatisticsOrders))
+	r.mux.HandleFunc("/admin/v1/statistics/coupons", r.authRequired(r.handleStatisticsCoupons))
+
+	r.mux.HandleFunc("/admin/v1/export-tasks", r.authRequired(r.handleExportTasks))
+
+	r.mux.HandleFunc("/admin/v1/blacklist", r.authRequired(r.handleBlacklists))
+	r.mux.HandleFunc("/admin/v1/blacklist/", r.authRequired(r.handleBlacklistByID))
+	r.mux.HandleFunc("/admin/v1/risk/hit-records", r.authRequired(r.handleRiskHitRecords))
 
 	r.mux.HandleFunc("/admin/v1/orders", r.authRequired(r.handleOrders))
 	r.mux.HandleFunc("/admin/v1/orders/abnormal", r.authRequired(r.handleAbnormalOrders))
@@ -494,6 +508,24 @@ func (r *Router) handleCouponByID(w http.ResponseWriter, req *http.Request) {
 		writeSuccess(w, types.CommonResponse{Message: "ok"})
 		return
 	}
+	if action == "issue" {
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.CouponIssueRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		resp, err := couponLogic.Issue(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
 	if action != "" {
 		http.NotFound(w, req)
 		return
@@ -512,6 +544,252 @@ func (r *Router) handleCouponByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	writeSuccess(w, types.CommonResponse{Message: "ok"})
+}
+
+// handleCouponIssueTasks 查询优惠券发放任务。
+func (r *Router) handleCouponIssueTasks(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	query := req.URL.Query()
+	resp, err := logic.NewCouponLogic(r.ctx).ListIssueTasks(req.Context(), types.CouponListRequest{
+		Page:      intQuery(req, "page", 1),
+		PageSize:  intQuery(req, "page_size", 20),
+		StartTime: query.Get("start_time"),
+		EndTime:   query.Get("end_time"),
+	}, int64Query(req, "coupon_id", 0), query.Get("status"))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handlePromotionActivities 处理活动配置列表和新增。
+func (r *Router) handlePromotionActivities(w http.ResponseWriter, req *http.Request) {
+	marketingLogic := logic.NewMarketingLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		query := req.URL.Query()
+		resp, err := marketingLogic.ListActivities(req.Context(), types.PromotionActivityListRequest{
+			Page:      intQuery(req, "page", 1),
+			PageSize:  intQuery(req, "page_size", 20),
+			Keyword:   query.Get("keyword"),
+			Type:      int32Query(req, "type", 0),
+			Status:    int32Query(req, "status", 0),
+			StartTime: query.Get("start_time"),
+			EndTime:   query.Get("end_time"),
+		})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body types.PromotionActivitySaveRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		if err := marketingLogic.CreateActivity(req.Context(), body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handlePromotionActivityByID 处理活动配置编辑、发布和回滚。
+func (r *Router) handlePromotionActivityByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/promotion-activities/")
+	if !ok {
+		writeError(w, http.StatusBadRequest, 40001, "invalid activity id")
+		return
+	}
+	marketingLogic := logic.NewMarketingLogic(r.ctx)
+	if action == "" {
+		if req.Method != http.MethodPut {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.PromotionActivitySaveRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		if err := marketingLogic.UpdateActivity(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
+		return
+	}
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body types.PromotionActivityActionRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	switch action {
+	case "publish":
+		if err := marketingLogic.PublishActivity(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+	case "rollback":
+		if err := marketingLogic.RollbackActivity(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+	default:
+		http.NotFound(w, req)
+		return
+	}
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
+}
+
+// handleStatisticsOverview 查询运营总览统计。
+func (r *Router) handleStatisticsOverview(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewStatisticsLogic(r.ctx).Overview(req.Context(), statisticsRequestFromQuery(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleStatisticsOrders 查询订单统计。
+func (r *Router) handleStatisticsOrders(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewStatisticsLogic(r.ctx).Orders(req.Context(), statisticsRequestFromQuery(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleStatisticsCoupons 查询优惠券统计。
+func (r *Router) handleStatisticsCoupons(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewStatisticsLogic(r.ctx).Coupons(req.Context(), statisticsRequestFromQuery(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleExportTasks 处理导出任务创建和列表查询。
+func (r *Router) handleExportTasks(w http.ResponseWriter, req *http.Request) {
+	exportLogic := logic.NewExportLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		resp, err := exportLogic.List(req.Context(), intQuery(req, "page", 1), intQuery(req, "page_size", 20), req.URL.Query().Get("export_type"))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body types.ExportTaskRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		resp, err := exportLogic.Create(req.Context(), body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handleBlacklists 处理风控黑名单列表和新增。
+func (r *Router) handleBlacklists(w http.ResponseWriter, req *http.Request) {
+	riskLogic := logic.NewRiskLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		query := req.URL.Query()
+		resp, err := riskLogic.ListBlacklists(req.Context(), intQuery(req, "page", 1), intQuery(req, "page_size", 20),
+			query.Get("target_type"), int64Query(req, "target_id", 0), int32Query(req, "status", 0))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body types.BlacklistRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		if err := riskLogic.AddBlacklist(req.Context(), body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handleBlacklistByID 处理风控黑名单解除。
+func (r *Router) handleBlacklistByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/blacklist/")
+	if !ok || action != "release" {
+		http.NotFound(w, req)
+		return
+	}
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body types.BlacklistRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	if err := logic.NewRiskLogic(r.ctx).ReleaseBlacklist(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
+}
+
+// handleRiskHitRecords 查询风控命中记录。
+func (r *Router) handleRiskHitRecords(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	query := req.URL.Query()
+	resp, err := logic.NewRiskLogic(r.ctx).ListRiskHitRecords(req.Context(), intQuery(req, "page", 1), intQuery(req, "page_size", 20),
+		query.Get("target_type"), int64Query(req, "target_id", 0), query.Get("scene"), int32Query(req, "risk_level", 0))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
 }
 
 // authRequired 是后台通用鉴权中间件。
@@ -546,6 +824,8 @@ func (r *Router) writeAuthError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, 40902, "conflict")
 	case status.Code(err) == codes.InvalidArgument:
 		writeError(w, http.StatusBadRequest, 40001, "bad request")
+	case status.Code(err) == codes.FailedPrecondition:
+		writeError(w, http.StatusBadRequest, 40001, "bad request")
 	case status.Code(err) == codes.NotFound:
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case status.Code(err) == codes.PermissionDenied:
@@ -571,6 +851,8 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 	case errors.Is(err, logic.ErrForbidden):
 		writeError(w, http.StatusForbidden, 40003, "forbidden")
 	case status.Code(err) == codes.InvalidArgument:
+		writeError(w, http.StatusBadRequest, 40001, "bad request")
+	case status.Code(err) == codes.FailedPrecondition:
 		writeError(w, http.StatusBadRequest, 40001, "bad request")
 	case status.Code(err) == codes.NotFound:
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
@@ -637,6 +919,16 @@ func int64Query(req *http.Request, key string, defaultValue int64) int64 {
 		return defaultValue
 	}
 	return parsed
+}
+
+// statisticsRequestFromQuery 读取统计接口通用查询参数。
+func statisticsRequestFromQuery(req *http.Request) types.StatisticsRequest {
+	query := req.URL.Query()
+	return types.StatisticsRequest{
+		StartTime: query.Get("start_time"),
+		EndTime:   query.Get("end_time"),
+		CityCode:  query.Get("city_code"),
+	}
 }
 
 // idFromPath 从路径中提取 ID。

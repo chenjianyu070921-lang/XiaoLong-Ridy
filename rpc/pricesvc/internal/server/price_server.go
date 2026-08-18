@@ -34,3 +34,9 @@ func (s *PriceServer) CalculateDiscount(ctx context.Context, in *proto.Calculate
 	l := logic.NewCalculateDiscountLogic(ctx, s.svcCtx)
 	return l.CalculateDiscount(in)
 }
+
+// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
+func (s *PriceServer) SaveActualOrderPrice(ctx context.Context, in *proto.SaveActualOrderPriceRequest) (*proto.SaveActualOrderPriceResponse, error) {
+	l := logic.NewSaveActualOrderPriceLogic(ctx, s.svcCtx)
+	return l.SaveActualOrderPrice(in)
+}

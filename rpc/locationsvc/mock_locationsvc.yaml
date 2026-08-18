@@ -1,0 +1,30 @@
+Name: locationsvc.rpc
+ListenOn: 0.0.0.0:9001
+
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: locationsvc.rpc
+
+Mysql:
+  Dsn: "root:root@tcp(127.0.0.1:3306)/xiaolongridy?charset=utf8mb4&parseTime=true&loc=Local"
+  MaxOpenConn: 100
+  MaxIdleConn: 10
+  MaxLifeTime: 3600
+
+RedisConf:
+  Host: "127.0.0.1:6379"
+  Pass: ""
+  Db: 0
+  PoolSize: 10
+
+# 压测模式:BaseUrl 指向本地假高德服务器,不消耗真实高德配额
+MapService:
+  ApiKey: "8e17f5be48667ed588da48a9822405f0"
+  Provider: "amap"
+  BaseUrl: "http://127.0.0.1:18080/v3"
+
+Log:
+  ServiceName: locationsvc
+  Mode: console
+  Level: info
