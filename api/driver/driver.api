@@ -2,7 +2,7 @@ syntax = "v1"
 
 info (
 	title: "driver api"
-	desc: "司机端 HTTP API，当前仅封装司机「增删改查」四个核心接口，为后续对接留出清晰空间"
+	desc: "司机端 HTTP API，封装司机「增删改查」四个核心接口，以及订单行程相关接口（接单、开始行程、结束行程）。接口路由声明在此集中维护，实际 handler 实现见 internal/handler 包。"
 	author: "XiaoLong-Ridy"
 )
 
@@ -77,4 +77,16 @@ service driver-api {
 
 	@handler DeleteDriverHandler
 	post /api/driver/v1/drivers/delete (DeleteResponse)
+
+	// ============ 订单行程（接单 / 开始行程 / 结束行程） ============
+	// 以下三个接口为规范声明，对应 internal/handler/order_handler.go 中的实现；
+	// 路由在 main.go 中以标准库 ServeMux 手动注册，不使用 goctl 重新生成以免覆盖现有手写接口。
+	@handler AcceptOrderHandler
+	post /api/driver/v1/orders/accept (AcceptOrderRequest) returns (AcceptOrderResponse)
+
+	@handler StartTripHandler
+	post /api/driver/v1/orders/start-trip (StartTripRequest) returns (StartTripResponse)
+
+	@handler FinishTripHandler
+	post /api/driver/v1/orders/finish-trip (FinishTripRequest) returns (FinishTripResponse)
 }

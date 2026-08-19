@@ -2,13 +2,18 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/zeromicro/go-zero/core/logx"
 )
+
+// ErrDriverAlreadyExists 表示手机号或驾驶证号已存在（唯一索引冲突）。
+var ErrDriverAlreadyExists = errors.New("driver already exists")
 
 type CreateDriverLogic struct {
 	ctx    context.Context
@@ -36,6 +41,11 @@ func (l *CreateDriverLogic) CreateDriver(in *proto.CreateDriverRequest) (*proto.
 		Status:          int8(proto.DriverStatus_DRIVER_STATUS_PENDING),
 	}
 	if err := l.svcCtx.DriverRepository.Create(l.ctx, d); err != nil {
+		// 手机号/驾驶证号唯一索引冲突时，返回友好的业务错误而非裸 MySQL 错误。
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+			return nil, ErrDriverAlreadyExists
+		}
 		return nil, err
 	}
 	return &proto.CreateDriverResponse{
