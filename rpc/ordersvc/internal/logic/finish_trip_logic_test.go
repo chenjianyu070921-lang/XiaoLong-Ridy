@@ -102,6 +102,7 @@ func TestFinishTripRejectDriverMismatch(t *testing.T) {
 
 type fakePayClient struct {
 	createPayment  func(ctx context.Context, in *pay.CreatePaymentRequest) (*pay.CreatePaymentResponse, error)
+	getPayment     func(ctx context.Context, in *pay.GetPaymentRequest) (*pay.GetPaymentResponse, error)
 	gotOrderId     int64
 	gotUserId      int64
 	gotAmountCents int64
@@ -117,6 +118,30 @@ func (f *fakePayClient) CreatePayment(_ context.Context, in *pay.CreatePaymentRe
 		return f.createPayment(nil, in)
 	}
 	return &pay.CreatePaymentResponse{PaymentNo: "PAY202608170001"}, nil
+}
+
+func (f *fakePayClient) GetPayment(_ context.Context, in *pay.GetPaymentRequest, _ ...grpc.CallOption) (*pay.GetPaymentResponse, error) {
+	if f.getPayment != nil {
+		return f.getPayment(nil, in)
+	}
+	return &pay.GetPaymentResponse{
+		PaymentNo:    in.PaymentNo,
+		OrderId:      in.OrderId,
+		AmountCents:  5200,
+		Status:       2,
+	}, nil
+}
+
+func (f *fakePayClient) NotifyPayment(_ context.Context, _ *pay.NotifyPaymentRequest, _ ...grpc.CallOption) (*pay.NotifyPaymentResponse, error) {
+	return &pay.NotifyPaymentResponse{Success: true}, nil
+}
+
+func (f *fakePayClient) RefundPayment(_ context.Context, _ *pay.RefundPaymentRequest, _ ...grpc.CallOption) (*pay.RefundPaymentResponse, error) {
+	return &pay.RefundPaymentResponse{}, nil
+}
+
+func (f *fakePayClient) SettleOrder(_ context.Context, _ *pay.SettleOrderRequest, _ ...grpc.CallOption) (*pay.SettleOrderResponse, error) {
+	return &pay.SettleOrderResponse{}, nil
 }
 
 func TestFinishTripCreatesPayment(t *testing.T) {

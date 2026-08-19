@@ -3,8 +3,10 @@ package logic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"XiaoLong-Ridy/common/constants"
+	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
@@ -25,7 +27,7 @@ func NewConfirmPaidLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Confi
 
 // ConfirmPaid 支付成功回调：待支付 -> 已完成。
 func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.ConfirmPaidResponse, error) {
-	if in.OrderId <= 0 {
+	if in.OrderId <= 0 || in.PaymentNo == "" || in.AmountCents <= 0 || in.PaidAt <= 0 {
 		return nil, ErrInvalidOrderParams
 	}
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
@@ -35,11 +37,22 @@ func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.Con
 	if order.Status != constants.OrderStatusWaitPay {
 		return nil, ErrOrderStatusNotAllowed
 	}
-
-	remark := "支付成功"
-	if in.PaymentNo != "" {
-		remark = "支付成功 paymentNo=" + in.PaymentNo
+	if l.svcCtx.PayClient == nil {
+		return nil, errors.New("pay client not configured")
 	}
+	payment, err := l.svcCtx.PayClient.GetPayment(l.ctx, &pay.GetPaymentRequest{
+		PaymentNo: in.PaymentNo,
+		OrderId:   in.OrderId,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if payment == nil || payment.PaymentNo != in.PaymentNo || payment.OrderId != in.OrderId ||
+		payment.AmountCents != in.AmountCents || payment.Status != 2 {
+		return nil, errors.New("payment verification failed")
+	}
+
+	remark := "支付成功 paymentNo=" + in.PaymentNo
 	statusLog := &model.OrderStatusLog{
 		FromStatus:   order.Status,
 		ToStatus:     constants.OrderStatusCompleted,

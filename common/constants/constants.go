@@ -19,6 +19,8 @@ const (
 const (
 	DispatchStatusPending   = 1 // 派单中
 	DispatchStatusAccepted  = 2 // 已接受
+	DispatchStatusRejected  = 3 // 司机拒单
+	DispatchStatusTimeout   = 4 // 派单超时
 	DispatchStatusCancelled = 5 // 已取消
 )
 

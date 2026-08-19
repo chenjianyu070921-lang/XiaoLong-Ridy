@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/model"
 )
 
@@ -67,4 +68,93 @@ func (r *MemoryDispatchRepository) ListByOrder(_ context.Context, orderID uint64
 		out = append(out, r.records[id])
 	}
 	return out, total, nil
+}
+
+// RejectByOrderAndDriver 将指定司机对该订单的待派单记录置为已拒绝。
+func (r *MemoryDispatchRepository) RejectByOrderAndDriver(_ context.Context, orderID, driverID uint64, reason string) (*model.DispatchRecord, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var target *model.DispatchRecord
+	for id, record := range r.records {
+		if record.OrderId == orderID && record.DriverId == driverID && record.Status == constants.DispatchStatusPending {
+			copied := record
+			copied.Status = constants.DispatchStatusRejected
+			copied.Remark = reason
+			copied.UpdatedAt = time.Now()
+			r.records[id] = copied
+			target = &copied
+			break
+		}
+	}
+	if target == nil {
+		return nil, ErrDispatchRecordNotFound
+	}
+	return target, nil
+}
+
+// MarkTimeoutByOrder 将指定订单在 before 之前创建且仍为 Pending 的派单记录置为超时。
+func (r *MemoryDispatchRepository) MarkTimeoutByOrder(_ context.Context, orderID uint64, before time.Time) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var affected int64
+	for id, record := range r.records {
+		if record.OrderId == orderID && record.Status == constants.DispatchStatusPending && !record.CreatedAt.After(before) {
+			copied := record
+			copied.Status = constants.DispatchStatusTimeout
+			copied.UpdatedAt = time.Now()
+			r.records[id] = copied
+			affected++
+		}
+	}
+	return affected, nil
+}
+
+// CancelPendingByOrder 将指定订单全部仍为 Pending 的派单记录置为已取消。
+func (r *MemoryDispatchRepository) CancelPendingByOrder(_ context.Context, orderID uint64, reason string) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var affected int64
+	for id, record := range r.records {
+		if record.OrderId == orderID && record.Status == constants.DispatchStatusPending {
+			copied := record
+			copied.Status = constants.DispatchStatusCancelled
+			copied.Remark = reason
+			copied.UpdatedAt = time.Now()
+			r.records[id] = copied
+			affected++
+		}
+	}
+	return affected, nil
+}
+
+// ListTimeoutPendingOrderIDs 分页查询存在超时 Pending 派单记录的订单 ID（去重）。
+func (r *MemoryDispatchRepository) ListTimeoutPendingOrderIDs(_ context.Context, before time.Time, page, pageSize int32) ([]uint64, int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	orderSet := make(map[uint64]struct{})
+	for _, record := range r.records {
+		if record.Status == constants.DispatchStatusPending && !record.CreatedAt.After(before) {
+			orderSet[record.OrderId] = struct{}{}
+		}
+	}
+	ids := make([]uint64, 0, len(orderSet))
+	for id := range orderSet {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+
+	total := int64(len(ids))
+	start := int((page - 1) * pageSize)
+	if start >= len(ids) {
+		return []uint64{}, total, nil
+	}
+	end := start + int(pageSize)
+	if end > len(ids) {
+		end = len(ids)
+	}
+	return ids[start:end], total, nil
 }

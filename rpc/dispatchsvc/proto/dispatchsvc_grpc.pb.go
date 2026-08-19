@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v3.19.4
-// source: rpc/dispatchsvc/proto/dispatchsvc.proto
+// source: dispatchsvc.proto
 
 package proto
 
@@ -19,8 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Dispatch_DispatchOrder_FullMethodName       = "/dispatchsvc.Dispatch/DispatchOrder"
-	Dispatch_ListDispatchRecords_FullMethodName = "/dispatchsvc.Dispatch/ListDispatchRecords"
+	Dispatch_DispatchOrder_FullMethodName            = "/dispatchsvc.Dispatch/DispatchOrder"
+	Dispatch_ListDispatchRecords_FullMethodName      = "/dispatchsvc.Dispatch/ListDispatchRecords"
+	Dispatch_RejectDispatch_FullMethodName           = "/dispatchsvc.Dispatch/RejectDispatch"
+	Dispatch_CancelDispatch_FullMethodName           = "/dispatchsvc.Dispatch/CancelDispatch"
+	Dispatch_ListTimeoutPendingOrders_FullMethodName = "/dispatchsvc.Dispatch/ListTimeoutPendingOrders"
 )
 
 // DispatchClient is the client API for Dispatch service.
@@ -33,6 +36,12 @@ type DispatchClient interface {
 	DispatchOrder(ctx context.Context, in *DispatchOrderRequest, opts ...grpc.CallOption) (*DispatchOrderResponse, error)
 	// 分页查询订单的派单记录。
 	ListDispatchRecords(ctx context.Context, in *ListDispatchRecordsRequest, opts ...grpc.CallOption) (*ListDispatchRecordsResponse, error)
+	// 司机拒单：将指定司机的待派单记录置为已拒绝。
+	RejectDispatch(ctx context.Context, in *RejectDispatchRequest, opts ...grpc.CallOption) (*RejectDispatchResponse, error)
+	// 订单取消/超时取消：将该订单全部待派单记录置为已取消（Pending -> Cancelled）。
+	CancelDispatch(ctx context.Context, in *CancelDispatchRequest, opts ...grpc.CallOption) (*CancelDispatchResponse, error)
+	// 分页查询存在超时待派单记录的订单 ID（去重），供 job 超时重派任务使用。
+	ListTimeoutPendingOrders(ctx context.Context, in *ListTimeoutPendingOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutPendingOrdersResponse, error)
 }
 
 type dispatchClient struct {
@@ -63,6 +72,36 @@ func (c *dispatchClient) ListDispatchRecords(ctx context.Context, in *ListDispat
 	return out, nil
 }
 
+func (c *dispatchClient) RejectDispatch(ctx context.Context, in *RejectDispatchRequest, opts ...grpc.CallOption) (*RejectDispatchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RejectDispatchResponse)
+	err := c.cc.Invoke(ctx, Dispatch_RejectDispatch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dispatchClient) CancelDispatch(ctx context.Context, in *CancelDispatchRequest, opts ...grpc.CallOption) (*CancelDispatchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelDispatchResponse)
+	err := c.cc.Invoke(ctx, Dispatch_CancelDispatch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dispatchClient) ListTimeoutPendingOrders(ctx context.Context, in *ListTimeoutPendingOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutPendingOrdersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListTimeoutPendingOrdersResponse)
+	err := c.cc.Invoke(ctx, Dispatch_ListTimeoutPendingOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DispatchServer is the server API for Dispatch service.
 // All implementations must embed UnimplementedDispatchServer
 // for forward compatibility
@@ -73,6 +112,12 @@ type DispatchServer interface {
 	DispatchOrder(context.Context, *DispatchOrderRequest) (*DispatchOrderResponse, error)
 	// 分页查询订单的派单记录。
 	ListDispatchRecords(context.Context, *ListDispatchRecordsRequest) (*ListDispatchRecordsResponse, error)
+	// 司机拒单：将指定司机的待派单记录置为已拒绝。
+	RejectDispatch(context.Context, *RejectDispatchRequest) (*RejectDispatchResponse, error)
+	// 订单取消/超时取消：将该订单全部待派单记录置为已取消（Pending -> Cancelled）。
+	CancelDispatch(context.Context, *CancelDispatchRequest) (*CancelDispatchResponse, error)
+	// 分页查询存在超时待派单记录的订单 ID（去重），供 job 超时重派任务使用。
+	ListTimeoutPendingOrders(context.Context, *ListTimeoutPendingOrdersRequest) (*ListTimeoutPendingOrdersResponse, error)
 	mustEmbedUnimplementedDispatchServer()
 }
 
@@ -85,6 +130,15 @@ func (UnimplementedDispatchServer) DispatchOrder(context.Context, *DispatchOrder
 }
 func (UnimplementedDispatchServer) ListDispatchRecords(context.Context, *ListDispatchRecordsRequest) (*ListDispatchRecordsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListDispatchRecords not implemented")
+}
+func (UnimplementedDispatchServer) RejectDispatch(context.Context, *RejectDispatchRequest) (*RejectDispatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RejectDispatch not implemented")
+}
+func (UnimplementedDispatchServer) CancelDispatch(context.Context, *CancelDispatchRequest) (*CancelDispatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelDispatch not implemented")
+}
+func (UnimplementedDispatchServer) ListTimeoutPendingOrders(context.Context, *ListTimeoutPendingOrdersRequest) (*ListTimeoutPendingOrdersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListTimeoutPendingOrders not implemented")
 }
 func (UnimplementedDispatchServer) mustEmbedUnimplementedDispatchServer() {}
 
@@ -135,6 +189,60 @@ func _Dispatch_ListDispatchRecords_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dispatch_RejectDispatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RejectDispatchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DispatchServer).RejectDispatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dispatch_RejectDispatch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DispatchServer).RejectDispatch(ctx, req.(*RejectDispatchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dispatch_CancelDispatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelDispatchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DispatchServer).CancelDispatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dispatch_CancelDispatch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DispatchServer).CancelDispatch(ctx, req.(*CancelDispatchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dispatch_ListTimeoutPendingOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListTimeoutPendingOrdersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DispatchServer).ListTimeoutPendingOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dispatch_ListTimeoutPendingOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DispatchServer).ListTimeoutPendingOrders(ctx, req.(*ListTimeoutPendingOrdersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dispatch_ServiceDesc is the grpc.ServiceDesc for Dispatch service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -150,7 +258,19 @@ var Dispatch_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ListDispatchRecords",
 			Handler:    _Dispatch_ListDispatchRecords_Handler,
 		},
+		{
+			MethodName: "RejectDispatch",
+			Handler:    _Dispatch_RejectDispatch_Handler,
+		},
+		{
+			MethodName: "CancelDispatch",
+			Handler:    _Dispatch_CancelDispatch_Handler,
+		},
+		{
+			MethodName: "ListTimeoutPendingOrders",
+			Handler:    _Dispatch_ListTimeoutPendingOrders_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "rpc/dispatchsvc/proto/dispatchsvc.proto",
+	Metadata: "dispatchsvc.proto",
 }

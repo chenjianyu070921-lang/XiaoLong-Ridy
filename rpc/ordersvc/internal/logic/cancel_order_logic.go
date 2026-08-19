@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"XiaoLong-Ridy/common/constants"
+	"XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
@@ -55,6 +56,12 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		return nil, ErrCancelReasonRequired
 	}
 
+	release, err := acquireOrderLock(l.ctx, l.svcCtx.Redis, uint64(in.OrderId))
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
 	if err != nil {
 		return nil, err
@@ -74,8 +81,7 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		Remark:       reason,
 	}
 	ok, err := l.svcCtx.OrderRepository.Cancel(l.ctx, order.Id, []int8{
-		constants.OrderStatusWaitAccept,
-		constants.OrderStatusAccepted,
+		order.Status,
 	}, operatorType, reason, statusLog)
 	if err != nil {
 		return nil, err
@@ -84,10 +90,27 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		return nil, ErrOrderStatusNotCancelable
 	}
 
+	// 同步失效该订单的待派单记录，失败不阻断订单取消主流程。
+	syncCancelDispatch(l.ctx, l.svcCtx.DispatchClient, order.Id, reason)
+
 	return &proto.CancelOrderResponse{
 		OrderId: in.OrderId,
 		Status:  proto.OrderStatus_ORDER_STATUS_CANCELLED,
 	}, nil
+}
+
+// syncCancelDispatch 订单取消后同步将派单记录置为已取消，失败仅记日志。
+func syncCancelDispatch(ctx context.Context, dispatchClient dispatch.Dispatch, orderID uint64, reason string) {
+	if dispatchClient == nil {
+		return
+	}
+	_, err := dispatchClient.CancelDispatch(ctx, &dispatch.CancelDispatchRequest{
+		OrderId: int64(orderID),
+		Reason:  reason,
+	})
+	if err != nil {
+		logx.WithContext(ctx).Errorf("sync cancel dispatch failed, order_id=%d err=%v", orderID, err)
+	}
 }
 
 // validOperatorType 判断取消方类型是否合法。
@@ -109,7 +132,8 @@ func canCancelStatus(status int8) bool {
 func canCancelByOperator(order *model.RideOrder, operatorType string, operatorID int64) bool {
 	switch operatorType {
 	case constants.OperatorUser:
-		return order.UserId == uint64(operatorID)
+		// 乘客只能取消未接单的订单；司机已接单后若需取消由司机/系统入口处理，避免“已接单又被乘客取消”的竞态。
+		return order.Status == constants.OrderStatusWaitAccept && order.UserId == uint64(operatorID)
 	case constants.OperatorDriver:
 		return order.Status == constants.OrderStatusAccepted && order.DriverId == uint64(operatorID)
 	case constants.OperatorSystem, constants.OperatorAdmin:

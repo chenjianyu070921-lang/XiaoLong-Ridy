@@ -3,8 +3,6 @@ package logic
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"time"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
@@ -35,17 +33,11 @@ func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.Acc
 		return nil, ErrInvalidOrderParams
 	}
 
-	if l.svcCtx.Redis != nil {
-		lockKey := fmt.Sprintf(constants.RedisOrderLock, in.OrderId)
-		ok, err := l.svcCtx.Redis.SetNX(l.ctx, lockKey, "1", 10*time.Second).Result()
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, ErrOrderStatusNotAllowed
-		}
-		defer func() { _ = l.svcCtx.Redis.Del(l.ctx, lockKey).Err() }()
+	release, err := acquireOrderLock(l.ctx, l.svcCtx.Redis, uint64(in.OrderId))
+	if err != nil {
+		return nil, err
 	}
+	defer release()
 
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
 	if err != nil {

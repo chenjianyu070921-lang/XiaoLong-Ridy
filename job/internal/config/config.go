@@ -18,6 +18,11 @@ type Config struct {
 	OrderRPC zrpc.RpcClientConf `yaml:"orderrpc" json:"orderrpc"`
 	// TimeoutSeconds 订单超时秒数，0 时默认 300（5 分钟）
 	TimeoutSeconds int64 `yaml:"timeoutseconds" json:"timeoutseconds"`
+
+	// DispatchRPC dispatchsvc 客户端，派单超时重派任务使用
+	DispatchRPC zrpc.RpcClientConf `yaml:"dispatchrpc" json:"dispatchrpc"`
+	// DispatchTimeoutSeconds 派单超时秒数，0 时默认 60（1 分钟）
+	DispatchTimeoutSeconds int64 `yaml:"dispatchtimeoutseconds" json:"dispatchtimeoutseconds"`
 }
 
 type LogConfig struct {

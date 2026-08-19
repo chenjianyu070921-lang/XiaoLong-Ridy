@@ -6,6 +6,7 @@ import (
 
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/job/internal/config"
+	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 
 	"github.com/redis/go-redis/v9"
@@ -14,10 +15,11 @@ import (
 )
 
 type ServiceContext struct {
-	Config      config.Config
-	Db          *gorm.DB
-	Redis       *redis.Client
-	OrderClient order.Order
+	Config         config.Config
+	Db             *gorm.DB
+	Redis          *redis.Client
+	OrderClient    order.Order
+	DispatchClient dispatch.Dispatch
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -40,11 +42,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	// 创建 ordersvc RPC 客户端（通过 Etcd 服务发现）
 	orderClient := order.NewOrder(zrpc.MustNewClient(c.OrderRPC))
+	// 创建 dispatchsvc RPC 客户端（通过 Etcd 服务发现）
+	dispatchClient := dispatch.NewDispatch(zrpc.MustNewClient(c.DispatchRPC))
 
 	return &ServiceContext{
-		Config:      c,
-		Db:          db,
-		Redis:       redisClient,
-		OrderClient: orderClient,
+		Config:         c,
+		Db:             db,
+		Redis:          redisClient,
+		OrderClient:    orderClient,
+		DispatchClient: dispatchClient,
 	}
 }
