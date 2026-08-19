@@ -71,10 +71,10 @@
 
 ## 4. 联调要求
 
-1. 先启动 `rpc/adminsvc`，默认监听 `127.0.0.1:8080`。
-2. 再启动 `api/admin`，默认读取 `api/admin/etc/admin.json` 中的 `admin_rpc.target`。
+1. 先启动 `rpc/adminsvc`，默认监听 `127.0.0.1:8084`。
+2. 再启动 `api/admin`，默认监听 `127.0.0.1:8083`，并读取 `api/admin/etc/admin.json` 中的 `admin_rpc.target=127.0.0.1:8084`。
 3. 前端和 Postman 仍然调用原 HTTP 路径，不直接调用 RPC。
-4. MySQL 使用本地 Docker `3306`，Redis 使用本地 Docker `6379`。
+4. MySQL 使用统一配置的远程 `xiaolong_ridy` 数据库，Redis 使用本地 Docker `6379`。
 
 ## 5. 2026-08-15 P0 当前实现补充
 

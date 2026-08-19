@@ -102,7 +102,7 @@ func (s *ServiceContext) Close() {
 // HTTP 网关只负责鉴权和参数转换，真正的业务操作通过该客户端下沉到 adminsvc。
 func newAdminRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, adminclient.AdminService, error) {
 	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
-		cfg.Target = "127.0.0.1:8080"
+		cfg.Target = "127.0.0.1:8084"
 	}
 	client, err := zrpc.NewClient(cfg)
 	if err != nil {

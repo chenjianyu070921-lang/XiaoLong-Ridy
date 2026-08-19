@@ -1,7 +1,7 @@
 {
-  "http_addr": ":8888",
+  "http_addr": ":8083",
   "mysql": {
-    "dsn": "root:123456@tcp(127.0.0.1:3306)/xiaolong_ridy?parseTime=true&loc=Local&charset=utf8mb4,utf8&timeout=5s&readTimeout=5s&writeTimeout=5s"
+    "dsn": "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
   },
   "redis": {
     "addr": "127.0.0.1:6379",
@@ -13,6 +13,6 @@
     "token_prefix": "admin:sess:"
   },
   "admin_rpc": {
-    "target": "127.0.0.1:8080"
+    "target": "127.0.0.1:8084"
   }
 }
