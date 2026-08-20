@@ -23,14 +23,36 @@ enum VehicleStatus {
 service Driversvc {
   // 司机主表 CRUD（仅司机增删改查）
   rpc CreateDriver(CreateDriverRequest) returns(CreateDriverResponse);
+  // 司机自注册，与管理员创建司机使用独立 RPC 接口。
+  rpc RegisterDriver(CreateDriverRequest) returns(CreateDriverResponse);
   rpc UpdateDriver(UpdateDriverRequest) returns(UpdateDriverResponse);
   rpc DeleteDriver(DeleteDriverRequest) returns(DeleteDriverResponse);
   rpc GetDriver(GetDriverRequest) returns(GetDriverResponse);
+  // 按手机号查询司机（登录场景使用，返回含密码哈希与状态）
+  rpc GetDriverByPhone(GetDriverByPhoneRequest) returns(GetDriverByPhoneResponse);
+  // 司机上线：将听单状态置为在线（1）。
+  rpc SetDriverOnline(SetDriverOnlineRequest) returns(SetDriverOnlineResponse);
+  // 司机下线：将听单状态置为离线（0）。
+  rpc SetDriverOffline(SetDriverOfflineRequest) returns(SetDriverOfflineResponse);
   // 车辆 CRUD（司机绑定车辆增删改查）
   rpc CreateVehicle(CreateVehicleRequest) returns(CreateVehicleResponse);
   rpc UpdateVehicle(UpdateVehicleRequest) returns(UpdateVehicleResponse);
   rpc DeleteVehicle(DeleteVehicleRequest) returns(DeleteVehicleResponse);
   rpc GetVehicle(GetVehicleRequest) returns(GetVehicleResponse);
+  // 司机列表：分页 + 可选状态/关键字过滤。
+  rpc ListDrivers(ListDriversRequest) returns(ListDriversResponse);
+  // 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
+  rpc Login(LoginRequest) returns(LoginResponse);
+  // 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
+  rpc ListNearbyDrivers(ListNearbyDriversRequest) returns(ListNearbyDriversResponse);
+  // AI 智能优质司机推荐：查询指定司机的综合推荐得分与各项维度指标，供司机端展示与派单权重参考。
+  rpc GetDriverAiScore(GetDriverAiScoreRequest) returns(GetDriverAiScoreResponse);
+  // 司机资质上传：接收身份证/驾驶证/行驶证图片，存入 MinIO 并落库 driver_certification，返回访问 URL 与审核状态。
+  rpc UploadCertification(UploadCertificationRequest) returns(UploadCertificationResponse);
+  // 司机资质查询：按司机 ID 返回其资质记录与审核状态。
+  rpc GetCertification(GetCertificationRequest) returns(GetCertificationResponse);
+  // 司机心跳上报：刷新在线状态 TTL；若 device_id 与当前绑定不一致（被新设备登录顶替）则标记踢出。
+  rpc Heartbeat(HeartbeatRequest) returns(HeartbeatResponse);
   // 审核通过司机资质。
   rpc ApproveCertification(AuditCertificationRequest) returns(CommonResponse);
   // 审核驳回司机资质。
@@ -49,6 +71,7 @@ message Driver {
   DriverStatus status = 8;
   int64 created_at = 9;
   int64 updated_at = 10;
+  int32 online_status = 11;
 }
 
 message CreateDriverRequest {
@@ -97,6 +120,40 @@ message GetDriverRequest {
 }
 
 message GetDriverResponse {
+  Driver driver = 1;
+}
+
+message SetDriverOnlineRequest {
+  int64 driver_id = 1;
+  string device_id = 2; // 发起上线的设备标识，用于多端互踢判定
+  double longitude = 3; // 上线时上报的经度（可选，0 表示未知）
+  double latitude = 4;  // 上线时上报的纬度（可选，0 表示未知）
+}
+
+message SetDriverOnlineResponse {
+  int64 driver_id = 1;
+  int32 online_status = 2;
+  bool kicked = 3; // 是否被新设备顶替：true 表示当前设备已被踢出，需重新登录
+}
+
+message SetDriverOfflineRequest {
+  int64 driver_id = 1;
+  string device_id = 2; // 发起下线的设备标识
+  double longitude = 3; // 下线时上报的经度（可选，0 表示未知）
+  double latitude = 4;  // 下线时上报的纬度（可选，0 表示未知）
+}
+
+message SetDriverOfflineResponse {
+  int64 driver_id = 1;
+  int32 online_status = 2;
+  bool kicked = 3; // 是否被新设备顶替
+}
+
+message GetDriverByPhoneRequest {
+  string phone = 1;
+}
+
+message GetDriverByPhoneResponse {
   Driver driver = 1;
 }
 
@@ -172,13 +229,143 @@ message GetVehicleResponse {
   Vehicle vehicle = 1;
 }
 
-message AuditCertificationRequest {
-  int64 certification_id = 1;
-  string remark = 2;
-  int64 operator_id = 3;
-  string ip = 4;
+// ListDriversRequest 司机列表查询请求。
+message ListDriversRequest {
+  int32 page = 1;       // 页码，从 1 开始，缺省为 1
+  int32 page_size = 2;  // 每页条数，缺省为 20
+  optional DriverStatus status = 3; // 可选状态过滤
+  string keyword = 4;   // 可选关键字：模糊匹配手机号/姓名/车牌号
 }
 
+// ListDriversResponse 司机列表查询响应。
+message ListDriversResponse {
+  repeated Driver drivers = 1; // 当前页司机列表
+  int64 total = 2;            // 符合条件的总记录数
+}
+
+// LoginRequest 司机登录请求。
+message LoginRequest {
+  string phone = 1;    // 手机号
+  string password = 2; // 明文密码
+}
+
+// LoginResponse 司机登录响应。
+message LoginResponse {
+  string token = 1;      // 登录凭证 JWT
+  int64 expire_in = 2;   // 有效期（秒）
+  Driver driver = 3;     // 司机简要信息
+}
+
+// NearbyDriver 附近司机摘要信息。
+message NearbyDriver {
+  int64 driver_id = 1;        // 司机 ID
+  double longitude = 2;       // 经度
+  double latitude = 3;        // 纬度
+  int32 distance_meters = 4;  // 距查询中心点的距离（米）
+}
+
+// ListNearbyDriversRequest 附近司机查询请求。
+message ListNearbyDriversRequest {
+  double longitude = 1;   // 查询中心经度
+  double latitude = 2;    // 查询中心纬度
+  double radius_meters = 3; // 搜索半径（米），缺省 3000
+  int32 limit = 4;         // 返回条数上限，缺省 20
+}
+
+// ListNearbyDriversResponse 附近司机查询响应。
+message ListNearbyDriversResponse {
+  repeated NearbyDriver drivers = 1; // 附近在线司机列表（按距离升序）
+}
+
+// GetDriverAiScoreRequest 查询司机 AI 推荐得分请求。
+message GetDriverAiScoreRequest {
+  int64 driver_id = 1; // 司机 ID
+}
+
+// AiScoreFactor 单项维度指标，用于向司机展示影响推荐优先级的因素。
+message AiScoreFactor {
+  string key = 1;        // 维度标识（如 service_score / cancel_rate / complaint / month_orders）
+  string label = 2;      // 维度中文名（如 服务分 / 取消率 / 投诉数 / 当月完单数）
+  double value = 3;      // 原始数值
+  string impact = 4;     // 对推荐优先级的影响：positive 提升 / negative 降低 / neutral 中性
+  string hint = 5;       // 给司机的优化提示（如「降低取消率可提升推荐优先级」）
+}
+
+// GetDriverAiScoreResponse 查询司机 AI 推荐得分响应。
+message GetDriverAiScoreResponse {
+  int64 driver_id = 1;            // 司机 ID
+  double ai_score = 2;            // 综合推荐得分（0~100，越高越优先）
+  int32 level = 3;                // 司机等级（1~5）
+  repeated AiScoreFactor factors = 4; // 各维度指标与影响说明
+  bool degraded = 5;             // 是否降级：true 表示 AI 评分暂不可用，回退到距离优先策略
+  string degrade_reason = 6;      // 降级原因（degraded 为 true 时有效）
+}
+
+// UploadCertificationRequest 司机资质上传请求。
+// 各图片字段为 base64 编码的原始文件内容（不含 data URI 前缀）；服务端直传 MinIO。
+message UploadCertificationRequest {
+  int64 driver_id = 1;            // 司机 ID（必填）
+  int64 vehicle_id = 2;           // 关联车辆 ID（可选，车辆资质上传时填写）
+  string id_card_front = 3;       // 身份证人像面 base64（可选）
+  string id_card_back = 4;        // 身份证国徽面 base64（可选）
+  string driver_license = 5;      // 驾驶证 base64（可选）
+  string vehicle_license = 6;     // 行驶证 base64（可选）
+}
+
+// CertificationInfo 资质记录详情（与 driver_certification 表对齐）。
+message CertificationInfo {
+  int64 id = 1;
+  int64 driver_id = 2;
+  int64 vehicle_id = 3;
+  string id_card_front_url = 4;
+  string id_card_back_url = 5;
+  string driver_license_url = 6;
+  string vehicle_license_url = 7;
+  int32 audit_status = 8;        // 审核状态：1待审核 2通过 3驳回
+  string audit_remark = 9;
+}
+
+// UploadCertificationResponse 资质上传响应。
+message UploadCertificationResponse {
+  int64 id = 1;                   // 资质记录 ID
+  CertificationInfo certification = 2; // 最新资质记录（含各图片访问 URL 与审核状态）
+}
+
+// GetCertificationRequest 资质查询请求。
+message GetCertificationRequest {
+  int64 driver_id = 1;            // 司机 ID（必填）
+}
+
+// GetCertificationResponse 资质查询响应。
+message GetCertificationResponse {
+  CertificationInfo certification = 1; // 资质记录（无记录时为空）
+  bool found = 2;                        // 是否查到记录
+}
+
+// HeartbeatRequest 司机心跳上报请求。
+message HeartbeatRequest {
+  int64 driver_id = 1;            // 司机 ID
+  string device_id = 2;           // 当前设备标识，用于多端互踢判定
+  double longitude = 3;           // 当前经度（可选）
+  double latitude = 4;            // 当前纬度（可选）
+}
+
+// HeartbeatResponse 心跳上报响应。
+message HeartbeatResponse {
+  int32 online_status = 1;        // 当前在线状态：0离线 1在线 2行程中
+  bool kicked = 2;                // 是否被新设备顶替：true 表示已被踢，需重新登录
+  int64 server_time = 3;          // 服务端时间戳（秒），用于客户端时钟校准
+}
+
+// AuditCertificationRequest 资质审核请求（通过/驳回共用）。
+message AuditCertificationRequest {
+  int64 certification_id = 1;     // 资质记录 ID
+  string remark = 2;              // 审核备注
+  int64 operator_id = 3;          // 操作员 ID
+  string ip = 4;                  // 操作来源 IP
+}
+
+// CommonResponse 通用响应（仅返回提示信息）。
 message CommonResponse {
   string message = 1;
 }

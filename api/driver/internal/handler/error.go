@@ -15,6 +15,11 @@ func writeParamError(w http.ResponseWriter, err error) {
 	// 下游 driversvc 客户端不可用：返回 502 + 业务码 50001。
 	case errors.Is(err, logic.ErrDriverClientNotConfigured):
 		writeError(w, http.StatusBadGateway, 50001, "下游 driversvc 不可用")
+	// 下游 ordersvc 客户端不可用：返回 502 + 业务码 50002。
+	case errors.Is(err, logic.ErrOrderClientNotConfigured):
+		writeError(w, http.StatusBadGateway, 50002, "下游 ordersvc 不可用")
+	case errors.Is(err, logic.ErrDispatchClientNotConfigured):
+		writeError(w, http.StatusBadGateway, 50004, "下游 dispatchsvc 不可用")
 	// 通用参数错误：返回 400 + 业务码 50000，并透传错误文案。
 	case errors.Is(err, logic.ErrInvalidParam):
 		writeError(w, http.StatusBadRequest, 50000, err.Error())

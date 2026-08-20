@@ -2,7 +2,7 @@ syntax = "v1"
 
 info (
 	title: "driver api"
-	desc: "司机端 HTTP API，当前仅封装司机「增删改查」四个核心接口，为后续对接留出清晰空间"
+	desc: "司机端 HTTP API，封装司机「增删改查」四个核心接口，以及订单行程相关接口（接单、开始行程、结束行程）。接口路由声明在此集中维护，实际 handler 实现见 internal/handler 包。"
 	author: "XiaoLong-Ridy"
 )
 
@@ -11,10 +11,27 @@ info (
 // - 所有响应统一为 { code, message, data, timestamp, traceId }。
 // - 入参校验失败返回 HTTP 400 + code 50000，并携带具体中文错误信息。
 
-// ============ 司机（增删改查） ============
+// ============ 司机（增删改查 + 注册） ============
+// 司机自注册（App 端注册入口，公开）：创建待审核账号。
+type RegisterDriverRequest {
+	Phone           string `json:"phone"`
+	Password        string `json:"password"`
+	RealName        string `json:"realName"`
+	IdCardNo        string `json:"idCardNo"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
+	AvatarURL       string `json:"avatarUrl"`
+}
+
+type RegisterDriverResponse {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+// 管理员创建司机（后台建号，需登录）：创建待审核账号。
 type CreateDriverRequest {
 	Phone           string `json:"phone"`
-	PasswordHash    string `json:"passwordHash"`
+	Password        string `json:"password"`
 	RealName        string `json:"realName"`
 	IdCardNo        string `json:"idCardNo"`
 	DriverLicenseNo string `json:"driverLicenseNo"`
@@ -30,7 +47,7 @@ type CreateDriverResponse {
 type UpdateDriverRequest {
 	ID              int64   `json:"id"`
 	Phone           *string `json:"phone,omitempty"`
-	PasswordHash    *string `json:"passwordHash,omitempty"`
+	Password        *string `json:"password,omitempty"`
 	RealName        *string `json:"realName,omitempty"`
 	IdCardNo        *string `json:"idCardNo,omitempty"`
 	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"`
@@ -65,7 +82,45 @@ type DeleteResponse {
 	Success bool   `json:"success"`
 }
 
+type RejectOrderRequest {
+	OrderID int64  `json:"orderId"`
+	Reason  string `json:"reason"`
+}
+
+type RejectOrderResponse {
+	OrderID int64 `json:"orderId"`
+}
+
+type ListMyDispatchesRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type DispatchRecord {
+	ID           int64   `json:"id"`
+	OrderID      int64   `json:"orderId"`
+	DriverID     int64   `json:"driverId"`
+	DispatchType int32   `json:"dispatchType"`
+	Status       int32   `json:"status"`
+	MatchScore   float64 `json:"matchScore"`
+	Remark       string  `json:"remark"`
+	CreatedAt    int64   `json:"createdAt"`
+	UpdatedAt    int64   `json:"updatedAt"`
+}
+
+type ListMyDispatchesResponse {
+	List     []DispatchRecord `json:"list"`
+	Total    int64            `json:"total"`
+	Page     int32            `json:"page"`
+	PageSize int32            `json:"pageSize"`
+}
+
 service driver-api {
+	// 司机自注册（公开，无需登录）
+	@handler RegisterDriverHandler
+	post /api/driver/v1/drivers/register (RegisterDriverRequest) returns (RegisterDriverResponse)
+
+	// 管理员创建司机（需登录）
 	@handler CreateDriverHandler
 	post /api/driver/v1/drivers (CreateDriverRequest) returns (CreateDriverResponse)
 
@@ -77,4 +132,25 @@ service driver-api {
 
 	@handler DeleteDriverHandler
 	post /api/driver/v1/drivers/delete (DeleteResponse)
+
+	// ============ 订单行程（接单 / 拒单 / 到达 / 开始行程 / 结束行程） ============
+	// 以下接口为规范声明，对应 internal/handler/order_handler.go 中的实现；
+	// 路由在 main.go 中以标准库 ServeMux 手动注册，不使用 goctl 重新生成以免覆盖现有手写接口。
+	@handler AcceptOrderHandler
+	post /api/driver/v1/orders/accept (AcceptOrderRequest) returns (AcceptOrderResponse)
+
+	@handler ConfirmArriveHandler
+	post /api/driver/v1/orders/confirm-arrive (ConfirmArriveRequest) returns (ConfirmArriveResponse)
+
+	@handler RejectOrderHandler
+	post /api/driver/v1/orders/reject (RejectOrderRequest) returns (RejectOrderResponse)
+
+	@handler ListMyDispatchesHandler
+	post /api/driver/v1/orders/dispatches (ListMyDispatchesRequest) returns (ListMyDispatchesResponse)
+
+	@handler StartTripHandler
+	post /api/driver/v1/orders/start-trip (StartTripRequest) returns (StartTripResponse)
+
+	@handler FinishTripHandler
+	post /api/driver/v1/orders/finish-trip (FinishTripRequest) returns (FinishTripResponse)
 }
