@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/engine"
@@ -85,6 +86,43 @@ func TestDispatchOrderIdempotent(t *testing.T) {
 	}
 	if total != 3 || len(records) != 3 {
 		t.Fatalf("ListByOrder() total = %d len = %d, want 3/3", total, len(records))
+	}
+}
+
+// TestDispatchOrderConcurrentIdempotent 并发派单同一订单：只能插入一次记录，其余请求幂等返回。
+func TestDispatchOrderConcurrentIdempotent(t *testing.T) {
+	ctx := context.Background()
+	svcCtx := newDispatchTestSvcCtx()
+	l := NewDispatchOrderLogic(ctx, svcCtx)
+
+	req := &proto.DispatchOrderRequest{
+		OrderId: 100, FromLongitude: 116.47, FromLatitude: 39.9, CarType: 1, CityCode: "110000",
+	}
+	const n = 10
+	var wg sync.WaitGroup
+	errs := make([]error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, errs[i] = l.DispatchOrder(req)
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("DispatchOrder() goroutine %d error = %v", i, err)
+		}
+	}
+
+	// 记录数必须恰好 3：并发下只有一次真正插入。
+	_, total, err := svcCtx.DispatchRepository.ListByOrder(ctx, 100, 1, 100)
+	if err != nil {
+		t.Fatalf("ListByOrder() error = %v", err)
+	}
+	if total != 3 {
+		t.Fatalf("concurrent dispatch total = %d, want 3 (duplicate records inserted)", total)
 	}
 }
 

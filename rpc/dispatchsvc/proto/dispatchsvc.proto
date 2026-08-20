@@ -78,9 +78,11 @@ message DispatchRecord {
 }
 
 message ListDispatchRecordsRequest {
-  int64 order_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
+  int64 order_id = 1;  // 按订单查询；与 driver_id 二选一，优先 order_id
+  int64 driver_id = 2; // 按司机查询；order_id 为 0 时生效
+  int32 status = 3;    // 可选，0 表示全部，否则按派单状态过滤（仅 driver_id 查询生效）
+  int32 page = 4;      // 默认 1
+  int32 page_size = 5; // 默认 20，上限 100
 }
 
 message ListDispatchRecordsResponse {

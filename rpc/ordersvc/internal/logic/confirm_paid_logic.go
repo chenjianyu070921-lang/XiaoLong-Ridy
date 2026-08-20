@@ -4,14 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"XiaoLong-Ridy/common/constants"
-	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
+	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+)
+
+// paymentStatusPaid 支付成功状态值，与 paysvc 的 PaymentStatusPaid 保持一致。
+const paymentStatusPaid = 2
+
+var (
+	// ErrPaymentNotConfigured 支付客户端未配置，拒绝直接完成订单。
+	ErrPaymentNotConfigured = errors.New("pay client not configured")
+	// ErrPaymentVerificationFailed 支付单信息与订单不一致或未支付成功。
+	ErrPaymentVerificationFailed = errors.New("payment verification failed")
 )
 
 type ConfirmPaidLogic struct {
@@ -25,9 +36,9 @@ func NewConfirmPaidLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Confi
 	return &ConfirmPaidLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
 }
 
-// ConfirmPaid 支付成功回调：待支付 -> 已完成。
+// ConfirmPaid 支付成功回调：校验支付单真实状态后，待支付 -> 已完成。
 func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.ConfirmPaidResponse, error) {
-	if in.OrderId <= 0 || in.PaymentNo == "" || in.AmountCents <= 0 || in.PaidAt <= 0 {
+	if in.OrderId <= 0 || strings.TrimSpace(in.PaymentNo) == "" || in.AmountCents <= 0 || in.PaidAt <= 0 {
 		return nil, ErrInvalidOrderParams
 	}
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
@@ -37,19 +48,25 @@ func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.Con
 	if order.Status != constants.OrderStatusWaitPay {
 		return nil, ErrOrderStatusNotAllowed
 	}
+
+	// 未配置支付客户端时拒绝直接完成订单，防止支付绕过。
 	if l.svcCtx.PayClient == nil {
-		return nil, errors.New("pay client not configured")
+		return nil, ErrPaymentNotConfigured
 	}
+	// 向支付服务核验支付单：单号、订单、金额、状态必须完全一致。
 	payment, err := l.svcCtx.PayClient.GetPayment(l.ctx, &pay.GetPaymentRequest{
-		PaymentNo: in.PaymentNo,
+		PaymentNo: strings.TrimSpace(in.PaymentNo),
 		OrderId:   in.OrderId,
 	})
 	if err != nil {
-		return nil, err
+		l.Logger.Errorf("get payment failed, orderId=%d paymentNo=%s: %v", in.OrderId, in.PaymentNo, err)
+		return nil, ErrPaymentVerificationFailed
 	}
 	if payment == nil || payment.PaymentNo != in.PaymentNo || payment.OrderId != in.OrderId ||
-		payment.AmountCents != in.AmountCents || payment.Status != 2 {
-		return nil, errors.New("payment verification failed")
+		payment.AmountCents != in.AmountCents || payment.Status != paymentStatusPaid {
+		l.Logger.Errorf("payment verification failed, orderId=%d paymentNo=%s, got paymentNo=%s orderId=%d amount=%d status=%d",
+			in.OrderId, in.PaymentNo, payment.GetPaymentNo(), payment.GetOrderId(), payment.GetAmountCents(), payment.GetStatus())
+		return nil, ErrPaymentVerificationFailed
 	}
 
 	remark := "支付成功 paymentNo=" + in.PaymentNo

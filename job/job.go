@@ -38,16 +38,6 @@ func main() {
 	}()
 
 	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			if err := h.SyncOrderStatus(); err != nil {
-				logx.Errorf("SyncOrderStatus failed: %v", err)
-			}
-		}
-	}()
-
-	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {

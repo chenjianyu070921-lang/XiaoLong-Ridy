@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"XiaoLong-Ridy/job/internal/svc"
+	"XiaoLong-Ridy/job/internal/task"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 
@@ -24,22 +25,14 @@ func NewCleanupHandler(svcCtx *svc.ServiceContext) *CleanupHandler {
 	}
 }
 
-// CleanExpiredLocation 清理过期司机位置数据
+// CleanExpiredLocation 清理过期司机位置数据（保留最近 7 天）。
 func (h *CleanupHandler) CleanExpiredLocation() error {
-	h.Info("执行定时任务: 清理过期位置数据")
-	return nil
+	return task.NewTask(h.svcCtx).CleanExpiredLocation(7)
 }
 
-// SyncOrderStatus 同步异常订单状态
-func (h *CleanupHandler) SyncOrderStatus() error {
-	h.Info("执行定时任务: 同步异常订单状态")
-	return nil
-}
-
-// DailyReport 生成每日统计报表
+// DailyReport 生成每日统计报表并落库。
 func (h *CleanupHandler) DailyReport() error {
-	h.Info("执行定时任务: 生成每日报表")
-	return nil
+	return task.NewTask(h.svcCtx).DailyReport()
 }
 
 // TimeoutCancelOrders 扫描超时未接单订单并自动取消。

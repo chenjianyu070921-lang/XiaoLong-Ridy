@@ -9,6 +9,7 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/mq"
 	"XiaoLong-Ridy/common/priceutil"
+	order "XiaoLong-Ridy/rpc/ordersvc/proto"
 	"XiaoLong-Ridy/rpc/paysvc/internal/model"
 	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
@@ -86,6 +87,9 @@ func (l *NotifyPaymentLogic) NotifyPayment(in *proto.NotifyPaymentRequest) (*pro
 		l.Errorf("publish orderclient.paid event failed: %v", err)
 	}
 
+	// 6.5 通知订单服务完成订单，闭环主链路（失败不阻断回调，后续可重试）
+	l.confirmOrderAfterPaid(p, in.PaidAt)
+
 	// 7. 触发司机结算（失败不阻断主流程）
 	l.settleAfterPaid(p)
 
@@ -105,6 +109,21 @@ func (l *NotifyPaymentLogic) publishPaidEvent(p *model.Payment, paidAt int64) er
 		return err
 	}
 	return l.svcCtx.Producer.Send(constants.TopicOrderPaid, p.PaymentNo, data)
+}
+
+// confirmOrderAfterPaid 支付成功后通知订单服务确认完成订单。
+func (l *NotifyPaymentLogic) confirmOrderAfterPaid(p *model.Payment, paidAt int64) {
+	if paidAt <= 0 && p.PaidAt != nil {
+		paidAt = p.PaidAt.Unix()
+	}
+	if _, err := l.svcCtx.OrderClient.ConfirmPaid(l.ctx, &order.ConfirmPaidRequest{
+		OrderId:     int64(p.OrderId),
+		PaymentNo:   p.PaymentNo,
+		AmountCents: priceutil.YuanToCents(p.Amount),
+		PaidAt:      paidAt,
+	}); err != nil {
+		l.Errorf("confirm order paid failed, orderId=%d paymentNo=%s: %v", p.OrderId, p.PaymentNo, err)
+	}
 }
 
 // settleAfterPaid 支付成功后触发司机结算。

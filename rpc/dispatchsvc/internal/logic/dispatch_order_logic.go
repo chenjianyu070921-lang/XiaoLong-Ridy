@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"XiaoLong-Ridy/common/constants"
@@ -15,6 +16,18 @@ import (
 
 // defaultDispatchTimeout 未配置 dispatchTimeoutSeconds 时的派单超时阈值。
 const defaultDispatchTimeout = 60 * time.Second
+
+// dispatchOrderLocks 派单互斥锁集合（按订单维度），保证同一订单的并发派单只插入一次记录。
+// 单实例部署下可靠；多实例部署需升级为 Redis 分布式锁或在 dispatch_record 加 (order_id, driver_id) 唯一约束。
+var dispatchOrderLocks sync.Map // map[uint64]*sync.Mutex
+
+// lockDispatchOrder 获取该订单的派单互斥锁，返回释放函数。
+func lockDispatchOrder(orderID uint64) func() {
+	mu, _ := dispatchOrderLocks.LoadOrStore(orderID, &sync.Mutex{})
+	m := mu.(*sync.Mutex)
+	m.Lock()
+	return m.Unlock
+}
 
 type DispatchOrderLogic struct {
 	ctx    context.Context
@@ -39,6 +52,10 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 	if in.OrderId <= 0 {
 		return nil, ErrInvalidOrderParams
 	}
+
+	// 按订单互斥串行化"检查-插入"临界区，防止并发派单插入重复记录。
+	unlock := lockDispatchOrder(uint64(in.OrderId))
+	defer unlock()
 
 	timeout := time.Duration(l.svcCtx.Config.DispatchTimeoutSeconds) * time.Second
 	if timeout <= 0 {

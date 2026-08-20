@@ -13,6 +13,8 @@ import (
 type OrderClient interface {
 	// GetDriverId 查询订单的司机ID。
 	GetDriverId(ctx context.Context, orderId int64) (int64, error)
+	// ConfirmPaid 通知订单服务支付成功并完成订单。
+	ConfirmPaid(ctx context.Context, in *proto.ConfirmPaidRequest) (*proto.ConfirmPaidResponse, error)
 }
 
 // RpcOrderClient 基于 ordersvc gRPC 的实现。
@@ -32,4 +34,9 @@ func (r *RpcOrderClient) GetDriverId(ctx context.Context, orderId int64) (int64,
 		return 0, err
 	}
 	return resp.DriverId, nil
+}
+
+// ConfirmPaid 调用 ordersvc 的支付成功确认接口。
+func (r *RpcOrderClient) ConfirmPaid(ctx context.Context, in *proto.ConfirmPaidRequest) (*proto.ConfirmPaidResponse, error) {
+	return r.client.ConfirmPaid(ctx, in)
 }

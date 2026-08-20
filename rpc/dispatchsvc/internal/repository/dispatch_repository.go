@@ -17,6 +17,8 @@ var (
 type DispatchRepository interface {
 	Create(ctx context.Context, record *model.DispatchRecord) error
 	ListByOrder(ctx context.Context, orderID uint64, page, pageSize int32) ([]model.DispatchRecord, int64, error)
+	// ListByDriver 按司机分页查询派单记录；status > 0 时按派单状态过滤，0 表示全部。按 ID 正序。
+	ListByDriver(ctx context.Context, driverID uint64, status int32, page, pageSize int32) ([]model.DispatchRecord, int64, error)
 	// RejectByOrderAndDriver 将指定司机对该订单的待派单记录置为已拒绝。
 	// 当该司机不存在待派单记录时返回 ErrDispatchRecordNotFound。
 	RejectByOrderAndDriver(ctx context.Context, orderID, driverID uint64, reason string) (*model.DispatchRecord, error)

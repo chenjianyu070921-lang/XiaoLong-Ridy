@@ -41,6 +41,26 @@ func (r *gormDispatchRepository) ListByOrder(ctx context.Context, orderID uint64
 	return list, total, nil
 }
 
+// ListByDriver 按司机分页查询派单记录；status > 0 时按派单状态过滤，0 表示全部。
+func (r *gormDispatchRepository) ListByDriver(ctx context.Context, driverID uint64, status int32, page, pageSize int32) ([]model.DispatchRecord, int64, error) {
+	q := r.db.WithContext(ctx).Model(&model.DispatchRecord{}).Where("driver_id = ?", driverID)
+	if status > 0 {
+		q = q.Where("status = ?", status)
+	}
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var list []model.DispatchRecord
+	err := q.Order("id ASC").Offset(int((page - 1) * pageSize)).Limit(int(pageSize)).Find(&list).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
 // RejectByOrderAndDriver 将指定司机对该订单的待派单记录置为已拒绝。
 func (r *gormDispatchRepository) RejectByOrderAndDriver(ctx context.Context, orderID, driverID uint64, reason string) (*model.DispatchRecord, error) {
 	updates := map[string]interface{}{

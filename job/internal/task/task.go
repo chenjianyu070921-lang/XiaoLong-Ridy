@@ -11,8 +11,8 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-// driverGeoKey 与 locationsvc 写入 Redis GEO 的 key 保持一致
-const driverGeoKey = "driver:geo"
+// driverGeoKey 与 locationsvc 写入 Redis GEO 的 key 保持一致（默认城市）
+const driverGeoKey = "driver:geo:default"
 
 // Task 定时任务业务逻辑
 type Task struct {
@@ -57,46 +57,6 @@ func (t *Task) CleanExpiredLocation(retentionDays int) error {
 	}
 
 	logx.Infof("清理过期位置数据完成: 删除DB记录 %d 条, 清理GEO成员 %d 个", res.RowsAffected, len(driverIDs))
-	return nil
-}
-
-// SyncOrderStatus 同步超时未接单订单：分页拉取并自动取消
-func (t *Task) SyncOrderStatus() error {
-	ctx := context.Background()
-	const timeoutSeconds int32 = 300
-	page, pageSize := int32(1), int32(100)
-	var canceled, failed int64
-
-	for {
-		resp, err := t.svcCtx.OrderClient.ListTimeoutOrders(ctx, &order.ListTimeoutOrdersRequest{
-			TimeoutSeconds: timeoutSeconds,
-			Page:           page,
-			PageSize:       pageSize,
-		})
-		if err != nil {
-			return fmt.Errorf("拉取超时订单失败: %w", err)
-		}
-		if len(resp.List) == 0 {
-			break
-		}
-		for _, o := range resp.List {
-			if _, err := t.svcCtx.OrderClient.TimeoutCancel(ctx, &order.TimeoutCancelRequest{
-				OrderId: o.OrderId,
-				Reason:  "系统定时任务：超时未接单自动取消",
-			}); err != nil {
-				logx.Errorf("超时取消订单失败 orderId=%d: %v", o.OrderId, err)
-				failed++
-				continue
-			}
-			canceled++
-		}
-		if int64(page*pageSize) >= resp.Total {
-			break
-		}
-		page++
-	}
-
-	logx.Infof("同步超时订单完成: 取消 %d 个, 失败 %d 个", canceled, failed)
 	return nil
 }
 

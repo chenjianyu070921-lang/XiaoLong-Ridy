@@ -70,6 +70,35 @@ func (r *MemoryDispatchRepository) ListByOrder(_ context.Context, orderID uint64
 	return out, total, nil
 }
 
+// ListByDriver 按司机分页查询派单记录，status > 0 时过滤，按 ID 正序。
+func (r *MemoryDispatchRepository) ListByDriver(_ context.Context, driverID uint64, status int32, page, pageSize int32) ([]model.DispatchRecord, int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	ids := make([]uint64, 0)
+	for id, record := range r.records {
+		if record.DriverId == driverID && (status == 0 || int32(record.Status) == status) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+
+	total := int64(len(ids))
+	start := int((page - 1) * pageSize)
+	if start >= len(ids) {
+		return []model.DispatchRecord{}, total, nil
+	}
+	end := start + int(pageSize)
+	if end > len(ids) {
+		end = len(ids)
+	}
+	out := make([]model.DispatchRecord, 0, end-start)
+	for _, id := range ids[start:end] {
+		out = append(out, r.records[id])
+	}
+	return out, total, nil
+}
+
 // RejectByOrderAndDriver 将指定司机对该订单的待派单记录置为已拒绝。
 func (r *MemoryDispatchRepository) RejectByOrderAndDriver(_ context.Context, orderID, driverID uint64, reason string) (*model.DispatchRecord, error) {
 	r.mu.Lock()
