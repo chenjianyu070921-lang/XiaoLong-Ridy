@@ -7,7 +7,7 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/svc"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
-	order "XiaoLong-Ridy/rpc/ordersvc/order"
+	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 )
 
 const topicOrderPaid = "order.paid"

@@ -6,7 +6,7 @@ import (
 	"XiaoLong-Ridy/common/events"
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/config"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
-	order "XiaoLong-Ridy/rpc/ordersvc/order"
+	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/zrpc"
