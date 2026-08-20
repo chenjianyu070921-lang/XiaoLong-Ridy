@@ -7,8 +7,9 @@ import (
 	"net/http" // 提供 HTTP 服务器与路由能力
 	"os"  // 用于读取环境变量配置
 
-	"XiaoLong-Ridy/api/driver/internal/handler" // 注册各业务域的 HTTP 路由处理器
-	"XiaoLong-Ridy/api/driver/internal/svc"      // 提供包含 driversvc 客户端的服务上下文
+	"XiaoLong-Ridy/api/driver/internal/handler"    // 注册各业务域的 HTTP 路由处理器
+	"XiaoLong-Ridy/api/driver/internal/middleware" // 提供 JWT 鉴权中间件
+	"XiaoLong-Ridy/api/driver/internal/svc"        // 提供包含 driversvc 客户端的服务上下文
 )
 
 // defaultHTTPAddress 是 driver API 的默认 HTTP 监听地址（端口 8082）。
@@ -16,6 +17,9 @@ const defaultHTTPAddress = ":8082"
 
 // defaultDriverGRPCAddr 是下游 driversvc gRPC 服务的默认地址（本地 8080）。
 const defaultDriverGRPCAddr = "127.0.0.1:8080"
+
+// defaultOrderGRPCAddr 是下游 ordersvc gRPC 服务的默认地址（本地 50051）。
+const defaultOrderGRPCAddr = "127.0.0.1:50051"
 
 // main 是程序入口：解析配置、构建服务上下文、启动 HTTP 服务。
 func main() {
@@ -26,20 +30,26 @@ func main() {
 		address = defaultHTTPAddress
 	}
 	// 从环境变量读取 driversvc 的 gRPC 地址，未配置时使用默认值。
-	grpcAddr := os.Getenv("DRIVER_GRPC_ADDR")
-	if grpcAddr == "" {
+	driverGRPCAddr := os.Getenv("DRIVER_GRPC_ADDR")
+	if driverGRPCAddr == "" {
 		// 环境变量为空，回退到默认 gRPC 地址。
-		grpcAddr = defaultDriverGRPCAddr
+		driverGRPCAddr = defaultDriverGRPCAddr
+	}
+	// 从环境变量读取 ordersvc 的 gRPC 地址，未配置时使用默认值。
+	orderGRPCAddr := os.Getenv("ORDER_GRPC_ADDR")
+	if orderGRPCAddr == "" {
+		// 环境变量为空，回退到默认 gRPC 地址。
+		orderGRPCAddr = defaultOrderGRPCAddr
 	}
 
 	// 构造 HTTP 服务器，将路由处理器挂载到服务上下文之上。
 	server := &http.Server{
-		Addr:    address,                              // 监听地址
-		Handler: newHTTPHandler(svc.NewServiceContext(grpcAddr)), // 注入持有 driversvc 客户端的上下文
+		Addr:    address, // 监听地址
+		Handler: newHTTPHandler(svc.NewServiceContext(driverGRPCAddr, orderGRPCAddr)), // 注入持有下游客户端的上下文
 	}
 
 	// 输出启动日志，便于本地联调确认监听信息。
-	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s)", address, grpcAddr)
+	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s)", address, driverGRPCAddr, orderGRPCAddr)
 	// 启动 HTTP 服务并阻塞监听；仅在发生非预期错误时返回。
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		// 启动失败直接 panic，由上层或进程管理器捕获。
@@ -51,15 +61,35 @@ func main() {
 func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	// 创建标准库的多路复用器，按路径分发请求到对应处理器。
 	mux := http.NewServeMux()
-	// 司机（仅保留增删改查四个核心接口，为后续对接留出清晰空间）
+
+	// 登录相关接口（无需鉴权，登录前可访问）。
+	mux.HandleFunc("/api/driver/v1/auth/send-sms-code", methodSwitch("POST", handler.SendSMSCodeHandler(svcCtx)))
+	mux.HandleFunc("/api/driver/v1/auth/login-by-password", methodSwitch("POST", handler.LoginByPasswordHandler(svcCtx)))
+	mux.HandleFunc("/api/driver/v1/auth/login-by-sms", methodSwitch("POST", handler.LoginBySMSHandler(svcCtx)))
+
+	// 受保护路由：统一经过 JWT 鉴权中间件，未携带有效凭证将被拦截。
+	protected := middleware.RequireAuth(svcCtx)
 	// 创建司机：仅允许 POST 方法。
-	mux.HandleFunc("/api/driver/v1/drivers", methodSwitch("POST", handler.CreateDriverHandler(svcCtx)))
+	mux.Handle("/api/driver/v1/drivers", protected(methodSwitch("POST", handler.CreateDriverHandler(svcCtx))))
 	// 更新司机信息。
-	mux.HandleFunc("/api/driver/v1/drivers/update", handler.UpdateDriverHandler(svcCtx))
+	mux.Handle("/api/driver/v1/drivers/update", protected(handler.UpdateDriverHandler(svcCtx)))
 	// 查询司机详情（通过 ?id= 传参）。
-	mux.HandleFunc("/api/driver/v1/drivers/get", handler.GetDriverHandler(svcCtx))
+	mux.Handle("/api/driver/v1/drivers/get", protected(handler.GetDriverHandler(svcCtx)))
 	// 删除（软删）司机（通过 ?id= 传参）。
-	mux.HandleFunc("/api/driver/v1/drivers/delete", handler.DeleteDriverHandler(svcCtx))
+	mux.Handle("/api/driver/v1/drivers/delete", protected(handler.DeleteDriverHandler(svcCtx)))
+	// 司机上线（置为在线状态）。
+	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
+	// 司机下线（置为离线状态）。
+	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
+	// 司机接单（driver_id 取自 JWT，order_id 取自请求体）。
+	mux.Handle("/api/driver/v1/orders/accept", protected(methodSwitch("POST", handler.AcceptOrderHandler(svcCtx))))
+	// 司机开始行程。
+	mux.Handle("/api/driver/v1/orders/start-trip", protected(methodSwitch("POST", handler.StartTripHandler(svcCtx))))
+	// 司机确认到达上车点。
+	mux.Handle("/api/driver/v1/orders/confirm-arrive", protected(methodSwitch("POST", handler.ConfirmArriveHandler(svcCtx))))
+	// 司机结束行程并上报实际里程/时长/金额。
+	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", handler.FinishTripHandler(svcCtx))))
+
 	// 将构建好的多路复用器返回给 HTTP 服务器使用。
 	return mux
 }

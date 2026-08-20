@@ -10,6 +10,8 @@ import (
 var (
 	// ErrDriverClientNotConfigured 表示 driversvc 客户端未配置（连接失败）。
 	ErrDriverClientNotConfigured = errors.New("driver client not configured")
+	// ErrOrderClientNotConfigured 表示 ordersvc 客户端未配置（连接失败）。
+	ErrOrderClientNotConfigured = errors.New("order client not configured")
 	// ErrInvalidParam 表示通用参数非法错误（当前未直接使用，保留扩展）。
 	ErrInvalidParam = errors.New("invalid param")
 )
