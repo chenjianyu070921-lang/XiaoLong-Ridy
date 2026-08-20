@@ -1,5 +1,4 @@
 package react
-package react
 
 import "github.com/cloudwego/eino/schema"
 
