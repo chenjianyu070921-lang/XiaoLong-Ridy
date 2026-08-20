@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v3.19.4
-// source: rpc/adminsvc/admin.proto
+// source: admin.proto
 
 package adminsvc
 
@@ -22,6 +22,7 @@ const (
 	AdminService_Register_FullMethodName                   = "/adminsvc.AdminService/Register"
 	AdminService_Login_FullMethodName                      = "/adminsvc.AdminService/Login"
 	AdminService_Logout_FullMethodName                     = "/adminsvc.AdminService/Logout"
+	AdminService_ValidateSession_FullMethodName            = "/adminsvc.AdminService/ValidateSession"
 	AdminService_Me_FullMethodName                         = "/adminsvc.AdminService/Me"
 	AdminService_Menus_FullMethodName                      = "/adminsvc.AdminService/Menus"
 	AdminService_ListOperationLogs_FullMethodName          = "/adminsvc.AdminService/ListOperationLogs"
@@ -43,6 +44,12 @@ const (
 	AdminService_DisableCoupon_FullMethodName              = "/adminsvc.AdminService/DisableCoupon"
 	AdminService_IssueCoupon_FullMethodName                = "/adminsvc.AdminService/IssueCoupon"
 	AdminService_ListCouponIssueTasks_FullMethodName       = "/adminsvc.AdminService/ListCouponIssueTasks"
+	AdminService_ListPriceRules_FullMethodName             = "/adminsvc.AdminService/ListPriceRules"
+	AdminService_GetPriceRule_FullMethodName               = "/adminsvc.AdminService/GetPriceRule"
+	AdminService_CreatePriceRule_FullMethodName            = "/adminsvc.AdminService/CreatePriceRule"
+	AdminService_UpdatePriceRule_FullMethodName            = "/adminsvc.AdminService/UpdatePriceRule"
+	AdminService_EnablePriceRule_FullMethodName            = "/adminsvc.AdminService/EnablePriceRule"
+	AdminService_DisablePriceRule_FullMethodName           = "/adminsvc.AdminService/DisablePriceRule"
 	AdminService_ListPromotionActivities_FullMethodName    = "/adminsvc.AdminService/ListPromotionActivities"
 	AdminService_CreatePromotionActivity_FullMethodName    = "/adminsvc.AdminService/CreatePromotionActivity"
 	AdminService_UpdatePromotionActivity_FullMethodName    = "/adminsvc.AdminService/UpdatePromotionActivity"
@@ -53,6 +60,7 @@ const (
 	AdminService_GetCouponStatistics_FullMethodName        = "/adminsvc.AdminService/GetCouponStatistics"
 	AdminService_CreateExportTask_FullMethodName           = "/adminsvc.AdminService/CreateExportTask"
 	AdminService_ListExportTasks_FullMethodName            = "/adminsvc.AdminService/ListExportTasks"
+	AdminService_GetExportTask_FullMethodName              = "/adminsvc.AdminService/GetExportTask"
 	AdminService_ListBlacklists_FullMethodName             = "/adminsvc.AdminService/ListBlacklists"
 	AdminService_AddBlacklist_FullMethodName               = "/adminsvc.AdminService/AddBlacklist"
 	AdminService_ReleaseBlacklist_FullMethodName           = "/adminsvc.AdminService/ReleaseBlacklist"
@@ -72,6 +80,8 @@ type AdminServiceClient interface {
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 	// 管理员退出登录。
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 校验管理员登录会话。
+	ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error)
 	// 查询当前管理员信息。
 	Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
 	// 查询角色菜单。
@@ -114,6 +124,18 @@ type AdminServiceClient interface {
 	IssueCoupon(ctx context.Context, in *CouponIssueRequest, opts ...grpc.CallOption) (*CouponIssueResponse, error)
 	// 查询优惠券发放任务列表。
 	ListCouponIssueTasks(ctx context.Context, in *CouponIssueTaskListRequest, opts ...grpc.CallOption) (*CouponIssueTaskListResponse, error)
+	// 查询计价规则列表。
+	ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error)
+	// 查询计价规则详情。
+	GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error)
+	// 创建计价规则。
+	CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 更新计价规则。
+	UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 启用计价规则。
+	EnablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 停用计价规则。
+	DisablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询活动配置列表。
 	ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error)
 	// 创建活动配置。
@@ -134,6 +156,8 @@ type AdminServiceClient interface {
 	CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error)
 	// 查询导出任务列表。
 	ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error)
+	// 查询导出任务详情。
+	GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error)
 	// 查询风控黑名单列表。
 	ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error)
 	// 新增风控黑名单。
@@ -176,6 +200,16 @@ func (c *adminServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CommonResponse)
 	err := c.cc.Invoke(ctx, AdminService_Logout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValidateSessionResponse)
+	err := c.cc.Invoke(ctx, AdminService_ValidateSession_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -392,6 +426,66 @@ func (c *adminServiceClient) ListCouponIssueTasks(ctx context.Context, in *Coupo
 	return out, nil
 }
 
+func (c *adminServiceClient) ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PriceRuleListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListPriceRules_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PriceRule)
+	err := c.cc.Invoke(ctx, AdminService_GetPriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_CreatePriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UpdatePriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) EnablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_EnablePriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) DisablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_DisablePriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PromotionActivityListResponse)
@@ -492,6 +586,16 @@ func (c *adminServiceClient) ListExportTasks(ctx context.Context, in *ExportTask
 	return out, nil
 }
 
+func (c *adminServiceClient) GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportTask)
+	err := c.cc.Invoke(ctx, AdminService_GetExportTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BlacklistListResponse)
@@ -545,6 +649,8 @@ type AdminServiceServer interface {
 	Login(context.Context, *LoginRequest) (*AuthResponse, error)
 	// 管理员退出登录。
 	Logout(context.Context, *LogoutRequest) (*CommonResponse, error)
+	// 校验管理员登录会话。
+	ValidateSession(context.Context, *ValidateSessionRequest) (*ValidateSessionResponse, error)
 	// 查询当前管理员信息。
 	Me(context.Context, *MeRequest) (*MeResponse, error)
 	// 查询角色菜单。
@@ -587,6 +693,18 @@ type AdminServiceServer interface {
 	IssueCoupon(context.Context, *CouponIssueRequest) (*CouponIssueResponse, error)
 	// 查询优惠券发放任务列表。
 	ListCouponIssueTasks(context.Context, *CouponIssueTaskListRequest) (*CouponIssueTaskListResponse, error)
+	// 查询计价规则列表。
+	ListPriceRules(context.Context, *PriceRuleListRequest) (*PriceRuleListResponse, error)
+	// 查询计价规则详情。
+	GetPriceRule(context.Context, *PriceRuleDetailRequest) (*PriceRule, error)
+	// 创建计价规则。
+	CreatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error)
+	// 更新计价规则。
+	UpdatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error)
+	// 启用计价规则。
+	EnablePriceRule(context.Context, *PriceRuleStatusRequest) (*CommonResponse, error)
+	// 停用计价规则。
+	DisablePriceRule(context.Context, *PriceRuleStatusRequest) (*CommonResponse, error)
 	// 查询活动配置列表。
 	ListPromotionActivities(context.Context, *PromotionActivityListRequest) (*PromotionActivityListResponse, error)
 	// 创建活动配置。
@@ -607,6 +725,8 @@ type AdminServiceServer interface {
 	CreateExportTask(context.Context, *ExportTaskRequest) (*ExportTaskResponse, error)
 	// 查询导出任务列表。
 	ListExportTasks(context.Context, *ExportTaskListRequest) (*ExportTaskListResponse, error)
+	// 查询导出任务详情。
+	GetExportTask(context.Context, *ExportTaskDetailRequest) (*ExportTask, error)
 	// 查询风控黑名单列表。
 	ListBlacklists(context.Context, *BlacklistListRequest) (*BlacklistListResponse, error)
 	// 新增风控黑名单。
@@ -630,6 +750,9 @@ func (UnimplementedAdminServiceServer) Login(context.Context, *LoginRequest) (*A
 }
 func (UnimplementedAdminServiceServer) Logout(context.Context, *LogoutRequest) (*CommonResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
+}
+func (UnimplementedAdminServiceServer) ValidateSession(context.Context, *ValidateSessionRequest) (*ValidateSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateSession not implemented")
 }
 func (UnimplementedAdminServiceServer) Me(context.Context, *MeRequest) (*MeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Me not implemented")
@@ -694,6 +817,24 @@ func (UnimplementedAdminServiceServer) IssueCoupon(context.Context, *CouponIssue
 func (UnimplementedAdminServiceServer) ListCouponIssueTasks(context.Context, *CouponIssueTaskListRequest) (*CouponIssueTaskListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListCouponIssueTasks not implemented")
 }
+func (UnimplementedAdminServiceServer) ListPriceRules(context.Context, *PriceRuleListRequest) (*PriceRuleListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPriceRules not implemented")
+}
+func (UnimplementedAdminServiceServer) GetPriceRule(context.Context, *PriceRuleDetailRequest) (*PriceRule, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) CreatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) EnablePriceRule(context.Context, *PriceRuleStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnablePriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) DisablePriceRule(context.Context, *PriceRuleStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DisablePriceRule not implemented")
+}
 func (UnimplementedAdminServiceServer) ListPromotionActivities(context.Context, *PromotionActivityListRequest) (*PromotionActivityListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListPromotionActivities not implemented")
 }
@@ -723,6 +864,9 @@ func (UnimplementedAdminServiceServer) CreateExportTask(context.Context, *Export
 }
 func (UnimplementedAdminServiceServer) ListExportTasks(context.Context, *ExportTaskListRequest) (*ExportTaskListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListExportTasks not implemented")
+}
+func (UnimplementedAdminServiceServer) GetExportTask(context.Context, *ExportTaskDetailRequest) (*ExportTask, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExportTask not implemented")
 }
 func (UnimplementedAdminServiceServer) ListBlacklists(context.Context, *BlacklistListRequest) (*BlacklistListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListBlacklists not implemented")
@@ -799,6 +943,24 @@ func _AdminService_Logout_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AdminServiceServer).Logout(ctx, req.(*LogoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ValidateSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ValidateSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ValidateSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ValidateSession(ctx, req.(*ValidateSessionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1181,6 +1343,114 @@ func _AdminService_ListCouponIssueTasks_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_ListPriceRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListPriceRules(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListPriceRules_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListPriceRules(ctx, req.(*PriceRuleListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetPriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetPriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetPriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetPriceRule(ctx, req.(*PriceRuleDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreatePriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreatePriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreatePriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreatePriceRule(ctx, req.(*PriceRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdatePriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdatePriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdatePriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdatePriceRule(ctx, req.(*PriceRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_EnablePriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).EnablePriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_EnablePriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).EnablePriceRule(ctx, req.(*PriceRuleStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_DisablePriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).DisablePriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_DisablePriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).DisablePriceRule(ctx, req.(*PriceRuleStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_ListPromotionActivities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PromotionActivityListRequest)
 	if err := dec(in); err != nil {
@@ -1361,6 +1631,24 @@ func _AdminService_ListExportTasks_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_GetExportTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportTaskDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetExportTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetExportTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetExportTask(ctx, req.(*ExportTaskDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_ListBlacklists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BlacklistListRequest)
 	if err := dec(in); err != nil {
@@ -1453,6 +1741,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_Logout_Handler,
 		},
 		{
+			MethodName: "ValidateSession",
+			Handler:    _AdminService_ValidateSession_Handler,
+		},
+		{
 			MethodName: "Me",
 			Handler:    _AdminService_Me_Handler,
 		},
@@ -1537,6 +1829,30 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_ListCouponIssueTasks_Handler,
 		},
 		{
+			MethodName: "ListPriceRules",
+			Handler:    _AdminService_ListPriceRules_Handler,
+		},
+		{
+			MethodName: "GetPriceRule",
+			Handler:    _AdminService_GetPriceRule_Handler,
+		},
+		{
+			MethodName: "CreatePriceRule",
+			Handler:    _AdminService_CreatePriceRule_Handler,
+		},
+		{
+			MethodName: "UpdatePriceRule",
+			Handler:    _AdminService_UpdatePriceRule_Handler,
+		},
+		{
+			MethodName: "EnablePriceRule",
+			Handler:    _AdminService_EnablePriceRule_Handler,
+		},
+		{
+			MethodName: "DisablePriceRule",
+			Handler:    _AdminService_DisablePriceRule_Handler,
+		},
+		{
 			MethodName: "ListPromotionActivities",
 			Handler:    _AdminService_ListPromotionActivities_Handler,
 		},
@@ -1577,6 +1893,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_ListExportTasks_Handler,
 		},
 		{
+			MethodName: "GetExportTask",
+			Handler:    _AdminService_GetExportTask_Handler,
+		},
+		{
 			MethodName: "ListBlacklists",
 			Handler:    _AdminService_ListBlacklists_Handler,
 		},
@@ -1594,5 +1914,5 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "rpc/adminsvc/admin.proto",
+	Metadata: "admin.proto",
 }

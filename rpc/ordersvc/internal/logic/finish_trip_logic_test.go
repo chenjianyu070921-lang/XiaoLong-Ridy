@@ -101,6 +101,7 @@ func TestFinishTripRejectDriverMismatch(t *testing.T) {
 }
 
 type fakePayClient struct {
+	pay.Pay
 	createPayment func(ctx context.Context, in *pay.CreatePaymentRequest) (*pay.CreatePaymentResponse, error)
 	gotOrderId    int64
 	gotUserId     int64

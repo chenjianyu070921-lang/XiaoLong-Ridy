@@ -40,3 +40,33 @@ func (s *PriceServer) SaveActualOrderPrice(ctx context.Context, in *proto.SaveAc
 	l := logic.NewSaveActualOrderPriceLogic(ctx, s.svcCtx)
 	return l.SaveActualOrderPrice(in)
 }
+
+// 计价规则列表查询。
+func (s *PriceServer) ListPriceRules(ctx context.Context, in *proto.PriceRuleListRequest) (*proto.PriceRuleListResponse, error) {
+	l := logic.NewPriceRuleAdminLogic(ctx, s.svcCtx)
+	return l.ListPriceRules(in)
+}
+
+// 计价规则详情查询。
+func (s *PriceServer) GetPriceRule(ctx context.Context, in *proto.PriceRuleDetailRequest) (*proto.PriceRule, error) {
+	l := logic.NewPriceRuleAdminLogic(ctx, s.svcCtx)
+	return l.GetPriceRule(in)
+}
+
+// 创建计价规则。
+func (s *PriceServer) CreatePriceRule(ctx context.Context, in *proto.PriceRuleRequest) (*proto.CommonResponse, error) {
+	l := logic.NewPriceRuleAdminLogic(ctx, s.svcCtx)
+	return l.CreatePriceRule(in)
+}
+
+// 更新计价规则。
+func (s *PriceServer) UpdatePriceRule(ctx context.Context, in *proto.PriceRuleRequest) (*proto.CommonResponse, error) {
+	l := logic.NewPriceRuleAdminLogic(ctx, s.svcCtx)
+	return l.UpdatePriceRule(in)
+}
+
+// 更新计价规则状态。
+func (s *PriceServer) SetPriceRuleStatus(ctx context.Context, in *proto.PriceRuleStatusRequest) (*proto.CommonResponse, error) {
+	l := logic.NewPriceRuleAdminLogic(ctx, s.svcCtx)
+	return l.SetPriceRuleStatus(in)
+}

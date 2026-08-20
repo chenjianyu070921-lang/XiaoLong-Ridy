@@ -17,3 +17,5 @@ OrdersRPC:
   Target: 127.0.0.1:50051
 DriversRPC:
   Target: 127.0.0.1:8080
+PricesRPC:
+  Target: 127.0.0.1:50053

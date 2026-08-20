@@ -19,6 +19,13 @@ type (
 	Coupon                       = proto.Coupon
 	EstimatePriceRequest         = proto.EstimatePriceRequest
 	EstimatePriceResponse        = proto.EstimatePriceResponse
+	CommonResponse               = proto.CommonResponse
+	PriceRule                    = proto.PriceRule
+	PriceRuleDetailRequest       = proto.PriceRuleDetailRequest
+	PriceRuleListRequest         = proto.PriceRuleListRequest
+	PriceRuleListResponse        = proto.PriceRuleListResponse
+	PriceRuleRequest             = proto.PriceRuleRequest
+	PriceRuleStatusRequest       = proto.PriceRuleStatusRequest
 	PriceDetail                  = proto.PriceDetail
 	SaveActualOrderPriceRequest  = proto.SaveActualOrderPriceRequest
 	SaveActualOrderPriceResponse = proto.SaveActualOrderPriceResponse
@@ -30,6 +37,16 @@ type (
 		CalculateDiscount(ctx context.Context, in *CalculateDiscountRequest, opts ...grpc.CallOption) (*CalculateDiscountResponse, error)
 		// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
 		SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error)
+		// 计价规则列表查询。
+		ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error)
+		// 计价规则详情查询。
+		GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error)
+		// 创建计价规则。
+		CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 更新计价规则。
+		UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 更新计价规则状态。
+		SetPriceRuleStatus(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	}
 
 	defaultPrice struct {
@@ -59,4 +76,34 @@ func (m *defaultPrice) CalculateDiscount(ctx context.Context, in *CalculateDisco
 func (m *defaultPrice) SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error) {
 	client := proto.NewPriceClient(m.cli.Conn())
 	return client.SaveActualOrderPrice(ctx, in, opts...)
+}
+
+// 计价规则列表查询。
+func (m *defaultPrice) ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error) {
+	client := proto.NewPriceClient(m.cli.Conn())
+	return client.ListPriceRules(ctx, in, opts...)
+}
+
+// 计价规则详情查询。
+func (m *defaultPrice) GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error) {
+	client := proto.NewPriceClient(m.cli.Conn())
+	return client.GetPriceRule(ctx, in, opts...)
+}
+
+// 创建计价规则。
+func (m *defaultPrice) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := proto.NewPriceClient(m.cli.Conn())
+	return client.CreatePriceRule(ctx, in, opts...)
+}
+
+// 更新计价规则。
+func (m *defaultPrice) UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := proto.NewPriceClient(m.cli.Conn())
+	return client.UpdatePriceRule(ctx, in, opts...)
+}
+
+// 更新计价规则状态。
+func (m *defaultPrice) SetPriceRuleStatus(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := proto.NewPriceClient(m.cli.Conn())
+	return client.SetPriceRuleStatus(ctx, in, opts...)
 }

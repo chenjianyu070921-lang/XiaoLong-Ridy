@@ -34,6 +34,9 @@ pricesvc-goctl:
 	--zrpc_out=rpc/pricesvc \
 	--style=go_zero
 
+adminsvc-goctl:
+	powershell -ExecutionPolicy Bypass -File scripts/admin-test/regenerate_adminsvc_proto.ps1
+
 pushesvc-goctl:
 	goctl rpc protoc rpc/pushesvc/proto/pushesvc.proto \
 	--go_out=rpc/pushesvc/proto \

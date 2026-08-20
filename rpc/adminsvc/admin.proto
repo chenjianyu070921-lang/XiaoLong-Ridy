@@ -13,6 +13,8 @@ service AdminService {
   rpc Login(LoginRequest) returns (AuthResponse);
   // 管理员退出登录。
   rpc Logout(LogoutRequest) returns (CommonResponse);
+  // 校验管理员登录会话。
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
   // 查询当前管理员信息。
   rpc Me(MeRequest) returns (MeResponse);
   // 查询角色菜单。
@@ -55,6 +57,18 @@ service AdminService {
   rpc IssueCoupon(CouponIssueRequest) returns (CouponIssueResponse);
   // 查询优惠券发放任务列表。
   rpc ListCouponIssueTasks(CouponIssueTaskListRequest) returns (CouponIssueTaskListResponse);
+  // 查询计价规则列表。
+  rpc ListPriceRules(PriceRuleListRequest) returns (PriceRuleListResponse);
+  // 查询计价规则详情。
+  rpc GetPriceRule(PriceRuleDetailRequest) returns (PriceRule);
+  // 创建计价规则。
+  rpc CreatePriceRule(PriceRuleRequest) returns (CommonResponse);
+  // 更新计价规则。
+  rpc UpdatePriceRule(PriceRuleRequest) returns (CommonResponse);
+  // 启用计价规则。
+  rpc EnablePriceRule(PriceRuleStatusRequest) returns (CommonResponse);
+  // 停用计价规则。
+  rpc DisablePriceRule(PriceRuleStatusRequest) returns (CommonResponse);
   // 查询活动配置列表。
   rpc ListPromotionActivities(PromotionActivityListRequest) returns (PromotionActivityListResponse);
   // 创建活动配置。
@@ -75,6 +89,8 @@ service AdminService {
   rpc CreateExportTask(ExportTaskRequest) returns (ExportTaskResponse);
   // 查询导出任务列表。
   rpc ListExportTasks(ExportTaskListRequest) returns (ExportTaskListResponse);
+  // 查询导出任务详情。
+  rpc GetExportTask(ExportTaskDetailRequest) returns (ExportTask);
   // 查询风控黑名单列表。
   rpc ListBlacklists(BlacklistListRequest) returns (BlacklistListResponse);
   // 新增风控黑名单。
@@ -117,8 +133,17 @@ message LogoutRequest {
   string token = 1;
 }
 
+message ValidateSessionRequest {
+  string token = 1;
+}
+
+message ValidateSessionResponse {
+  Admin admin = 1;
+}
+
 message MeRequest {
   int64 admin_id = 1;
+  string token = 2;
 }
 
 message MeResponse {
@@ -128,6 +153,7 @@ message MeResponse {
 message MenusRequest {
   int64 admin_id = 1;
   int32 role = 2;
+  string token = 3;
 }
 
 message MenuItem {
@@ -504,6 +530,73 @@ message CouponIssueResponse {
   string status = 5;
 }
 
+message PriceRule {
+  int64 id = 1;
+  string name = 2;
+  string city_code = 3;
+  int32 car_type = 4;
+  string base_price = 5;
+  string base_distance_km = 6;
+  string per_km_price = 7;
+  string per_minute_price = 8;
+  string night_start_time = 9;
+  string night_end_time = 10;
+  string night_surcharge = 11;
+  string dynamic_max_factor = 12;
+  int32 status = 13;
+  string effective_at = 14;
+  string expire_at = 15;
+  string created_at = 16;
+  string updated_at = 17;
+}
+
+message PriceRuleListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  string city_code = 4;
+  int32 car_type = 5;
+  int32 status = 6;
+}
+
+message PriceRuleListResponse {
+  repeated PriceRule list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message PriceRuleDetailRequest {
+  int64 id = 1;
+}
+
+message PriceRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  string city_code = 3;
+  int32 car_type = 4;
+  string base_price = 5;
+  string base_distance_km = 6;
+  string per_km_price = 7;
+  string per_minute_price = 8;
+  string night_start_time = 9;
+  string night_end_time = 10;
+  string night_surcharge = 11;
+  string dynamic_max_factor = 12;
+  int32 status = 13;
+  string effective_at = 14;
+  string expire_at = 15;
+  int64 admin_id = 16;
+  string ip = 17;
+}
+
+message PriceRuleStatusRequest {
+  int64 id = 1;
+  int32 status = 2;
+  int64 admin_id = 3;
+  string ip = 4;
+}
+
 message CouponIssueTaskListRequest {
   int32 page = 1;
   int32 page_size = 2;
@@ -641,6 +734,10 @@ message ExportTaskListRequest {
   string export_type = 3;
 }
 
+message ExportTaskDetailRequest {
+  string task_no = 1;
+}
+
 message ExportTask {
   string task_no = 1;
   string export_type = 2;
@@ -648,6 +745,9 @@ message ExportTask {
   string status = 4;
   int64 admin_id = 5;
   string created_at = 6;
+  string file_path = 7;
+  string failure_reason = 8;
+  string updated_at = 9;
 }
 
 message ExportTaskListResponse {

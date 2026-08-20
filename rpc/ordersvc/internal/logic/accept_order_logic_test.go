@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
@@ -13,6 +14,13 @@ import (
 func TestAcceptOrderSuccess(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
+	if err := repo.CreateDispatchRecord(context.Background(), &model.DispatchRecord{
+		OrderId:  order.Id,
+		DriverId: 2002,
+		Status:   1,
+	}); err != nil {
+		t.Fatalf("seed dispatch record error = %v", err)
+	}
 	l := NewAcceptOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
 
 	resp, err := l.AcceptOrder(&proto.AcceptOrderRequest{

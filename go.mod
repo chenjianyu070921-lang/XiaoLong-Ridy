@@ -14,6 +14,7 @@ require (
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.2
 )
+
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
@@ -34,7 +35,6 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect
-	github.com/go-sql-driver/mysql v1.10.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect

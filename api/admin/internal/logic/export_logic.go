@@ -45,3 +45,9 @@ func (l *ExportLogic) List(ctx context.Context, page, pageSize int, exportType s
 	}
 	return &types.PageResult{List: resp.List, Total: resp.Total, Page: int(resp.Page), PageSize: int(resp.PageSize)}, nil
 }
+
+// Detail 查询单个导出任务详情。
+// 任务状态、文件路径和失败原因均由 adminsvc 维护，HTTP 层只透传任务编号。
+func (l *ExportLogic) Detail(ctx context.Context, taskNo string) (*adminclient.ExportTask, error) {
+	return l.ctx.AdminSvc.GetExportTask(ctx, &adminclient.ExportTaskDetailRequest{TaskNo: taskNo})
+}
