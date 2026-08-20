@@ -1,15 +1,19 @@
 package config
 
-import "github.com/zeromicro/go-zero/zrpc"
+import (
+	"XiaoLong-Ridy/common/realname"
+	"github.com/zeromicro/go-zero/zrpc"
+)
 
 // Config 是 usersvc 的 RPC 服务配置，遵循 goctl 生成的配置承载方式。
 type Config struct {
 	zrpc.RpcServerConf
 
-	Mysql      MysqlConf `yaml:"mysql" json:"mysql"`
-	CacheRedis RedisConf `yaml:"cacheRedis" json:"cacheRedis"`
-	SMS        SMSConf   `yaml:"sms" json:"sms"`
-	TokenAuth  AuthConf  `yaml:"tokenAuth" json:"tokenAuth"`
+	Mysql        MysqlConf                   `yaml:"mysql" json:"mysql"`
+	CacheRedis   RedisConf                   `yaml:"cacheRedis" json:"cacheRedis"`
+	SMS          SMSConf                     `yaml:"sms" json:"sms"`
+	TokenAuth    AuthConf                    `yaml:"tokenAuth" json:"tokenAuth"`
+	TencentCloud realname.TencentCloudConfig `yaml:"tencentCloud" json:"tencentCloud"` // 腾讯云服务配置（短信+实名认证）
 }
 
 // MysqlConf 保存 usersvc 持久化用户和地址数据所需的 MySQL 配置。
