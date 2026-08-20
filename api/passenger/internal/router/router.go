@@ -15,6 +15,7 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	registerOrderRoutes(mux, svcCtx)
 	registerAddressRoutes(mux, svcCtx)
 	registerCouponRoutes(mux, svcCtx)
+	registerReviewRoutes(mux, svcCtx)
 	return mux
 }
 
@@ -46,6 +47,7 @@ func registerOrderRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/orders/list", handler.ListOrdersHandler(svcCtx))
 	// 查询订单详情接口，返回当前乘客指定订单的完整行程信息。
 	mux.HandleFunc("/api/passenger/v1/orders/detail", handler.GetOrderHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/orders/status", handler.PollOrderStatusHandler(svcCtx))
 	// 取消订单接口，由当前乘客发起订单取消操作。
 	mux.HandleFunc("/api/passenger/v1/orders/cancel", handler.CancelOrderHandler(svcCtx))
 	// 发起支付接口，校验订单归属和待支付状态后调用支付服务。
@@ -70,4 +72,8 @@ func registerCouponRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/coupons/claim", handler.ClaimCouponHandler(svcCtx))
 	// 查询我的优惠券接口，按状态返回当前乘客已领取的优惠券。
 	mux.HandleFunc("/api/passenger/v1/coupons/my", handler.ListMyCouponsHandler(svcCtx))
+}
+
+func registerReviewRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
+	mux.HandleFunc("/api/passenger/v1/reviews/submit", handler.SubmitReviewHandler(svcCtx))
 }

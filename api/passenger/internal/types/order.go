@@ -9,6 +9,7 @@ type CreateOrderRequest struct {
 	ToAddress              string  `json:"toAddress"`
 	ToLongitude            float64 `json:"toLongitude"`
 	ToLatitude             float64 `json:"toLatitude"`
+	CityCode               string  `json:"cityCode"`
 	UserCouponID           uint64  `json:"userCouponId"`
 	CouponID               int64   `json:"couponId"`
 	CouponType             int32   `json:"couponType"`
@@ -110,4 +111,17 @@ type PayOrderResponse struct {
 	TransactionID string `json:"transactionId"`
 	PayParams     string `json:"payParams"`
 	Status        int32  `json:"status"`
+}
+
+type OrderStatusPollRequest struct {
+	OrderID     int64 `json:"orderId"`
+	KnownStatus int32 `json:"knownStatus"`
+}
+
+type OrderStatusPollResponse struct {
+	OrderID   int64 `json:"orderId"`
+	Status    int32 `json:"status"`
+	Changed   bool  `json:"changed"`
+	UpdatedAt int64 `json:"updatedAt"`
+	DriverID  int64 `json:"driverId"`
 }

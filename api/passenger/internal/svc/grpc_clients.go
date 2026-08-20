@@ -166,9 +166,13 @@ func (c *grpcPriceClient) EstimatePrice(ctx context.Context, req *priceclient.Es
 		durationS = 60
 	}
 
+	cityCode := strings.TrimSpace(req.CityCode)
+	if cityCode == "" {
+		cityCode = c.cityCode
+	}
 	resp, err := c.cli.EstimatePrice(ctx, &priceproto.EstimatePriceRequest{
 		UserId:    req.UserID,
-		CityCode:  c.cityCode,
+		CityCode:  cityCode,
 		CarType:   req.CarType,
 		DistanceM: distanceM,
 		DurationS: durationS,

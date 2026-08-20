@@ -43,11 +43,17 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 	case matchesBusinessError(err, userproto.ErrUserNotFound):
 		writeError(w, http.StatusNotFound, codeUserNotFound, "用户不存在")
 	case matchesBusinessError(err, userproto.ErrCouponNotFound):
-		writeError(w, http.StatusNotFound, codeInvalidRequest, "优惠券不存在")
+		writeError(w, http.StatusNotFound, codeCouponNotFound, "优惠券不存在")
+	case matchesBusinessError(err, userproto.ErrUserCouponNotFound):
+		writeError(w, http.StatusNotFound, codeCouponNotFound, "用户优惠券不存在")
 	case matchesBusinessError(err, userproto.ErrCouponUnavailable):
-		writeError(w, http.StatusBadRequest, codeInvalidRequest, "优惠券不可领取")
+		writeError(w, http.StatusBadRequest, codeCouponUnavailable, "优惠券不可用")
 	case matchesBusinessError(err, userproto.ErrCouponReceiveLimit):
-		writeError(w, http.StatusBadRequest, codeInvalidRequest, "优惠券领取次数已达上限")
+		writeError(w, http.StatusBadRequest, codeCouponReceiveLimit, "优惠券领取次数已达上限")
+	case errors.Is(err, logic.ErrReviewAlreadyExists):
+		writeError(w, http.StatusBadRequest, codeReviewAlreadyExists, "订单已评价")
+	case errors.Is(err, logic.ErrReviewRepositoryNotConfigured):
+		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "评价服务未配置")
 	default:
 		writeError(w, http.StatusInternalServerError, codeInternalError, "服务器内部错误")
 	}

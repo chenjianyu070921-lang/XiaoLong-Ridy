@@ -31,6 +31,10 @@ const (
 	codeInvalidAddressPhone = 41011
 	// codeInvalidLongitudeLatitude 表示常用地址或下单经纬度错误。
 	codeInvalidLongitudeLatitude = 41014
+	codeCouponNotFound           = 41015
+	codeCouponUnavailable        = 41016
+	codeCouponReceiveLimit       = 41017
+	codeReviewAlreadyExists      = 41018
 	// codeInternalError 表示服务器内部错误。
 	codeInternalError = 50000
 	// codeDownstreamUnavailable 表示下游 RPC 服务不可用。

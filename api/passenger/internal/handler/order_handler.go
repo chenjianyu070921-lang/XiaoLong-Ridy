@@ -87,3 +87,18 @@ func PayOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+func PollOrderStatusHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.OrderStatusPollRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx, bearerToken(r)).PollOrderStatus(&req)
+		if err != nil {
+			writeBusinessError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

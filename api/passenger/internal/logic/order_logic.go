@@ -3,7 +3,6 @@ package logic
 import (
 	"context"
 	"strings"
-	"time"
 
 	"XiaoLong-Ridy/api/passenger/internal/svc"
 	"XiaoLong-Ridy/api/passenger/internal/types"
@@ -45,6 +44,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 
 	price, err := priceClient.EstimatePrice(l.ctx, &priceclient.EstimatePriceRequest{
 		UserID:        int64(userID),
+		CityCode:      orderCityCode(req.CityCode),
 		CarType:       req.CarType,
 		FromLongitude: req.FromLongitude,
 		FromLatitude:  req.FromLatitude,
@@ -57,32 +57,21 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 	originalPriceCents := price.EstimatedPriceCents
 	discountAmountCents := int64(0)
 	payableAmountCents := originalPriceCents
-	lockOrderID := uint64(0)
+	var selectedCoupon *userproto.CouponInfo
 	if hasUserCoupon(req) {
 		userClient, err := l.userClient()
 		if err != nil {
 			return nil, err
 		}
-		lockOrderID = couponLockOrderID()
-		lockedCoupon, err := userClient.LockUserCoupon(l.ctx, &userproto.LockUserCouponRequest{
-			UserId:       userID,
-			UserCouponId: req.UserCouponID,
-			OrderId:      lockOrderID,
-			CarType:      req.CarType,
-		})
+		selectedCoupon, err = l.findUserCoupon(userClient, userID, req.UserCouponID)
 		if err != nil {
 			return nil, err
 		}
-		if lockedCoupon.GetCoupon() == nil {
-			return nil, ErrInvalidRequest
-		}
 		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
 			TotalCents: originalPriceCents,
-			OrderID:    int64(lockOrderID),
-			Coupon:     toPriceCoupon(lockedCoupon.GetCoupon()),
+			Coupon:     toPriceCoupon(selectedCoupon),
 		})
 		if err != nil {
-			releaseLockedCoupon(l.ctx, userClient, userID, req.UserCouponID, lockOrderID)
 			return nil, err
 		}
 		discountAmountCents = discount.DiscountAmountCents
@@ -101,20 +90,39 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		EstimatedDistanceM:  price.EstimatedDistanceM,
 		EstimatedDurationS:  price.EstimatedDurationS,
 		EstimatedPriceCents: payableAmountCents,
+		CityCode:            orderCityCode(req.CityCode),
 	})
 	if err != nil {
-		if hasUserCoupon(req) {
-			userClient, clientErr := l.userClient()
-			if clientErr == nil {
-				releaseLockedCoupon(l.ctx, userClient, userID, req.UserCouponID, lockOrderID)
-			}
-		}
 		return nil, err
+	}
+	if hasUserCoupon(req) {
+		userClient, err := l.userClient()
+		if err != nil {
+			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券服务不可用")
+			return nil, err
+		}
+		lockOrderID := uint64(order.GetOrderId())
+		lockedCoupon, err := userClient.LockUserCoupon(l.ctx, &userproto.LockUserCouponRequest{
+			UserId:       userID,
+			UserCouponId: req.UserCouponID,
+			OrderId:      lockOrderID,
+			CarType:      req.CarType,
+			CityCode:     orderCityCode(req.CityCode),
+		})
+		if err != nil {
+			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券锁定失败")
+			return nil, err
+		}
+		if lockedCoupon.GetCoupon() == nil || selectedCoupon == nil || lockedCoupon.GetCoupon().GetUserCouponId() != selectedCoupon.GetUserCouponId() {
+			releaseLockedCoupon(l.ctx, userClient, userID, req.UserCouponID, lockOrderID)
+			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券信息异常")
+			return nil, ErrInvalidRequest
+		}
 	}
 	return &types.CreateOrderResponse{
 		OrderID:             order.GetOrderId(),
 		OrderNo:             order.GetOrderNo(),
-		EstimatedPriceCents: order.GetEstimatedPriceCents(),
+		EstimatedPriceCents: payableAmountCents,
 		OriginalPriceCents:  originalPriceCents,
 		DiscountAmountCents: discountAmountCents,
 		PayableAmountCents:  payableAmountCents,
@@ -298,11 +306,6 @@ func hasUserCoupon(req *types.CreateOrderRequest) bool {
 	return req != nil && req.UserCouponID > 0
 }
 
-// couponLockOrderID 生成下单前锁券使用的临时锁标识，后续释放锁必须携带同一个值。
-func couponLockOrderID() uint64 {
-	return uint64(time.Now().UnixNano())
-}
-
 // toPriceCoupon 将 usersvc 校验并锁定后的券信息转换为 pricesvc 抵扣计算参数。
 func toPriceCoupon(coupon *userproto.CouponInfo) priceclient.Coupon {
 	if coupon == nil {
@@ -410,4 +413,57 @@ func toOrderDetail(order *orderproto.GetOrderResponse) *types.OrderDetail {
 		CreatedAt:           order.GetCreatedAt(),
 		UpdatedAt:           order.GetUpdatedAt(),
 	}
+}
+
+func cancelCreatedOrder(ctx context.Context, orderClient svc.OrderClient, orderID int64, userID uint64, reason string) {
+	if orderClient == nil || orderID <= 0 || userID == 0 {
+		return
+	}
+	_, _ = orderClient.CancelOrder(ctx, &orderproto.CancelOrderRequest{OrderId: orderID, OperatorType: "system", OperatorId: int64(userID), Reason: reason})
+}
+
+func (l *OrderLogic) findUserCoupon(userClient svc.UserClient, userID, userCouponID uint64) (*userproto.CouponInfo, error) {
+	if userClient == nil || userID == 0 || userCouponID == 0 {
+		return nil, ErrInvalidRequest
+	}
+	resp, err := userClient.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{UserId: userID, Status: 1})
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range resp.GetList() {
+		if item.GetUserCouponId() == userCouponID {
+			return item, nil
+		}
+	}
+	return nil, userproto.ErrUserCouponNotFound
+}
+
+func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.OrderStatusPollResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetUserId() != int64(userID) {
+		return nil, ErrForbidden
+	}
+	status := int32(order.GetStatus())
+	return &types.OrderStatusPollResponse{OrderID: order.GetOrderId(), Status: status, Changed: req.KnownStatus != status, UpdatedAt: order.GetUpdatedAt(), DriverID: order.GetDriverId()}, nil
+}
+
+func orderCityCode(cityCode string) string {
+	if cityCode = strings.TrimSpace(cityCode); cityCode == "" {
+		return "110000"
+	}
+	return cityCode
 }
