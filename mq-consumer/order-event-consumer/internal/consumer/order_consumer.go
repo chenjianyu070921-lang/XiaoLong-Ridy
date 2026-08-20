@@ -7,7 +7,10 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/svc"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
+	order "XiaoLong-Ridy/rpc/ordersvc/order"
 )
+
+const topicOrderPaid = "order.paid"
 
 // OrderCreatedEvent 与 ordersvc 发布的事件字段保持一致。
 type OrderCreatedEvent struct {
@@ -17,6 +20,14 @@ type OrderCreatedEvent struct {
 	FromLatitude  float64 `json:"from_latitude"`
 	CarType       int32   `json:"car_type"`
 	CityCode      string  `json:"city_code"`
+}
+
+// OrderPaidEvent 对齐 paysvc 支付成功后发布的 order.paid 事件载荷。
+type OrderPaidEvent struct {
+	OrderID     int64  `json:"order_id"`
+	PaymentNo   string `json:"payment_no"`
+	AmountCents int64  `json:"amount_cents"`
+	PaidAt      int64  `json:"paid_at"`
 }
 
 // OrderConsumer 消费订单事件并触发派单。
@@ -34,9 +45,17 @@ func (c *OrderConsumer) Start(ctx context.Context) error {
 }
 
 func (c *OrderConsumer) handle(ctx context.Context, topic string, payload []byte) error {
-	if topic != constants.TopicOrderCreated {
+	switch topic {
+	case constants.TopicOrderCreated:
+		return c.handleOrderCreated(ctx, payload)
+	case topicOrderPaid:
+		return c.handleOrderPaid(ctx, payload)
+	default:
 		return nil
 	}
+}
+
+func (c *OrderConsumer) handleOrderCreated(ctx context.Context, payload []byte) error {
 	var evt OrderCreatedEvent
 	if err := json.Unmarshal(payload, &evt); err != nil {
 		return err
@@ -47,6 +66,20 @@ func (c *OrderConsumer) handle(ctx context.Context, topic string, payload []byte
 		FromLatitude:  evt.FromLatitude,
 		CarType:       evt.CarType,
 		CityCode:      evt.CityCode,
+	})
+	return err
+}
+
+func (c *OrderConsumer) handleOrderPaid(ctx context.Context, payload []byte) error {
+	var evt OrderPaidEvent
+	if err := json.Unmarshal(payload, &evt); err != nil {
+		return err
+	}
+	_, err := c.svcCtx.OrderClient.ConfirmPaid(ctx, &order.ConfirmPaidRequest{
+		OrderId:     evt.OrderID,
+		PaymentNo:   evt.PaymentNo,
+		AmountCents: evt.AmountCents,
+		PaidAt:      evt.PaidAt,
 	})
 	return err
 }

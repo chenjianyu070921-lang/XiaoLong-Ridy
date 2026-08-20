@@ -9,6 +9,9 @@ Redis:
 DispatchRPC:
   Target: 127.0.0.1:8083
 
+OrderRPC:
+  Target: 127.0.0.1:50051
+
 Log:
   ServiceName: orderclient-event-consumer
   Mode: console

@@ -24,6 +24,7 @@ type ServiceContext struct {
 	Redis           *redis.Client
 	EventBus        events.Bus
 	OrderRepository repository.OrderRepository
+	CouponConsumer  repository.CouponConsumer
 	DispatchClient  dispatch.Dispatch
 	PriceClient     price.Price
 	PayClient       pay.Pay
@@ -77,6 +78,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Redis:           redisClient,
 		EventBus:        events.NewRedisStreamBus(redisClient, constants.OrderEventStream),
 		OrderRepository: repository.NewGormOrderRepository(client),
+		CouponConsumer:  repository.NewGormCouponConsumer(client),
 		DispatchClient:  dispatch.NewDispatch(dispatchClient),
 		PriceClient:     price.NewPrice(priceClient),
 		PayClient:       pay.NewPay(payClient),
