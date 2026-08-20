@@ -5,16 +5,17 @@ import (
 	"context" // 用于在各层之间传递请求上下文与取消信号
 	"time"    // 验证码缓存有效期
 
-	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"        // driversvc 的 proto 定义（请求/响应类型）
-	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"           // ordersvc 的 proto 定义（接单/行程类型）
-	"google.golang.org/grpc"                                // gRPC 核心库，用于建立连接
-	"google.golang.org/grpc/credentials/insecure"           // 提供非加密（明文）连接凭据，本地联调使用
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto" // driversvc 的 proto 定义（请求/响应类型）
+	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"    // ordersvc 的 proto 定义（接单/行程类型）
+
+	"google.golang.org/grpc"                      // gRPC 核心库，用于建立连接
+	"google.golang.org/grpc/credentials/insecure" // 提供非加密（明文）连接凭据，本地联调使用
 )
 
 // DriverClient 定义 driver API 调用 driversvc 的公开契约（接口）。
 // 当前暴露司机「增删改查」四个核心接口，以及登录所需的按手机号查询，为后续对接留出清晰边界。
 type DriverClient interface {
-	// CreateDriver 调用创建司机接口。
+	// CreateDriver 调用管理员创建司机接口（后台建号）。
 	CreateDriver(ctx context.Context, req *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error)
 	// UpdateDriver 调用更新司机接口。
 	UpdateDriver(ctx context.Context, req *driversproto.UpdateDriverRequest) (*driversproto.UpdateDriverResponse, error)
@@ -46,7 +47,7 @@ type grpcClient struct {
 	cli driversproto.DriversvcClient
 }
 
-// CreateDriver 转发创建司机请求到 driversvc。
+// CreateDriver 转发管理员创建司机请求到 driversvc。
 func (g *grpcClient) CreateDriver(ctx context.Context, req *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
 	return g.cli.CreateDriver(ctx, req)
 }

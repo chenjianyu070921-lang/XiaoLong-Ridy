@@ -24,13 +24,16 @@ func NewOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *OrderLogic 
 // driverID 由鉴权中间件从 JWT 解析后传入（代表当前登录司机），orderID 来自请求体。
 // 内部调用 ordersvc.AcceptOrder，将订单状态由「待接单(1)」推进到「已接单(2)」并绑定司机。
 func (l *OrderLogic) AcceptOrder(driverID, orderID int64) (*types.AcceptOrderResponse, error) {
+	if !validDriverOrder(driverID, orderID) {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.orderClient()
 	if err != nil {
 		return nil, err
 	}
 	resp, err := client.AcceptOrder(l.ctx, &orderproto.AcceptOrderRequest{
-		OrderId:   orderID,
-		DriverId:  driverID,
+		OrderId:  orderID,
+		DriverId: driverID,
 	})
 	if err != nil {
 		return nil, err
@@ -45,6 +48,9 @@ func (l *OrderLogic) AcceptOrder(driverID, orderID int64) (*types.AcceptOrderRes
 // driverID 来自 JWT，orderID 来自请求体。
 // 内部调用 ordersvc.StartTrip，将订单状态由「已接单(2)」推进到「行程中(3)」。
 func (l *OrderLogic) StartTrip(driverID, orderID int64) (*types.StartTripResponse, error) {
+	if !validDriverOrder(driverID, orderID) {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.orderClient()
 	if err != nil {
 		return nil, err
@@ -67,6 +73,9 @@ func (l *OrderLogic) StartTrip(driverID, orderID int64) (*types.StartTripRespons
 // 内部调用 ordersvc.ConfirmArrive，写入「司机已到达」状态日志（订单状态保持不变，仍为「已接单(2)」），
 // 用于告知后续开始行程的前置节点。
 func (l *OrderLogic) ConfirmArrive(driverID, orderID int64) (*types.ConfirmArriveResponse, error) {
+	if !validDriverOrder(driverID, orderID) {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.orderClient()
 	if err != nil {
 		return nil, err
@@ -88,6 +97,9 @@ func (l *OrderLogic) ConfirmArrive(driverID, orderID int64) (*types.ConfirmArriv
 // driverID 来自 JWT；req 含 orderID 与实际上报数据（里程/时长/金额）。
 // 内部调用 ordersvc.FinishTrip，将订单状态由「行程中(3)」推进到「待支付(4)」，并返回应付金额。
 func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*types.FinishTripResponse, error) {
+	if driverID <= 0 || !validFinishTripRequest(req) {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.orderClient()
 	if err != nil {
 		return nil, err
@@ -107,6 +119,25 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 		Status:             int32(resp.GetStatus()),
 		PayableAmountCents: resp.GetPayableAmountCents(),
 	}, nil
+}
+
+// RejectOrder 司机拒绝派单。
+// TODO: 待 dispatchsvc 提供 RejectDispatch 后，在这里调用该 RPC；当前只保留司机端业务骨架，不实际调用下游。
+func (l *OrderLogic) RejectOrder(driverID int64, req *types.RejectOrderRequest) (*types.RejectOrderResponse, error) {
+	if driverID <= 0 || req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidParam
+	}
+	return nil, ErrDispatchDependencyNotReady
+}
+
+// ListMyDispatches 查询当前司机的派单记录。
+// TODO: 待 dispatchsvc 提供按 driver_id 查询能力后，在这里调用 ListDispatchRecords；当前只保留司机端业务骨架，不实际调用下游。
+func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize int32) (*types.ListMyDispatchesResponse, error) {
+	if driverID <= 0 {
+		return nil, ErrInvalidParam
+	}
+	page, pageSize = clampPage(page, pageSize)
+	return nil, ErrDispatchDependencyNotReady
 }
 
 // orderClient 从服务上下文中安全取出 ordersvc 客户端。

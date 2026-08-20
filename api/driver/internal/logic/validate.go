@@ -3,7 +3,9 @@ package logic
 
 import (
 	"errors" // 用于定义业务错误变量
-	"regexp"  // 用于手机号与身份证的正则匹配
+	"regexp" // 用于手机号与身份证的正则匹配
+
+	"XiaoLong-Ridy/api/driver/internal/types"
 )
 
 // 业务错误定义，供 handler 层映射为 HTTP 错误码。
@@ -12,6 +14,8 @@ var (
 	ErrDriverClientNotConfigured = errors.New("driver client not configured")
 	// ErrOrderClientNotConfigured 表示 ordersvc 客户端未配置（连接失败）。
 	ErrOrderClientNotConfigured = errors.New("order client not configured")
+	// ErrDispatchDependencyNotReady 表示司机端依赖的 dispatchsvc RPC 尚未提供。
+	ErrDispatchDependencyNotReady = errors.New("dispatchsvc driver APIs are not ready")
 	// ErrInvalidParam 表示通用参数非法错误（当前未直接使用，保留扩展）。
 	ErrInvalidParam = errors.New("invalid param")
 )
@@ -48,4 +52,13 @@ func clampPage(page, pageSize int32) (int32, int32) {
 	}
 	// 返回修正后的页码与每页条数。
 	return page, pageSize
+}
+
+func validDriverOrder(driverID, orderID int64) bool {
+	return driverID > 0 && orderID > 0
+}
+
+func validFinishTripRequest(req *types.FinishTripRequest) bool {
+	return req != nil && req.OrderID > 0 && req.ActualDistanceM >= 0 &&
+		req.ActualDurationS >= 0 && req.ActualPriceCents >= 0
 }

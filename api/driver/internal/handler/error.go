@@ -18,6 +18,9 @@ func writeParamError(w http.ResponseWriter, err error) {
 	// 下游 ordersvc 客户端不可用：返回 502 + 业务码 50002。
 	case errors.Is(err, logic.ErrOrderClientNotConfigured):
 		writeError(w, http.StatusBadGateway, 50002, "下游 ordersvc 不可用")
+	// dispatchsvc 尚未提供司机侧 RPC：返回 501，避免伪造业务成功。
+	case errors.Is(err, logic.ErrDispatchDependencyNotReady):
+		writeError(w, http.StatusNotImplemented, 50003, "待 dispatchsvc 提供 RejectDispatch / 按 driver_id 查询能力")
 	// 通用参数错误：返回 400 + 业务码 50000，并透传错误文案。
 	case errors.Is(err, logic.ErrInvalidParam):
 		writeError(w, http.StatusBadRequest, 50000, err.Error())

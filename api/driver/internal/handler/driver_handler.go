@@ -9,8 +9,30 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/types"  // 请求/响应类型
 )
 
+// RegisterDriverHandler POST /api/driver/v1/drivers/register
+// 司机自注册入口：解析请求、调用司机逻辑注册账号（公开接口，无需登录，初始状态待审核），成功返回司机 ID 与状态。
+func RegisterDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	// 返回闭包处理器。
+	return func(w http.ResponseWriter, r *http.Request) {
+		// 声明请求结构体并解析 JSON 体。
+		var req types.RegisterDriverRequest
+		if !decodeJSON(w, r, &req) {
+			return // 解析失败已写响应，直接返回
+		}
+		// 调用业务逻辑层注册司机。
+		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).RegisterDriver(&req)
+		if err != nil {
+			// 校验/下游错误，映射为统一错误响应。
+			writeParamError(w, err)
+			return
+		}
+		// 成功，写回响应。
+		writeSuccess(w, resp)
+	}
+}
+
 // CreateDriverHandler POST /api/driver/v1/drivers
-// 创建司机（注册）：解析请求、调用司机逻辑创建账号（公开接口，无需登录，初始状态待审核），成功返回司机 ID 与状态。
+// 管理员创建司机（后台建号）：需登录鉴权，解析请求、调用司机逻辑创建账号，成功返回司机 ID 与状态。
 func CreateDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	// 返回闭包处理器。
 	return func(w http.ResponseWriter, r *http.Request) {

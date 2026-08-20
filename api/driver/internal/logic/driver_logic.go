@@ -3,17 +3,18 @@ package logic
 
 import (
 	"context" // 用于在不同层之间传递请求上下文
-	"errors"   // 用于返回业务校验错误
+	"errors"  // 用于返回业务校验错误
 
-	"XiaoLong-Ridy/api/driver/internal/svc"    // 服务上下文，提供 driversvc 客户端
-	"XiaoLong-Ridy/api/driver/internal/types"  // API 层使用的请求/响应类型
+	"XiaoLong-Ridy/api/driver/internal/svc"          // 服务上下文，提供 driversvc 客户端
+	"XiaoLong-Ridy/api/driver/internal/types"        // API 层使用的请求/响应类型
+	"XiaoLong-Ridy/common/cryptox"                   // 密码哈希工具
+	"XiaoLong-Ridy/common/jwtx"                      // 手机号脱敏工具
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto" // driversvc 的 gRPC 请求/响应类型
-	"XiaoLong-Ridy/common/jwtx"                // 手机号脱敏工具
 )
 
 // DriverLogic 司机业务逻辑处理器，持有请求上下文与下游 driversvc 客户端，负责司机增删改查的编排与参数校验。
 type DriverLogic struct {
-	ctx    context.Context    // 当前请求上下文
+	ctx    context.Context     // 当前请求上下文
 	svcCtx *svc.ServiceContext // 全局服务上下文（含 driversvc 客户端）
 }
 
@@ -73,14 +74,18 @@ func (l *DriverLogic) CreateDriver(req *types.CreateDriverRequest) (*types.Creat
 	if err != nil {
 		return nil, err
 	}
+	passwordHash, err := cryptox.BcryptHash(req.Password)
+	if err != nil {
+		return nil, err
+	}
 	// 调用下游创建司机接口，并将 API 入参映射为 proto 请求。
 	resp, err := client.CreateDriver(l.ctx, &driversproto.CreateDriverRequest{
-		Phone:           req.Phone,            // 手机号
-		PasswordHash:    req.PasswordHash,     // 密码哈希
-		RealName:        req.RealName,         // 真实姓名
-		IdCardNo:        req.IdCardNo,         // 身份证号
-		DriverLicenseNo: req.DriverLicenseNo,  // 驾驶证号
-		AvatarUrl:       req.AvatarURL,        // 头像地址
+		Phone:           req.Phone,           // 手机号
+		PasswordHash:    passwordHash,        // 司机端负责将明文密码转换为哈希
+		RealName:        req.RealName,        // 真实姓名
+		IdCardNo:        req.IdCardNo,        // 身份证号
+		DriverLicenseNo: req.DriverLicenseNo, // 驾驶证号
+		AvatarUrl:       req.AvatarURL,       // 头像地址
 	})
 	if err != nil {
 		// 下游调用失败，向上透传错误。
@@ -88,6 +93,49 @@ func (l *DriverLogic) CreateDriver(req *types.CreateDriverRequest) (*types.Creat
 	}
 	// 将 proto 响应转换为 API 响应并返回。
 	return &types.CreateDriverResponse{ID: resp.GetId(), Status: resp.GetStatus().String(), CreatedAt: resp.GetCreatedAt()}, nil
+}
+
+// RegisterDriver 司机自注册：在 API 层校验手机号/姓名/身份证/驾驶证，
+// 校验通过后复用当前 driversvc.CreateDriver 创建账号，返回新建司机 ID 与状态。
+func (l *DriverLogic) RegisterDriver(req *types.RegisterDriverRequest) (*types.RegisterDriverResponse, error) {
+	// 校验手机号格式。
+	if !validPhone(req.Phone) {
+		return nil, errors.New("手机号格式不合法")
+	}
+	// 校验真实姓名非空。
+	if req.RealName == "" {
+		return nil, errors.New("真实姓名不能为空")
+	}
+	// 校验身份证号格式。
+	if !validIDCard(req.IdCardNo) {
+		return nil, errors.New("身份证号格式不合法")
+	}
+	// 校验驾驶证号非空。
+	if req.DriverLicenseNo == "" {
+		return nil, errors.New("驾驶证号不能为空")
+	}
+	// 获取 driversvc 客户端（可能为配置错误）。
+	client, err := l.driverClient()
+	if err != nil {
+		return nil, err
+	}
+	passwordHash, err := cryptox.BcryptHash(req.Password)
+	if err != nil {
+		return nil, err
+	}
+	// 复用下游创建接口，并将 API 入参映射为 proto 请求。
+	resp, err := client.CreateDriver(l.ctx, &driversproto.CreateDriverRequest{
+		Phone:           req.Phone,
+		PasswordHash:    passwordHash,
+		RealName:        req.RealName,
+		IdCardNo:        req.IdCardNo,
+		DriverLicenseNo: req.DriverLicenseNo,
+		AvatarUrl:       req.AvatarURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.RegisterDriverResponse{ID: resp.GetId(), Status: resp.GetStatus().String(), CreatedAt: resp.GetCreatedAt()}, nil
 }
 
 // UpdateDriver 更新司机：校验司机 ID 合法性与可选手机号/身份证格式，校验通过后调用 driversvc 转发各可选字段（含状态枚举转换），返回更新结果。
@@ -112,12 +160,12 @@ func (l *DriverLogic) UpdateDriver(req *types.UpdateDriverRequest) (*types.Updat
 	// 调用下游更新接口；可选字段直接透传指针，状态经枚举转换。
 	resp, err := client.UpdateDriver(l.ctx, &driversproto.UpdateDriverRequest{
 		Id:              req.ID,                       // 司机 ID
-		Phone:           req.Phone,                   // 可选手机号
-		PasswordHash:    req.PasswordHash,            // 可选密码哈希
-		RealName:        req.RealName,                // 可选姓名
-		IdCardNo:        req.IdCardNo,                // 可选身份证号
-		DriverLicenseNo: req.DriverLicenseNo,         // 可选驾驶证号
-		AvatarUrl:       req.AvatarURL,               // 可选头像
+		Phone:           req.Phone,                    // 可选手机号
+		PasswordHash:    req.PasswordHash,             // 可选明文密码（后端 MD5 加密存储）
+		RealName:        req.RealName,                 // 可选姓名
+		IdCardNo:        req.IdCardNo,                 // 可选身份证号
+		DriverLicenseNo: req.DriverLicenseNo,          // 可选驾驶证号
+		AvatarUrl:       req.AvatarURL,                // 可选头像
 		Status:          enumDriverStatus(req.Status), // 可选状态（字符串转枚举指针）
 	})
 	if err != nil {
@@ -221,11 +269,11 @@ func (l *DriverLogic) GetDriverAiScore(driverID int64) (*types.GetDriverAiScoreR
 	factors := make([]types.AiScoreFactor, 0, len(resp.GetFactors()))
 	for _, f := range resp.GetFactors() {
 		factors = append(factors, types.AiScoreFactor{
-			Key:     f.GetKey(),
-			Label:   f.GetLabel(),
-			Value:   f.GetValue(),
-			Impact:  f.GetImpact(),
-			Hint:    f.GetHint(),
+			Key:    f.GetKey(),
+			Label:  f.GetLabel(),
+			Value:  f.GetValue(),
+			Impact: f.GetImpact(),
+			Hint:   f.GetHint(),
 		})
 	}
 	return &types.GetDriverAiScoreResponse{

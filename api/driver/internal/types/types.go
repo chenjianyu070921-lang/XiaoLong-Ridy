@@ -14,10 +14,10 @@ type Response struct {
 
 // ============ 司机（增删改查四个核心接口） ============
 
-// CreateDriverRequest 创建司机请求。
+// CreateDriverRequest 管理员创建司机请求（后台建号）。
 type CreateDriverRequest struct {
 	Phone           string `json:"phone"`           // 手机号（登录账号）
-	PasswordHash    string `json:"passwordHash"`    // 密码哈希
+	Password        string `json:"password"`        // 明文密码（后端 MD5 加密存储）
 	RealName        string `json:"realName"`        // 真实姓名
 	IdCardNo        string `json:"idCardNo"`        // 身份证号
 	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号
@@ -31,11 +31,28 @@ type CreateDriverResponse struct {
 	CreatedAt int64  `json:"createdAt"` // 创建时间（Unix 秒）
 }
 
+// RegisterDriverRequest 司机自注册请求（App 端注册入口）。
+type RegisterDriverRequest struct {
+	Phone           string `json:"phone"`           // 手机号（登录账号，必填）
+	Password        string `json:"password"`        // 明文密码（后端 MD5 加密存储，必填）
+	RealName        string `json:"realName"`        // 真实姓名（必填）
+	IdCardNo        string `json:"idCardNo"`        // 身份证号（必填）
+	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号（必填）
+	AvatarURL       string `json:"avatarUrl"`       // 头像地址（可选）
+}
+
+// RegisterDriverResponse 司机自注册响应。
+type RegisterDriverResponse struct {
+	ID        int64  `json:"id"`        // 新建司机 ID
+	Status    string `json:"status"`    // 初始状态（待审核）
+	CreatedAt int64  `json:"createdAt"` // 创建时间（Unix 秒）
+}
+
 // UpdateDriverRequest 更新司机请求，除 id 外字段均为可选（指针表示可缺省）。
 type UpdateDriverRequest struct {
-	ID              int64   `json:"id"`              // 待更新司机 ID
-	Phone           *string `json:"phone,omitempty"` // 可选手机号
-	PasswordHash    *string `json:"passwordHash,omitempty"`    // 可选密码哈希
+	ID              int64   `json:"id"`                        // 待更新司机 ID
+	Phone           *string `json:"phone,omitempty"`           // 可选手机号
+	PasswordHash    *string `json:"passwordHash,omitempty"`    // 可选明文密码（后端 MD5 加密存储）
 	RealName        *string `json:"realName,omitempty"`        // 可选真实姓名
 	IdCardNo        *string `json:"idCardNo,omitempty"`        // 可选身份证号
 	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"` // 可选驾驶证号
@@ -102,9 +119,9 @@ type LoginBySMSRequest struct {
 
 // LoginResponse 登录响应，返回 JWT 与司机基础信息。
 type LoginResponse struct {
-	Token   string      `json:"token"`   // JWT 登录凭证
-	ExpireIn int64      `json:"expireIn"` // 有效期（秒）
-	Driver  DriverBrief `json:"driver"`  // 司机基础信息
+	Token    string      `json:"token"`    // JWT 登录凭证
+	ExpireIn int64       `json:"expireIn"` // 有效期（秒）
+	Driver   DriverBrief `json:"driver"`   // 司机基础信息
 }
 
 // DriverBrief 司机登录后可暴露的简要信息（脱敏）。
@@ -181,10 +198,10 @@ type ConfirmArriveResponse struct {
 
 // FinishTripRequest 司机结束行程请求。
 type FinishTripRequest struct {
-	OrderID           int64 `json:"orderId"`           // 订单 ID
-	ActualDistanceM   int64 `json:"actualDistanceM"`   // 实际里程（米）
-	ActualDurationS   int64 `json:"actualDurationS"`   // 实际时长（秒）
-	ActualPriceCents  int64 `json:"actualPriceCents"`  // 实际金额（分）
+	OrderID          int64 `json:"orderId"`          // 订单 ID
+	ActualDistanceM  int64 `json:"actualDistanceM"`  // 实际里程（米）
+	ActualDurationS  int64 `json:"actualDurationS"`  // 实际时长（秒）
+	ActualPriceCents int64 `json:"actualPriceCents"` // 实际金额（分）
 }
 
 // FinishTripResponse 司机结束行程响应。
@@ -194,15 +211,53 @@ type FinishTripResponse struct {
 	PayableAmountCents int64 `json:"payableAmountCents"` // 应付金额（分）
 }
 
+// RejectOrderRequest 司机拒绝派单请求。
+type RejectOrderRequest struct {
+	OrderID int64  `json:"orderId"` // 订单 ID
+	Reason  string `json:"reason"`  // 拒单原因（可选）
+}
+
+// RejectOrderResponse 司机拒绝派单响应，待 dispatchsvc 提供 RPC 后补充具体字段。
+type RejectOrderResponse struct {
+	OrderID int64 `json:"orderId"` // 订单 ID
+}
+
+// ListMyDispatchesRequest 我的派单列表请求。
+type ListMyDispatchesRequest struct {
+	Page     int32 `json:"page"`     // 页码，缺省为 1
+	PageSize int32 `json:"pageSize"` // 每页条数，缺省为 20
+}
+
+// DispatchRecord 我的派单记录，字段与 dispatchsvc.DispatchRecord 对齐。
+type DispatchRecord struct {
+	ID           int64   `json:"id"`
+	OrderID      int64   `json:"orderId"`
+	DriverID     int64   `json:"driverId"`
+	DispatchType int32   `json:"dispatchType"`
+	Status       int32   `json:"status"`
+	MatchScore   float64 `json:"matchScore"`
+	Remark       string  `json:"remark"`
+	CreatedAt    int64   `json:"createdAt"`
+	UpdatedAt    int64   `json:"updatedAt"`
+}
+
+// ListMyDispatchesResponse 我的派单列表响应。
+type ListMyDispatchesResponse struct {
+	List     []DispatchRecord `json:"list"`
+	Total    int64            `json:"total"`
+	Page     int32            `json:"page"`
+	PageSize int32            `json:"pageSize"`
+}
+
 // ============ AI 智能推荐得分 ============
 
 // AiScoreFactor 单项维度指标，展示给司机看的影响推荐优先级的因素。
 type AiScoreFactor struct {
-	Key     string  `json:"key"`     // 维度标识
-	Label   string  `json:"label"`   // 维度中文名
-	Value   float64 `json:"value"`   // 原始数值
-	Impact  string  `json:"impact"`  // 影响：positive 提升 / negative 降低 / neutral 中性
-	Hint    string  `json:"hint"`    // 优化提示
+	Key    string  `json:"key"`    // 维度标识
+	Label  string  `json:"label"`  // 维度中文名
+	Value  float64 `json:"value"`  // 原始数值
+	Impact string  `json:"impact"` // 影响：positive 提升 / negative 降低 / neutral 中性
+	Hint   string  `json:"hint"`   // 优化提示
 }
 
 // GetDriverAiScoreRequest 查询司机 AI 推荐得分请求。
@@ -240,15 +295,15 @@ type HeartbeatResponse struct {
 
 // CertificationInfo 司机资质记录（与 driversvc.CertificationInfo 对齐）。
 type CertificationInfo struct {
-	ID                 int64  `json:"id"`                 // 资质记录 ID
-	DriverID           int64  `json:"driverId"`           // 司机 ID
-	VehicleID          int64  `json:"vehicleId"`          // 关联车辆 ID
-	IdCardFrontURL     string `json:"idCardFrontUrl"`     // 身份证人像面 URL
-	IdCardBackURL      string `json:"idCardBackUrl"`      // 身份证国徽面 URL
-	DriverLicenseURL   string `json:"driverLicenseUrl"`   // 驾驶证 URL
-	VehicleLicenseURL  string `json:"vehicleLicenseUrl"`  // 行驶证 URL
-	AuditStatus        int    `json:"auditStatus"`        // 审核状态：1待审核 2通过 3驳回
-	AuditRemark        string `json:"auditRemark"`        // 审核备注
+	ID                int64  `json:"id"`                // 资质记录 ID
+	DriverID          int64  `json:"driverId"`          // 司机 ID
+	VehicleID         int64  `json:"vehicleId"`         // 关联车辆 ID
+	IdCardFrontURL    string `json:"idCardFrontUrl"`    // 身份证人像面 URL
+	IdCardBackURL     string `json:"idCardBackUrl"`     // 身份证国徽面 URL
+	DriverLicenseURL  string `json:"driverLicenseUrl"`  // 驾驶证 URL
+	VehicleLicenseURL string `json:"vehicleLicenseUrl"` // 行驶证 URL
+	AuditStatus       int    `json:"auditStatus"`       // 审核状态：1待审核 2通过 3驳回
+	AuditRemark       string `json:"auditRemark"`       // 审核备注
 }
 
 // UploadCertificationRequest 司机资质上传请求（图片以 base64 传入）。
