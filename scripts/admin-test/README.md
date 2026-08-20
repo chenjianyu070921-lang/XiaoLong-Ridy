@@ -5,7 +5,7 @@
 ## 环境要求
 
 1. 本地 Redis 已启动：`127.0.0.1:6379`。
-2. 远程 MySQL `xiaolong_ridy` 可达（配置见 `api/admin/etc/admin.json`）。
+2. 远程 MySQL `xiaolong_ridy` 可达，并已设置 `ADMINSVC_MYSQL_DSN`；脚本会复用该值作为 `ADMIN_API_MYSQL_DSN`。
 3. Go 工具链可用。
 4. 如 `rpc/adminsvc` 使用默认 `etc/admin.yaml`（带 Etcd 注册），需要本地 etcd；本脚本会自动生成一份不含 Etcd 的 `.gotmp/adminsvc-admin-test.yaml` 用于联调。
 
@@ -17,6 +17,9 @@
 ## 使用步骤
 
 ```powershell
+# 数据库凭据仅保存在本机环境变量或部署平台 Secret，不能写入配置文件。
+$env:ADMINSVC_MYSQL_DSN = "<your-admin-mysql-dsn>"
+
 # 1. 启动服务栈（ordersvc:50051 -> driversvc:8080 -> adminsvc:8084 -> api/admin:8083）
 .\scripts\admin-test\start_admin_stack.ps1
 

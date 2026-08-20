@@ -14,6 +14,7 @@ import (
 	"XiaoLong-Ridy/api/admin/internal/types"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -124,6 +125,8 @@ func (r *Router) handleRegister(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		session = s
+		// 注册请求不经过 authRequired，但携带 token 时仍需向 adminsvc 透传，供服务端复核操作者身份。
+		req = req.WithContext(metadata.AppendToOutgoingContext(req.Context(), "x-admin-token", token))
 	}
 
 	resp, err := logic.NewAuthLogic(r.ctx).Register(req.Context(), &body, session)
@@ -924,7 +927,9 @@ func (r *Router) authRequired(next http.HandlerFunc) http.HandlerFunc {
 			r.writeAuthError(w, err)
 			return
 		}
-		ctx := context.WithValue(req.Context(), sessionContextKey{}, session)
+		// 将已校验 token 作为 gRPC metadata 向下游透传，adminsvc 会再次校验并执行服务端 RBAC。
+		ctx := metadata.AppendToOutgoingContext(req.Context(), "x-admin-token", token)
+		ctx = context.WithValue(ctx, sessionContextKey{}, session)
 		next(w, req.WithContext(ctx))
 	}
 }

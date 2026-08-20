@@ -58,13 +58,21 @@ if ($Stop) {
 $env:GOMODCACHE = Join-Path $RepoRoot ".gotmp\pkg\mod"
 $env:GOCACHE = Join-Path $RepoRoot ".gotmp\gocache"
 
+# 后台服务的真实数据库凭据只允许由调用环境注入，测试脚本不得保存或生成共享库密码。
+if ([string]::IsNullOrWhiteSpace($env:ADMINSVC_MYSQL_DSN)) {
+    throw "请先设置 ADMINSVC_MYSQL_DSN"
+}
+if ([string]::IsNullOrWhiteSpace($env:ADMIN_API_MYSQL_DSN)) {
+    $env:ADMIN_API_MYSQL_DSN = $env:ADMINSVC_MYSQL_DSN
+}
+
 # adminsvc needs a test config without etcd registration (the default admin.yaml
 # requires a local etcd on 2379 which is not part of this test stack).
 $adminsvcTestCfg = @"
 Name: admin.rpc
 ListenOn: 0.0.0.0:8084
 MySQL:
-  DSN: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  DSN: ""
 Cache:
   Host: 127.0.0.1:6379
   Password: ""
@@ -89,7 +97,7 @@ $ordersvcTestCfg = @"
 Name: ordersvc.rpc
 ListenOn: 0.0.0.0:50051
 mysql:
-  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  dsn: $env:ORDERSVC_MYSQL_DSN
 kafka:
   brokers:
     - 127.0.0.1:9092
