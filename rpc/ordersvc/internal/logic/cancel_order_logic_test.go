@@ -42,7 +42,7 @@ func seedOrder(t *testing.T, repo *repository.MemoryOrderRepository, userID, dri
 		Remark:       "seed",
 	}
 	if err := repo.Create(context.Background(), order, statusLog); err != nil {
-		t.Fatalf("seed order error = %v", err)
+		t.Fatalf("seed orderclient error = %v", err)
 	}
 	return order
 }
@@ -70,7 +70,7 @@ func TestCancelOrderSuccessByUser(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 6 || fresh.CancelBy != "user" || fresh.CancelReason != "行程有变" {
-		t.Fatalf("cancelled order = %+v", fresh)
+		t.Fatalf("cancelled orderclient = %+v", fresh)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != 1 || logs[1].ToStatus != 6 || logs[1].OperatorType != "user" {

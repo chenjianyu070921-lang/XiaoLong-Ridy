@@ -18,12 +18,24 @@ type (
 	DispatchRecord              = proto.DispatchRecord
 	ListDispatchRecordsRequest  = proto.ListDispatchRecordsRequest
 	ListDispatchRecordsResponse = proto.ListDispatchRecordsResponse
+	RejectDispatchRequest       = proto.RejectDispatchRequest
+	RejectDispatchResponse      = proto.RejectDispatchResponse
+	CancelDispatchRequest       = proto.CancelDispatchRequest
+	CancelDispatchResponse      = proto.CancelDispatchResponse
+	ListTimeoutPendingOrdersRequest  = proto.ListTimeoutPendingOrdersRequest
+	ListTimeoutPendingOrdersResponse = proto.ListTimeoutPendingOrdersResponse
 
 	Dispatch interface {
 		// 对指定订单执行派单（P0 为 mock 直派），返回写入的派单记录。
 		DispatchOrder(ctx context.Context, in *DispatchOrderRequest, opts ...grpc.CallOption) (*DispatchOrderResponse, error)
 		// 分页查询订单的派单记录。
 		ListDispatchRecords(ctx context.Context, in *ListDispatchRecordsRequest, opts ...grpc.CallOption) (*ListDispatchRecordsResponse, error)
+		// 司机拒单：将指定司机的待派单记录置为已拒绝。
+		RejectDispatch(ctx context.Context, in *RejectDispatchRequest, opts ...grpc.CallOption) (*RejectDispatchResponse, error)
+		// 订单取消/超时取消：将该订单全部待派单记录置为已取消。
+		CancelDispatch(ctx context.Context, in *CancelDispatchRequest, opts ...grpc.CallOption) (*CancelDispatchResponse, error)
+		// 分页查询存在超时待派单记录的订单 ID（去重）。
+		ListTimeoutPendingOrders(ctx context.Context, in *ListTimeoutPendingOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutPendingOrdersResponse, error)
 	}
 
 	defaultDispatch struct {
@@ -47,4 +59,22 @@ func (m *defaultDispatch) DispatchOrder(ctx context.Context, in *DispatchOrderRe
 func (m *defaultDispatch) ListDispatchRecords(ctx context.Context, in *ListDispatchRecordsRequest, opts ...grpc.CallOption) (*ListDispatchRecordsResponse, error) {
 	client := proto.NewDispatchClient(m.cli.Conn())
 	return client.ListDispatchRecords(ctx, in, opts...)
+}
+
+// 司机拒单：将指定司机的待派单记录置为已拒绝。
+func (m *defaultDispatch) RejectDispatch(ctx context.Context, in *RejectDispatchRequest, opts ...grpc.CallOption) (*RejectDispatchResponse, error) {
+	client := proto.NewDispatchClient(m.cli.Conn())
+	return client.RejectDispatch(ctx, in, opts...)
+}
+
+// 订单取消/超时取消：将该订单全部待派单记录置为已取消。
+func (m *defaultDispatch) CancelDispatch(ctx context.Context, in *CancelDispatchRequest, opts ...grpc.CallOption) (*CancelDispatchResponse, error) {
+	client := proto.NewDispatchClient(m.cli.Conn())
+	return client.CancelDispatch(ctx, in, opts...)
+}
+
+// 分页查询存在超时待派单记录的订单 ID（去重）。
+func (m *defaultDispatch) ListTimeoutPendingOrders(ctx context.Context, in *ListTimeoutPendingOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutPendingOrdersResponse, error) {
+	client := proto.NewDispatchClient(m.cli.Conn())
+	return client.ListTimeoutPendingOrders(ctx, in, opts...)
 }

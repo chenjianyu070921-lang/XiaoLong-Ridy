@@ -1,4 +1,0 @@
-./ingress.go
-./ingressclass.go
-./interface.go
-./networkpolicy.go

@@ -30,4 +30,5 @@ type CouponRepository interface {
 	ListByUser(ctx context.Context, userID uint64, status int8) ([]*UserCouponWithTemplate, error)
 	Lock(ctx context.Context, userID, userCouponID, orderID uint64, carType int8, cityCode string) (*UserCouponWithTemplate, error)
 	Release(ctx context.Context, userID, userCouponID, orderID uint64) error
+	ConsumeByOrder(ctx context.Context, userID, orderID uint64) error
 }

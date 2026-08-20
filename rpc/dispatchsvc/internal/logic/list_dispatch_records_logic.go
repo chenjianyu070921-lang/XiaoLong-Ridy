@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 
+	"XiaoLong-Ridy/rpc/dispatchsvc/internal/model"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/svc"
 	"XiaoLong-Ridy/rpc/dispatchsvc/proto"
 
@@ -23,11 +24,8 @@ func NewListDispatchRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContext
 	}
 }
 
-// 分页查询订单的派单记录。
+// 分页查询订单/司机的派单记录：order_id 优先，否则按 driver_id（可选 status 过滤）。
 func (l *ListDispatchRecordsLogic) ListDispatchRecords(in *proto.ListDispatchRecordsRequest) (*proto.ListDispatchRecordsResponse, error) {
-	if in.OrderId <= 0 {
-		return nil, ErrInvalidOrderParams
-	}
 	page := in.Page
 	if page <= 0 {
 		page = 1
@@ -40,7 +38,19 @@ func (l *ListDispatchRecordsLogic) ListDispatchRecords(in *proto.ListDispatchRec
 		pageSize = 100
 	}
 
-	list, total, err := l.svcCtx.DispatchRepository.ListByOrder(l.ctx, uint64(in.OrderId), page, pageSize)
+	var (
+		list  []model.DispatchRecord
+		total int64
+		err   error
+	)
+	switch {
+	case in.OrderId > 0:
+		list, total, err = l.svcCtx.DispatchRepository.ListByOrder(l.ctx, uint64(in.OrderId), page, pageSize)
+	case in.DriverId > 0:
+		list, total, err = l.svcCtx.DispatchRepository.ListByDriver(l.ctx, uint64(in.DriverId), in.Status, page, pageSize)
+	default:
+		return nil, ErrInvalidOrderParams
+	}
 	if err != nil {
 		return nil, err
 	}

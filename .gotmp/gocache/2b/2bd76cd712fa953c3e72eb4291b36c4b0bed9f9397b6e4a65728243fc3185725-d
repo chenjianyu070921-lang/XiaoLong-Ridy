@@ -1,8 +1,0 @@
-./authinterceptor.go
-./breakerinterceptor.go
-./prometheusinterceptor.go
-./recoverinterceptor.go
-./sheddinginterceptor.go
-./statinterceptor.go
-./timeoutinterceptor.go
-./tracinginterceptor.go

@@ -23,4 +23,6 @@ var (
 	ErrTokenExpired = model.ErrTokenExpired
 	// ErrInvalidRealNameInfo 表示实名资料缺少真实姓名或证件号。
 	ErrInvalidRealNameInfo = model.ErrInvalidRealNameInfo
+	// ErrRealNameVerifyFailed 表示腾讯云实名认证校验未通过或调用失败。
+	ErrRealNameVerifyFailed = model.ErrRealNameVerifyFailed
 )

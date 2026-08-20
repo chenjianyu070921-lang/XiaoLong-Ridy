@@ -20,7 +20,13 @@ Get-ChildItem -LiteralPath $logicDir -File -Filter "*.go" | ForEach-Object {
 
 $legacyServers = @(
   "rpc/adminsvc/internal/server/adminServiceServer.go",
-  "rpc/adminsvc/internal/server/adminserviceserver.go"
+  "rpc/adminsvc/internal/server/adminserviceserver.go",
+  # 新版 goctl 可能在 server 根目录生成重复的默认服务壳，真实实现位于 server/adminservice。
+  "rpc/adminsvc/internal/server/admin_service_server.go",
+  # 新版 goctl 可能在 adminservice 根目录生成重复的默认客户端封装。
+  "rpc/adminsvc/adminservice/admin_service.go",
+  # 新版 goctl 可能生成重复的 ServiceContext，项目只保留 servicecontext.go。
+  "rpc/adminsvc/internal/svc/service_context.go"
 )
 foreach ($path in $legacyServers) {
   if (Test-Path -LiteralPath $path) {

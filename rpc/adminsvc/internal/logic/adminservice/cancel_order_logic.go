@@ -53,7 +53,7 @@ func (l *CancelOrderLogic) CancelOrder(in *adminsvc.AdminCancelOrderRequest) (*a
 	if err != nil {
 		// ordersvc 目前部分业务错误仍以普通 error 返回，经 gRPC 透传后会变成 Unknown。
 		// 后台 HTTP 层依赖 gRPC code 做统一响应映射，因此这里把明确可识别的订单不存在错误转换为 NotFound。
-		if strings.Contains(err.Error(), "order not found") {
+		if strings.Contains(err.Error(), "orderclient not found") {
 			return nil, status.Error(codes.NotFound, "订单不存在")
 		}
 		return nil, err

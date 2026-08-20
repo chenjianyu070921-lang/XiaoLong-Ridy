@@ -31,7 +31,7 @@ func TestConfirmArriveSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 2 {
-		t.Fatalf("arrive order status = %d, want 2", fresh.Status)
+		t.Fatalf("arrive orderclient status = %d, want 2", fresh.Status)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != 2 || logs[1].ToStatus != 2 || logs[1].Remark != "司机已到达" {

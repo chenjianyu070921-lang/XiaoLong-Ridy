@@ -153,6 +153,33 @@ func (r *MemoryCouponRepository) Release(_ context.Context, userID, userCouponID
 }
 
 // isCouponAvailable 判断优惠券模板是否处于可领取窗口。
+// ConsumeByOrder 将当前订单锁定的用户券核销为已使用状态，支付成功后由订单服务调用。
+func (r *MemoryCouponRepository) ConsumeByOrder(_ context.Context, userID, orderID uint64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, userCoupon := range r.userCoupons {
+		if userCoupon.UserID != userID || userCoupon.LockedOrderID != orderID {
+			continue
+		}
+		if userCoupon.Status == model.UserCouponStatusUsed && userCoupon.OrderID == orderID {
+			return nil
+		}
+		if userCoupon.Status != model.UserCouponStatusLocked {
+			return ErrCouponUnavailable
+		}
+		now := time.Now()
+		userCoupon.Status = model.UserCouponStatusUsed
+		userCoupon.OrderID = orderID
+		userCoupon.LockedOrderID = 0
+		userCoupon.LockedAt = nil
+		userCoupon.UsedAt = &now
+		userCoupon.UpdatedAt = now
+		return nil
+	}
+	return nil
+}
+
 func isCouponAvailable(coupon *model.Coupon, now time.Time) bool {
 	return coupon != nil &&
 		coupon.Status == model.CouponStatusEnabled &&

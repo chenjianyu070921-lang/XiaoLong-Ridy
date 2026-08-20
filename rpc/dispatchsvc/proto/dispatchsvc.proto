@@ -9,6 +9,47 @@ service Dispatch {
   rpc DispatchOrder(DispatchOrderRequest) returns (DispatchOrderResponse);
   // 分页查询订单的派单记录。
   rpc ListDispatchRecords(ListDispatchRecordsRequest) returns (ListDispatchRecordsResponse);
+  // 司机拒单：将指定司机的待派单记录置为已拒绝。
+  rpc RejectDispatch(RejectDispatchRequest) returns (RejectDispatchResponse);
+  // 订单取消/超时取消：将该订单全部待派单记录置为已取消（Pending -> Cancelled）。
+  rpc CancelDispatch(CancelDispatchRequest) returns (CancelDispatchResponse);
+  // 分页查询存在超时待派单记录的订单 ID（去重），供 job 超时重派任务使用。
+  rpc ListTimeoutPendingOrders(ListTimeoutPendingOrdersRequest) returns (ListTimeoutPendingOrdersResponse);
+}
+
+message CancelDispatchRequest {
+  int64 order_id = 1;
+  string reason = 2;
+}
+
+message CancelDispatchResponse {
+  int64 order_id = 1;
+  int64 affected = 2; // 被置为已取消的派单记录数
+}
+
+message ListTimeoutPendingOrdersRequest {
+  int64 timeout_seconds = 1; // 超时秒数，0 时默认 60
+  int32 page = 2;            // 默认 1
+  int32 page_size = 3;       // 默认 20，上限 100
+}
+
+message ListTimeoutPendingOrdersResponse {
+  repeated int64 order_ids = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message RejectDispatchRequest {
+  int64 order_id = 1;
+  int64 driver_id = 2;
+  string reason = 3;
+}
+
+message RejectDispatchResponse {
+  int64 order_id = 1;
+  int64 driver_id = 2;
+  int32 status = 3; // 拒单后的派单状态（REJECTED）
 }
 
 message DispatchOrderRequest {
@@ -37,9 +78,11 @@ message DispatchRecord {
 }
 
 message ListDispatchRecordsRequest {
-  int64 order_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
+  int64 order_id = 1;  // 按订单查询；与 driver_id 二选一，优先 order_id
+  int64 driver_id = 2; // 按司机查询；order_id 为 0 时生效
+  int32 status = 3;    // 可选，0 表示全部，否则按派单状态过滤（仅 driver_id 查询生效）
+  int32 page = 4;      // 默认 1
+  int32 page_size = 5; // 默认 20，上限 100
 }
 
 message ListDispatchRecordsResponse {

@@ -1,7 +1,7 @@
 Name: paysvc.rpc
 ListenOn: 0.0.0.0:50054
 mysql:
-  dsn: root:root123@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 alipay:
   appId: ""
   privateKey: ""
@@ -16,6 +16,6 @@ alipay:
 kafka:
   brokers:
     - 127.0.0.1:9092
-  topic: order.paid
+  topic: orderclient.paid
 ordersvc:
   target: 127.0.0.1:50051
