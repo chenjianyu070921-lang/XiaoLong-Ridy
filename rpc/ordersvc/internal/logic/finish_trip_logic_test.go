@@ -125,10 +125,10 @@ func (f *fakePayClient) GetPayment(_ context.Context, in *pay.GetPaymentRequest,
 		return f.getPayment(nil, in)
 	}
 	return &pay.GetPaymentResponse{
-		PaymentNo:    in.PaymentNo,
-		OrderId:      in.OrderId,
-		AmountCents:  5200,
-		Status:       2,
+		PaymentNo:   in.PaymentNo,
+		OrderId:     in.OrderId,
+		AmountCents: 5200,
+		Status:      2,
 	}, nil
 }
 

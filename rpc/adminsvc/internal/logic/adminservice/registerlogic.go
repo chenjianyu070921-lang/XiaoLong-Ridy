@@ -39,8 +39,15 @@ func (l *RegisterLogic) Register(in *adminsvc.RegisterRequest) (*adminsvc.AuthRe
 	if err != nil {
 		return nil, err
 	}
-	if count > 0 && in.GetOperatorRole() != 1 {
-		return nil, status.Error(codes.PermissionDenied, "只有超级管理员可以新增管理员")
+	if count > 0 {
+		// 已存在管理员时必须从 metadata 中复核操作者会话；不能信任客户端填写的 operator_role。
+		operator, err := ValidateAdminTokenFromContext(l.ctx, l.svcCtx)
+		if err != nil {
+			return nil, err
+		}
+		if operator.ID != in.GetOperatorAdminId() || operator.Role != 1 {
+			return nil, status.Error(codes.PermissionDenied, "只有超级管理员可以新增管理员")
+		}
 	}
 	role := in.GetRole()
 	if role == 0 {

@@ -36,12 +36,19 @@ type (
 	CouponListResponse               = adminsvc.CouponListResponse
 	CouponRequest                    = adminsvc.CouponRequest
 	CouponStatisticsResponse         = adminsvc.CouponStatisticsResponse
+	PriceRule                        = adminsvc.PriceRule
+	PriceRuleDetailRequest           = adminsvc.PriceRuleDetailRequest
+	PriceRuleListRequest             = adminsvc.PriceRuleListRequest
+	PriceRuleListResponse            = adminsvc.PriceRuleListResponse
+	PriceRuleRequest                 = adminsvc.PriceRuleRequest
+	PriceRuleStatusRequest           = adminsvc.PriceRuleStatusRequest
 	DispatchRecord                   = adminsvc.DispatchRecord
 	DriverCertification              = adminsvc.DriverCertification
 	DriverCertificationDetailRequest = adminsvc.DriverCertificationDetailRequest
 	DriverCertificationListRequest   = adminsvc.DriverCertificationListRequest
 	DriverCertificationListResponse  = adminsvc.DriverCertificationListResponse
 	ExportTask                       = adminsvc.ExportTask
+	ExportTaskDetailRequest          = adminsvc.ExportTaskDetailRequest
 	ExportTaskListRequest            = adminsvc.ExportTaskListRequest
 	ExportTaskListResponse           = adminsvc.ExportTaskListResponse
 	ExportTaskRequest                = adminsvc.ExportTaskRequest
@@ -81,6 +88,8 @@ type (
 	UserDetailRequest                = adminsvc.UserDetailRequest
 	UserListRequest                  = adminsvc.UserListRequest
 	UserListResponse                 = adminsvc.UserListResponse
+	ValidateSessionRequest           = adminsvc.ValidateSessionRequest
+	ValidateSessionResponse          = adminsvc.ValidateSessionResponse
 
 	AdminService interface {
 		// 管理员注册。
@@ -89,6 +98,8 @@ type (
 		Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 		// 管理员退出登录。
 		Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 校验管理员登录会话。
+		ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error)
 		// 查询当前管理员信息。
 		Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
 		// 查询角色菜单。
@@ -131,6 +142,18 @@ type (
 		IssueCoupon(ctx context.Context, in *CouponIssueRequest, opts ...grpc.CallOption) (*CouponIssueResponse, error)
 		// 查询优惠券发放任务列表。
 		ListCouponIssueTasks(ctx context.Context, in *CouponIssueTaskListRequest, opts ...grpc.CallOption) (*CouponIssueTaskListResponse, error)
+		// 查询计价规则列表。
+		ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error)
+		// 查询计价规则详情。
+		GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error)
+		// 创建计价规则。
+		CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 更新计价规则。
+		UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 启用计价规则。
+		EnablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 停用计价规则。
+		DisablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询活动配置列表。
 		ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error)
 		// 创建活动配置。
@@ -151,6 +174,8 @@ type (
 		CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error)
 		// 查询导出任务列表。
 		ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error)
+		// 查询导出任务详情。
+		GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error)
 		// 查询风控黑名单列表。
 		ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error)
 		// 新增风控黑名单。
@@ -188,6 +213,12 @@ func (m *defaultAdminService) Login(ctx context.Context, in *LoginRequest, opts 
 func (m *defaultAdminService) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.Logout(ctx, in, opts...)
+}
+
+// 校验管理员登录会话。
+func (m *defaultAdminService) ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ValidateSession(ctx, in, opts...)
 }
 
 // 查询当前管理员信息。
@@ -316,6 +347,42 @@ func (m *defaultAdminService) ListCouponIssueTasks(ctx context.Context, in *Coup
 	return client.ListCouponIssueTasks(ctx, in, opts...)
 }
 
+// 查询计价规则列表。
+func (m *defaultAdminService) ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListPriceRules(ctx, in, opts...)
+}
+
+// 查询计价规则详情。
+func (m *defaultAdminService) GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetPriceRule(ctx, in, opts...)
+}
+
+// 创建计价规则。
+func (m *defaultAdminService) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.CreatePriceRule(ctx, in, opts...)
+}
+
+// 更新计价规则。
+func (m *defaultAdminService) UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.UpdatePriceRule(ctx, in, opts...)
+}
+
+// 启用计价规则。
+func (m *defaultAdminService) EnablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.EnablePriceRule(ctx, in, opts...)
+}
+
+// 停用计价规则。
+func (m *defaultAdminService) DisablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.DisablePriceRule(ctx, in, opts...)
+}
+
 // 查询活动配置列表。
 func (m *defaultAdminService) ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
@@ -374,6 +441,12 @@ func (m *defaultAdminService) CreateExportTask(ctx context.Context, in *ExportTa
 func (m *defaultAdminService) ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListExportTasks(ctx, in, opts...)
+}
+
+// 查询导出任务详情。
+func (m *defaultAdminService) GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetExportTask(ctx, in, opts...)
 }
 
 // 查询风控黑名单列表。

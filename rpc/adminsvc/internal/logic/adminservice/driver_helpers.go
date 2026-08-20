@@ -90,7 +90,13 @@ func auditCertification(ctx context.Context, svcCtx *svc.ServiceContext, in *adm
 			return err
 		}
 	}
-	return createOperationLog(ctx, svcCtx, in.GetAdminId(), "driver", action, "driver_certification", in.GetId(), detail, in.GetIp())
+	if err := createOperationLog(ctx, svcCtx, in.GetAdminId(), "driver", action, "driver_certification", in.GetId(), detail, in.GetIp()); err != nil {
+		if outboxErr := recordAuditOutbox(ctx, svcCtx, in.GetAdminId(), "driver", action, "driver_certification", in.GetId(), detail, in.GetIp(), err); outboxErr != nil {
+			return fmt.Errorf("司机审核已同步 driversvc，但审计日志和补偿任务均写入失败: audit=%w; outbox=%v", err, outboxErr)
+		}
+		return fmt.Errorf("司机审核已同步 driversvc，审计日志写入失败，已创建补偿任务: %w", err)
+	}
+	return nil
 }
 
 // scanCertificationRow 处理司机审核详情单行结果。

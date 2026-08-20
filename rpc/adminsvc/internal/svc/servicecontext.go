@@ -8,6 +8,7 @@ import (
 	"XiaoLong-Ridy/rpc/adminsvc/internal/config"
 	driversvcproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	ordersvcproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	pricesvcproto "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
@@ -24,6 +25,8 @@ type ServiceContext struct {
 	OrdersSvc        ordersvcproto.OrderClient
 	DriversRPCClient zrpc.Client
 	DriversSvc       driversvcproto.DriversvcClient
+	PricesRPCClient  zrpc.Client
+	PricesSvc        pricesvcproto.Price
 }
 
 // NewServiceContext 初始化 MySQL、Redis 以及下游 RPC 客户端。
@@ -56,6 +59,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err != nil {
 		panic(err)
 	}
+	pricesClient, pricesSvc, err := newPricesRPCClient(c.PricesRPC)
+	if err != nil {
+		panic(err)
+	}
 
 	return &ServiceContext{
 		Config:           c,
@@ -65,6 +72,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		OrdersSvc:        ordersSvc,
 		DriversRPCClient: driversClient,
 		DriversSvc:       driversSvc,
+		PricesRPCClient:  pricesClient,
+		PricesSvc:        pricesSvc,
 	}
 }
 
@@ -100,4 +109,16 @@ func newDriversRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, driversvcproto.Dr
 		return nil, nil, err
 	}
 	return client, driversvcproto.NewDriversvcClient(client.Conn()), nil
+}
+
+// newPricesRPCClient 初始化 pricesvc 客户端。
+func newPricesRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, pricesvcproto.Price, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50053"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, pricesvcproto.NewPrice(client), nil
 }
