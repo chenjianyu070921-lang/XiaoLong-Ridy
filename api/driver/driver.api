@@ -115,6 +115,22 @@ type ListMyDispatchesResponse {
 	PageSize int32            `json:"pageSize"`
 }
 
+type AgentChatRequest {
+	Question string `json:"question"`
+}
+
+type AgentObservation {
+	ToolName string `json:"toolName"`
+	Result   string `json:"result"`
+}
+
+type AgentChatResponse {
+	Answer       string             `json:"answer"`
+	LoopCount    int                `json:"loopCount"`
+	Observations []AgentObservation `json:"observations"`
+	Mode         string             `json:"mode"`
+}
+
 service driver-api {
 	// 司机自注册（公开，无需登录）
 	@handler RegisterDriverHandler
@@ -132,6 +148,10 @@ service driver-api {
 
 	@handler DeleteDriverHandler
 	post /api/driver/v1/drivers/delete (DeleteResponse)
+
+	@handler AgentChatHandler
+	// Requires a driver JWT or X-Internal-Service-Token matching DRIVER_AGENT_SERVICE_TOKEN.
+	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 
 	// ============ 订单行程（接单 / 拒单 / 到达 / 开始行程 / 结束行程） ============
 	// 以下接口为规范声明，对应 internal/handler/order_handler.go 中的实现；

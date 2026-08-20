@@ -115,6 +115,7 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	// 受保护路由：先校验 HTTP 方法（methodSwitch 在外层，错误方法直接 405，
 	// 避免被鉴权中间件抢先返回 401），再经过 JWT 鉴权中间件拦截无凭证请求。
 	protected := middleware.RequireAuth(svcCtx)
+	agentProtected := middleware.RequireDriverOrInternalService(svcCtx, os.Getenv("DRIVER_AGENT_SERVICE_TOKEN"))
 	// 司机自注册：公开接口，无需登录（否则未注册用户永远无法创建账号）。
 	// 仅限制为 POST 方法，不放进鉴权组。
 	mux.Handle("/api/driver/v1/drivers/register", methodSwitch("POST", handler.RegisterDriverHandler(svcCtx)))
@@ -150,6 +151,7 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/orders/confirm-arrive", methodSwitch("POST", protected(handler.ConfirmArriveHandler(svcCtx))))
 	// 司机结束行程并上报实际里程/时长/金额。
 	mux.Handle("/api/driver/v1/orders/finish-trip", methodSwitch("POST", protected(handler.FinishTripHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/agent/chat", methodSwitch("POST", agentProtected(handler.AgentChatHandler())))
 
 	// 将构建好的多路复用器返回给 HTTP 服务器使用。
 	return mux

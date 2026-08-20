@@ -3,14 +3,15 @@ package middleware
 
 import (
 	"context"
+	"crypto/subtle"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
-	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	"XiaoLong-Ridy/common/jwtx"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 )
 
 // contextKey 是存放司机身份 claims 的 context key 类型，避免与其他包冲突。
@@ -119,6 +120,23 @@ func RequireAuth(svcCtx *svc.ServiceContext) func(http.Handler) http.Handler {
 }
 
 // isBlockedStatus 判断司机状态是否为封禁/注销（不可继续服务）。
+func RequireDriverOrInternalService(svcCtx *svc.ServiceContext, serviceToken string) func(http.Handler) http.Handler {
+	driverAuth := RequireAuth(svcCtx)
+	expectedToken := strings.TrimSpace(serviceToken)
+
+	return func(next http.Handler) http.Handler {
+		driverHandler := driverAuth(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			providedToken := strings.TrimSpace(r.Header.Get("X-Internal-Service-Token"))
+			if expectedToken != "" && providedToken != "" && subtle.ConstantTimeCompare([]byte(providedToken), []byte(expectedToken)) == 1 {
+				next.ServeHTTP(w, r)
+				return
+			}
+			driverHandler.ServeHTTP(w, r)
+		})
+	}
+}
+
 func isBlockedStatus(status int) bool {
 	return status == driverStatusFrozen || status == driverStatusCancelled
 }

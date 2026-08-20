@@ -1,6 +1,22 @@
 // Package types 定义司机端 API 的请求与响应数据结构。
 package types
 
+type AgentChatRequest struct {
+	Question string `json:"question"`
+}
+
+type AgentObservation struct {
+	ToolName string `json:"toolName"`
+	Result   string `json:"result"`
+}
+
+type AgentChatResponse struct {
+	Answer       string             `json:"answer"`
+	LoopCount    int                `json:"loopCount"`
+	Observations []AgentObservation `json:"observations"`
+	Mode         string             `json:"mode"`
+}
+
 // ============ 通用响应 ============
 
 // Response 是接口文档约定的统一响应格式（与 passenger 端保持一致）。
