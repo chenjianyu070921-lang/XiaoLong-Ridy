@@ -42,6 +42,7 @@ type (
 	ListDriversRequest        = proto.ListDriversRequest
 	ListDriversResponse       = proto.ListDriversResponse
 	LoginRequest              = proto.LoginRequest
+	LoginBySMSRequest         = proto.LoginBySMSRequest
 	LoginResponse             = proto.LoginResponse
 	ListNearbyDriversRequest  = proto.ListNearbyDriversRequest
 	ListNearbyDriversResponse = proto.ListNearbyDriversResponse
@@ -61,6 +62,7 @@ type (
 		GetVehicle(ctx context.Context, in *GetVehicleRequest, opts ...grpc.CallOption) (*GetVehicleResponse, error)
 		ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error)
 		Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+		LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 		ListNearbyDrivers(ctx context.Context, in *ListNearbyDriversRequest, opts ...grpc.CallOption) (*ListNearbyDriversResponse, error)
 	}
 
@@ -143,6 +145,11 @@ func (m *defaultDriversvc) ListDrivers(ctx context.Context, in *ListDriversReque
 func (m *defaultDriversvc) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
 	client := proto.NewDriversvcClient(m.cli.Conn())
 	return client.Login(ctx, in, opts...)
+}
+
+func (m *defaultDriversvc) LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+	client := proto.NewDriversvcClient(m.cli.Conn())
+	return client.LoginBySMS(ctx, in, opts...)
 }
 
 func (m *defaultDriversvc) ListNearbyDrivers(ctx context.Context, in *ListNearbyDriversRequest, opts ...grpc.CallOption) (*ListNearbyDriversResponse, error) {

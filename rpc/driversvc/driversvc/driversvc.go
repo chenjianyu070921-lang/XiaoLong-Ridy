@@ -44,6 +44,7 @@ type (
 	ListNearbyDriversRequest    = proto.ListNearbyDriversRequest
 	ListNearbyDriversResponse   = proto.ListNearbyDriversResponse
 	LoginRequest                = proto.LoginRequest
+	LoginBySMSRequest           = proto.LoginBySMSRequest
 	LoginResponse               = proto.LoginResponse
 	NearbyDriver                = proto.NearbyDriver
 	SetDriverOfflineRequest     = proto.SetDriverOfflineRequest
@@ -80,6 +81,7 @@ type (
 		ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error)
 		// 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
 		Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+		LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 		// 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
 		ListNearbyDrivers(ctx context.Context, in *ListNearbyDriversRequest, opts ...grpc.CallOption) (*ListNearbyDriversResponse, error)
 		// AI 智能优质司机推荐：查询指定司机的综合推荐得分与各项维度指标，供司机端展示与派单权重参考。
@@ -182,6 +184,11 @@ func (m *defaultDriversvc) ListDrivers(ctx context.Context, in *ListDriversReque
 func (m *defaultDriversvc) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
 	client := proto.NewDriversvcClient(m.cli.Conn())
 	return client.Login(ctx, in, opts...)
+}
+
+func (m *defaultDriversvc) LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+	client := proto.NewDriversvcClient(m.cli.Conn())
+	return client.LoginBySMS(ctx, in, opts...)
 }
 
 // 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。

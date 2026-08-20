@@ -43,6 +43,7 @@ service Driversvc {
   rpc ListDrivers(ListDriversRequest) returns(ListDriversResponse);
   // 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
   rpc Login(LoginRequest) returns(LoginResponse);
+  rpc LoginBySMS(LoginBySMSRequest) returns(LoginResponse);
   // 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
   rpc ListNearbyDrivers(ListNearbyDriversRequest) returns(ListNearbyDriversResponse);
   // AI 智能优质司机推荐：查询指定司机的综合推荐得分与各项维度指标，供司机端展示与派单权重参考。
@@ -257,6 +258,10 @@ message LoginResponse {
 }
 
 // NearbyDriver 附近司机摘要信息。
+message LoginBySMSRequest {
+  string phone = 1;
+}
+
 message NearbyDriver {
   int64 driver_id = 1;        // 司机 ID
   double longitude = 2;       // 经度

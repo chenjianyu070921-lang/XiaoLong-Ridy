@@ -32,6 +32,7 @@ type DriverClient interface {
 	SetDriverOffline(ctx context.Context, req *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error)
 	// Login 调用司机登录接口（复用 driversvc 的账号校验与 JWT 签发）。
 	Login(ctx context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error)
+	LoginBySMS(ctx context.Context, req *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error)
 	// DeleteDriver 调用删除（软删）司机接口。
 	DeleteDriver(ctx context.Context, req *driversproto.DeleteDriverRequest) (*driversproto.DeleteDriverResponse, error)
 	// GetDriverAiScore 调用 AI 智能优质司机推荐接口，查询司机综合推荐得分与各项维度指标。
@@ -93,6 +94,10 @@ func (g *grpcClient) DeleteDriver(ctx context.Context, req *driversproto.DeleteD
 // Login 转发司机登录请求到 driversvc。
 func (g *grpcClient) Login(ctx context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error) {
 	return g.cli.Login(ctx, req)
+}
+
+func (g *grpcClient) LoginBySMS(ctx context.Context, req *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error) {
+	return g.cli.LoginBySMS(ctx, req)
 }
 
 // GetDriverAiScore 转发 AI 智能优质司机推荐请求到 driversvc。

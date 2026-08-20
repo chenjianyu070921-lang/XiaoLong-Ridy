@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v3.19.4
-// source: proto/driversvc.proto
+// source: rpc/driversvc/proto/driversvc.proto
 
 package proto
 
@@ -33,6 +33,7 @@ const (
 	Driversvc_GetVehicle_FullMethodName           = "/driversvc.Driversvc/GetVehicle"
 	Driversvc_ListDrivers_FullMethodName          = "/driversvc.Driversvc/ListDrivers"
 	Driversvc_Login_FullMethodName                = "/driversvc.Driversvc/Login"
+	Driversvc_LoginBySMS_FullMethodName           = "/driversvc.Driversvc/LoginBySMS"
 	Driversvc_ListNearbyDrivers_FullMethodName    = "/driversvc.Driversvc/ListNearbyDrivers"
 	Driversvc_GetDriverAiScore_FullMethodName     = "/driversvc.Driversvc/GetDriverAiScore"
 	Driversvc_UploadCertification_FullMethodName  = "/driversvc.Driversvc/UploadCertification"
@@ -48,6 +49,7 @@ const (
 type DriversvcClient interface {
 	// 司机主表 CRUD（仅司机增删改查）
 	CreateDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
+	// 司机自注册，与管理员创建司机使用独立 RPC 接口。
 	RegisterDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
 	UpdateDriver(ctx context.Context, in *UpdateDriverRequest, opts ...grpc.CallOption) (*UpdateDriverResponse, error)
 	DeleteDriver(ctx context.Context, in *DeleteDriverRequest, opts ...grpc.CallOption) (*DeleteDriverResponse, error)
@@ -67,6 +69,7 @@ type DriversvcClient interface {
 	ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error)
 	// 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	// 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
 	ListNearbyDrivers(ctx context.Context, in *ListNearbyDriversRequest, opts ...grpc.CallOption) (*ListNearbyDriversResponse, error)
 	// AI 智能优质司机推荐：查询指定司机的综合推荐得分与各项维度指标，供司机端展示与派单权重参考。
@@ -231,6 +234,16 @@ func (c *driversvcClient) Login(ctx context.Context, in *LoginRequest, opts ...g
 	return out, nil
 }
 
+func (c *driversvcClient) LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoginResponse)
+	err := c.cc.Invoke(ctx, Driversvc_LoginBySMS_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *driversvcClient) ListNearbyDrivers(ctx context.Context, in *ListNearbyDriversRequest, opts ...grpc.CallOption) (*ListNearbyDriversResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListNearbyDriversResponse)
@@ -307,6 +320,7 @@ func (c *driversvcClient) RejectCertification(ctx context.Context, in *AuditCert
 type DriversvcServer interface {
 	// 司机主表 CRUD（仅司机增删改查）
 	CreateDriver(context.Context, *CreateDriverRequest) (*CreateDriverResponse, error)
+	// 司机自注册，与管理员创建司机使用独立 RPC 接口。
 	RegisterDriver(context.Context, *CreateDriverRequest) (*CreateDriverResponse, error)
 	UpdateDriver(context.Context, *UpdateDriverRequest) (*UpdateDriverResponse, error)
 	DeleteDriver(context.Context, *DeleteDriverRequest) (*DeleteDriverResponse, error)
@@ -326,6 +340,7 @@ type DriversvcServer interface {
 	ListDrivers(context.Context, *ListDriversRequest) (*ListDriversResponse, error)
 	// 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
+	LoginBySMS(context.Context, *LoginBySMSRequest) (*LoginResponse, error)
 	// 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
 	ListNearbyDrivers(context.Context, *ListNearbyDriversRequest) (*ListNearbyDriversResponse, error)
 	// AI 智能优质司机推荐：查询指定司机的综合推荐得分与各项维度指标，供司机端展示与派单权重参考。
@@ -391,6 +406,9 @@ func (UnimplementedDriversvcServer) ListDrivers(context.Context, *ListDriversReq
 }
 func (UnimplementedDriversvcServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedDriversvcServer) LoginBySMS(context.Context, *LoginBySMSRequest) (*LoginResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LoginBySMS not implemented")
 }
 func (UnimplementedDriversvcServer) ListNearbyDrivers(context.Context, *ListNearbyDriversRequest) (*ListNearbyDriversResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListNearbyDrivers not implemented")
@@ -686,6 +704,24 @@ func _Driversvc_Login_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Driversvc_LoginBySMS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginBySMSRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).LoginBySMS(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_LoginBySMS_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).LoginBySMS(ctx, req.(*LoginBySMSRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Driversvc_ListNearbyDrivers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListNearbyDriversRequest)
 	if err := dec(in); err != nil {
@@ -876,6 +912,10 @@ var Driversvc_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Driversvc_Login_Handler,
 		},
 		{
+			MethodName: "LoginBySMS",
+			Handler:    _Driversvc_LoginBySMS_Handler,
+		},
+		{
 			MethodName: "ListNearbyDrivers",
 			Handler:    _Driversvc_ListNearbyDrivers_Handler,
 		},
@@ -905,5 +945,5 @@ var Driversvc_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/driversvc.proto",
+	Metadata: "rpc/driversvc/proto/driversvc.proto",
 }

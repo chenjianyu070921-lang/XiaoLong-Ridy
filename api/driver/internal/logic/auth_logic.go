@@ -103,11 +103,27 @@ func (l *AuthLogic) LoginBySMS(req *types.LoginBySMSRequest) (*types.LoginRespon
 	if !l.svcCtx.CodeCache.Verify(req.Phone, strings.TrimSpace(req.Code)) {
 		return nil, ErrCodeInvalid
 	}
-	driver, err := l.loadDriverByPhone(req.Phone)
+	client, err := l.driverClient()
 	if err != nil {
 		return nil, err
 	}
-	return l.issueToken(driver)
+	resp, err := client.LoginBySMS(l.ctx, &driversproto.LoginBySMSRequest{Phone: strings.TrimSpace(req.Phone)})
+	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return nil, ErrDriverAuthFailed
+		}
+		return nil, err
+	}
+	driver := resp.GetDriver()
+	return &types.LoginResponse{
+		Token:    resp.GetToken(),
+		ExpireIn: resp.GetExpireIn(),
+		Driver: types.DriverBrief{
+			ID:     driver.GetId(),
+			Phone:  jwtx.MaskPhone(driver.GetPhone()),
+			Status: driver.GetStatus().String(),
+		},
+	}, nil
 }
 
 // loadDriverByPhone 按手机号加载司机实体，并做基础校验：手机号格式、存在性、是否冻结/注销。

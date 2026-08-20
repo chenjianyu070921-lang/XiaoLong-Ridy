@@ -101,6 +101,11 @@ func (s *DriversvcServer) Login(ctx context.Context, in *proto.LoginRequest) (*p
 	return l.Login(in)
 }
 
+func (s *DriversvcServer) LoginBySMS(ctx context.Context, in *proto.LoginBySMSRequest) (*proto.LoginResponse, error) {
+	l := logic.NewLoginLogic(ctx, s.svcCtx)
+	return l.LoginBySMS(in)
+}
+
 // 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
 func (s *DriversvcServer) ListNearbyDrivers(ctx context.Context, in *proto.ListNearbyDriversRequest) (*proto.ListNearbyDriversResponse, error) {
 	l := logic.NewListNearbyDriversLogic(ctx, s.svcCtx)
