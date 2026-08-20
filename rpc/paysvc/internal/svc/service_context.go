@@ -16,11 +16,21 @@ import (
 )
 
 type ServiceContext struct {
-	Config      config.Config
-	DB          *gorm.DB
-	Producer    mq.Producer             // Kafka 生产者
-	OrderClient orderclient.OrderClient // 订单服务客户端
-	Verifier    channel.SignVerifier    // 回调验签器
+	Config        config.Config
+	DB            *gorm.DB
+	Producer      mq.Producer             // Kafka 生产者
+	OrderClient   orderclient.OrderClient // 订单服务客户端
+	Verifier      channel.SignVerifier    // 回调验签器
+	alipayChannel *channel.AlipayChannel  // 支付宝真实渠道（配置齐全时非 nil）
+}
+
+// GetChannel 按渠道名返回支付渠道实现。
+// 支付宝渠道配置齐全时返回真实 AlipayChannel，否则（未知渠道/未配置）平滑降级为 MockChannel。
+func (s *ServiceContext) GetChannel(name string) channel.PayChannel {
+	if name == channel.Alipay && s.alipayChannel != nil {
+		return s.alipayChannel
+	}
+	return channel.NewMockChannel(name)
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -51,7 +61,24 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	// 回调验签器（容错：密钥为空时降级为 MockVerifier）
 	svcCtx.Verifier = newVerifier(c.Alipay)
 
+	// 支付宝真实渠道（密钥齐全时才启用，否则为 nil，走 mock 降级）
+	svcCtx.alipayChannel = newAlipayChannel(c.Alipay)
+
 	return svcCtx
+}
+
+// newAlipayChannel 创建支付宝真实渠道，密钥缺失时返回 nil（走 mock 降级）。
+func newAlipayChannel(a alipay.Config) *channel.AlipayChannel {
+	if a.AppId == "" || a.PrivateKey == "" || a.AlipayPublicKey == "" {
+		logx.Info("alipay keys empty, use mock channel")
+		return nil
+	}
+	ch, err := channel.NewAlipayChannel(a)
+	if err != nil {
+		logx.Errorf("init alipay channel failed: %v, use mock channel", err)
+		return nil
+	}
+	return ch
 }
 
 // newProducer 创建 Kafka 生产者，失败时降级为 NoopProducer。

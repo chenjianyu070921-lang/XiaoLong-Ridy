@@ -66,8 +66,8 @@ func (l *CreatePaymentLogic) CreatePayment(in *proto.CreatePaymentRequest) (*pro
 		return nil, err
 	}
 
-	// 3. 调渠道下单（本期 mock）
-	ch := channel.NewMockChannel(chName)
+	// 3. 调渠道下单（支付宝配置齐全走真实渠道，否则 mock）
+	ch := l.svcCtx.GetChannel(chName)
 	result, err := ch.CreateOrder(l.ctx, paymentNo, in.AmountCents)
 	if err != nil {
 		return nil, err

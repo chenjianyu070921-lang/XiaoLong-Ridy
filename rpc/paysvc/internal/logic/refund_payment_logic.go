@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/common/priceutil"
-	"XiaoLong-Ridy/rpc/paysvc/internal/channel"
 	"XiaoLong-Ridy/rpc/paysvc/internal/model"
 	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/rule"
@@ -57,9 +56,9 @@ func (l *RefundPaymentLogic) RefundPayment(in *proto.RefundPaymentRequest) (*pro
 		return nil, err
 	}
 
-	// 3. 调用渠道退款（本期 mock）
+	// 3. 调用渠道退款（支付宝配置齐全走真实渠道，否则 mock）
 	refundNo := genRefundNo()
-	ch := channel.NewMockChannel(p.Channel)
+	ch := l.svcCtx.GetChannel(p.Channel)
 	if _, err := ch.Refund(l.ctx, p.PaymentNo, refundNo, in.RefundAmountCents); err != nil {
 		return nil, err
 	}
