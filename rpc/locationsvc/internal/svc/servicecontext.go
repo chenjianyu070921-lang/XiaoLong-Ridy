@@ -1,8 +1,10 @@
 package svc
 
 import (
+	"fmt"
 	"sync"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/config"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/geo"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/model"
@@ -11,8 +13,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// DriverGeoKey Redis GEO 集合 key：司机实时位置
-const DriverGeoKey = "driver:geo"
+// DriverGeoKey Redis GEO 集合 key：司机实时位置（默认城市，与派单引擎/位置消费端保持一致）
+const DriverGeoKey = "driver:geo:default"
+
+// GeoKey 按城市构造 Redis GEO key，city 为空时使用默认城市。
+func GeoKey(city string) string {
+	if city == "" {
+		city = "default"
+	}
+	return fmt.Sprintf(constants.RedisDriverGeo, city)
+}
 
 type ServiceContext struct {
 	mu                  sync.RWMutex

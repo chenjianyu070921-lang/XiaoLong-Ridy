@@ -31,6 +31,18 @@ func (f *fakeDispatchClient) ListDispatchRecords(_ context.Context, _ *dispatch.
 	return &dispatch.ListDispatchRecordsResponse{}, nil
 }
 
+func (f *fakeDispatchClient) RejectDispatch(_ context.Context, _ *dispatch.RejectDispatchRequest, _ ...grpc.CallOption) (*dispatch.RejectDispatchResponse, error) {
+	return &dispatch.RejectDispatchResponse{}, nil
+}
+
+func (f *fakeDispatchClient) CancelDispatch(_ context.Context, _ *dispatch.CancelDispatchRequest, _ ...grpc.CallOption) (*dispatch.CancelDispatchResponse, error) {
+	return &dispatch.CancelDispatchResponse{}, nil
+}
+
+func (f *fakeDispatchClient) ListTimeoutPendingOrders(_ context.Context, _ *dispatch.ListTimeoutPendingOrdersRequest, _ ...grpc.CallOption) (*dispatch.ListTimeoutPendingOrdersResponse, error) {
+	return &dispatch.ListTimeoutPendingOrdersResponse{}, nil
+}
+
 func validCreateOrderRequest() *proto.CreateOrderRequest {
 	return &proto.CreateOrderRequest{
 		UserId:              1001,
@@ -56,10 +68,10 @@ func TestCreateOrderSuccess(t *testing.T) {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
 	if resp.OrderId <= 0 {
-		t.Fatal("CreateOrder() returned empty order id")
+		t.Fatal("CreateOrder() returned empty orderclient id")
 	}
 	if resp.OrderNo == "" {
-		t.Fatal("CreateOrder() returned empty order no")
+		t.Fatal("CreateOrder() returned empty orderclient no")
 	}
 	if resp.Status != proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
 		t.Fatalf("CreateOrder() status = %v, want WAIT_ACCEPT", resp.Status)
@@ -76,7 +88,7 @@ func TestCreateOrderSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if order.UserId != 1001 || order.Status != 1 {
-		t.Fatalf("stored order = %+v", order)
+		t.Fatalf("stored orderclient = %+v", order)
 	}
 	if order.EstimatedPrice != 36 {
 		t.Fatalf("stored estimated price = %v, want 36", order.EstimatedPrice)
@@ -132,7 +144,7 @@ func TestCreateOrderTriggersDispatchAndIgnoresDispatchError(t *testing.T) {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
 	if resp.OrderId <= 0 {
-		t.Fatal("CreateOrder() returned empty order id")
+		t.Fatal("CreateOrder() returned empty orderclient id")
 	}
 	if !dispatchClient.called {
 		t.Fatal("CreateOrder() did not trigger dispatch")
@@ -154,6 +166,10 @@ func (f *fakePriceClient) EstimatePrice(_ context.Context, in *price.EstimatePri
 
 func (f *fakePriceClient) CalculateDiscount(_ context.Context, _ *price.CalculateDiscountRequest, _ ...grpc.CallOption) (*price.CalculateDiscountResponse, error) {
 	return nil, nil
+}
+
+func (f *fakePriceClient) SaveActualOrderPrice(_ context.Context, _ *price.SaveActualOrderPriceRequest, _ ...grpc.CallOption) (*price.SaveActualOrderPriceResponse, error) {
+	return &price.SaveActualOrderPriceResponse{}, nil
 }
 
 func TestCreateOrderUsesPriceSnapshot(t *testing.T) {

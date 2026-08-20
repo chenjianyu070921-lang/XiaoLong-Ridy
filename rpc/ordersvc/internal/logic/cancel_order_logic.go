@@ -15,11 +15,11 @@ import (
 
 // 订单业务错误定义。
 var (
-	ErrInvalidOrderParams       = errors.New("invalid order params")
+	ErrInvalidOrderParams       = errors.New("invalid orderclient params")
 	ErrCancelReasonRequired     = errors.New("cancel reason required")
-	ErrOrderStatusNotCancelable = errors.New("order status not cancelable")
-	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this order")
-	ErrOrderStatusNotAllowed    = errors.New("order status not allowed")
+	ErrOrderStatusNotCancelable = errors.New("orderclient status not cancelable")
+	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this orderclient")
+	ErrOrderStatusNotAllowed    = errors.New("orderclient status not allowed")
 	ErrDriverNotMatched         = errors.New("driver not matched")
 )
 
@@ -55,6 +55,13 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		return nil, ErrCancelReasonRequired
 	}
 
+	// 订单级分布式锁：避免取消与接单/超时取消并发竞态。
+	release, err := acquireOrderLock(l.ctx, l.svcCtx.Redis, uint64(in.OrderId))
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
 	if err != nil {
 		return nil, err
@@ -84,6 +91,9 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		return nil, ErrOrderStatusNotCancelable
 	}
 
+	// 取消成功后同步失效该订单的待派单记录，避免残留 Pending 被重派任务重复处理。
+	syncCancelDispatch(l.ctx, l.svcCtx.DispatchClient, order.Id, reason)
+
 	return &proto.CancelOrderResponse{
 		OrderId: in.OrderId,
 		Status:  proto.OrderStatus_ORDER_STATUS_CANCELLED,
@@ -106,10 +116,11 @@ func canCancelStatus(status int8) bool {
 }
 
 // canCancelByOperator 校验取消方是否有权取消该订单。
+// 已接单（ACCEPTED）后，普通用户取消先拒绝（违约金/客服取消策略后续版本补充）。
 func canCancelByOperator(order *model.RideOrder, operatorType string, operatorID int64) bool {
 	switch operatorType {
 	case constants.OperatorUser:
-		return order.UserId == uint64(operatorID)
+		return order.UserId == uint64(operatorID) && order.Status == constants.OrderStatusWaitAccept
 	case constants.OperatorDriver:
 		return order.Status == constants.OrderStatusAccepted && order.DriverId == uint64(operatorID)
 	case constants.OperatorSystem, constants.OperatorAdmin:

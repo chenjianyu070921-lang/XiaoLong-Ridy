@@ -1,6 +1,8 @@
 package logic
 
 import (
+	"XiaoLong-Ridy/rpc/paysvc/pay"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	"context"
 	"errors"
 	"fmt"
@@ -10,8 +12,6 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
-	pay "XiaoLong-Ridy/rpc/paysvc/pay"
-	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	"github.com/zeromicro/go-zero/core/logx"

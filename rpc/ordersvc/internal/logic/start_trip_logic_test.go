@@ -31,7 +31,7 @@ func TestStartTripSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 3 {
-		t.Fatalf("started order status = %d, want 3", fresh.Status)
+		t.Fatalf("started orderclient status = %d, want 3", fresh.Status)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != 2 || logs[1].ToStatus != 3 || logs[1].OperatorType != "driver" {

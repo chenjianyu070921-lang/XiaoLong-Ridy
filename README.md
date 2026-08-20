@@ -95,7 +95,7 @@ cd api/driver && go run .
 cd api/admin && go run .
 
 # 5. 启动消息消费者与定时任务（示例）
-cd mq-consumer/order-event-consumer && go run .
+cd mq-consumer/orderclient-event-consumer && go run .
 cd mq-consumer/location-consumer && go run .
 cd job && go run .
 ```

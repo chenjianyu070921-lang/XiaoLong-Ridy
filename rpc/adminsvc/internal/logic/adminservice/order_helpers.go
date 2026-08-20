@@ -50,7 +50,7 @@ func scanOrder(rows *sql.Rows) (*adminsvc.Order, error) {
 		&item.EstimatedDistanceM, &item.EstimatedDurationS, &item.EstimatedPrice,
 		&item.Status, &item.CancelReason, &item.CancelBy, &createdAt, &updatedAt, &deletedAt,
 	); err != nil {
-		return nil, fmt.Errorf("scan order row: %w", err)
+		return nil, fmt.Errorf("scan orderclient row: %w", err)
 	}
 	item.CreatedAt = formatNullTime(createdAt)
 	item.UpdatedAt = formatNullTime(updatedAt)
@@ -63,7 +63,7 @@ func scanOrderStatusLog(rows *sql.Rows) (*adminsvc.OrderStatusLog, error) {
 	var item adminsvc.OrderStatusLog
 	var createdAt sql.NullTime
 	if err := rows.Scan(&item.Id, &item.OrderId, &item.FromStatus, &item.ToStatus, &item.OperatorType, &item.OperatorId, &item.Remark, &createdAt); err != nil {
-		return nil, fmt.Errorf("scan order status log row: %w", err)
+		return nil, fmt.Errorf("scan orderclient status log row: %w", err)
 	}
 	item.CreatedAt = formatNullTime(createdAt)
 	return &item, nil
@@ -93,7 +93,7 @@ func scanOrderPrice(row *sql.Row) (*adminsvc.OrderPrice, error) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("scan order price: %w", err)
+		return nil, fmt.Errorf("scan orderclient price: %w", err)
 	}
 	return &item, nil
 }

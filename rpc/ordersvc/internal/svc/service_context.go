@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"XiaoLong-Ridy/rpc/paysvc/pay"
 	"time"
 
 	cfg "XiaoLong-Ridy/common/config"
@@ -10,7 +11,6 @@ import (
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/config"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
-	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	"github.com/redis/go-redis/v9"

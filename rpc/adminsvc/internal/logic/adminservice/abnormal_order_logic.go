@@ -113,7 +113,7 @@ func scanAbnormalOrderRow(rows *sql.Rows) (*adminsvc.AbnormalOrder, error) {
 		&item.Status, &item.CancelReason, &item.CancelBy, &item.CreatedAt, &item.UpdatedAt, new(sql.NullTime),
 		&paymentStatus, &dispatchStatus,
 	); err != nil {
-		return nil, fmt.Errorf("scan abnormal order row: %w", err)
+		return nil, fmt.Errorf("scan abnormal orderclient row: %w", err)
 	}
 	item.PaymentStatus = paymentStatus
 	item.DispatchStatus = dispatchStatus

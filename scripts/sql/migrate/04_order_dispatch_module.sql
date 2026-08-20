@@ -1,5 +1,5 @@
 -- =============================================================
--- 模块四：订单与派单调度（rpc/ordersvc + rpc/dispatchsvc + order-event-consumer）
+-- 模块四：订单与派单调度（rpc/ordersvc + rpc/dispatchsvc + orderclient-event-consumer）
 -- 表清单：ride_order、order_status_log、dispatch_record
 -- =============================================================
 

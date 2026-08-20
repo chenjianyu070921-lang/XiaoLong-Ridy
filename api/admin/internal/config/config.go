@@ -48,7 +48,7 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config file: %w", err)
 	}
 	if cfg.HTTPAddr == "" {
-		cfg.HTTPAddr = ":8888"
+		cfg.HTTPAddr = ":8083"
 	}
 	if cfg.Auth.SessionTTLHours <= 0 {
 		cfg.Auth.SessionTTLHours = 24
@@ -57,7 +57,7 @@ func Load(path string) (*Config, error) {
 		cfg.Auth.TokenPrefix = "admin:sess:"
 	}
 	if len(cfg.AdminRPC.Endpoints) == 0 && cfg.AdminRPC.Target == "" {
-		cfg.AdminRPC.Target = "127.0.0.1:8080"
+		cfg.AdminRPC.Target = "127.0.0.1:8084"
 	}
 	return &cfg, nil
 }

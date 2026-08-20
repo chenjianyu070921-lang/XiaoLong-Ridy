@@ -195,7 +195,7 @@ type AbnormalOrderDTO struct {
 
 // OrderDetailDTO 表示订单详情聚合信息。
 type OrderDetailDTO struct {
-	Order           OrderDTO         `json:"order"`
+	Order           OrderDTO         `json:"orderclient"`
 	StatusLogs      []OrderStatusLog `json:"status_logs"`
 	DispatchRecords []DispatchRecord `json:"dispatch_records"`
 	Price           *OrderPrice      `json:"price,omitempty"`

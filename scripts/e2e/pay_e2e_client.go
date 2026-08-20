@@ -25,7 +25,7 @@ import (
 
 var (
 	target  = flag.String("target", "127.0.0.1:50054", "paysvc 地址")
-	orderID = flag.Int64("order", 1001, "订单ID")
+	orderID = flag.Int64("orderclient", 1001, "订单ID")
 	userID  = flag.Int64("user", 2001, "用户ID")
 	amount  = flag.Int64("amount", 2500, "支付金额（分）")
 	refund  = flag.Int64("refund", 1000, "退款金额（分）")

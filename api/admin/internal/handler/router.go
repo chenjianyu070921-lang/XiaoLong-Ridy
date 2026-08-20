@@ -412,7 +412,7 @@ func (r *Router) handleAbnormalOrders(w http.ResponseWriter, req *http.Request) 
 func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
 	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/orders/")
 	if !ok {
-		writeError(w, http.StatusBadRequest, 40001, "invalid order id")
+		writeError(w, http.StatusBadRequest, 40001, "invalid orderclient id")
 		return
 	}
 	orderLogic := logic.NewOrderLogic(r.ctx)

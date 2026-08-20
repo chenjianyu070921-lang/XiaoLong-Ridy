@@ -12,7 +12,7 @@ import (
 )
 
 // ErrOrderNotFound 表示没有找到指定订单。
-var ErrOrderNotFound = errors.New("order not found")
+var ErrOrderNotFound = errors.New("orderclient not found")
 
 // OrderRepository 封装订单监控相关数据访问。
 // P0 阶段负责订单主表查询和详情聚合，不处理订单状态变更。
@@ -130,7 +130,7 @@ func (r *OrderRepository) GetByID(ctx context.Context, id int64) (*model.RideOrd
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrOrderNotFound
 		}
-		return nil, fmt.Errorf("scan order: %w", err)
+		return nil, fmt.Errorf("scan orderclient: %w", err)
 	}
 	if deletedAt.Valid {
 		item.DeletedAt = &deletedAt.Time
@@ -344,7 +344,7 @@ func scanOrderRows(rows *sql.Rows) (*model.RideOrder, error) {
 		&item.Status, &item.CancelReason, &item.CancelBy, &item.CreatedAt, &item.UpdatedAt, &deletedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("scan order row: %w", err)
+		return nil, fmt.Errorf("scan orderclient row: %w", err)
 	}
 	if deletedAt.Valid {
 		item.DeletedAt = &deletedAt.Time
@@ -382,7 +382,7 @@ func scanOrderWithStatuses(rows *sql.Rows) (model.RideOrder, int32, int32, error
 		&paymentStatus, &dispatchStatus,
 	)
 	if err != nil {
-		return item, 0, 0, fmt.Errorf("scan abnormal order row: %w", err)
+		return item, 0, 0, fmt.Errorf("scan abnormal orderclient row: %w", err)
 	}
 	if deletedAt.Valid {
 		item.DeletedAt = &deletedAt.Time

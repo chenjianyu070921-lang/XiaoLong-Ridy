@@ -34,7 +34,7 @@ func seedTimeoutOrder(t *testing.T, repo *repository.MemoryOrderRepository, user
 		OperatorId:   userID,
 	}
 	if err := repo.Create(context.Background(), order, statusLog); err != nil {
-		t.Fatalf("seed timeout order error = %v", err)
+		t.Fatalf("seed timeout orderclient error = %v", err)
 	}
 	return order
 }
@@ -56,7 +56,7 @@ func TestListTimeoutOrdersReturnsOnlyExpiredWaitAccept(t *testing.T) {
 		t.Fatalf("ListTimeoutOrders() response = %+v", resp)
 	}
 	if resp.List[0].OrderId != int64(expired.Id) {
-		t.Fatalf("ListTimeoutOrders() order = %+v, want id %d", resp.List[0], expired.Id)
+		t.Fatalf("ListTimeoutOrders() orderclient = %+v, want id %d", resp.List[0], expired.Id)
 	}
 }
 

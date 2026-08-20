@@ -16,7 +16,7 @@ var (
 	// ErrForbidden 表示当前用户无权访问指定资源。
 	ErrForbidden = errors.New("forbidden")
 	// ErrOrderClientNotConfigured 表示订单服务客户端未配置。
-	ErrOrderClientNotConfigured = errors.New("order client not configured")
+	ErrOrderClientNotConfigured = errors.New("orderclient client not configured")
 	// ErrPriceClientNotConfigured 表示价格服务客户端未配置。
 	ErrPriceClientNotConfigured = errors.New("price client not configured")
 	// ErrPayClientNotConfigured 表示支付服务客户端未配置。

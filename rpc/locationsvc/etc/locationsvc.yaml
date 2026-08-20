@@ -7,16 +7,19 @@ Etcd:
   Key: locationsvc.rpc
 
 Mysql:
-  Dsn: "root:root@tcp(127.0.0.1:3306)/xiaolongridy?charset=utf8mb4&parseTime=true&loc=Local"
+  Dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
   MaxOpenConn: 100
   MaxIdleConn: 10
   MaxLifeTime: 3600
 
-RedisConf:
-  Host: "127.0.0.1:6379"
-  Pass: ""
-  Db: 0
-  PoolSize: 10
+myredis:
+  host: 127.0.0.1:6379
+  pass: ""
+  db: 0
+  poolSize: 20
+  dialTimeout: 0
+  readTimeout: 0
+  writeTimeout: 0
 
 # 地图服务配置（后续对接高德/腾讯地图时使用）
 MapService:
