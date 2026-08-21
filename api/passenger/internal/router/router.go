@@ -52,6 +52,10 @@ func registerOrderRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/orders/cancel", handler.CancelOrderHandler(svcCtx))
 	// 发起支付接口，校验订单归属和待支付状态后调用支付服务。
 	mux.HandleFunc("/api/passenger/v1/orders/pay", handler.PayOrderHandler(svcCtx))
+	// 查询支付状态接口，供前端在支付回调/消费者延迟时主动刷新支付结果。
+	mux.HandleFunc("/api/passenger/v1/orders/payment-status", handler.GetPaymentStatusHandler(svcCtx))
+	// 查询派单状态接口，供前端在派单推送延迟时主动拉取候选司机记录。
+	mux.HandleFunc("/api/passenger/v1/orders/dispatch-status", handler.GetDispatchStatusHandler(svcCtx))
 }
 
 // registerAddressRoutes 注册乘客常用地址接口。

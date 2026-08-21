@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
@@ -123,6 +124,26 @@ func newGRPCPayClient(cli payproto.PayClient) *grpcPayClient {
 // CreatePayment 调用 paysvc 创建支付单。
 func (c *grpcPayClient) CreatePayment(ctx context.Context, req *payproto.CreatePaymentRequest) (*payproto.CreatePaymentResponse, error) {
 	return c.cli.CreatePayment(ctx, req)
+}
+
+// GetPayment 调用 paysvc 查询支付单状态，供乘客端主动刷新支付结果。
+func (c *grpcPayClient) GetPayment(ctx context.Context, req *payproto.GetPaymentRequest) (*payproto.GetPaymentResponse, error) {
+	return c.cli.GetPayment(ctx, req)
+}
+
+// grpcDispatchClient 将 dispatchsvc 生成的 gRPC 客户端适配为 passenger 的 DispatchClient 接口。
+type grpcDispatchClient struct {
+	cli dispatchproto.DispatchClient
+}
+
+// newGRPCDispatchClient 创建 dispatchsvc gRPC adapter。
+func newGRPCDispatchClient(cli dispatchproto.DispatchClient) *grpcDispatchClient {
+	return &grpcDispatchClient{cli: cli}
+}
+
+// ListDispatchRecords 调用 dispatchsvc 查询订单维度的派单记录。
+func (c *grpcDispatchClient) ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
+	return c.cli.ListDispatchRecords(ctx, req)
 }
 
 // grpcPriceClient 将 pricesvc proto 客户端适配为 passenger 当前的价格预估接口。

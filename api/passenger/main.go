@@ -24,7 +24,7 @@ func main() {
 	}
 
 	log.Printf("passenger api started at http://127.0.0.1%s", cfg.HTTPAddr)
-	log.Printf("passenger api client mode=%s grpc targets: usersvc=%s ordersvc=%s pricesvc=%s paysvc=%s", cfg.ClientMode, cfg.UserRPCAddr, cfg.OrderRPCAddr, cfg.PriceRPCAddr, cfg.PayRPCAddr)
+	log.Printf("passenger api client mode=%s grpc targets: usersvc=%s ordersvc=%s pricesvc=%s paysvc=%s dispatchsvc=%s", cfg.ClientMode, cfg.UserRPCAddr, cfg.OrderRPCAddr, cfg.PriceRPCAddr, cfg.PayRPCAddr, cfg.DispatchRPCAddr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(fmt.Errorf("启动 passenger api 失败: %w", err))
 	}
