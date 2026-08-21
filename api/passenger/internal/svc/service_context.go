@@ -9,6 +9,7 @@ import (
 
 	commonconfig "XiaoLong-Ridy/common/config"
 	"XiaoLong-Ridy/common/datasource"
+	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	orderlocal "XiaoLong-Ridy/rpc/ordersvc/client"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	paylocal "XiaoLong-Ridy/rpc/paysvc/pay"
@@ -29,6 +30,7 @@ const (
 	defaultOrderRPCAddr    = "127.0.0.1:50051"
 	defaultPriceRPCAddr    = "127.0.0.1:50053"
 	defaultPayRPCAddr      = "127.0.0.1:50054"
+	defaultDispatchRPCAddr = "127.0.0.1:50055"
 	defaultPriceCityCode   = "110000"
 )
 
@@ -41,6 +43,7 @@ type RuntimeConfig struct {
 	OrderRPCAddr    string
 	PriceRPCAddr    string
 	PayRPCAddr      string
+	DispatchRPCAddr string
 	ClientMode      string
 	PriceCityCode   string
 	MysqlDSN        string
@@ -81,6 +84,12 @@ type PriceClient interface {
 // PayClient 定义 passenger API 调用 paysvc 创建支付单的 RPC 契约。
 type PayClient interface {
 	CreatePayment(ctx context.Context, req *payproto.CreatePaymentRequest) (*payproto.CreatePaymentResponse, error)
+	GetPayment(ctx context.Context, req *payproto.GetPaymentRequest) (*payproto.GetPaymentResponse, error)
+}
+
+// DispatchClient 定义 passenger API 查询 dispatchsvc 派单结果的 RPC 契约。
+type DispatchClient interface {
+	ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error)
 }
 
 // Option 用于在本地联调和测试时按需注入下游客户端与配置。
@@ -92,6 +101,7 @@ type ServiceContext struct {
 	OrderClient     OrderClient
 	PriceClient     PriceClient
 	PayClient       PayClient
+	DispatchClient  DispatchClient
 	Reviews         ReviewRepository
 	TokenSigningKey string
 	grpcConns       []*grpc.ClientConn
@@ -119,6 +129,7 @@ func LoadRuntimeConfigFromEnv() RuntimeConfig {
 		OrderRPCAddr:    strings.TrimSpace(os.Getenv("PASSENGER_ORDERSVC_ADDR")),
 		PriceRPCAddr:    strings.TrimSpace(os.Getenv("PASSENGER_PRICESVC_ADDR")),
 		PayRPCAddr:      strings.TrimSpace(os.Getenv("PASSENGER_PAYSVC_ADDR")),
+		DispatchRPCAddr: strings.TrimSpace(os.Getenv("PASSENGER_DISPATCHSVC_ADDR")),
 		ClientMode:      strings.TrimSpace(os.Getenv("PASSENGER_CLIENT_MODE")),
 		PriceCityCode:   strings.TrimSpace(os.Getenv("PASSENGER_PRICE_CITY_CODE")),
 		MysqlDSN:        strings.TrimSpace(os.Getenv("PASSENGER_MYSQL_DSN")),
@@ -157,12 +168,18 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		closeGRPCConns(userConn, orderConn, priceConn)
 		return nil, err
 	}
+	dispatchClient, dispatchConn, err := buildDispatchClient(cfg.DispatchRPCAddr)
+	if err != nil {
+		closeGRPCConns(userConn, orderConn, priceConn, payConn)
+		return nil, err
+	}
 
 	ctx := NewServiceContext(
 		userClient,
 		WithOrderClient(orderClient),
 		WithPriceClient(priceClient),
 		WithPayClient(payClient),
+		WithDispatchClient(dispatchClient),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 	)
 	if cfg.MysqlDSN != "" {
@@ -173,12 +190,12 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 			MaxLifeTime: int((30 * time.Minute).Nanoseconds()),
 		})
 		if err != nil {
-			closeGRPCConns(userConn, orderConn, priceConn, payConn)
+			closeGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn)
 			return nil, err
 		}
 		ctx.Reviews = NewGormReviewRepository(db)
 	}
-	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn)
+	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn)
 	return ctx, nil
 }
 
@@ -188,7 +205,8 @@ func newLocalServiceContext(cfg RuntimeConfig) *ServiceContext {
 		userlocal.NewLocalClient(cfg.TokenSigningKey, nil),
 		WithOrderClient(orderlocal.NewLocalClient()),
 		WithPriceClient(priceclient.NewLocalClient()),
-		WithPayClient(paylocal.NewLocalClient()),
+		WithPayClient(newLocalPayClient(paylocal.NewLocalClient())),
+		WithDispatchClient(newMemoryDispatchClient()),
 		WithReviewRepository(NewMemoryReviewRepository()),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 	)
@@ -213,6 +231,9 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 	}
 	if cfg.PayRPCAddr == "" {
 		cfg.PayRPCAddr = defaultPayRPCAddr
+	}
+	if cfg.DispatchRPCAddr == "" {
+		cfg.DispatchRPCAddr = defaultDispatchRPCAddr
 	}
 	if cfg.ClientMode == "" {
 		cfg.ClientMode = clientModeGRPC
@@ -250,6 +271,13 @@ func WithPriceClient(client PriceClient) Option {
 func WithPayClient(client PayClient) Option {
 	return func(ctx *ServiceContext) {
 		ctx.PayClient = client
+	}
+}
+
+// WithDispatchClient 注入派单服务客户端。
+func WithDispatchClient(client DispatchClient) Option {
+	return func(ctx *ServiceContext) {
+		ctx.DispatchClient = client
 	}
 }
 
@@ -314,6 +342,18 @@ func buildPayClient(addr string) (PayClient, *grpc.ClientConn, error) {
 		return nil, nil, err
 	}
 	return newGRPCPayClient(payproto.NewPayClient(conn)), conn, nil
+}
+
+// buildDispatchClient 根据 dispatchsvc 地址创建真实 gRPC 客户端。
+func buildDispatchClient(addr string) (DispatchClient, *grpc.ClientConn, error) {
+	if strings.TrimSpace(addr) == "" {
+		return nil, nil, fmt.Errorf("dispatchsvc grpc addr is required")
+	}
+	conn, err := newInsecureGRPCConn(addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return newGRPCDispatchClient(dispatchproto.NewDispatchClient(conn)), conn, nil
 }
 
 // closeGRPCConns 关闭非空 gRPC 连接，忽略关闭阶段错误。
