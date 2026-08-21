@@ -20,7 +20,9 @@ func UploadCertificationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		var req types.UploadCertificationRequest
-		decodeJSON(w, r, &req)
+		if !decodeJSON(w, r, &req) {
+			return
+		}
 		resp, err := logic.NewCertificationLogic(r.Context(), svcCtx).UploadCertification(int64(claims.AccountID), &req)
 		if err != nil {
 			writeParamError(w, err)

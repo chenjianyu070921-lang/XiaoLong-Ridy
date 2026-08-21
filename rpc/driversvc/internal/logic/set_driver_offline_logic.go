@@ -28,6 +28,15 @@ func NewSetDriverOfflineLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 // SetDriverOffline 将司机听单状态置为离线（0），并同步写入 Redis 离线状态与 MySQL 位置。
 // 多端互踢：下线请求仅允许当前绑定设备执行，否则标记被顶替。
 func (l *SetDriverOfflineLogic) SetDriverOffline(in *proto.SetDriverOfflineRequest) (*proto.SetDriverOfflineResponse, error) {
+	if in == nil || in.GetDriverId() <= 0 {
+		return nil, errInvalidDriverID
+	}
+	if in.GetDeviceId() == "" {
+		return nil, errInvalidDeviceID
+	}
+	if !validLongitudeLatitude(in.GetLongitude(), in.GetLatitude()) {
+		return nil, errInvalidLongitudeLatitude
+	}
 	// 先校验司机存在（软删不可见）。
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.DriverId)); err != nil {
 		return nil, err

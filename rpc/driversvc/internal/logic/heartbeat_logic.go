@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
@@ -40,11 +41,17 @@ func NewHeartbeatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Heartbe
 // 被顶替时返回 kicked=true，由客户端强制重新登录。
 func (l *HeartbeatLogic) Heartbeat(in *proto.HeartbeatRequest) (*proto.HeartbeatResponse, error) {
 	// 校验司机 ID 与设备标识非空。
-	if in.DriverId <= 0 {
+	if in == nil || in.DriverId <= 0 {
 		return nil, errInvalidDriverID
 	}
 	if in.DeviceId == "" {
 		return nil, errInvalidDeviceID
+	}
+	if !validLongitudeLatitude(in.GetLongitude(), in.GetLatitude()) {
+		return nil, errInvalidLongitudeLatitude
+	}
+	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.DriverId)); err != nil {
+		return nil, err
 	}
 	// 调用 Redis 在线存储：刷新 TTL + 互踢判定。
 	onlineStatus, kicked, err := l.svcCtx.OnlineStore.Heartbeat(l.ctx, in.DriverId, in.DeviceId, in.GetLongitude(), in.GetLatitude())
@@ -52,9 +59,24 @@ func (l *HeartbeatLogic) Heartbeat(in *proto.HeartbeatRequest) (*proto.Heartbeat
 		// 在线存储异常：不阻断，返回当前状态，由调用方决定是否降级。
 		return nil, err
 	}
+	now := time.Now()
+	if !kicked {
+		if err := l.svcCtx.DriverRepository.UpsertLocation(l.ctx, &model.DriverLocation{
+			DriverID:     uint64(in.DriverId),
+			Longitude:    in.GetLongitude(),
+			Latitude:     in.GetLatitude(),
+			OnlineStatus: locationStatusFromOnline(onlineStatus),
+			ReportTime:   now,
+		}); err != nil {
+			return nil, err
+		}
+		if err := l.svcCtx.DriverRepository.Update(l.ctx, uint64(in.DriverId), map[string]interface{}{"online_status": locationStatusFromOnline(onlineStatus)}); err != nil {
+			return nil, err
+		}
+	}
 	return &proto.HeartbeatResponse{
 		OnlineStatus: onlineStatus,
 		Kicked:       kicked,
-		ServerTime:   time.Now().Unix(),
+		ServerTime:   now.Unix(),
 	}, nil
 }

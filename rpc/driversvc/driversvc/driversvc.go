@@ -14,50 +14,54 @@ import (
 )
 
 type (
-	AiScoreFactor               = proto.AiScoreFactor
-	AuditCertificationRequest   = proto.AuditCertificationRequest
-	CertificationInfo           = proto.CertificationInfo
-	CommonResponse              = proto.CommonResponse
-	CreateDriverRequest         = proto.CreateDriverRequest
-	CreateDriverResponse        = proto.CreateDriverResponse
-	CreateVehicleRequest        = proto.CreateVehicleRequest
-	CreateVehicleResponse       = proto.CreateVehicleResponse
-	DeleteDriverRequest         = proto.DeleteDriverRequest
-	DeleteDriverResponse        = proto.DeleteDriverResponse
-	DeleteVehicleRequest        = proto.DeleteVehicleRequest
-	DeleteVehicleResponse       = proto.DeleteVehicleResponse
-	Driver                      = proto.Driver
-	GetCertificationRequest     = proto.GetCertificationRequest
-	GetCertificationResponse    = proto.GetCertificationResponse
-	GetDriverAiScoreRequest     = proto.GetDriverAiScoreRequest
-	GetDriverAiScoreResponse    = proto.GetDriverAiScoreResponse
-	GetDriverByPhoneRequest     = proto.GetDriverByPhoneRequest
-	GetDriverByPhoneResponse    = proto.GetDriverByPhoneResponse
-	GetDriverRequest            = proto.GetDriverRequest
-	GetDriverResponse           = proto.GetDriverResponse
-	GetVehicleRequest           = proto.GetVehicleRequest
-	GetVehicleResponse          = proto.GetVehicleResponse
-	HeartbeatRequest            = proto.HeartbeatRequest
-	HeartbeatResponse           = proto.HeartbeatResponse
-	ListDriversRequest          = proto.ListDriversRequest
-	ListDriversResponse         = proto.ListDriversResponse
-	ListNearbyDriversRequest    = proto.ListNearbyDriversRequest
-	ListNearbyDriversResponse   = proto.ListNearbyDriversResponse
-	LoginRequest                = proto.LoginRequest
-	LoginBySMSRequest           = proto.LoginBySMSRequest
-	LoginResponse               = proto.LoginResponse
-	NearbyDriver                = proto.NearbyDriver
-	SetDriverOfflineRequest     = proto.SetDriverOfflineRequest
-	SetDriverOfflineResponse    = proto.SetDriverOfflineResponse
-	SetDriverOnlineRequest      = proto.SetDriverOnlineRequest
-	SetDriverOnlineResponse     = proto.SetDriverOnlineResponse
-	UpdateDriverRequest         = proto.UpdateDriverRequest
-	UpdateDriverResponse        = proto.UpdateDriverResponse
-	UpdateVehicleRequest        = proto.UpdateVehicleRequest
-	UpdateVehicleResponse       = proto.UpdateVehicleResponse
-	UploadCertificationRequest  = proto.UploadCertificationRequest
-	UploadCertificationResponse = proto.UploadCertificationResponse
-	Vehicle                     = proto.Vehicle
+	AiScoreFactor                  = proto.AiScoreFactor
+	AuditCertificationRequest      = proto.AuditCertificationRequest
+	CertificationInfo              = proto.CertificationInfo
+	CommonResponse                 = proto.CommonResponse
+	CreateDriverRequest            = proto.CreateDriverRequest
+	CreateDriverResponse           = proto.CreateDriverResponse
+	CreateVehicleRequest           = proto.CreateVehicleRequest
+	CreateVehicleResponse          = proto.CreateVehicleResponse
+	DeleteDriverRequest            = proto.DeleteDriverRequest
+	DeleteDriverResponse           = proto.DeleteDriverResponse
+	DeleteVehicleRequest           = proto.DeleteVehicleRequest
+	DeleteVehicleResponse          = proto.DeleteVehicleResponse
+	Driver                         = proto.Driver
+	GetCertificationRequest        = proto.GetCertificationRequest
+	GetCertificationResponse       = proto.GetCertificationResponse
+	GetDriverAiScoreRequest        = proto.GetDriverAiScoreRequest
+	GetDriverAiScoreResponse       = proto.GetDriverAiScoreResponse
+	GetDriverByPhoneRequest        = proto.GetDriverByPhoneRequest
+	GetDriverByPhoneResponse       = proto.GetDriverByPhoneResponse
+	GetDriverRequest               = proto.GetDriverRequest
+	GetDriverResponse              = proto.GetDriverResponse
+	GetVehicleRequest              = proto.GetVehicleRequest
+	GetVehicleResponse             = proto.GetVehicleResponse
+	HeartbeatRequest               = proto.HeartbeatRequest
+	HeartbeatResponse              = proto.HeartbeatResponse
+	ListDriversRequest             = proto.ListDriversRequest
+	ListDriversResponse            = proto.ListDriversResponse
+	ListNearbyDriversRequest       = proto.ListNearbyDriversRequest
+	ListNearbyDriversResponse      = proto.ListNearbyDriversResponse
+	LoginRequest                   = proto.LoginRequest
+	LoginBySMSRequest              = proto.LoginBySMSRequest
+	LoginResponse                  = proto.LoginResponse
+	NearbyDriver                   = proto.NearbyDriver
+	ReportLocationRequest          = proto.ReportLocationRequest
+	ReportLocationResponse         = proto.ReportLocationResponse
+	SetDriverOfflineRequest        = proto.SetDriverOfflineRequest
+	SetDriverOfflineResponse       = proto.SetDriverOfflineResponse
+	SetDriverOnlineRequest         = proto.SetDriverOnlineRequest
+	SetDriverOnlineResponse        = proto.SetDriverOnlineResponse
+	SetDriverServiceStatusRequest  = proto.SetDriverServiceStatusRequest
+	SetDriverServiceStatusResponse = proto.SetDriverServiceStatusResponse
+	UpdateDriverRequest            = proto.UpdateDriverRequest
+	UpdateDriverResponse           = proto.UpdateDriverResponse
+	UpdateVehicleRequest           = proto.UpdateVehicleRequest
+	UpdateVehicleResponse          = proto.UpdateVehicleResponse
+	UploadCertificationRequest     = proto.UploadCertificationRequest
+	UploadCertificationResponse    = proto.UploadCertificationResponse
+	Vehicle                        = proto.Vehicle
 
 	Driversvc interface {
 		// 司机主表 CRUD（仅司机增删改查）
@@ -72,6 +76,8 @@ type (
 		SetDriverOnline(ctx context.Context, in *SetDriverOnlineRequest, opts ...grpc.CallOption) (*SetDriverOnlineResponse, error)
 		// 司机下线：将听单状态置为离线（0）。
 		SetDriverOffline(ctx context.Context, in *SetDriverOfflineRequest, opts ...grpc.CallOption) (*SetDriverOfflineResponse, error)
+		ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error)
+		SetDriverServiceStatus(ctx context.Context, in *SetDriverServiceStatusRequest, opts ...grpc.CallOption) (*SetDriverServiceStatusResponse, error)
 		// 车辆 CRUD（司机绑定车辆增删改查）
 		CreateVehicle(ctx context.Context, in *CreateVehicleRequest, opts ...grpc.CallOption) (*CreateVehicleResponse, error)
 		UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error)
@@ -151,6 +157,16 @@ func (m *defaultDriversvc) SetDriverOnline(ctx context.Context, in *SetDriverOnl
 func (m *defaultDriversvc) SetDriverOffline(ctx context.Context, in *SetDriverOfflineRequest, opts ...grpc.CallOption) (*SetDriverOfflineResponse, error) {
 	client := proto.NewDriversvcClient(m.cli.Conn())
 	return client.SetDriverOffline(ctx, in, opts...)
+}
+
+func (m *defaultDriversvc) ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error) {
+	client := proto.NewDriversvcClient(m.cli.Conn())
+	return client.ReportLocation(ctx, in, opts...)
+}
+
+func (m *defaultDriversvc) SetDriverServiceStatus(ctx context.Context, in *SetDriverServiceStatusRequest, opts ...grpc.CallOption) (*SetDriverServiceStatusResponse, error) {
+	client := proto.NewDriversvcClient(m.cli.Conn())
+	return client.SetDriverServiceStatus(ctx, in, opts...)
 }
 
 // 车辆 CRUD（司机绑定车辆增删改查）

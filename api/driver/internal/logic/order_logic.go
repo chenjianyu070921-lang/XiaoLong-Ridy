@@ -6,6 +6,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 )
 
@@ -63,6 +64,9 @@ func (l *OrderLogic) StartTrip(driverID, orderID int64) (*types.StartTripRespons
 	if err != nil {
 		return nil, err
 	}
+	if err := l.setDriverServiceStatus(driverID, 2); err != nil {
+		return nil, err
+	}
 	return &types.StartTripResponse{
 		OrderID: resp.GetOrderId(),
 		Status:  int32(resp.GetStatus()),
@@ -115,6 +119,9 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 	if err != nil {
 		return nil, err
 	}
+	if err := l.setDriverServiceStatus(driverID, 1); err != nil {
+		return nil, err
+	}
 	return &types.FinishTripResponse{
 		OrderID:            resp.GetOrderId(),
 		Status:             int32(resp.GetStatus()),
@@ -123,6 +130,8 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 }
 
 // RejectOrder 司机拒绝派单。
+// driverID 来自 JWT，orderID 和 reason 来自请求体；内部调用 dispatchsvc.RejectDispatch，
+// 由派单服务校验司机与派单记录归属并推进派单状态。
 func (l *OrderLogic) RejectOrder(driverID int64, req *types.RejectOrderRequest) (*types.RejectOrderResponse, error) {
 	if driverID <= 0 || req == nil || req.OrderID <= 0 {
 		return nil, ErrInvalidParam
@@ -143,6 +152,8 @@ func (l *OrderLogic) RejectOrder(driverID int64, req *types.RejectOrderRequest) 
 }
 
 // ListMyDispatches 查询当前司机的派单记录。
+// 先按 driver_id 调用 dispatchsvc.ListDispatchRecords，再按每条派单的 order_id 调用 ordersvc.GetOrder，
+// 组装司机端需要的派单记录和订单摘要组合结果。
 func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int32) (*types.ListMyDispatchesResponse, error) {
 	if driverID <= 0 {
 		return nil, ErrInvalidParam
@@ -201,9 +212,22 @@ func (l *OrderLogic) orderClient() (svc.OrderClient, error) {
 	return l.svcCtx.OrderClient, nil
 }
 
+// dispatchClient 从服务上下文中安全取出 dispatchsvc 客户端。
 func (l *OrderLogic) dispatchClient() (svc.DispatchClient, error) {
 	if l.svcCtx == nil || l.svcCtx.DispatchClient == nil {
 		return nil, ErrDispatchClientNotConfigured
 	}
 	return l.svcCtx.DispatchClient, nil
+}
+
+// setDriverServiceStatus 在行程开始/结束后同步司机服务状态到 driversvc。
+func (l *OrderLogic) setDriverServiceStatus(driverID int64, onlineStatus int32) error {
+	if l.svcCtx == nil || l.svcCtx.DriverClient == nil {
+		return ErrDriverClientNotConfigured
+	}
+	_, err := l.svcCtx.DriverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+		DriverId:     driverID,
+		OnlineStatus: onlineStatus,
+	})
+	return err
 }

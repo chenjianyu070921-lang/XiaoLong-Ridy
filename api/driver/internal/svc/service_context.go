@@ -43,6 +43,8 @@ type DriverClient interface {
 	GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error)
 	// Heartbeat 调用司机心跳上报接口，刷新在线状态并判定多端互踢。
 	Heartbeat(ctx context.Context, req *driversproto.HeartbeatRequest) (*driversproto.HeartbeatResponse, error)
+	ReportLocation(ctx context.Context, req *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error)
+	SetDriverServiceStatus(ctx context.Context, req *driversproto.SetDriverServiceStatusRequest) (*driversproto.SetDriverServiceStatusResponse, error)
 }
 
 // grpcClient 是 DriverClient 接口的 gRPC 直连实现，内部持有 driversvc 的 gRPC 客户端。
@@ -118,6 +120,14 @@ func (g *grpcClient) GetCertification(ctx context.Context, req *driversproto.Get
 // Heartbeat 转发司机心跳上报请求到 driversvc。
 func (g *grpcClient) Heartbeat(ctx context.Context, req *driversproto.HeartbeatRequest) (*driversproto.HeartbeatResponse, error) {
 	return g.cli.Heartbeat(ctx, req)
+}
+
+func (g *grpcClient) ReportLocation(ctx context.Context, req *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error) {
+	return g.cli.ReportLocation(ctx, req)
+}
+
+func (g *grpcClient) SetDriverServiceStatus(ctx context.Context, req *driversproto.SetDriverServiceStatusRequest) (*driversproto.SetDriverServiceStatusResponse, error) {
+	return g.cli.SetDriverServiceStatus(ctx, req)
 }
 
 // OrderClient 定义 driver API 调用 ordersvc 的公开契约（接口）。

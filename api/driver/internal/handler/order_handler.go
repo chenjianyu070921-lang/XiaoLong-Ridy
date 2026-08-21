@@ -133,6 +133,7 @@ func ConfirmArriveHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // RejectOrderHandler POST /api/driver/v1/orders/reject
+// 司机拒绝派单：从 JWT 取司机 ID，解析 orderId 与拒单原因，调用 dispatchsvc 将当前司机的待派单记录置为已拒绝。
 func RejectOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
@@ -154,6 +155,7 @@ func RejectOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // ListMyDispatchesHandler POST /api/driver/v1/orders/dispatches
+// 我的派单列表：从 JWT 取司机 ID，按 driver_id 分页查询 dispatchsvc，再逐条调用 ordersvc.GetOrder 组装订单摘要。
 func ListMyDispatchesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())

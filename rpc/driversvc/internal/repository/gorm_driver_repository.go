@@ -140,6 +140,14 @@ func (r *gormDriverRepository) UpsertLocation(ctx context.Context, loc *model.Dr
 		Create(loc).Error
 }
 
+// UpdateLocationStatus 仅更新司机位置表中的在线状态，不覆盖最新经纬度。
+func (r *gormDriverRepository) UpdateLocationStatus(ctx context.Context, driverID uint64, onlineStatus int8) error {
+	return r.db.WithContext(ctx).
+		Model(&model.DriverLocation{}).
+		Where("driver_id = ?", driverID).
+		Update("online_status", onlineStatus).Error
+}
+
 // ListNearbyDrivers 按经纬度 + 半径查找在线司机（online_status=1）。
 // 使用 Haversine 公式在 SQL 中直接计算球面距离，过滤半径内记录并按距离升序返回。
 func (r *gormDriverRepository) ListNearbyDrivers(ctx context.Context, filter NearbyDriverFilter) ([]*model.DriverLocation, error) {

@@ -28,11 +28,14 @@ func NewListNearbyDriversLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 
 // ListNearbyDrivers 按经纬度 + 半径查找在线司机，返回按距离升序的列表。
 func (l *ListNearbyDriversLogic) ListNearbyDrivers(in *proto.ListNearbyDriversRequest) (*proto.ListNearbyDriversResponse, error) {
+	if in == nil || !validLongitudeLatitude(in.GetLongitude(), in.GetLatitude()) || in.GetRadiusMeters() < 0 || in.GetLimit() < 0 {
+		return nil, errInvalidLongitudeLatitude
+	}
 	filter := repository.NearbyDriverFilter{
-		Longitude: in.GetLongitude(),
-		Latitude:  in.GetLatitude(),
+		Longitude:    in.GetLongitude(),
+		Latitude:     in.GetLatitude(),
 		RadiusMeters: in.GetRadiusMeters(),
-		Limit:     int(in.GetLimit()),
+		Limit:        int(in.GetLimit()),
 	}
 
 	locations, err := l.svcCtx.DriverRepository.ListNearbyDrivers(l.ctx, filter)

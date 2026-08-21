@@ -122,19 +122,20 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	// 管理员创建司机（后台建号）：需登录鉴权。
 	mux.Handle("/api/driver/v1/drivers", methodSwitch("POST", protected(handler.CreateDriverHandler(svcCtx))))
 	// 更新司机信息。
-	mux.Handle("/api/driver/v1/drivers/update", protected(handler.UpdateDriverHandler(svcCtx)))
+	mux.Handle("/api/driver/v1/drivers/update", methodSwitch("POST", protected(handler.UpdateDriverHandler(svcCtx))))
 	// 查询司机详情（通过 ?id= 传参）。
-	mux.Handle("/api/driver/v1/drivers/get", protected(handler.GetDriverHandler(svcCtx)))
+	mux.Handle("/api/driver/v1/drivers/get", methodSwitch("GET", protected(handler.GetDriverHandler(svcCtx))))
 	// 删除（软删）司机（通过 ?id= 传参）。
-	mux.Handle("/api/driver/v1/drivers/delete", protected(handler.DeleteDriverHandler(svcCtx)))
+	mux.Handle("/api/driver/v1/drivers/delete", methodSwitch("POST", protected(handler.DeleteDriverHandler(svcCtx))))
 	// 查询司机 AI 智能推荐得分（综合分 + 影响因子，含降级）。
-	mux.Handle("/api/driver/v1/drivers/ai-score", protected(handler.GetDriverAiScoreHandler(svcCtx)))
+	mux.Handle("/api/driver/v1/drivers/ai-score", methodSwitch("GET", protected(handler.GetDriverAiScoreHandler(svcCtx))))
 	// 司机上线（置为在线状态）。
 	mux.Handle("/api/driver/v1/drivers/online", methodSwitch("POST", protected(handler.SetOnlineHandler(svcCtx))))
 	// 司机下线（置为离线状态）。
 	mux.Handle("/api/driver/v1/drivers/offline", methodSwitch("POST", protected(handler.SetOfflineHandler(svcCtx))))
 	// 司机心跳上报（刷新在线状态 + 多端互踢判定）。
 	mux.Handle("/api/driver/v1/drivers/heartbeat", methodSwitch("POST", protected(handler.HeartbeatHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/location/report", methodSwitch("POST", protected(handler.ReportLocationHandler(svcCtx))))
 	// 司机资质上传（图片直传 MinIO 并落库）。
 	mux.Handle("/api/driver/v1/drivers/certification/upload", methodSwitch("POST", protected(handler.UploadCertificationHandler(svcCtx))))
 	// 司机资质查询。

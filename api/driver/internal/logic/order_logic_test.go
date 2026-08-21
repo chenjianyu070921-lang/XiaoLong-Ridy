@@ -79,7 +79,8 @@ func TestConfirmArriveForwardsDriverAndOrder(t *testing.T) {
 
 func TestStartTripForwardsDriverAndOrder(t *testing.T) {
 	client := &fakeOrderClient{}
-	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
+	driverClient := &fakeDriverClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client, DriverClient: driverClient})
 
 	resp, err := logic.StartTrip(25, 1001)
 	if err != nil {
@@ -91,11 +92,17 @@ func TestStartTripForwardsDriverAndOrder(t *testing.T) {
 	if client.startRequest.GetDriverId() != 25 || client.startRequest.GetOrderId() != 1001 {
 		t.Fatalf("StartTrip() request = %+v", client.startRequest)
 	}
+	if len(driverClient.serviceStatusRequests) != 1 ||
+		driverClient.serviceStatusRequests[0].GetDriverId() != 25 ||
+		driverClient.serviceStatusRequests[0].GetOnlineStatus() != 2 {
+		t.Fatalf("SetDriverServiceStatus() requests = %+v", driverClient.serviceStatusRequests)
+	}
 }
 
 func TestFinishTripForwardsTripMetrics(t *testing.T) {
 	client := &fakeOrderClient{}
-	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
+	driverClient := &fakeDriverClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client, DriverClient: driverClient})
 	req := &types.FinishTripRequest{
 		OrderID:          1001,
 		ActualDistanceM:  12500,
@@ -114,6 +121,11 @@ func TestFinishTripForwardsTripMetrics(t *testing.T) {
 		client.finishRequest.GetActualDistanceM() != 12500 || client.finishRequest.GetActualDurationS() != 1800 ||
 		client.finishRequest.GetActualPriceCents() != 3200 {
 		t.Fatalf("FinishTrip() request = %+v", client.finishRequest)
+	}
+	if len(driverClient.serviceStatusRequests) != 1 ||
+		driverClient.serviceStatusRequests[0].GetDriverId() != 25 ||
+		driverClient.serviceStatusRequests[0].GetOnlineStatus() != 1 {
+		t.Fatalf("SetDriverServiceStatus() requests = %+v", driverClient.serviceStatusRequests)
 	}
 }
 

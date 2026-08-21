@@ -19,70 +19,59 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Driversvc_CreateDriver_FullMethodName         = "/driversvc.Driversvc/CreateDriver"
-	Driversvc_RegisterDriver_FullMethodName       = "/driversvc.Driversvc/RegisterDriver"
-	Driversvc_UpdateDriver_FullMethodName         = "/driversvc.Driversvc/UpdateDriver"
-	Driversvc_DeleteDriver_FullMethodName         = "/driversvc.Driversvc/DeleteDriver"
-	Driversvc_GetDriver_FullMethodName            = "/driversvc.Driversvc/GetDriver"
-	Driversvc_GetDriverByPhone_FullMethodName     = "/driversvc.Driversvc/GetDriverByPhone"
-	Driversvc_SetDriverOnline_FullMethodName      = "/driversvc.Driversvc/SetDriverOnline"
-	Driversvc_SetDriverOffline_FullMethodName     = "/driversvc.Driversvc/SetDriverOffline"
-	Driversvc_CreateVehicle_FullMethodName        = "/driversvc.Driversvc/CreateVehicle"
-	Driversvc_UpdateVehicle_FullMethodName        = "/driversvc.Driversvc/UpdateVehicle"
-	Driversvc_DeleteVehicle_FullMethodName        = "/driversvc.Driversvc/DeleteVehicle"
-	Driversvc_GetVehicle_FullMethodName           = "/driversvc.Driversvc/GetVehicle"
-	Driversvc_ListDrivers_FullMethodName          = "/driversvc.Driversvc/ListDrivers"
-	Driversvc_Login_FullMethodName                = "/driversvc.Driversvc/Login"
-	Driversvc_LoginBySMS_FullMethodName           = "/driversvc.Driversvc/LoginBySMS"
-	Driversvc_ListNearbyDrivers_FullMethodName    = "/driversvc.Driversvc/ListNearbyDrivers"
-	Driversvc_GetDriverAiScore_FullMethodName     = "/driversvc.Driversvc/GetDriverAiScore"
-	Driversvc_UploadCertification_FullMethodName  = "/driversvc.Driversvc/UploadCertification"
-	Driversvc_GetCertification_FullMethodName     = "/driversvc.Driversvc/GetCertification"
-	Driversvc_Heartbeat_FullMethodName            = "/driversvc.Driversvc/Heartbeat"
-	Driversvc_ApproveCertification_FullMethodName = "/driversvc.Driversvc/ApproveCertification"
-	Driversvc_RejectCertification_FullMethodName  = "/driversvc.Driversvc/RejectCertification"
+	Driversvc_CreateDriver_FullMethodName           = "/driversvc.Driversvc/CreateDriver"
+	Driversvc_RegisterDriver_FullMethodName         = "/driversvc.Driversvc/RegisterDriver"
+	Driversvc_UpdateDriver_FullMethodName           = "/driversvc.Driversvc/UpdateDriver"
+	Driversvc_DeleteDriver_FullMethodName           = "/driversvc.Driversvc/DeleteDriver"
+	Driversvc_GetDriver_FullMethodName              = "/driversvc.Driversvc/GetDriver"
+	Driversvc_GetDriverByPhone_FullMethodName       = "/driversvc.Driversvc/GetDriverByPhone"
+	Driversvc_SetDriverOnline_FullMethodName        = "/driversvc.Driversvc/SetDriverOnline"
+	Driversvc_SetDriverOffline_FullMethodName       = "/driversvc.Driversvc/SetDriverOffline"
+	Driversvc_ReportLocation_FullMethodName         = "/driversvc.Driversvc/ReportLocation"
+	Driversvc_SetDriverServiceStatus_FullMethodName = "/driversvc.Driversvc/SetDriverServiceStatus"
+	Driversvc_Heartbeat_FullMethodName              = "/driversvc.Driversvc/Heartbeat"
+	Driversvc_CreateVehicle_FullMethodName          = "/driversvc.Driversvc/CreateVehicle"
+	Driversvc_UpdateVehicle_FullMethodName          = "/driversvc.Driversvc/UpdateVehicle"
+	Driversvc_DeleteVehicle_FullMethodName          = "/driversvc.Driversvc/DeleteVehicle"
+	Driversvc_GetVehicle_FullMethodName             = "/driversvc.Driversvc/GetVehicle"
+	Driversvc_ListDrivers_FullMethodName            = "/driversvc.Driversvc/ListDrivers"
+	Driversvc_Login_FullMethodName                  = "/driversvc.Driversvc/Login"
+	Driversvc_LoginBySMS_FullMethodName             = "/driversvc.Driversvc/LoginBySMS"
+	Driversvc_ListNearbyDrivers_FullMethodName      = "/driversvc.Driversvc/ListNearbyDrivers"
+	Driversvc_GetDriverAiScore_FullMethodName       = "/driversvc.Driversvc/GetDriverAiScore"
+	Driversvc_UploadCertification_FullMethodName    = "/driversvc.Driversvc/UploadCertification"
+	Driversvc_GetCertification_FullMethodName       = "/driversvc.Driversvc/GetCertification"
+	Driversvc_ApproveCertification_FullMethodName   = "/driversvc.Driversvc/ApproveCertification"
+	Driversvc_RejectCertification_FullMethodName    = "/driversvc.Driversvc/RejectCertification"
 )
 
 // DriversvcClient is the client API for Driversvc service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DriversvcClient interface {
-	// 司机主表 CRUD（仅司机增删改查）
 	CreateDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
-	// 司机自注册，与管理员创建司机使用独立 RPC 接口。
 	RegisterDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
 	UpdateDriver(ctx context.Context, in *UpdateDriverRequest, opts ...grpc.CallOption) (*UpdateDriverResponse, error)
 	DeleteDriver(ctx context.Context, in *DeleteDriverRequest, opts ...grpc.CallOption) (*DeleteDriverResponse, error)
 	GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error)
-	// 按手机号查询司机（登录场景使用，返回含密码哈希与状态）
 	GetDriverByPhone(ctx context.Context, in *GetDriverByPhoneRequest, opts ...grpc.CallOption) (*GetDriverByPhoneResponse, error)
-	// 司机上线：将听单状态置为在线（1）。
 	SetDriverOnline(ctx context.Context, in *SetDriverOnlineRequest, opts ...grpc.CallOption) (*SetDriverOnlineResponse, error)
-	// 司机下线：将听单状态置为离线（0）。
 	SetDriverOffline(ctx context.Context, in *SetDriverOfflineRequest, opts ...grpc.CallOption) (*SetDriverOfflineResponse, error)
-	// 车辆 CRUD（司机绑定车辆增删改查）
+	ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error)
+	SetDriverServiceStatus(ctx context.Context, in *SetDriverServiceStatusRequest, opts ...grpc.CallOption) (*SetDriverServiceStatusResponse, error)
+	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
 	CreateVehicle(ctx context.Context, in *CreateVehicleRequest, opts ...grpc.CallOption) (*CreateVehicleResponse, error)
 	UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error)
 	DeleteVehicle(ctx context.Context, in *DeleteVehicleRequest, opts ...grpc.CallOption) (*DeleteVehicleResponse, error)
 	GetVehicle(ctx context.Context, in *GetVehicleRequest, opts ...grpc.CallOption) (*GetVehicleResponse, error)
-	// 司机列表：分页 + 可选状态/关键字过滤。
 	ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error)
-	// 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error)
-	// 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
 	ListNearbyDrivers(ctx context.Context, in *ListNearbyDriversRequest, opts ...grpc.CallOption) (*ListNearbyDriversResponse, error)
-	// AI 智能优质司机推荐：查询指定司机的综合推荐得分与各项维度指标，供司机端展示与派单权重参考。
 	GetDriverAiScore(ctx context.Context, in *GetDriverAiScoreRequest, opts ...grpc.CallOption) (*GetDriverAiScoreResponse, error)
-	// 司机资质上传：接收身份证/驾驶证/行驶证图片，存入 MinIO 并落库 driver_certification，返回访问 URL 与审核状态。
 	UploadCertification(ctx context.Context, in *UploadCertificationRequest, opts ...grpc.CallOption) (*UploadCertificationResponse, error)
-	// 司机资质查询：按司机 ID 返回其资质记录与审核状态。
 	GetCertification(ctx context.Context, in *GetCertificationRequest, opts ...grpc.CallOption) (*GetCertificationResponse, error)
-	// 司机心跳上报：刷新在线状态 TTL；若 device_id 与当前绑定不一致（被新设备登录顶替）则标记踢出。
-	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
-	// 审核通过司机资质。
 	ApproveCertification(ctx context.Context, in *AuditCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
-	// 审核驳回司机资质。
 	RejectCertification(ctx context.Context, in *AuditCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 }
 
@@ -168,6 +157,36 @@ func (c *driversvcClient) SetDriverOffline(ctx context.Context, in *SetDriverOff
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetDriverOfflineResponse)
 	err := c.cc.Invoke(ctx, Driversvc_SetDriverOffline_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driversvcClient) ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReportLocationResponse)
+	err := c.cc.Invoke(ctx, Driversvc_ReportLocation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driversvcClient) SetDriverServiceStatus(ctx context.Context, in *SetDriverServiceStatusRequest, opts ...grpc.CallOption) (*SetDriverServiceStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetDriverServiceStatusResponse)
+	err := c.cc.Invoke(ctx, Driversvc_SetDriverServiceStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driversvcClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HeartbeatResponse)
+	err := c.cc.Invoke(ctx, Driversvc_Heartbeat_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -284,16 +303,6 @@ func (c *driversvcClient) GetCertification(ctx context.Context, in *GetCertifica
 	return out, nil
 }
 
-func (c *driversvcClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HeartbeatResponse)
-	err := c.cc.Invoke(ctx, Driversvc_Heartbeat_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *driversvcClient) ApproveCertification(ctx context.Context, in *AuditCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CommonResponse)
@@ -318,42 +327,29 @@ func (c *driversvcClient) RejectCertification(ctx context.Context, in *AuditCert
 // All implementations must embed UnimplementedDriversvcServer
 // for forward compatibility.
 type DriversvcServer interface {
-	// 司机主表 CRUD（仅司机增删改查）
 	CreateDriver(context.Context, *CreateDriverRequest) (*CreateDriverResponse, error)
-	// 司机自注册，与管理员创建司机使用独立 RPC 接口。
 	RegisterDriver(context.Context, *CreateDriverRequest) (*CreateDriverResponse, error)
 	UpdateDriver(context.Context, *UpdateDriverRequest) (*UpdateDriverResponse, error)
 	DeleteDriver(context.Context, *DeleteDriverRequest) (*DeleteDriverResponse, error)
 	GetDriver(context.Context, *GetDriverRequest) (*GetDriverResponse, error)
-	// 按手机号查询司机（登录场景使用，返回含密码哈希与状态）
 	GetDriverByPhone(context.Context, *GetDriverByPhoneRequest) (*GetDriverByPhoneResponse, error)
-	// 司机上线：将听单状态置为在线（1）。
 	SetDriverOnline(context.Context, *SetDriverOnlineRequest) (*SetDriverOnlineResponse, error)
-	// 司机下线：将听单状态置为离线（0）。
 	SetDriverOffline(context.Context, *SetDriverOfflineRequest) (*SetDriverOfflineResponse, error)
-	// 车辆 CRUD（司机绑定车辆增删改查）
+	ReportLocation(context.Context, *ReportLocationRequest) (*ReportLocationResponse, error)
+	SetDriverServiceStatus(context.Context, *SetDriverServiceStatusRequest) (*SetDriverServiceStatusResponse, error)
+	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
 	CreateVehicle(context.Context, *CreateVehicleRequest) (*CreateVehicleResponse, error)
 	UpdateVehicle(context.Context, *UpdateVehicleRequest) (*UpdateVehicleResponse, error)
 	DeleteVehicle(context.Context, *DeleteVehicleRequest) (*DeleteVehicleResponse, error)
 	GetVehicle(context.Context, *GetVehicleRequest) (*GetVehicleResponse, error)
-	// 司机列表：分页 + 可选状态/关键字过滤。
 	ListDrivers(context.Context, *ListDriversRequest) (*ListDriversResponse, error)
-	// 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
 	LoginBySMS(context.Context, *LoginBySMSRequest) (*LoginResponse, error)
-	// 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
 	ListNearbyDrivers(context.Context, *ListNearbyDriversRequest) (*ListNearbyDriversResponse, error)
-	// AI 智能优质司机推荐：查询指定司机的综合推荐得分与各项维度指标，供司机端展示与派单权重参考。
 	GetDriverAiScore(context.Context, *GetDriverAiScoreRequest) (*GetDriverAiScoreResponse, error)
-	// 司机资质上传：接收身份证/驾驶证/行驶证图片，存入 MinIO 并落库 driver_certification，返回访问 URL 与审核状态。
 	UploadCertification(context.Context, *UploadCertificationRequest) (*UploadCertificationResponse, error)
-	// 司机资质查询：按司机 ID 返回其资质记录与审核状态。
 	GetCertification(context.Context, *GetCertificationRequest) (*GetCertificationResponse, error)
-	// 司机心跳上报：刷新在线状态 TTL；若 device_id 与当前绑定不一致（被新设备登录顶替）则标记踢出。
-	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
-	// 审核通过司机资质。
 	ApproveCertification(context.Context, *AuditCertificationRequest) (*CommonResponse, error)
-	// 审核驳回司机资质。
 	RejectCertification(context.Context, *AuditCertificationRequest) (*CommonResponse, error)
 	mustEmbedUnimplementedDriversvcServer()
 }
@@ -389,6 +385,15 @@ func (UnimplementedDriversvcServer) SetDriverOnline(context.Context, *SetDriverO
 func (UnimplementedDriversvcServer) SetDriverOffline(context.Context, *SetDriverOfflineRequest) (*SetDriverOfflineResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetDriverOffline not implemented")
 }
+func (UnimplementedDriversvcServer) ReportLocation(context.Context, *ReportLocationRequest) (*ReportLocationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReportLocation not implemented")
+}
+func (UnimplementedDriversvcServer) SetDriverServiceStatus(context.Context, *SetDriverServiceStatusRequest) (*SetDriverServiceStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetDriverServiceStatus not implemented")
+}
+func (UnimplementedDriversvcServer) Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Heartbeat not implemented")
+}
 func (UnimplementedDriversvcServer) CreateVehicle(context.Context, *CreateVehicleRequest) (*CreateVehicleResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateVehicle not implemented")
 }
@@ -421,9 +426,6 @@ func (UnimplementedDriversvcServer) UploadCertification(context.Context, *Upload
 }
 func (UnimplementedDriversvcServer) GetCertification(context.Context, *GetCertificationRequest) (*GetCertificationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCertification not implemented")
-}
-func (UnimplementedDriversvcServer) Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Heartbeat not implemented")
 }
 func (UnimplementedDriversvcServer) ApproveCertification(context.Context, *AuditCertificationRequest) (*CommonResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ApproveCertification not implemented")
@@ -592,6 +594,60 @@ func _Driversvc_SetDriverOffline_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DriversvcServer).SetDriverOffline(ctx, req.(*SetDriverOfflineRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Driversvc_ReportLocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportLocationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).ReportLocation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_ReportLocation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).ReportLocation(ctx, req.(*ReportLocationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Driversvc_SetDriverServiceStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetDriverServiceStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).SetDriverServiceStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_SetDriverServiceStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).SetDriverServiceStatus(ctx, req.(*SetDriverServiceStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Driversvc_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HeartbeatRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).Heartbeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_Heartbeat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).Heartbeat(ctx, req.(*HeartbeatRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -794,24 +850,6 @@ func _Driversvc_GetCertification_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Driversvc_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HeartbeatRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriversvcServer).Heartbeat(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Driversvc_Heartbeat_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriversvcServer).Heartbeat(ctx, req.(*HeartbeatRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Driversvc_ApproveCertification_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AuditCertificationRequest)
 	if err := dec(in); err != nil {
@@ -888,6 +926,18 @@ var Driversvc_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Driversvc_SetDriverOffline_Handler,
 		},
 		{
+			MethodName: "ReportLocation",
+			Handler:    _Driversvc_ReportLocation_Handler,
+		},
+		{
+			MethodName: "SetDriverServiceStatus",
+			Handler:    _Driversvc_SetDriverServiceStatus_Handler,
+		},
+		{
+			MethodName: "Heartbeat",
+			Handler:    _Driversvc_Heartbeat_Handler,
+		},
+		{
 			MethodName: "CreateVehicle",
 			Handler:    _Driversvc_CreateVehicle_Handler,
 		},
@@ -930,10 +980,6 @@ var Driversvc_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCertification",
 			Handler:    _Driversvc_GetCertification_Handler,
-		},
-		{
-			MethodName: "Heartbeat",
-			Handler:    _Driversvc_Heartbeat_Handler,
 		},
 		{
 			MethodName: "ApproveCertification",

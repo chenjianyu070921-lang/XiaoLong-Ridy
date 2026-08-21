@@ -16,4 +16,6 @@ type CertificationRepository interface {
 	Upsert(ctx context.Context, cert *model.DriverCertification) (*model.DriverCertification, error)
 	// GetByDriverID 按司机 ID 查询资质记录；未找到返回 (nil, ErrCertificationNotFound)。
 	GetByDriverID(ctx context.Context, driverID uint64) (*model.DriverCertification, error)
+	// UpdateAudit 更新资质审核状态，并在通过时联动司机与车辆状态。
+	UpdateAudit(ctx context.Context, certificationID int64, operatorID int64, remark string, auditStatus int8) error
 }

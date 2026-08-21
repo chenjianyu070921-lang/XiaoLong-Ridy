@@ -75,6 +75,19 @@ func (s *Store) SetOffline(ctx context.Context, driverID int64) error {
 	return s.rdb.HSet(ctx, key, "online_status", Offline).Err()
 }
 
+// SetStatus 更新司机服务状态，保留已有设备与位置；在线/行程中状态会续期 TTL。
+func (s *Store) SetStatus(ctx context.Context, driverID int64, onlineStatus int32) error {
+	key := s.key(driverID)
+	_, err := s.rdb.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		pipe.HSet(ctx, key, "online_status", onlineStatus)
+		if onlineStatus != Offline {
+			pipe.Expire(ctx, key, s.ttl)
+		}
+		return nil
+	})
+	return err
+}
+
 // Get 读取司机当前在线状态；不存在时返回 (nil, nil)。
 func (s *Store) Get(ctx context.Context, driverID int64) (*State, error) {
 	vals, err := s.rdb.HGetAll(ctx, s.key(driverID)).Result()

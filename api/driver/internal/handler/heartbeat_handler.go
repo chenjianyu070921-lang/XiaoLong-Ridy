@@ -20,7 +20,9 @@ func HeartbeatHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		var req types.HeartbeatRequest
-		decodeJSON(w, r, &req)
+		if !decodeJSON(w, r, &req) {
+			return
+		}
 		resp, err := logic.NewHeartbeatLogic(r.Context(), svcCtx).Heartbeat(int64(claims.AccountID), &req)
 		if err != nil {
 			writeParamError(w, err)

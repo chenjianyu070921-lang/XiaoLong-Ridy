@@ -19,7 +19,9 @@ func SetOnlineHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		var req types.SetOnlineRequest
-		decodeJSON(w, r, &req)
+		if !decodeJSON(w, r, &req) {
+			return
+		}
 		resp, err := logic.NewOnlineLogic(r.Context(), svcCtx).SetOnline(int64(claims.AccountID), req.DeviceID, req.Longitude, req.Latitude)
 		if err != nil {
 			writeParamError(w, err)
@@ -39,7 +41,9 @@ func SetOfflineHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		var req types.SetOfflineRequest
-		decodeJSON(w, r, &req)
+		if !decodeJSON(w, r, &req) {
+			return
+		}
 		resp, err := logic.NewOfflineLogic(r.Context(), svcCtx).SetOffline(int64(claims.AccountID), req.DeviceID, req.Longitude, req.Latitude)
 		if err != nil {
 			writeParamError(w, err)

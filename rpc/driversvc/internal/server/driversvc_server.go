@@ -17,13 +17,14 @@ type DriversvcServer struct {
 	proto.UnimplementedDriversvcServer
 }
 
+// NewDriversvcServer 构造 driversvc gRPC 服务端实例。
 func NewDriversvcServer(svcCtx *svc.ServiceContext) *DriversvcServer {
 	return &DriversvcServer{
 		svcCtx: svcCtx,
 	}
 }
 
-// 司机主表 CRUD（仅司机增删改查）
+// CreateDriver 创建司机账号，状态初始为待审核。
 func (s *DriversvcServer) CreateDriver(ctx context.Context, in *proto.CreateDriverRequest) (*proto.CreateDriverResponse, error) {
 	l := logic.NewCreateDriverLogic(ctx, s.svcCtx)
 	return l.CreateDriver(in)
@@ -35,78 +36,97 @@ func (s *DriversvcServer) RegisterDriver(ctx context.Context, in *proto.CreateDr
 	return l.CreateDriver(in)
 }
 
+// UpdateDriver 更新司机基础资料或账号状态，仅修改请求中显式传入的 optional 字段。
 func (s *DriversvcServer) UpdateDriver(ctx context.Context, in *proto.UpdateDriverRequest) (*proto.UpdateDriverResponse, error) {
 	l := logic.NewUpdateDriverLogic(ctx, s.svcCtx)
 	return l.UpdateDriver(in)
 }
 
+// DeleteDriver 软删除司机账号。
 func (s *DriversvcServer) DeleteDriver(ctx context.Context, in *proto.DeleteDriverRequest) (*proto.DeleteDriverResponse, error) {
 	l := logic.NewDeleteDriverLogic(ctx, s.svcCtx)
 	return l.DeleteDriver(in)
 }
 
+// GetDriver 按司机 ID 查询司机详情。
 func (s *DriversvcServer) GetDriver(ctx context.Context, in *proto.GetDriverRequest) (*proto.GetDriverResponse, error) {
 	l := logic.NewGetDriverLogic(ctx, s.svcCtx)
 	return l.GetDriver(in)
 }
 
-// 按手机号查询司机（登录场景使用，返回含密码哈希与状态）
+// GetDriverByPhone 按手机号查询司机，主要用于登录场景。
 func (s *DriversvcServer) GetDriverByPhone(ctx context.Context, in *proto.GetDriverByPhoneRequest) (*proto.GetDriverByPhoneResponse, error) {
 	l := logic.NewGetDriverByPhoneLogic(ctx, s.svcCtx)
 	return l.GetDriverByPhone(in)
 }
 
-// 司机上线：将听单状态置为在线（1）。
+// SetDriverOnline 将司机听单状态置为在线，并写入设备与位置。
 func (s *DriversvcServer) SetDriverOnline(ctx context.Context, in *proto.SetDriverOnlineRequest) (*proto.SetDriverOnlineResponse, error) {
 	l := logic.NewSetDriverOnlineLogic(ctx, s.svcCtx)
 	return l.SetDriverOnline(in)
 }
 
-// 司机下线：将听单状态置为离线（0）。
+// SetDriverOffline 将司机听单状态置为离线，并更新最后位置。
 func (s *DriversvcServer) SetDriverOffline(ctx context.Context, in *proto.SetDriverOfflineRequest) (*proto.SetDriverOfflineResponse, error) {
 	l := logic.NewSetDriverOfflineLogic(ctx, s.svcCtx)
 	return l.SetDriverOffline(in)
 }
 
-// 车辆 CRUD（司机绑定车辆增删改查）
+// ReportLocation 处理司机实时位置上报，刷新在线保活并落库最新位置。
+func (s *DriversvcServer) ReportLocation(ctx context.Context, in *proto.ReportLocationRequest) (*proto.ReportLocationResponse, error) {
+	l := logic.NewReportLocationLogic(ctx, s.svcCtx)
+	return l.ReportLocation(in)
+}
+
+// SetDriverServiceStatus 写入司机服务状态，供行程开始/结束等内部链路同步状态。
+func (s *DriversvcServer) SetDriverServiceStatus(ctx context.Context, in *proto.SetDriverServiceStatusRequest) (*proto.SetDriverServiceStatusResponse, error) {
+	l := logic.NewSetDriverServiceStatusLogic(ctx, s.svcCtx)
+	return l.SetDriverServiceStatus(in)
+}
+
+// CreateVehicle 创建司机车辆，状态初始为待审核。
 func (s *DriversvcServer) CreateVehicle(ctx context.Context, in *proto.CreateVehicleRequest) (*proto.CreateVehicleResponse, error) {
 	l := logic.NewCreateVehicleLogic(ctx, s.svcCtx)
 	return l.CreateVehicle(in)
 }
 
+// UpdateVehicle 更新车辆基础资料或审核状态，仅修改请求中显式传入的 optional 字段。
 func (s *DriversvcServer) UpdateVehicle(ctx context.Context, in *proto.UpdateVehicleRequest) (*proto.UpdateVehicleResponse, error) {
 	l := logic.NewUpdateVehicleLogic(ctx, s.svcCtx)
 	return l.UpdateVehicle(in)
 }
 
+// DeleteVehicle 删除车辆记录。
 func (s *DriversvcServer) DeleteVehicle(ctx context.Context, in *proto.DeleteVehicleRequest) (*proto.DeleteVehicleResponse, error) {
 	l := logic.NewDeleteVehicleLogic(ctx, s.svcCtx)
 	return l.DeleteVehicle(in)
 }
 
+// GetVehicle 按车辆 ID 查询车辆详情。
 func (s *DriversvcServer) GetVehicle(ctx context.Context, in *proto.GetVehicleRequest) (*proto.GetVehicleResponse, error) {
 	l := logic.NewGetVehicleLogic(ctx, s.svcCtx)
 	return l.GetVehicle(in)
 }
 
-// 司机列表：分页 + 可选状态/关键字过滤。
+// ListDrivers 分页查询司机列表，支持状态和关键字过滤。
 func (s *DriversvcServer) ListDrivers(ctx context.Context, in *proto.ListDriversRequest) (*proto.ListDriversResponse, error) {
 	l := logic.NewListDriversLogic(ctx, s.svcCtx)
 	return l.ListDrivers(in)
 }
 
-// 司机登录：校验手机号、账号状态与密码，成功返回 JWT。
+// Login 校验手机号、账号状态与密码，成功返回 JWT。
 func (s *DriversvcServer) Login(ctx context.Context, in *proto.LoginRequest) (*proto.LoginResponse, error) {
 	l := logic.NewLoginLogic(ctx, s.svcCtx)
 	return l.Login(in)
 }
 
+// LoginBySMS 在 API 层完成验证码校验后，按手机号签发司机登录态。
 func (s *DriversvcServer) LoginBySMS(ctx context.Context, in *proto.LoginBySMSRequest) (*proto.LoginResponse, error) {
 	l := logic.NewLoginLogic(ctx, s.svcCtx)
 	return l.LoginBySMS(in)
 }
 
-// 附近司机查询：按经纬度 + 半径查找在线司机，供派单引擎调用。
+// ListNearbyDrivers 按经纬度和半径查找在线司机，供派单引擎调用。
 func (s *DriversvcServer) ListNearbyDrivers(ctx context.Context, in *proto.ListNearbyDriversRequest) (*proto.ListNearbyDriversResponse, error) {
 	l := logic.NewListNearbyDriversLogic(ctx, s.svcCtx)
 	return l.ListNearbyDrivers(in)

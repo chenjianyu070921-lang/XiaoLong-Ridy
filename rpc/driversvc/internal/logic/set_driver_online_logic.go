@@ -36,6 +36,15 @@ func NewSetDriverOnlineLogic(ctx context.Context, svcCtx *svc.ServiceContext) *S
 // SetDriverOnline 将司机听单状态置为在线（1），并同步写入 Redis 在线状态与 MySQL 位置。
 // 多端互踢：上线时在 Redis 绑定当前 device_id，供心跳/后续请求判定是否被新设备顶替。
 func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest) (*proto.SetDriverOnlineResponse, error) {
+	if in == nil || in.GetDriverId() <= 0 {
+		return nil, errInvalidDriverID
+	}
+	if in.GetDeviceId() == "" {
+		return nil, errInvalidDeviceID
+	}
+	if !validLongitudeLatitude(in.GetLongitude(), in.GetLatitude()) {
+		return nil, errInvalidLongitudeLatitude
+	}
 	// 先校验司机存在（软删不可见）。
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.DriverId)); err != nil {
 		return nil, err

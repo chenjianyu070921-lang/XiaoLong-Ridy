@@ -399,6 +399,19 @@ type HeartbeatResponse struct {
 	ServerTime   int64 `json:"serverTime"`   // 服务端时间戳（秒）
 }
 
+type ReportLocationRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type ReportLocationResponse struct {
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+	ReportTime   int64 `json:"reportTime"`
+}
+
 // ============ 司机资质 ============
 
 // CertificationInfo 司机资质记录（与 driversvc.CertificationInfo 对齐）。
