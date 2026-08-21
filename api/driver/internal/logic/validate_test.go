@@ -1,6 +1,10 @@
 package logic
 
-import "testing"
+import (
+	"testing"
+
+	"XiaoLong-Ridy/api/driver/internal/types"
+)
 
 func TestValidPhone(t *testing.T) {
 	cases := []struct {
@@ -59,6 +63,20 @@ func TestValidPassword(t *testing.T) {
 		if got := validPassword(testCase.password); got != testCase.want {
 			t.Errorf("validPassword(%q) = %v, want %v", testCase.password, got, testCase.want)
 		}
+	}
+}
+
+func TestNormalizeRegisterDriverRequest(t *testing.T) {
+	req := &types.RegisterDriverRequest{
+		Phone:           " 13800000001 ",
+		RealName:        " 张三 ",
+		IdCardNo:        " 11010119900101123x ",
+		DriverLicenseNo: " DL10000001 ",
+		AvatarURL:       " avatar ",
+	}
+	normalizeRegisterDriverRequest(req)
+	if req.Phone != "13800000001" || req.RealName != "张三" || req.IdCardNo != "11010119900101123X" || req.DriverLicenseNo != "DL10000001" || req.AvatarURL != "avatar" {
+		t.Fatalf("unexpected normalized request: %#v", req)
 	}
 }
 

@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 
+	"XiaoLong-Ridy/common/cryptox"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -37,6 +39,16 @@ func validateDriverPasswordHash(passwordHash string) error {
 		return errors.New("密码哈希格式不合法")
 	}
 	return nil
+}
+
+func prepareDriverPasswordHash(password string) (string, error) {
+	if err := validateDriverPasswordHash(password); err == nil {
+		return password, nil
+	}
+	if err := validateDriverPassword(password); err != nil {
+		return "", err
+	}
+	return cryptox.BcryptHash(password)
 }
 
 // validateDriverPassword 校验登录明文密码长度，bcrypt 只支持最多 72 字节。

@@ -56,6 +56,7 @@ func (l *DriverLogic) CreateDriver(req *types.CreateDriverRequest) (*types.Creat
 	if req == nil {
 		return nil, errors.New("请求参数不能为空")
 	}
+	normalizeCreateDriverRequest(req)
 	// 校验手机号格式，不合法直接返回错误。
 	if !validPhone(req.Phone) {
 		return nil, errors.New("手机号格式不合法")
@@ -107,6 +108,7 @@ func (l *DriverLogic) RegisterDriver(req *types.RegisterDriverRequest) (*types.R
 	if req == nil {
 		return nil, errors.New("请求参数不能为空")
 	}
+	normalizeRegisterDriverRequest(req)
 	// 校验手机号格式。
 	if !validPhone(req.Phone) {
 		return nil, errors.New("手机号格式不合法")

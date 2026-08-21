@@ -1,6 +1,8 @@
 // Package types 定义司机端 API 的请求与响应数据结构。
 package types
 
+import "encoding/json"
+
 type AgentChatRequest struct {
 	Question string `json:"question"`
 }
@@ -40,6 +42,20 @@ type CreateDriverRequest struct {
 	AvatarURL       string `json:"avatarUrl"`       // 头像地址
 }
 
+func (r *CreateDriverRequest) UnmarshalJSON(data []byte) error {
+	payload, err := decodeDriverRegistrationPayload(data)
+	if err != nil {
+		return err
+	}
+	r.Phone = valueOrEmpty(payload.Phone)
+	r.Password = valueOrEmpty(payload.Password)
+	r.RealName = valueOrEmpty(payload.RealName)
+	r.IdCardNo = valueOrEmpty(payload.IdCardNo)
+	r.DriverLicenseNo = valueOrEmpty(payload.DriverLicenseNo)
+	r.AvatarURL = valueOrEmpty(payload.AvatarURL)
+	return nil
+}
+
 // CreateDriverResponse 创建司机响应。
 type CreateDriverResponse struct {
 	ID        int64  `json:"id"`        // 新建司机 ID
@@ -55,6 +71,64 @@ type RegisterDriverRequest struct {
 	IdCardNo        string `json:"idCardNo"`        // 身份证号（必填）
 	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号（必填）
 	AvatarURL       string `json:"avatarUrl"`       // 头像地址（可选）
+}
+
+func (r *RegisterDriverRequest) UnmarshalJSON(data []byte) error {
+	payload, err := decodeDriverRegistrationPayload(data)
+	if err != nil {
+		return err
+	}
+	r.Phone = valueOrEmpty(payload.Phone)
+	r.Password = valueOrEmpty(payload.Password)
+	r.RealName = valueOrEmpty(payload.RealName)
+	r.IdCardNo = valueOrEmpty(payload.IdCardNo)
+	r.DriverLicenseNo = valueOrEmpty(payload.DriverLicenseNo)
+	r.AvatarURL = valueOrEmpty(payload.AvatarURL)
+	return nil
+}
+
+type driverRegistrationPayload struct {
+	Phone                 *string `json:"phone"`
+	Password              *string `json:"password"`
+	PasswordHash          *string `json:"passwordHash"`
+	PasswordHashLegacy    *string `json:"password_hash"`
+	RealName              *string `json:"realName"`
+	RealNameLegacy        *string `json:"real_name"`
+	IdCardNo              *string `json:"idCardNo"`
+	IdCardNoLegacy        *string `json:"id_card_no"`
+	DriverLicenseNo       *string `json:"driverLicenseNo"`
+	DriverLicenseNoLegacy *string `json:"driver_license_no"`
+	AvatarURL             *string `json:"avatarUrl"`
+	AvatarURLLegacy       *string `json:"avatar_url"`
+}
+
+func decodeDriverRegistrationPayload(data []byte) (driverRegistrationPayload, error) {
+	var payload driverRegistrationPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return driverRegistrationPayload{}, err
+	}
+	payload.Password = firstString(payload.Password, payload.PasswordHash, payload.PasswordHashLegacy)
+	payload.RealName = firstString(payload.RealName, payload.RealNameLegacy)
+	payload.IdCardNo = firstString(payload.IdCardNo, payload.IdCardNoLegacy)
+	payload.DriverLicenseNo = firstString(payload.DriverLicenseNo, payload.DriverLicenseNoLegacy)
+	payload.AvatarURL = firstString(payload.AvatarURL, payload.AvatarURLLegacy)
+	return payload, nil
+}
+
+func firstString(values ...*string) *string {
+	for _, value := range values {
+		if value != nil {
+			return value
+		}
+	}
+	return nil
+}
+
+func valueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // RegisterDriverResponse 司机自注册响应。

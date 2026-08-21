@@ -37,12 +37,13 @@ func (l *CreateDriverLogic) CreateDriver(in *proto.CreateDriverRequest) (*proto.
 	if err := validateDriverIdentity(in.Phone, in.RealName, in.IdCardNo, in.DriverLicenseNo); err != nil {
 		return nil, err
 	}
-	if err := validateDriverPasswordHash(in.PasswordHash); err != nil {
+	passwordHash, err := prepareDriverPasswordHash(in.PasswordHash)
+	if err != nil {
 		return nil, err
 	}
 	d := &model.Driver{
 		Phone:           in.Phone,
-		PasswordHash:    in.PasswordHash,
+		PasswordHash:    passwordHash,
 		RealName:        in.RealName,
 		IdCardNo:        in.IdCardNo,
 		DriverLicenseNo: in.DriverLicenseNo,

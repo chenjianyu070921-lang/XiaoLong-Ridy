@@ -1,8 +1,8 @@
 syntax = "v1"
 
 info (
-	title: "driver api"
-	desc: "司机端 HTTP API，封装司机「增删改查」四个核心接口，以及订单行程相关接口（接单、开始行程、结束行程）。接口路由声明在此集中维护，实际 handler 实现见 internal/handler 包。"
+	title:  "driver api"
+	desc:   "司机端 HTTP API，封装司机「增删改查」四个核心接口，以及订单行程相关接口（接单、开始行程、结束行程）。接口路由声明在此集中维护，实际 handler 实现见 internal/handler 包。"
 	author: "XiaoLong-Ridy"
 )
 
@@ -10,7 +10,6 @@ info (
 // - 写接口使用 POST + JSON 请求体；查询/删除接口使用 GET/POST + 路径后缀，id 通过 ?id= 传递。
 // - 所有响应统一为 { code, message, data, timestamp, traceId }。
 // - 入参校验失败返回 HTTP 400 + code 50000，并携带具体中文错误信息。
-
 // ============ 司机（增删改查 + 注册） ============
 // 司机自注册（App 端注册入口，公开）：创建待审核账号。
 type RegisterDriverRequest {
@@ -65,6 +64,10 @@ type GetDriverResponse {
 	Driver DriverDetail `json:"driver"`
 }
 
+type GetDriverRequest {
+	ID int64 `form:"id"`
+}
+
 type DriverDetail {
 	ID              int64  `json:"id"`
 	Phone           string `json:"phone"`
@@ -73,13 +76,18 @@ type DriverDetail {
 	DriverLicenseNo string `json:"driverLicenseNo"`
 	AvatarURL       string `json:"avatarUrl"`
 	Status          string `json:"status"`
+	OnlineStatus    int    `json:"onlineStatus"`
 	CreatedAt       int64  `json:"createdAt"`
 	UpdatedAt       int64  `json:"updatedAt"`
 }
 
+type DeleteDriverRequest {
+	ID int64 `form:"id"`
+}
+
 type DeleteResponse {
-	ID      int64  `json:"id"`
-	Success bool   `json:"success"`
+	ID      int64 `json:"id"`
+	Success bool  `json:"success"`
 }
 
 type RejectOrderRequest {
@@ -88,12 +96,15 @@ type RejectOrderRequest {
 }
 
 type RejectOrderResponse {
-	OrderID int64 `json:"orderId"`
+	OrderID  int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	Status   int32 `json:"status"`
 }
 
 type ListMyDispatchesRequest {
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"pageSize"`
+	Status   int32 `json:"status"`
 }
 
 type DispatchRecord {
@@ -131,6 +142,46 @@ type AgentChatResponse {
 	Mode         string             `json:"mode"`
 }
 
+type AcceptOrderRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type AcceptOrderResponse {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type ConfirmArriveRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type ConfirmArriveResponse {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type StartTripRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type StartTripResponse {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type FinishTripRequest {
+	OrderID          int64 `json:"orderId"`
+	ActualDistanceM  int64 `json:"actualDistanceM"`
+	ActualDurationS  int64 `json:"actualDurationS"`
+	ActualPriceCents int64 `json:"actualPriceCents"`
+}
+
+type FinishTripResponse {
+	OrderID            int64 `json:"orderId"`
+	Status             int32 `json:"status"`
+	PayableAmountCents int64 `json:"payableAmountCents"`
+}
+
 service driver-api {
 	// 司机自注册（公开，无需登录）
 	@handler RegisterDriverHandler
@@ -144,10 +195,10 @@ service driver-api {
 	post /api/driver/v1/drivers/update (UpdateDriverRequest) returns (UpdateDriverResponse)
 
 	@handler GetDriverHandler
-	get /api/driver/v1/drivers/get (GetDriverResponse)
+	get /api/driver/v1/drivers/get (GetDriverRequest) returns (GetDriverResponse)
 
 	@handler DeleteDriverHandler
-	post /api/driver/v1/drivers/delete (DeleteResponse)
+	post /api/driver/v1/drivers/delete (DeleteDriverRequest) returns (DeleteResponse)
 
 	@handler AgentChatHandler
 	// Requires a driver JWT or X-Internal-Service-Token matching DRIVER_AGENT_SERVICE_TOKEN.

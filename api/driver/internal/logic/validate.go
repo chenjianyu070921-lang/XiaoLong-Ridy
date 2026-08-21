@@ -4,6 +4,7 @@ package logic
 import (
 	"errors" // 用于定义业务错误变量
 	"regexp" // 用于手机号与身份证的正则匹配
+	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/types"
 )
@@ -49,6 +50,22 @@ func validIDCard(no string) bool {
 	// 使用正则匹配 17 位数字 + 末位数字或 X/x。
 	matched, _ := regexp.MatchString(`^\d{17}[\dXx]$`, no)
 	return matched
+}
+
+func normalizeCreateDriverRequest(req *types.CreateDriverRequest) {
+	req.Phone = strings.TrimSpace(req.Phone)
+	req.RealName = strings.TrimSpace(req.RealName)
+	req.IdCardNo = strings.ToUpper(strings.TrimSpace(req.IdCardNo))
+	req.DriverLicenseNo = strings.TrimSpace(req.DriverLicenseNo)
+	req.AvatarURL = strings.TrimSpace(req.AvatarURL)
+}
+
+func normalizeRegisterDriverRequest(req *types.RegisterDriverRequest) {
+	req.Phone = strings.TrimSpace(req.Phone)
+	req.RealName = strings.TrimSpace(req.RealName)
+	req.IdCardNo = strings.ToUpper(strings.TrimSpace(req.IdCardNo))
+	req.DriverLicenseNo = strings.TrimSpace(req.DriverLicenseNo)
+	req.AvatarURL = strings.TrimSpace(req.AvatarURL)
 }
 
 // clampPage 将分页参数收敛到合法范围：page 小于 1 归正为 1，pageSize 限制在 1~100（缺省 20）。
