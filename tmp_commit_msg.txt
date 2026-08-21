@@ -1,7 +1,0 @@
-feat: driversvc 新增 ListNearbyDrivers 与司机登录/列表，api/driver 接入 JWT 与订单链路，统一本地配置至 xiaolong_ridy
-
-- driversvc: 新增 ListNearbyDrivers RPC（经纬度+半径查在线司机，Haversine）、Login、ListDrivers、GetDriverByPhone、SetDriverOnline/Offline 及 driver_location 模型
-- api/driver: 新增 JWT 鉴权中间件、登录接口，以及接单/确认到达/开始行程/结束行程 HTTP 接口（调用 ordersvc）
-- 配置统一: 各 svc DSN 指向 xiaolong_ridy，密码 root123456；adminsvc 端口 8088 避免冲突
-- driver 库数据并入 xiaolong_ridy，移除独立 driver 库依赖
-- 清理误生成临时文件

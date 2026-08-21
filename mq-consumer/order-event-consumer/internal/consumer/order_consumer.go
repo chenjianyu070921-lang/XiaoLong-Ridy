@@ -48,6 +48,8 @@ func (c *OrderConsumer) handle(ctx context.Context, topic string, payload []byte
 	switch topic {
 	case constants.TopicOrderCreated:
 		return c.handleOrderCreated(ctx, payload)
+	case constants.TopicDispatchNew:
+		return c.handleDispatchNew(ctx, payload)
 	case topicOrderPaid:
 		return c.handleOrderPaid(ctx, payload)
 	default:

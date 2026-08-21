@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"context"
 	"time"
 
 	cfg "XiaoLong-Ridy/common/config"
@@ -39,7 +40,24 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	var dispatchEngine engine.DispatchEngine
 	if c.Redis.Host != "" {
-		dispatchEngine = engine.NewGeoDispatchEngineWithMock(redisClient, "default", c.EnableMockDispatch)
+		// 注入真实司机评分提供器：从 driver_score 读取服务分与完单率，替换写死权重。
+		repo := repository.NewGormDispatchRepository(client)
+		scoreProvider := func(ctx context.Context, driverID uint64) (float64, float64) {
+			s, err := repo.GetDriverScore(ctx, driverID)
+			if err != nil || s == nil {
+				return 0, 0
+			}
+			rating := s.Score / 20 // 服务分(0~100) 归一化到 rating(0~5)
+			if rating > 5 {
+				rating = 5
+			}
+			completion := 1 - s.MonthCancelRate/100 // 取消率(%) 反推完单率(0~1)
+			if completion < 0 {
+				completion = 0
+			}
+			return rating, completion
+		}
+		dispatchEngine = engine.NewGeoDispatchEngineWithScore(redisClient, "default", c.EnableMockDispatch, scoreProvider)
 	} else {
 		dispatchEngine = engine.NewMockDispatchEngine()
 	}

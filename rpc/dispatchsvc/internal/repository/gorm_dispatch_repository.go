@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -22,6 +23,19 @@ func NewGormDispatchRepository(db *gorm.DB) DispatchRepository {
 // Create 插入一条派单记录。
 func (r *gormDispatchRepository) Create(ctx context.Context, record *model.DispatchRecord) error {
 	return r.db.WithContext(ctx).Create(record).Error
+}
+
+// GetDriverScore 读取司机服务质量分；记录不存在时返回零值，不报错。
+func (r *gormDispatchRepository) GetDriverScore(ctx context.Context, driverID uint64) (*model.DriverScore, error) {
+	var s model.DriverScore
+	err := r.db.WithContext(ctx).Where("driver_id = ?", driverID).First(&s).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &s, nil
 }
 
 // ListByOrder 按订单分页查询派单记录，按 ID 正序。

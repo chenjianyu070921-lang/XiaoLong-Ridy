@@ -54,6 +54,7 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 		UserId:             uint64(in.UserId),
 		DriverId:           0,
 		CarType:            int8(in.CarType),
+		CityCode:           strings.TrimSpace(in.CityCode),
 		FromAddress:        strings.TrimSpace(in.FromAddress),
 		FromLongitude:      in.FromLongitude,
 		FromLatitude:       in.FromLatitude,
