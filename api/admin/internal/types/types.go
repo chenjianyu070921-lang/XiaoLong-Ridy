@@ -40,7 +40,7 @@ type MeResponse struct {
 }
 
 // MenuItem 表示后台菜单和按钮权限节点。
-// P0 阶段先返回固定菜单，后续可演进为角色权限表驱动。
+// 菜单由 adminsvc 的角色配置生成，HTTP 层只负责返回 RPC 结果。
 type MenuItem struct {
 	Name     string     `json:"name"`
 	Path     string     `json:"path"`

@@ -6,12 +6,13 @@ import "github.com/zeromicro/go-zero/zrpc"
 // Config 是 adminsvc 的完整配置，包含 go-zero RPC、MySQL、Redis 和鉴权参数。
 type Config struct {
 	zrpc.RpcServerConf
-	MySQL      MySQLConfig        `json:"MySQL"`
-	Cache      RedisConfig        `json:"Cache"`
-	Session    AuthConfig         `json:"Session"`
-	OrdersRPC  zrpc.RpcClientConf `json:"OrdersRPC,optional"`
-	DriversRPC zrpc.RpcClientConf `json:"DriversRPC,optional"`
-	PricesRPC  zrpc.RpcClientConf `json:"PricesRPC,optional"`
+	MySQL      MySQLConfig                `json:"MySQL"`
+	Cache      RedisConfig                `json:"Cache"`
+	Session    AuthConfig                 `json:"Session"`
+	OrdersRPC  zrpc.RpcClientConf         `json:"OrdersRPC,optional"`
+	DriversRPC zrpc.RpcClientConf         `json:"DriversRPC,optional"`
+	PricesRPC  zrpc.RpcClientConf         `json:"PricesRPC,optional"`
+	MenuRoles  map[int32][]MenuItemConfig `json:"MenuRoles,optional"`
 }
 
 // MySQLConfig 定义本服务访问业务数据库所需的数据源。
@@ -30,4 +31,14 @@ type RedisConfig struct {
 type AuthConfig struct {
 	SessionTTLHours int
 	TokenPrefix     string
+}
+
+// MenuItemConfig 定义角色可见菜单及其子项。
+// 菜单展示由配置控制；实际接口访问权限仍由各 RPC 的服务端角色校验决定。
+type MenuItemConfig struct {
+	Name     string           `json:"Name"`
+	Path     string           `json:"Path"`
+	Icon     string           `json:"Icon"`
+	Perm     string           `json:"Perm"`
+	Children []MenuItemConfig `json:"Children,optional"`
 }
