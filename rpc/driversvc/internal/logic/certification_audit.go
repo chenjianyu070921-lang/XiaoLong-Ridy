@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
@@ -42,6 +43,15 @@ func loadCertificationForAudit(ctx context.Context, db *gorm.DB, certificationID
 
 // updateCertificationAudit 在事务中更新审核状态与司机、车辆状态。
 func updateCertificationAudit(ctx context.Context, svcCtx *svc.ServiceContext, certificationID int64, operatorID int64, remark string, auditStatus int8) error {
+	if certificationID <= 0 {
+		return status.Error(codes.InvalidArgument, "certification id is required")
+	}
+	if operatorID <= 0 {
+		return status.Error(codes.InvalidArgument, "operator id is required")
+	}
+	if auditStatus == 3 && strings.TrimSpace(remark) == "" {
+		return status.Error(codes.InvalidArgument, "reject remark is required")
+	}
 	if svcCtx == nil || svcCtx.DB == nil {
 		return status.Error(codes.FailedPrecondition, "database not ready")
 	}

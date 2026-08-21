@@ -3,8 +3,12 @@ package adminservicelogic
 import (
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +24,99 @@ import (
 // P1 当前只落地显式用户 ID 发放，后续 crowd 人群包可由 MQ/Job 异步扩展。
 type couponIssueTargetConfig struct {
 	UserIDs []int64 `json:"user_ids"`
+}
+
+// orderExportFilters 是订单 CSV 唯一允许的筛选字段集合。
+type orderExportFilters struct {
+	Status    *int32 `json:"status,omitempty"`
+	StartTime string `json:"start_time,omitempty"`
+	EndTime   string `json:"end_time,omitempty"`
+	UserID    *int64 `json:"user_id,omitempty"`
+	DriverID  *int64 `json:"driver_id,omitempty"`
+	raw       string
+}
+
+// parseOrderExportFilters 校验订单导出筛选条件，拒绝城市条件和未知字段。
+func parseOrderExportFilters(exportType, raw string) (orderExportFilters, error) {
+	if exportType != "orders" {
+		return orderExportFilters{}, status.Error(codes.InvalidArgument, "当前仅支持订单导出")
+	}
+	filters := orderExportFilters{raw: raw}
+	if strings.TrimSpace(raw) == "" {
+		return filters, nil
+	}
+	var values map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+		return orderExportFilters{}, status.Error(codes.InvalidArgument, "导出筛选条件必须是JSON对象")
+	}
+	for key, value := range values {
+		switch key {
+		case "status":
+			var statusCode int32
+			if err := json.Unmarshal(value, &statusCode); err != nil || statusCode <= 0 {
+				return orderExportFilters{}, status.Error(codes.InvalidArgument, "status必须是正整数")
+			}
+			filters.Status = &statusCode
+		case "user_id", "driver_id":
+			var id int64
+			if err := json.Unmarshal(value, &id); err != nil || id <= 0 {
+				return orderExportFilters{}, status.Error(codes.InvalidArgument, key+"必须是正整数")
+			}
+			if key == "user_id" {
+				filters.UserID = &id
+			} else {
+				filters.DriverID = &id
+			}
+		case "start_time", "end_time":
+			var timeText string
+			if err := json.Unmarshal(value, &timeText); err != nil {
+				return orderExportFilters{}, status.Error(codes.InvalidArgument, key+"必须是时间字符串")
+			}
+			if _, err := time.ParseInLocation(couponTimeLayout, timeText, time.Local); err != nil {
+				return orderExportFilters{}, status.Error(codes.InvalidArgument, key+"格式错误")
+			}
+			if key == "start_time" {
+				filters.StartTime = timeText
+			} else {
+				filters.EndTime = timeText
+			}
+		case "city_code":
+			return orderExportFilters{}, status.Error(codes.InvalidArgument, "当前订单数据未保存城市编码，暂不支持城市筛选")
+		default:
+			return orderExportFilters{}, status.Error(codes.InvalidArgument, "不支持的导出筛选字段："+key)
+		}
+	}
+	if filters.StartTime != "" && filters.EndTime != "" && filters.EndTime < filters.StartTime {
+		return orderExportFilters{}, status.Error(codes.InvalidArgument, "结束时间不能早于开始时间")
+	}
+	return filters, nil
+}
+
+// where 返回订单导出 SQL 的参数化筛选条件。
+func (f orderExportFilters) where() (string, []any) {
+	parts := []string{"deleted_at IS NULL"}
+	args := make([]any, 0, 5)
+	if f.Status != nil {
+		parts = append(parts, "status = ?")
+		args = append(args, *f.Status)
+	}
+	if f.UserID != nil {
+		parts = append(parts, "user_id = ?")
+		args = append(args, *f.UserID)
+	}
+	if f.DriverID != nil {
+		parts = append(parts, "driver_id = ?")
+		args = append(args, *f.DriverID)
+	}
+	if f.StartTime != "" {
+		parts = append(parts, "created_at >= ?")
+		args = append(args, f.StartTime)
+	}
+	if f.EndTime != "" {
+		parts = append(parts, "created_at <= ?")
+		args = append(args, f.EndTime)
+	}
+	return "WHERE " + strings.Join(parts, " AND "), args
 }
 
 // IssueCouponLogic 处理优惠券发放任务创建和同步发券。
@@ -119,7 +216,9 @@ func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*admins
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "issue", "coupon", in.GetCouponId(), fmt.Sprintf("创建发券任务：%s，成功%d，失败%d", taskNo, successCount, failCount), in.GetIp())
+	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "issue", "coupon", in.GetCouponId(), fmt.Sprintf("创建发券任务：%s，成功%d，失败%d", taskNo, successCount, failCount), in.GetIp()); err != nil {
+		return nil, err
+	}
 	return &adminsvc.CouponIssueResponse{
 		TaskNo:       taskNo,
 		TotalCount:   int64(len(cfg.UserIDs)),
@@ -236,7 +335,9 @@ func (l *CreatePromotionActivityLogic) CreatePromotionActivity(in *adminsvc.Prom
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
-	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "create", "promotion_activity", id, fmt.Sprintf("创建活动配置：%s", in.GetName()), in.GetIp())
+	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "create", "promotion_activity", id, fmt.Sprintf("创建活动配置：%s", in.GetName()), in.GetIp()); err != nil {
+		return nil, err
+	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
 }
 
@@ -270,7 +371,9 @@ func (l *UpdatePromotionActivityLogic) UpdatePromotionActivity(in *adminsvc.Prom
 	if affected, _ := res.RowsAffected(); affected == 0 {
 		return nil, status.Error(codes.NotFound, "活动配置不存在")
 	}
-	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "update", "promotion_activity", in.GetId(), fmt.Sprintf("编辑活动配置：%s", in.GetName()), in.GetIp())
+	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "update", "promotion_activity", in.GetId(), fmt.Sprintf("编辑活动配置：%s", in.GetName()), in.GetIp()); err != nil {
+		return nil, err
+	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
 }
 
@@ -290,7 +393,9 @@ func (l *PublishPromotionActivityLogic) PublishPromotionActivity(in *adminsvc.Pr
 	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 2); err != nil {
 		return nil, err
 	}
-	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "publish", "promotion_activity", in.GetId(), fmt.Sprintf("发布活动，范围：%s，配置：%s", in.GetPublishScope(), in.GetTargetConfig()), in.GetIp())
+	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "publish", "promotion_activity", in.GetId(), fmt.Sprintf("发布活动，范围：%s，配置：%s", in.GetPublishScope(), in.GetTargetConfig()), in.GetIp()); err != nil {
+		return nil, err
+	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
 }
 
@@ -310,7 +415,9 @@ func (l *RollbackPromotionActivityLogic) RollbackPromotionActivity(in *adminsvc.
 	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 1); err != nil {
 		return nil, err
 	}
-	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "rollback", "promotion_activity", in.GetId(), fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp())
+	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "rollback", "promotion_activity", in.GetId(), fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp()); err != nil {
+		return nil, err
+	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
 }
 
@@ -327,17 +434,37 @@ func NewGetStatisticsOverviewLogic(ctx context.Context, svcCtx *svc.ServiceConte
 
 // GetStatisticsOverview 汇总用户、司机、订单、GMV、优惠券和黑名单指标。
 func (l *GetStatisticsOverviewLogic) GetStatisticsOverview(in *adminsvc.StatisticsRequest) (*adminsvc.StatisticsOverviewResponse, error) {
+	if strings.TrimSpace(in.GetCityCode()) != "" {
+		return nil, status.Error(codes.InvalidArgument, "当前订单数据未保存城市编码，暂不支持城市维度统计")
+	}
 	orderWhere, orderArgs := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
-	payWhere, payArgs := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
 	resp := &adminsvc.StatisticsOverviewResponse{}
-	resp.UserCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user WHERE deleted_at IS NULL`)
-	resp.DriverCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM driver WHERE deleted_at IS NULL`)
-	resp.OrderCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+orderWhere, orderArgs...)
-	resp.CompletedOrderCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(orderWhere, "status = 5"), orderArgs...)
-	resp.AbnormalOrderCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(orderWhere, "status = 6"), orderArgs...)
-	resp.CouponIssueCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon`)
-	resp.BlacklistCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM blacklist WHERE status = 1`)
-	resp.Gmv, _ = sumSQL(l.ctx, l.svcCtx.MySQL, `SELECT COALESCE(SUM(amount), 0) FROM payment `+appendWhere(payWhere, "status = 2"), payArgs...)
+	var err error
+	if resp.UserCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user WHERE deleted_at IS NULL`); err != nil {
+		return nil, err
+	}
+	if resp.DriverCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM driver WHERE deleted_at IS NULL`); err != nil {
+		return nil, err
+	}
+	if resp.OrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+orderWhere, orderArgs...); err != nil {
+		return nil, err
+	}
+	if resp.CompletedOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(orderWhere, "status = 5"), orderArgs...); err != nil {
+		return nil, err
+	}
+	if resp.AbnormalOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(orderWhere, "status = 6"), orderArgs...); err != nil {
+		return nil, err
+	}
+	if resp.CouponIssueCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon`); err != nil {
+		return nil, err
+	}
+	if resp.BlacklistCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM blacklist WHERE status = 1`); err != nil {
+		return nil, err
+	}
+	gmvWhere := appendWhere(replaceWhereColumn(orderWhere, "o.created_at"), "p.status = 2")
+	if resp.Gmv, err = sumSQL(l.ctx, l.svcCtx.MySQL, `SELECT COALESCE(SUM(p.amount), 0) FROM payment p JOIN ride_order o ON o.id = p.order_id `+gmvWhere, orderArgs...); err != nil {
+		return nil, err
+	}
 	return resp, nil
 }
 
@@ -354,13 +481,28 @@ func NewGetOrderStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 
 // GetOrderStatistics 统计订单完成、取消、超时和支付异常指标。
 func (l *GetOrderStatisticsLogic) GetOrderStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.OrderStatisticsResponse, error) {
+	if strings.TrimSpace(in.GetCityCode()) != "" {
+		return nil, status.Error(codes.InvalidArgument, "当前订单数据未保存城市编码，暂不支持城市维度统计")
+	}
 	where, args := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
 	resp := &adminsvc.OrderStatisticsResponse{}
-	resp.OrderCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+where, args...)
-	resp.CompletedOrderCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 5"), args...)
-	resp.CanceledOrderCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 6"), args...)
-	resp.TimeoutOrderCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM dispatch_record WHERE status = 4`)
-	resp.PaymentAbnormalCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM payment WHERE status = 3`)
+	var err error
+	if resp.OrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+where, args...); err != nil {
+		return nil, err
+	}
+	if resp.CompletedOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 5"), args...); err != nil {
+		return nil, err
+	}
+	if resp.CanceledOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 6"), args...); err != nil {
+		return nil, err
+	}
+	joinedWhere := replaceWhereColumn(where, "o.created_at")
+	if resp.TimeoutOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(DISTINCT o.id) FROM ride_order o JOIN dispatch_record d ON d.order_id = o.id `+appendWhere(joinedWhere, "d.status = 4"), args...); err != nil {
+		return nil, err
+	}
+	if resp.PaymentAbnormalCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(DISTINCT o.id) FROM ride_order o JOIN payment p ON p.order_id = o.id `+appendWhere(joinedWhere, "p.status = 3"), args...); err != nil {
+		return nil, err
+	}
 	resp.CompletionRate = percentText(resp.CompletedOrderCount, resp.OrderCount)
 	resp.CancelRate = percentText(resp.CanceledOrderCount, resp.OrderCount)
 	return resp, nil
@@ -380,11 +522,22 @@ func NewGetCouponStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext
 // GetCouponStatistics 统计优惠券模板、发放、使用和过期指标。
 func (l *GetCouponStatisticsLogic) GetCouponStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.CouponStatisticsResponse, error) {
 	resp := &adminsvc.CouponStatisticsResponse{}
-	resp.CouponCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM coupon`)
-	resp.EnabledCouponCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM coupon WHERE status = 1`)
-	resp.IssuedCouponCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon`)
-	resp.UsedCouponCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon WHERE status = 2`)
-	resp.ExpiredCouponCount, _ = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon WHERE status = 3 OR (status = 1 AND expire_at < NOW())`)
+	var err error
+	if resp.CouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM coupon`); err != nil {
+		return nil, err
+	}
+	if resp.EnabledCouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM coupon WHERE status = 1`); err != nil {
+		return nil, err
+	}
+	if resp.IssuedCouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon`); err != nil {
+		return nil, err
+	}
+	if resp.UsedCouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon WHERE status = 2`); err != nil {
+		return nil, err
+	}
+	if resp.ExpiredCouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon WHERE status = 3 OR (status = 1 AND expire_at < NOW())`); err != nil {
+		return nil, err
+	}
 	resp.UseRate = percentText(resp.UsedCouponCount, resp.IssuedCouponCount)
 	return resp, nil
 }
@@ -400,18 +553,30 @@ func NewCreateExportTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	return &CreateExportTaskLogic{ctx: ctx, svcCtx: svcCtx}
 }
 
-// CreateExportTask 记录导出任务请求。
-// 当前 SQL 未定义独立导出任务表，因此 P2 先用 admin_operation_log 做可追踪任务记录。
+// CreateExportTask 创建导出任务并启动后台 goroutine 异步生成文件。
+// 任务状态写入 admin_export_task，admin_operation_log 只保留审计用途，避免再用日志 detail 承载状态机。
 func (l *CreateExportTaskLogic) CreateExportTask(in *adminsvc.ExportTaskRequest) (*adminsvc.ExportTaskResponse, error) {
-	if strings.TrimSpace(in.GetExportType()) == "" || in.GetAdminId() <= 0 {
+	exportType := strings.TrimSpace(in.GetExportType())
+	if exportType == "" || in.GetAdminId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "导出类型和管理员ID不能为空")
 	}
-	taskNo := newAdminTaskNo("EX")
-	detail, _ := json.Marshal(map[string]string{"task_no": taskNo, "export_type": in.GetExportType(), "filters": in.GetFilters(), "status": "accepted"})
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "export", "create", in.GetExportType(), 0, string(detail), in.GetIp()); err != nil {
+	filters, err := parseOrderExportFilters(exportType, in.GetFilters())
+	if err != nil {
 		return nil, err
 	}
-	return &adminsvc.ExportTaskResponse{TaskNo: taskNo, Status: "accepted", Message: "导出任务已记录，后续可接入异步文件生成"}, nil
+	if !isSupportedExportType(exportType) {
+		return nil, status.Error(codes.InvalidArgument, "导出类型暂不支持")
+	}
+	taskNo := newAdminTaskNo("EX")
+	if _, err := l.svcCtx.MySQL.ExecContext(l.ctx, `
+		INSERT INTO admin_export_task (task_no, export_type, filters, status, admin_id, ip)
+		VALUES (?, ?, ?, 'pending', ?, ?)
+	`, taskNo, exportType, nullableJSON(filters.raw), in.GetAdminId(), in.GetIp()); err != nil {
+		return nil, err
+	}
+	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "export", "create", exportType, 0, fmt.Sprintf("创建导出任务：%s", taskNo), in.GetIp())
+	go runExportTaskJob(l.svcCtx, taskNo)
+	return &adminsvc.ExportTaskResponse{TaskNo: taskNo, Status: "pending", Message: "导出任务已创建，后台正在异步生成文件"}, nil
 }
 
 // ListExportTasksLogic 处理导出任务列表查询。
@@ -425,23 +590,24 @@ func NewListExportTasksLogic(ctx context.Context, svcCtx *svc.ServiceContext) *L
 	return &ListExportTasksLogic{ctx: ctx, svcCtx: svcCtx}
 }
 
-// ListExportTasks 从操作日志中读取已创建的导出任务。
+// ListExportTasks 从 admin_export_task 独立任务表读取导出状态列表。
 func (l *ListExportTasksLogic) ListExportTasks(in *adminsvc.ExportTaskListRequest) (*adminsvc.ExportTaskListResponse, error) {
-	where := "WHERE module = 'export' AND action = 'create'"
+	where := "WHERE 1=1"
 	args := make([]any, 0)
 	if in.GetExportType() != "" {
-		where += " AND target_type = ?"
+		where += " AND export_type = ?"
 		args = append(args, in.GetExportType())
 	}
 	var total int64
-	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM admin_operation_log `+where, args...).Scan(&total); err != nil {
+	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM admin_export_task `+where, args...).Scan(&total); err != nil {
 		return nil, err
 	}
 	limit := normalizePageSize(in.GetPageSize())
 	queryArgs := append(args, limit, offset(in.GetPage(), in.GetPageSize()))
 	rows, err := l.svcCtx.MySQL.QueryContext(l.ctx, `
-		SELECT admin_id, target_type, detail, created_at
-		FROM admin_operation_log `+where+`
+		SELECT task_no, export_type, COALESCE(CAST(filters AS CHAR), ''), status, admin_id,
+		       file_path, file_url, failure_reason, created_at, updated_at, expires_at
+		FROM admin_export_task `+where+`
 		ORDER BY id DESC
 		LIMIT ? OFFSET ?
 	`, queryArgs...)
@@ -458,6 +624,32 @@ func (l *ListExportTasksLogic) ListExportTasks(in *adminsvc.ExportTaskListReques
 		list = append(list, item)
 	}
 	return &adminsvc.ExportTaskListResponse{List: list, Total: total, Page: normalizePage(in.GetPage()), PageSize: limit}, rows.Err()
+}
+
+// GetExportTaskLogic 处理导出任务详情查询。
+type GetExportTaskLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+// NewGetExportTaskLogic 创建导出任务详情逻辑对象。
+func NewGetExportTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetExportTaskLogic {
+	return &GetExportTaskLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+// GetExportTask 按任务编号查询导出任务当前状态。
+func (l *GetExportTaskLogic) GetExportTask(in *adminsvc.ExportTaskDetailRequest) (*adminsvc.ExportTask, error) {
+	taskNo := strings.TrimSpace(in.GetTaskNo())
+	if taskNo == "" {
+		return nil, status.Error(codes.InvalidArgument, "导出任务编号不能为空")
+	}
+	row := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+		SELECT task_no, export_type, COALESCE(CAST(filters AS CHAR), ''), status, admin_id,
+		       file_path, file_url, failure_reason, created_at, updated_at, expires_at
+		FROM admin_export_task
+		WHERE task_no = ?
+	`, taskNo)
+	return scanExportTaskRow(row)
 }
 
 // ListBlacklistsLogic 处理黑名单列表查询。
@@ -525,7 +717,9 @@ func (l *AddBlacklistLogic) AddBlacklist(in *adminsvc.BlacklistRequest) (*admins
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
-	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "risk", "add_blacklist", "blacklist", id, fmt.Sprintf("新增黑名单：%s/%d", in.GetTargetType(), in.GetTargetId()), in.GetIp())
+	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "risk", "add_blacklist", "blacklist", id, fmt.Sprintf("新增黑名单：%s/%d", in.GetTargetType(), in.GetTargetId()), in.GetIp()); err != nil {
+		return nil, err
+	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
 }
 
@@ -552,7 +746,9 @@ func (l *ReleaseBlacklistLogic) ReleaseBlacklist(in *adminsvc.BlacklistRequest) 
 	if affected, _ := res.RowsAffected(); affected == 0 {
 		return nil, status.Error(codes.NotFound, "黑名单不存在或已解除")
 	}
-	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "risk", "release_blacklist", "blacklist", in.GetId(), "解除黑名单", in.GetIp())
+	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "risk", "release_blacklist", "blacklist", in.GetId(), "解除黑名单", in.GetIp()); err != nil {
+		return nil, err
+	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
 }
 
@@ -770,6 +966,11 @@ func appendWhere(where, condition string) string {
 	return where + " AND " + condition
 }
 
+// replaceWhereColumn 将通用订单时间条件替换为 JOIN 查询使用的表别名列。
+func replaceWhereColumn(where, column string) string {
+	return strings.ReplaceAll(where, "created_at", column)
+}
+
 // scanIssueTask 扫描发券任务行。
 func scanIssueTask(rows *sql.Rows) (*adminsvc.CouponIssueTask, error) {
 	var item adminsvc.CouponIssueTask
@@ -799,24 +1000,101 @@ func scanPromotionActivity(rows *sql.Rows) (*adminsvc.PromotionActivity, error) 
 	return &item, nil
 }
 
-// scanExportTask 扫描操作日志中的导出任务记录。
+// scanExportTask 扫描 admin_export_task 列表行。
 func scanExportTask(rows *sql.Rows) (*adminsvc.ExportTask, error) {
-	var adminID int64
-	var exportType, detail string
-	var createdAt sql.NullTime
-	if err := rows.Scan(&adminID, &exportType, &detail, &createdAt); err != nil {
+	var item adminsvc.ExportTask
+	var fileURL string
+	var createdAt, updatedAt, expiresAt sql.NullTime
+	if err := rows.Scan(&item.TaskNo, &item.ExportType, &item.Filters, &item.Status, &item.AdminId,
+		&item.FilePath, &fileURL, &item.FailureReason, &createdAt, &updatedAt, &expiresAt); err != nil {
 		return nil, err
 	}
-	var payload map[string]string
-	_ = json.Unmarshal([]byte(detail), &payload)
-	return &adminsvc.ExportTask{
-		TaskNo:     payload["task_no"],
-		ExportType: exportType,
-		Filters:    payload["filters"],
-		Status:     payload["status"],
-		AdminId:    adminID,
-		CreatedAt:  formatNullTime(createdAt),
-	}, nil
+	item.CreatedAt = formatNullTime(createdAt)
+	item.UpdatedAt = formatNullTime(updatedAt)
+	return &item, nil
+}
+
+// scanExportTaskRow 扫描 admin_export_task 单条任务记录。
+func scanExportTaskRow(row *sql.Row) (*adminsvc.ExportTask, error) {
+	var item adminsvc.ExportTask
+	var fileURL string
+	var createdAt, updatedAt, expiresAt sql.NullTime
+	err := row.Scan(&item.TaskNo, &item.ExportType, &item.Filters, &item.Status, &item.AdminId,
+		&item.FilePath, &fileURL, &item.FailureReason, &createdAt, &updatedAt, &expiresAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, status.Error(codes.NotFound, "导出任务不存在")
+	}
+	if err != nil {
+		return nil, err
+	}
+	item.CreatedAt = formatNullTime(createdAt)
+	item.UpdatedAt = formatNullTime(updatedAt)
+	return &item, nil
+}
+
+// updateExportTaskStatus 更新导出任务状态、文件路径和失败原因。
+// 该函数只修改 admin_export_task，不再回写 admin_operation_log.detail。
+func updateExportTaskStatus(ctx context.Context, svcCtx *svc.ServiceContext, taskNo, statusText, filePath, failureReason string, expiresAt any) error {
+	res, err := svcCtx.MySQL.ExecContext(ctx, `
+		UPDATE admin_export_task
+		SET status = ?, file_path = ?, file_url = ?, failure_reason = ?, expires_at = ?
+		WHERE task_no = ?
+	`, statusText, filePath, filePath, failureReason, expiresAt, taskNo)
+	if err != nil {
+		return err
+	}
+	if affected, _ := res.RowsAffected(); affected == 0 {
+		return status.Error(codes.NotFound, "导出任务不存在")
+	}
+	return nil
+}
+
+// runExportTaskJob 在后台执行导出文件生成，并把 running/success/failed 状态写回独立任务表。
+func runExportTaskJob(svcCtx *svc.ServiceContext, taskNo string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	task, err := loadExportTaskByNo(ctx, svcCtx, taskNo)
+	if err != nil {
+		return
+	}
+	if err := updateExportTaskStatus(ctx, svcCtx, taskNo, "running", "", "", nil); err != nil {
+		return
+	}
+	filePath, err := writeExportTaskFile(ctx, svcCtx, task)
+	if err != nil {
+		_ = updateExportTaskStatus(ctx, svcCtx, taskNo, "failed", "", err.Error(), nil)
+		return
+	}
+	_ = updateExportTaskStatus(ctx, svcCtx, taskNo, "success", filePath, "", time.Now().Add(7*24*time.Hour))
+}
+
+// writeExportTaskFile 按导出类型分页读取业务表并生成 CSV 文件。
+// 当前先覆盖后台核心审查场景：用户、司机认证、订单和操作日志；统计类导出输出实时聚合指标。
+func writeExportTaskFile(ctx context.Context, svcCtx *svc.ServiceContext, task *adminsvc.ExportTask) (string, error) {
+	dir := filepath.Join(".tmp-admin-exports")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	filePath := filepath.Join(dir, task.GetTaskNo()+".csv")
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	writer := csv.NewWriter(file)
+	filters, err := parseOrderExportFilters(task.GetExportType(), task.GetFilters())
+	if err != nil {
+		return "", err
+	}
+	if err := writeExportCSV(ctx, svcCtx, writer, task.GetExportType(), filters); err != nil {
+		return "", err
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return "", err
+	}
+	return filePath, nil
 }
 
 // scanBlacklist 扫描黑名单行。
@@ -841,6 +1119,190 @@ func scanRiskHitRecord(rows *sql.Rows) (*adminsvc.RiskHitRecord, error) {
 	}
 	item.CreatedAt = formatNullTime(createdAt)
 	return &item, nil
+}
+
+// nullableJSON 将空筛选条件写成 SQL NULL，非空条件按 JSON 字符串写入。
+func nullableJSON(filters string) any {
+	if strings.TrimSpace(filters) == "" {
+		return nil
+	}
+	return filters
+}
+
+// isSupportedExportType 判断后台当前支持的真实导出类型。
+func isSupportedExportType(exportType string) bool {
+	switch exportType {
+	case "orders":
+		return true
+	default:
+		return false
+	}
+}
+
+// loadExportTaskByNo 从 admin_export_task 读取后台任务信息，供异步任务生成 CSV 使用。
+func loadExportTaskByNo(ctx context.Context, svcCtx *svc.ServiceContext, taskNo string) (*adminsvc.ExportTask, error) {
+	row := svcCtx.MySQL.QueryRowContext(ctx, `
+		SELECT task_no, export_type, COALESCE(CAST(filters AS CHAR), ''), status, admin_id,
+		       file_path, file_url, failure_reason, created_at, updated_at, expires_at
+		FROM admin_export_task
+		WHERE task_no = ?
+	`, taskNo)
+	return scanExportTaskRow(row)
+}
+
+// writeExportCSV 根据导出类型分派到不同业务查询器。
+func writeExportCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *csv.Writer, exportType string, filters orderExportFilters) error {
+	switch exportType {
+	case "orders":
+		return writeOrdersCSV(ctx, svcCtx, writer, filters)
+	default:
+		return status.Error(codes.InvalidArgument, "导出类型暂不支持")
+	}
+}
+
+// writeUsersCSV 分页导出用户基础信息。
+func writeUsersCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *csv.Writer) error {
+	if err := writer.Write([]string{"id", "phone", "nickname", "real_name", "status", "created_at"}); err != nil {
+		return err
+	}
+	rows, err := svcCtx.MySQL.QueryContext(ctx, `
+		SELECT id, phone, nickname, real_name, status, created_at
+		FROM user
+		WHERE deleted_at IS NULL
+		ORDER BY id DESC
+		LIMIT 5000
+	`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		var statusCode int32
+		var phone, nickname, realName sql.NullString
+		var createdAt sql.NullTime
+		if err := rows.Scan(&id, &phone, &nickname, &realName, &statusCode, &createdAt); err != nil {
+			return err
+		}
+		if err := writer.Write([]string{strconv.FormatInt(id, 10), phone.String, nickname.String, realName.String, strconv.FormatInt(int64(statusCode), 10), formatNullTime(createdAt)}); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
+// writeDriversCSV 分页导出司机认证审核信息。
+func writeDriversCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *csv.Writer) error {
+	if err := writer.Write([]string{"certification_id", "driver_id", "driver_name", "driver_phone", "plate_no", "audit_status", "audited_by", "created_at"}); err != nil {
+		return err
+	}
+	rows, err := svcCtx.MySQL.QueryContext(ctx, `
+		SELECT c.id, c.driver_id, d.real_name, d.phone, v.plate_no, c.audit_status, c.audited_by, c.created_at
+		FROM driver_certification c
+		LEFT JOIN driver d ON d.id = c.driver_id
+		LEFT JOIN vehicle v ON v.id = c.vehicle_id
+		ORDER BY c.id DESC
+		LIMIT 5000
+	`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, driverID, auditedBy int64
+		var auditStatus int32
+		var name, phone, plateNo sql.NullString
+		var createdAt sql.NullTime
+		if err := rows.Scan(&id, &driverID, &name, &phone, &plateNo, &auditStatus, &auditedBy, &createdAt); err != nil {
+			return err
+		}
+		if err := writer.Write([]string{strconv.FormatInt(id, 10), strconv.FormatInt(driverID, 10), name.String, phone.String, plateNo.String, strconv.FormatInt(int64(auditStatus), 10), strconv.FormatInt(auditedBy, 10), formatNullTime(createdAt)}); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
+// writeOrdersCSV 分页导出后台订单监控核心字段。
+func writeOrdersCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *csv.Writer, filters orderExportFilters) error {
+	if err := writer.Write([]string{"id", "order_no", "user_id", "driver_id", "status", "estimated_price", "created_at"}); err != nil {
+		return err
+	}
+	where, args := filters.where()
+	rows, err := svcCtx.MySQL.QueryContext(ctx, `
+		SELECT id, order_no, user_id, driver_id, status, estimated_price, created_at
+		FROM ride_order `+where+`
+		ORDER BY id DESC
+		LIMIT 5000
+	`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, userID, driverID int64
+		var statusCode int32
+		var orderNo, estimatedPrice sql.NullString
+		var createdAt sql.NullTime
+		if err := rows.Scan(&id, &orderNo, &userID, &driverID, &statusCode, &estimatedPrice, &createdAt); err != nil {
+			return err
+		}
+		if err := writer.Write([]string{strconv.FormatInt(id, 10), orderNo.String, strconv.FormatInt(userID, 10), strconv.FormatInt(driverID, 10), strconv.FormatInt(int64(statusCode), 10), estimatedPrice.String, formatNullTime(createdAt)}); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
+// writeOperationLogsCSV 分页导出后台审计日志。
+func writeOperationLogsCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *csv.Writer) error {
+	if err := writer.Write([]string{"id", "admin_id", "module", "action", "target_type", "target_id", "detail", "ip", "created_at"}); err != nil {
+		return err
+	}
+	rows, err := svcCtx.MySQL.QueryContext(ctx, `
+		SELECT id, admin_id, module, action, target_type, target_id, detail, ip, created_at
+		FROM admin_operation_log
+		ORDER BY id DESC
+		LIMIT 5000
+	`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, adminID, targetID int64
+		var module, action, targetType, detail, ip sql.NullString
+		var createdAt sql.NullTime
+		if err := rows.Scan(&id, &adminID, &module, &action, &targetType, &targetID, &detail, &ip, &createdAt); err != nil {
+			return err
+		}
+		if err := writer.Write([]string{strconv.FormatInt(id, 10), strconv.FormatInt(adminID, 10), module.String, action.String, targetType.String, strconv.FormatInt(targetID, 10), detail.String, ip.String, formatNullTime(createdAt)}); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
+// writeStatisticsCSV 导出当前运营统计聚合结果。
+func writeStatisticsCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *csv.Writer) error {
+	resp := &GetStatisticsOverviewLogic{ctx: ctx, svcCtx: svcCtx}
+	overview, err := resp.GetStatisticsOverview(&adminsvc.StatisticsRequest{})
+	if err != nil {
+		return err
+	}
+	if err := writer.Write([]string{"metric", "value"}); err != nil {
+		return err
+	}
+	return writer.WriteAll([][]string{
+		{"user_count", strconv.FormatInt(overview.GetUserCount(), 10)},
+		{"driver_count", strconv.FormatInt(overview.GetDriverCount(), 10)},
+		{"order_count", strconv.FormatInt(overview.GetOrderCount(), 10)},
+		{"completed_order_count", strconv.FormatInt(overview.GetCompletedOrderCount(), 10)},
+		{"abnormal_order_count", strconv.FormatInt(overview.GetAbnormalOrderCount(), 10)},
+		{"gmv", overview.GetGmv()},
+		{"coupon_issue_count", strconv.FormatInt(overview.GetCouponIssueCount(), 10)},
+		{"blacklist_count", strconv.FormatInt(overview.GetBlacklistCount(), 10)},
+	})
 }
 
 // validateBlacklistRequest 校验黑名单新增或解除请求。

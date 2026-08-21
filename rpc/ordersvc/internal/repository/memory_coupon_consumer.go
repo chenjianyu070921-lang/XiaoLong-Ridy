@@ -2,7 +2,7 @@ package repository
 
 import "context"
 
-// MemoryCouponConsumer is a test double for coupon consumption.
+// MemoryCouponConsumer 是 ConfirmPaid 单元测试使用的优惠券核销替身。
 type MemoryCouponConsumer struct {
 	Calls   int
 	UserID  uint64
@@ -10,6 +10,7 @@ type MemoryCouponConsumer struct {
 	Err     error
 }
 
+// ConsumeByOrder 记录核销请求，便于测试断言订单支付成功后确实触发优惠券消费。
 func (m *MemoryCouponConsumer) ConsumeByOrder(_ context.Context, userID, orderID uint64) error {
 	m.Calls++
 	m.UserID = userID

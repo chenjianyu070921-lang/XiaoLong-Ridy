@@ -74,6 +74,7 @@ func registerCouponRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/coupons/my", handler.ListMyCouponsHandler(svcCtx))
 }
 
+// registerReviewRoutes 注册乘客评价接口。
 func registerReviewRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/reviews/submit", handler.SubmitReviewHandler(svcCtx))
 }

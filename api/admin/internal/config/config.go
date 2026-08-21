@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -55,6 +56,13 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Auth.TokenPrefix == "" {
 		cfg.Auth.TokenPrefix = "admin:sess:"
+	}
+	// 管理后台 HTTP 服务优先从环境变量读取数据库连接串，避免将共享库凭据提交到仓库。
+	if dsn := strings.TrimSpace(os.Getenv("ADMIN_API_MYSQL_DSN")); dsn != "" {
+		cfg.MySQL.DSN = dsn
+	}
+	if strings.TrimSpace(cfg.MySQL.DSN) == "" {
+		return nil, fmt.Errorf("mysql dsn is empty: set ADMIN_API_MYSQL_DSN")
 	}
 	if len(cfg.AdminRPC.Endpoints) == 0 && cfg.AdminRPC.Target == "" {
 		cfg.AdminRPC.Target = "127.0.0.1:8084"

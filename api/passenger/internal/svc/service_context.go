@@ -170,7 +170,7 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 			Dsn:         cfg.MysqlDSN,
 			MaxOpenConn: 10,
 			MaxIdleConn: 5,
-			MaxLifeTime: int((30 * time.Minute).Seconds()),
+			MaxLifeTime: int((30 * time.Minute).Nanoseconds()),
 		})
 		if err != nil {
 			closeGRPCConns(userConn, orderConn, priceConn, payConn)
@@ -253,13 +253,13 @@ func WithPayClient(client PayClient) Option {
 	}
 }
 
+// WithTokenSigningKey 设置 JWT 解析签名密钥。
+// WithReviewRepository injects the order review repository.
 func WithReviewRepository(repo ReviewRepository) Option {
 	return func(ctx *ServiceContext) {
 		ctx.Reviews = repo
 	}
 }
-
-// WithTokenSigningKey 设置 JWT 解析签名密钥。
 func WithTokenSigningKey(signingKey string) Option {
 	return func(ctx *ServiceContext) {
 		if signingKey != "" {

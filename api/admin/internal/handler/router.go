@@ -10,11 +10,11 @@ import (
 
 	"XiaoLong-Ridy/api/admin/internal/logic"
 	"XiaoLong-Ridy/api/admin/internal/model"
-	"XiaoLong-Ridy/api/admin/internal/repository"
 	"XiaoLong-Ridy/api/admin/internal/svc"
 	"XiaoLong-Ridy/api/admin/internal/types"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -82,6 +82,9 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/coupon-issue-tasks", r.authRequired(r.handleCouponIssueTasks))
 	r.mux.HandleFunc("/admin/v1/coupons/", r.authRequired(r.handleCouponByID))
 
+	r.mux.HandleFunc("/admin/v1/price-rules", r.authRequired(r.handlePriceRules))
+	r.mux.HandleFunc("/admin/v1/price-rules/", r.authRequired(r.handlePriceRuleByID))
+
 	r.mux.HandleFunc("/admin/v1/promotion-activities", r.authRequired(r.handlePromotionActivities))
 	r.mux.HandleFunc("/admin/v1/promotion-activities/", r.authRequired(r.handlePromotionActivityByID))
 
@@ -90,6 +93,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/statistics/coupons", r.authRequired(r.handleStatisticsCoupons))
 
 	r.mux.HandleFunc("/admin/v1/export-tasks", r.authRequired(r.handleExportTasks))
+	r.mux.HandleFunc("/admin/v1/export-tasks/", r.authRequired(r.handleExportTaskByNo))
 
 	r.mux.HandleFunc("/admin/v1/blacklist", r.authRequired(r.handleBlacklists))
 	r.mux.HandleFunc("/admin/v1/blacklist/", r.authRequired(r.handleBlacklistByID))
@@ -115,10 +119,14 @@ func (r *Router) handleRegister(w http.ResponseWriter, req *http.Request) {
 
 	var session *model.AdminSession
 	if token := bearerToken(req.Header.Get("Authorization")); token != "" {
-		s, err := r.ctx.SessionRepository.Get(req.Context(), token)
-		if err == nil {
-			session = s
+		s, err := logic.NewAuthLogic(r.ctx).ValidateSession(req.Context(), token)
+		if err != nil {
+			r.writeAuthError(w, err)
+			return
 		}
+		session = s
+		// 注册请求不经过 authRequired，但携带 token 时仍需向 adminsvc 透传，供服务端复核操作者身份。
+		req = req.WithContext(metadata.AppendToOutgoingContext(req.Context(), "x-admin-token", token))
 	}
 
 	resp, err := logic.NewAuthLogic(r.ctx).Register(req.Context(), &body, session)
@@ -168,8 +176,8 @@ func (r *Router) handleMe(w http.ResponseWriter, req *http.Request) {
 		writeMethodNotAllowed(w)
 		return
 	}
-	session := sessionFromContext(req.Context())
-	resp, err := logic.NewAuthLogic(r.ctx).Me(req.Context(), session)
+	token := bearerToken(req.Header.Get("Authorization"))
+	resp, err := logic.NewAuthLogic(r.ctx).Me(req.Context(), token)
 	if err != nil {
 		r.writeAuthError(w, err)
 		return
@@ -183,8 +191,12 @@ func (r *Router) handleMenus(w http.ResponseWriter, req *http.Request) {
 		writeMethodNotAllowed(w)
 		return
 	}
-	session := sessionFromContext(req.Context())
-	items := logic.NewAuthLogic(r.ctx).GetMenus(session)
+	token := bearerToken(req.Header.Get("Authorization"))
+	items, err := logic.NewAuthLogic(r.ctx).GetMenus(req.Context(), token)
+	if err != nil {
+		r.writeAuthError(w, err)
+		return
+	}
 	writeSuccess(w, map[string]any{"items": items})
 }
 
@@ -566,6 +578,97 @@ func (r *Router) handleCouponIssueTasks(w http.ResponseWriter, req *http.Request
 	writeSuccess(w, resp)
 }
 
+// handlePriceRules 处理计价规则列表和新增。
+func (r *Router) handlePriceRules(w http.ResponseWriter, req *http.Request) {
+	priceRuleLogic := logic.NewPriceRuleLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		query := req.URL.Query()
+		resp, err := priceRuleLogic.List(req.Context(), types.PriceRuleListRequest{
+			Page:     intQuery(req, "page", 1),
+			PageSize: intQuery(req, "page_size", 20),
+			Keyword:  query.Get("keyword"),
+			CityCode: query.Get("city_code"),
+			CarType:  int32Query(req, "car_type", 0),
+			Status:   int32Query(req, "status", 0),
+		})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body types.PriceRuleSaveRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		resp, err := priceRuleLogic.Create(req.Context(), body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handlePriceRuleByID 处理计价规则详情、编辑、启用和停用。
+func (r *Router) handlePriceRuleByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/price-rules/")
+	if !ok {
+		writeError(w, http.StatusBadRequest, 40001, "invalid price rule id")
+		return
+	}
+	priceRuleLogic := logic.NewPriceRuleLogic(r.ctx)
+	if action == "" {
+		switch req.Method {
+		case http.MethodGet:
+			resp, err := priceRuleLogic.Detail(req.Context(), id)
+			if err != nil {
+				r.writeBizError(w, err)
+				return
+			}
+			writeSuccess(w, resp)
+		case http.MethodPut:
+			var body types.PriceRuleSaveRequest
+			if err := decodeJSON(req, &body); err != nil {
+				writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+				return
+			}
+			if err := priceRuleLogic.Update(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+				r.writeBizError(w, err)
+				return
+			}
+			writeSuccess(w, types.CommonResponse{Message: "ok"})
+		default:
+			writeMethodNotAllowed(w)
+		}
+		return
+	}
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	switch action {
+	case "enable":
+		if err := priceRuleLogic.Enable(req.Context(), id, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+	case "disable":
+		if err := priceRuleLogic.Disable(req.Context(), id, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+	default:
+		http.NotFound(w, req)
+		return
+	}
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
+}
+
 // handlePromotionActivities 处理活动配置列表和新增。
 func (r *Router) handlePromotionActivities(w http.ResponseWriter, req *http.Request) {
 	marketingLogic := logic.NewMarketingLogic(r.ctx)
@@ -724,6 +827,25 @@ func (r *Router) handleExportTasks(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// handleExportTaskByNo 查询单个导出任务详情。
+func (r *Router) handleExportTaskByNo(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	taskNo := strings.Trim(strings.TrimPrefix(req.URL.Path, "/admin/v1/export-tasks/"), "/")
+	if taskNo == "" || strings.Contains(taskNo, "/") {
+		writeError(w, http.StatusBadRequest, 40001, "invalid task no")
+		return
+	}
+	resp, err := logic.NewExportLogic(r.ctx).Detail(req.Context(), taskNo)
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
 // handleBlacklists 处理风控黑名单列表和新增。
 func (r *Router) handleBlacklists(w http.ResponseWriter, req *http.Request) {
 	riskLogic := logic.NewRiskLogic(r.ctx)
@@ -793,7 +915,7 @@ func (r *Router) handleRiskHitRecords(w http.ResponseWriter, req *http.Request) 
 }
 
 // authRequired 是后台通用鉴权中间件。
-// 它从 Authorization 头中读取 token，并从 Redis 中加载会话信息。
+// 它只从 Authorization 头中读取 token，并调用 adminsvc 校验会话，Redis 访问统一收敛在 adminsvc。
 func (r *Router) authRequired(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		token := bearerToken(req.Header.Get("Authorization"))
@@ -801,12 +923,14 @@ func (r *Router) authRequired(next http.HandlerFunc) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, 40004, "token missing")
 			return
 		}
-		session, err := r.ctx.SessionRepository.Get(req.Context(), token)
+		session, err := logic.NewAuthLogic(r.ctx).ValidateSession(req.Context(), token)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, 40004, "token invalid")
+			r.writeAuthError(w, err)
 			return
 		}
-		ctx := context.WithValue(req.Context(), sessionContextKey{}, session)
+		// 将已校验 token 作为 gRPC metadata 向下游透传，adminsvc 会再次校验并执行服务端 RBAC。
+		ctx := metadata.AppendToOutgoingContext(req.Context(), "x-admin-token", token)
+		ctx = context.WithValue(ctx, sessionContextKey{}, session)
 		next(w, req.WithContext(ctx))
 	}
 }
@@ -816,7 +940,7 @@ func (r *Router) writeAuthError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, logic.ErrBadRequest):
 		writeError(w, http.StatusBadRequest, 40001, "bad request")
-	case errors.Is(err, logic.ErrUnauthorized), errors.Is(err, repository.ErrAdminNotFound):
+	case errors.Is(err, logic.ErrUnauthorized):
 		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
 	case errors.Is(err, logic.ErrForbidden):
 		writeError(w, http.StatusForbidden, 40003, "forbidden")
@@ -842,12 +966,6 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, logic.ErrBadRequest):
 		writeError(w, http.StatusBadRequest, 40001, "bad request")
-	case errors.Is(err, repository.ErrUserNotFound),
-		errors.Is(err, repository.ErrDriverCertificationNotFound),
-		errors.Is(err, repository.ErrOrderNotFound),
-		errors.Is(err, repository.ErrCouponNotFound),
-		errors.Is(err, repository.ErrOperationLogNotFound):
-		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case errors.Is(err, logic.ErrForbidden):
 		writeError(w, http.StatusForbidden, 40003, "forbidden")
 	case status.Code(err) == codes.InvalidArgument:

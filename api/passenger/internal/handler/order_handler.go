@@ -88,6 +88,7 @@ func PayOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// PollOrderStatusHandler 处理乘客端订单状态轮询兜底请求。
 func PollOrderStatusHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.OrderStatusPollRequest

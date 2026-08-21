@@ -113,11 +113,13 @@ type PayOrderResponse struct {
 	Status        int32  `json:"status"`
 }
 
+// OrderStatusPollRequest 表示乘客端轮询订单状态的请求参数。
 type OrderStatusPollRequest struct {
 	OrderID     int64 `json:"orderId"`
 	KnownStatus int32 `json:"knownStatus"`
 }
 
+// OrderStatusPollResponse 表示订单状态轮询结果，changed 为 true 时前端刷新展示节点。
 type OrderStatusPollResponse struct {
 	OrderID   int64 `json:"orderId"`
 	Status    int32 `json:"status"`

@@ -115,7 +115,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		}
 		if lockedCoupon.GetCoupon() == nil || selectedCoupon == nil || lockedCoupon.GetCoupon().GetUserCouponId() != selectedCoupon.GetUserCouponId() {
 			releaseLockedCoupon(l.ctx, userClient, userID, req.UserCouponID, lockOrderID)
-			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券信息异常")
+			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券信息为空")
 			return nil, ErrInvalidRequest
 		}
 	}
@@ -415,18 +415,28 @@ func toOrderDetail(order *orderproto.GetOrderResponse) *types.OrderDetail {
 	}
 }
 
+// cancelCreatedOrder cancels an order that has been created but cannot finish the coupon flow.
 func cancelCreatedOrder(ctx context.Context, orderClient svc.OrderClient, orderID int64, userID uint64, reason string) {
 	if orderClient == nil || orderID <= 0 || userID == 0 {
 		return
 	}
-	_, _ = orderClient.CancelOrder(ctx, &orderproto.CancelOrderRequest{OrderId: orderID, OperatorType: "system", OperatorId: int64(userID), Reason: reason})
+	_, _ = orderClient.CancelOrder(ctx, &orderproto.CancelOrderRequest{
+		OrderId:      orderID,
+		OperatorType: "system",
+		OperatorId:   int64(userID),
+		Reason:       reason,
+	})
 }
 
+// findUserCoupon reads the passenger coupon before order creation so discount can be calculated without a fake order ID.
 func (l *OrderLogic) findUserCoupon(userClient svc.UserClient, userID, userCouponID uint64) (*userproto.CouponInfo, error) {
 	if userClient == nil || userID == 0 || userCouponID == 0 {
 		return nil, ErrInvalidRequest
 	}
-	resp, err := userClient.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{UserId: userID, Status: 1})
+	resp, err := userClient.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{
+		UserId: userID,
+		Status: 1,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -438,6 +448,7 @@ func (l *OrderLogic) findUserCoupon(userClient svc.UserClient, userID, userCoupo
 	return nil, userproto.ErrUserCouponNotFound
 }
 
+// PollOrderStatus provides the polling fallback for passenger order status refresh.
 func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.OrderStatusPollResponse, error) {
 	userID, err := currentUserID(l.svcCtx, l.token)
 	if err != nil {
@@ -458,11 +469,19 @@ func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.
 		return nil, ErrForbidden
 	}
 	status := int32(order.GetStatus())
-	return &types.OrderStatusPollResponse{OrderID: order.GetOrderId(), Status: status, Changed: req.KnownStatus != status, UpdatedAt: order.GetUpdatedAt(), DriverID: order.GetDriverId()}, nil
+	return &types.OrderStatusPollResponse{
+		OrderID:   order.GetOrderId(),
+		Status:    status,
+		Changed:   req.KnownStatus != status,
+		UpdatedAt: order.GetUpdatedAt(),
+		DriverID:  order.GetDriverId(),
+	}, nil
 }
 
+// orderCityCode returns the request city code or the passenger default city.
 func orderCityCode(cityCode string) string {
-	if cityCode = strings.TrimSpace(cityCode); cityCode == "" {
+	cityCode = strings.TrimSpace(cityCode)
+	if cityCode == "" {
 		return "110000"
 	}
 	return cityCode

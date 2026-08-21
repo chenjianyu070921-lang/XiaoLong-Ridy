@@ -3,6 +3,7 @@ package svc
 import (
 	"context"
 
+	"XiaoLong-Ridy/common/realname"
 	"XiaoLong-Ridy/rpc/usersvc/internal/config"
 	"XiaoLong-Ridy/rpc/usersvc/internal/repository"
 )
@@ -33,6 +34,7 @@ type ServiceContext struct {
 	SMSSender   SMSCodeSender
 	SMSVerifier SMSCodeVerifier
 	Tokens      TokenManager
+	RealNameVer realname.Verifier // 实名认证服务（可选，nil 时跳过核验）
 }
 
 // NewServiceContext 按 goctl 风格根据配置和依赖创建 usersvc 服务上下文。
@@ -44,6 +46,7 @@ func NewServiceContext(
 	smsSender SMSCodeSender,
 	smsVerifier SMSCodeVerifier,
 	tokens TokenManager,
+	realNameVer realname.Verifier,
 ) *ServiceContext {
 	return &ServiceContext{
 		Config:      c,
@@ -53,5 +56,6 @@ func NewServiceContext(
 		SMSSender:   smsSender,
 		SMSVerifier: smsVerifier,
 		Tokens:      tokens,
+		RealNameVer: realNameVer,
 	}
 }

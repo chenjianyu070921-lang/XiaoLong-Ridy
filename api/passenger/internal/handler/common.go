@@ -21,41 +21,41 @@ func bearerToken(r *http.Request) string {
 func writeBusinessError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, logic.ErrUnauthorized):
-		writeError(w, http.StatusUnauthorized, codeInvalidToken, "Token无效")
+		writeError(w, http.StatusUnauthorized, codeInvalidToken, "Token invalid")
 	case errors.Is(err, logic.ErrForbidden):
-		writeError(w, http.StatusForbidden, codeForbidden, "无权访问该资源")
+		writeError(w, http.StatusForbidden, codeForbidden, "forbidden")
 	case errors.Is(err, logic.ErrInvalidRequest):
-		writeError(w, http.StatusBadRequest, codeInvalidRequest, "请求参数不合法")
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "invalid request")
 	case errors.Is(err, logic.ErrOrderNotPayable):
-		writeError(w, http.StatusBadRequest, codeInvalidRequest, "订单当前状态不可支付")
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "order not payable")
 	case errors.Is(err, logic.ErrOrderClientNotConfigured),
 		errors.Is(err, logic.ErrPriceClientNotConfigured),
 		errors.Is(err, logic.ErrPayClientNotConfigured),
 		errors.Is(err, logic.ErrUserClientNotConfigured),
 		isDownstreamGRPCError(err):
-		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "下游服务不可用")
+		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "downstream unavailable")
 	case matchesBusinessError(err, userproto.ErrInvalidAddressPhone):
-		writeError(w, http.StatusBadRequest, codeInvalidAddressPhone, "异常_电话格式错误")
+		writeError(w, http.StatusBadRequest, codeInvalidAddressPhone, "invalid address phone")
 	case matchesBusinessError(err, userproto.ErrInvalidLongitudeLatitude):
-		writeError(w, http.StatusBadRequest, codeInvalidLongitudeLatitude, "异常_经纬度错误")
+		writeError(w, http.StatusBadRequest, codeInvalidLongitudeLatitude, "invalid longitude or latitude")
 	case matchesBusinessError(err, userproto.ErrAddressNotFound):
-		writeError(w, http.StatusNotFound, codeAddressNotFound, "地址不存在")
+		writeError(w, http.StatusNotFound, codeAddressNotFound, "address not found")
 	case matchesBusinessError(err, userproto.ErrUserNotFound):
-		writeError(w, http.StatusNotFound, codeUserNotFound, "用户不存在")
+		writeError(w, http.StatusNotFound, codeUserNotFound, "user not found")
 	case matchesBusinessError(err, userproto.ErrCouponNotFound):
-		writeError(w, http.StatusNotFound, codeCouponNotFound, "优惠券不存在")
+		writeError(w, http.StatusNotFound, codeCouponNotFound, "coupon not found")
 	case matchesBusinessError(err, userproto.ErrUserCouponNotFound):
-		writeError(w, http.StatusNotFound, codeCouponNotFound, "用户优惠券不存在")
+		writeError(w, http.StatusNotFound, codeCouponNotFound, "user coupon not found")
 	case matchesBusinessError(err, userproto.ErrCouponUnavailable):
-		writeError(w, http.StatusBadRequest, codeCouponUnavailable, "优惠券不可用")
+		writeError(w, http.StatusBadRequest, codeCouponUnavailable, "coupon unavailable")
 	case matchesBusinessError(err, userproto.ErrCouponReceiveLimit):
-		writeError(w, http.StatusBadRequest, codeCouponReceiveLimit, "优惠券领取次数已达上限")
+		writeError(w, http.StatusBadRequest, codeCouponReceiveLimit, "coupon receive limit exceeded")
 	case errors.Is(err, logic.ErrReviewAlreadyExists):
-		writeError(w, http.StatusBadRequest, codeReviewAlreadyExists, "订单已评价")
+		writeError(w, http.StatusBadRequest, codeReviewAlreadyExists, "review already exists")
 	case errors.Is(err, logic.ErrReviewRepositoryNotConfigured):
-		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "评价服务未配置")
+		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "review repository not configured")
 	default:
-		writeError(w, http.StatusInternalServerError, codeInternalError, "服务器内部错误")
+		writeError(w, http.StatusInternalServerError, codeInternalError, "internal error")
 	}
 }
 

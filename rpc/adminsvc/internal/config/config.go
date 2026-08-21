@@ -11,6 +11,7 @@ type Config struct {
 	Session    AuthConfig         `json:"Session"`
 	OrdersRPC  zrpc.RpcClientConf `json:"OrdersRPC,optional"`
 	DriversRPC zrpc.RpcClientConf `json:"DriversRPC,optional"`
+	PricesRPC  zrpc.RpcClientConf `json:"PricesRPC,optional"`
 }
 
 // MySQLConfig 定义本服务访问业务数据库所需的数据源。
