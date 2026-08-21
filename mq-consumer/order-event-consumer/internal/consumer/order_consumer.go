@@ -7,10 +7,8 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/svc"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
-	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
+	order 	"XiaoLong-Ridy/rpc/ordersvc/orderclient"
 )
-
-const topicOrderPaid = "order.paid"
 
 // OrderCreatedEvent 与 ordersvc 发布的事件字段保持一致。
 type OrderCreatedEvent struct {
@@ -50,7 +48,7 @@ func (c *OrderConsumer) handle(ctx context.Context, topic string, payload []byte
 		return c.handleOrderCreated(ctx, payload)
 	case constants.TopicDispatchNew:
 		return c.handleDispatchNew(ctx, payload)
-	case topicOrderPaid:
+	case constants.TopicOrderPaid:
 		return c.handleOrderPaid(ctx, payload)
 	default:
 		return nil

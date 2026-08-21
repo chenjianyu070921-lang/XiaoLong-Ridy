@@ -13,6 +13,7 @@ import (
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/repository"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/core/logx"
 	"gorm.io/gorm"
 )
 
@@ -45,6 +46,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		scoreProvider := func(ctx context.Context, driverID uint64) (float64, float64) {
 			s, err := repo.GetDriverScore(ctx, driverID)
 			if err != nil || s == nil {
+				// 评分数据缺失时降级为 0（加权失效），告警以便排查 driver_score 是否未初始化（P2-M4-6）。
+				logx.Errorf("driver score not found for driverId=%d, fallback to zero weight: err=%v", driverID, err)
 				return 0, 0
 			}
 			rating := s.Score / 20 // 服务分(0~100) 归一化到 rating(0~5)
@@ -57,7 +60,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			}
 			return rating, completion
 		}
-		dispatchEngine = engine.NewGeoDispatchEngineWithScore(redisClient, "default", c.EnableMockDispatch, scoreProvider)
+		// 默认城市键从配置读取，消除硬编码 "default"，与 locationsvc 写入的 GEO key 保持对齐（P1-M4-5）。
+		defaultCity := c.DefaultCityCode
+		if defaultCity == "" {
+			defaultCity = "default"
+		}
+		dispatchEngine = engine.NewGeoDispatchEngineWithScore(redisClient, defaultCity, c.EnableMockDispatch, scoreProvider)
 	} else {
 		dispatchEngine = engine.NewMockDispatchEngine()
 	}

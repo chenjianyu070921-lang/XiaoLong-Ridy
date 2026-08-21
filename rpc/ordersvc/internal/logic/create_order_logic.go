@@ -77,7 +77,7 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 		return nil, err
 	}
 
-	// 优先发布 orderclient.created 事件，由 orderclient-event-consumer 触发派单。
+	// 优先发布 order.created 事件（TopicOrderCreated），由 order-event-consumer 触发派单。
 	published := false
 	if l.svcCtx.EventBus != nil {
 		payload, _ := json.Marshal(orderCreatedEvent{
@@ -89,7 +89,7 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 			CityCode:      strings.TrimSpace(in.CityCode),
 		})
 		if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderCreated, payload); err != nil {
-			l.Logger.Errorf("publish orderclient.created failed: %v", err)
+			l.Logger.Errorf("publish %s failed: %v", constants.TopicOrderCreated, err)
 		} else {
 			published = true
 		}

@@ -36,11 +36,20 @@ func (r *gormOrderRepository) CompleteOrder(ctx context.Context, orderID uint64,
 }
 
 // MarkDispatchAccepted 将派单中的记录标记为已接受。
+// 修复说明（P2-M4-8）：原实现用魔法数字 status=1/2 且无 RowsAffected 校验。
+// 改用 DispatchStatusPending/Accepted 常量，并在未命中任何记录时返回明确错误，
+// 避免"派单记录已失效却被静默当作成功"导致接单状态不一致。
 func (r *gormOrderRepository) MarkDispatchAccepted(ctx context.Context, orderID, driverID uint64) error {
 	res := r.db.WithContext(ctx).Model(&model.DispatchRecord{}).
-		Where("order_id = ? AND driver_id = ? AND status = 1", orderID, driverID).
-		Updates(map[string]interface{}{"status": 2, "updated_at": time.Now()})
-	return res.Error
+		Where("order_id = ? AND driver_id = ? AND status = ?", orderID, driverID, constants.DispatchStatusPending).
+		Updates(map[string]interface{}{"status": constants.DispatchStatusAccepted, "updated_at": time.Now()})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return errOrderNotUpdated
+	}
+	return nil
 }
 
 // CompleteOrder 内存版：待支付订单改为已完成。
