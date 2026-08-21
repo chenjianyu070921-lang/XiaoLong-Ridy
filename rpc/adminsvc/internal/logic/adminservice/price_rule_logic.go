@@ -77,14 +77,16 @@ func NewCreatePriceRuleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *C
 }
 
 // CreatePriceRule 创建计价规则并写入操作日志。
-func (l *CreatePriceRuleLogic) CreatePriceRule(in *adminsvc.PriceRuleRequest) (*adminsvc.CommonResponse, error) {
-	if _, err := l.svcCtx.PricesSvc.CreatePriceRule(l.ctx, priceRuleRequestToPB(in)); err != nil {
+func (l *CreatePriceRuleLogic) CreatePriceRule(in *adminsvc.PriceRuleRequest) (*adminsvc.CreatePriceRuleResponse, error) {
+	resp, err := l.svcCtx.PricesSvc.CreatePriceRule(l.ctx, priceRuleRequestToPB(in))
+	if err != nil {
 		return nil, err
 	}
-	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "price", "create", "price_rule", in.GetId(), fmt.Sprintf("创建计价规则：%s", in.GetName()), in.GetIp()); err != nil {
+	detail := fmt.Sprintf("创建计价规则：%s", in.GetName())
+	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "price", "create", "price_rule", resp.GetId(), detail, in.GetIp()); err != nil {
 		return nil, err
 	}
-	return &adminsvc.CommonResponse{Message: "ok"}, nil
+	return &adminsvc.CreatePriceRuleResponse{Id: resp.GetId(), Message: "ok"}, nil
 }
 
 // UpdatePriceRuleLogic 处理计价规则更新。

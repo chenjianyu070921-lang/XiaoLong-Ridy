@@ -50,9 +50,12 @@ func (l *PriceRuleLogic) Detail(ctx context.Context, id int64) (*types.PriceRule
 }
 
 // Create 创建计价规则。
-func (l *PriceRuleLogic) Create(ctx context.Context, req types.PriceRuleSaveRequest, session *model.AdminSession, ip string) error {
-	_, err := l.ctx.AdminSvc.CreatePriceRule(ctx, priceRuleRequestToPB(0, req, session, ip))
-	return err
+func (l *PriceRuleLogic) Create(ctx context.Context, req types.PriceRuleSaveRequest, session *model.AdminSession, ip string) (*types.PriceRuleSaveResponse, error) {
+	resp, err := l.ctx.AdminSvc.CreatePriceRule(ctx, priceRuleRequestToPB(0, req, session, ip))
+	if err != nil {
+		return nil, err
+	}
+	return &types.PriceRuleSaveResponse{ID: resp.GetId()}, nil
 }
 
 // Update 更新计价规则。

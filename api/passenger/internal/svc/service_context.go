@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	commonconfig "XiaoLong-Ridy/common/config"
+	"XiaoLong-Ridy/common/datasource"
 	orderlocal "XiaoLong-Ridy/rpc/ordersvc/client"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	paylocal "XiaoLong-Ridy/rpc/paysvc/pay"
@@ -40,6 +43,7 @@ type RuntimeConfig struct {
 	PayRPCAddr      string
 	ClientMode      string
 	PriceCityCode   string
+	MysqlDSN        string
 }
 
 // UserClient 定义 passenger API 调用 usersvc 的完整 RPC 契约。
@@ -88,6 +92,7 @@ type ServiceContext struct {
 	OrderClient     OrderClient
 	PriceClient     PriceClient
 	PayClient       PayClient
+	Reviews         ReviewRepository
 	TokenSigningKey string
 	grpcConns       []*grpc.ClientConn
 }
@@ -116,6 +121,7 @@ func LoadRuntimeConfigFromEnv() RuntimeConfig {
 		PayRPCAddr:      strings.TrimSpace(os.Getenv("PASSENGER_PAYSVC_ADDR")),
 		ClientMode:      strings.TrimSpace(os.Getenv("PASSENGER_CLIENT_MODE")),
 		PriceCityCode:   strings.TrimSpace(os.Getenv("PASSENGER_PRICE_CITY_CODE")),
+		MysqlDSN:        strings.TrimSpace(os.Getenv("PASSENGER_MYSQL_DSN")),
 	}
 	return applyRuntimeDefaults(cfg)
 }
@@ -159,6 +165,19 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		WithPayClient(payClient),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 	)
+	if cfg.MysqlDSN != "" {
+		db, err := datasource.NewMysqlClient(commonconfig.MysqlConf{
+			Dsn:         cfg.MysqlDSN,
+			MaxOpenConn: 10,
+			MaxIdleConn: 5,
+			MaxLifeTime: int((30 * time.Minute).Nanoseconds()),
+		})
+		if err != nil {
+			closeGRPCConns(userConn, orderConn, priceConn, payConn)
+			return nil, err
+		}
+		ctx.Reviews = NewGormReviewRepository(db)
+	}
 	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn)
 	return ctx, nil
 }
@@ -170,6 +189,7 @@ func newLocalServiceContext(cfg RuntimeConfig) *ServiceContext {
 		WithOrderClient(orderlocal.NewLocalClient()),
 		WithPriceClient(priceclient.NewLocalClient()),
 		WithPayClient(paylocal.NewLocalClient()),
+		WithReviewRepository(NewMemoryReviewRepository()),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 	)
 }
@@ -234,6 +254,12 @@ func WithPayClient(client PayClient) Option {
 }
 
 // WithTokenSigningKey 设置 JWT 解析签名密钥。
+// WithReviewRepository injects the order review repository.
+func WithReviewRepository(repo ReviewRepository) Option {
+	return func(ctx *ServiceContext) {
+		ctx.Reviews = repo
+	}
+}
 func WithTokenSigningKey(signingKey string) Option {
 	return func(ctx *ServiceContext) {
 		if signingKey != "" {

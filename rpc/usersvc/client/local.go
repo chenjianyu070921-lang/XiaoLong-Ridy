@@ -25,7 +25,7 @@ func NewLocalClient(signingKey string, onSMSCode func(phone, code string)) *Loca
 	coupons := repository.NewMemoryCouponRepository()
 	smsService := logic.NewMemorySMSCodeService(onSMSCode)
 	tokens := logic.NewTokenManager(signingKey)
-	svcCtx := svc.NewServiceContext(config.Config{}, users, addresses, coupons, repository.NewMemoryRiskBlacklistRepository(), smsService, smsService, tokens)
+	svcCtx := svc.NewServiceContext(config.Config{}, users, addresses, coupons, repository.NewMemoryRiskBlacklistRepository(), smsService, smsService, tokens, nil) // nil = 本地开发环境跳过实名认证
 	return &LocalClient{
 		service: server.NewUserServer(svcCtx),
 	}

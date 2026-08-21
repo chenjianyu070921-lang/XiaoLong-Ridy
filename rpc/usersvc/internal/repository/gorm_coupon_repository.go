@@ -191,6 +191,40 @@ func (r *gormCouponRepository) Release(ctx context.Context, userID, userCouponID
 }
 
 // couponListRow 承接 user_coupon 与 coupon 关联查询结果。
+// ConsumeByOrder 将指定订单锁定的用户券核销为已使用状态。
+// 该方法用于支付成功后的最终确认，重复消费同一订单时保持幂等。
+func (r *gormCouponRepository) ConsumeByOrder(ctx context.Context, userID, orderID uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var userCoupon model.UserCoupon
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("user_id = ? AND (locked_order_id = ? OR order_id = ?)", userID, orderID, orderID).
+			First(&userCoupon).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if userCoupon.Status == model.UserCouponStatusUsed && userCoupon.OrderID == orderID {
+			return nil
+		}
+		if userCoupon.Status != model.UserCouponStatusLocked || userCoupon.LockedOrderID != orderID {
+			return ErrCouponUnavailable
+		}
+		now := time.Now()
+		return tx.Model(&model.UserCoupon{}).
+			Where("id = ? AND user_id = ?", userCoupon.ID, userID).
+			Updates(map[string]interface{}{
+				"status":          model.UserCouponStatusUsed,
+				"order_id":        orderID,
+				"locked_order_id": 0,
+				"locked_at":       nil,
+				"used_at":         now,
+				"updated_at":      now,
+			}).Error
+	})
+}
+
 type couponListRow struct {
 	UserCouponID    uint64
 	UserID          uint64

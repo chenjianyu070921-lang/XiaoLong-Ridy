@@ -31,7 +31,7 @@ func TestTimeoutCancelSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 6 || fresh.CancelBy != "system" || fresh.CancelReason != "超时未接单" {
-		t.Fatalf("timeout cancelled order = %+v", fresh)
+		t.Fatalf("timeout cancelled orderclient = %+v", fresh)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != 1 || logs[1].ToStatus != 6 || logs[1].OperatorType != "system" {

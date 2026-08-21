@@ -4,5 +4,5 @@ import "errors"
 
 var (
 	// ErrInvalidOrderParams 表示订单入参不合法。
-	ErrInvalidOrderParams = errors.New("invalid order params")
+	ErrInvalidOrderParams = errors.New("invalid orderclient params")
 )

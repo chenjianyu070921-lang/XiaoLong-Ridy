@@ -43,7 +43,7 @@ func TestCancelOrderLogic_CallsOrdersvc(t *testing.T) {
 		t.Fatal("CancelOrder() did not call ordersvc")
 	}
 	if client.got.GetOrderId() != 1001 || client.got.GetOperatorId() != 9001 || client.got.GetOperatorType() != "admin" {
-		t.Fatalf("ordersvc request = %#v, want order/admin operator fields", client.got)
+		t.Fatalf("ordersvc request = %#v, want orderclient/admin operator fields", client.got)
 	}
 	if client.got.GetReason() != "运营人工取消" {
 		t.Fatalf("ordersvc reason = %q, want %q", client.got.GetReason(), "运营人工取消")

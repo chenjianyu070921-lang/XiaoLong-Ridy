@@ -38,21 +38,21 @@ func main() {
 	}()
 
 	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			if err := h.SyncOrderStatus(); err != nil {
-				logx.Errorf("SyncOrderStatus failed: %v", err)
-			}
-		}
-	}()
-
-	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
 			if err := h.TimeoutCancelOrders(); err != nil {
 				logx.Errorf("TimeoutCancelOrders failed: %v", err)
+			}
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := h.RescheduleExpiredDispatches(); err != nil {
+				logx.Errorf("RescheduleExpiredDispatches failed: %v", err)
 			}
 		}
 	}()
@@ -73,6 +73,7 @@ func main() {
 	fmt.Println("  - 每小时: 清理过期位置数据")
 	fmt.Println("  - 每10分钟: 同步异常订单状态")
 	fmt.Println("  - 每1分钟: 超时未接单订单自动取消")
+	fmt.Println("  - 每30秒: 派单超时重派")
 	fmt.Println("  - 每日凌晨1点: 生成统计报表")
 
 	select {}

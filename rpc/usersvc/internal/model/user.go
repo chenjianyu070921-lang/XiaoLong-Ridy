@@ -38,6 +38,8 @@ var (
 	ErrTokenExpired = errors.New("token expired")
 	// ErrInvalidRealNameInfo 表示实名资料缺少姓名或证件号。
 	ErrInvalidRealNameInfo = errors.New("invalid real name info")
+	// ErrRealNameVerifyFailed 表示腾讯云实名认证校验未通过或调用失败。
+	ErrRealNameVerifyFailed = errors.New("real name verification failed")
 )
 
 // User 对应 user 表：保存乘客账号、认证状态和基础资料。

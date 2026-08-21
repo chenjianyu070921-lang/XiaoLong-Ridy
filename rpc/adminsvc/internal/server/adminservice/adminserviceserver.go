@@ -147,7 +147,7 @@ func (s *AdminServiceServer) ListCoupons(ctx context.Context, in *adminsvc.Coupo
 }
 
 // 创建优惠券。
-func (s *AdminServiceServer) CreateCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+func (s *AdminServiceServer) CreateCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CreateCouponResponse, error) {
 	l := adminservicelogic.NewCreateCouponLogic(ctx, s.svcCtx)
 	return l.CreateCoupon(in)
 }
@@ -187,7 +187,7 @@ func (s *AdminServiceServer) GetPriceRule(ctx context.Context, in *adminsvc.Pric
 }
 
 // 创建计价规则。
-func (s *AdminServiceServer) CreatePriceRule(ctx context.Context, in *adminsvc.PriceRuleRequest) (*adminsvc.CommonResponse, error) {
+func (s *AdminServiceServer) CreatePriceRule(ctx context.Context, in *adminsvc.PriceRuleRequest) (*adminsvc.CreatePriceRuleResponse, error) {
 	l := adminservicelogic.NewCreatePriceRuleLogic(ctx, s.svcCtx)
 	return l.CreatePriceRule(in)
 }

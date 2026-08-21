@@ -25,6 +25,8 @@ type CreateOrderLogic struct {
 	logx.Logger
 }
 
+// maxCreateOrderNoRetry 是订单号唯一索引冲突时的最大重试次数。
+// 每次重试均重新生成订单号，限制重试次数避免异常情况下无限循环。
 const maxCreateOrderNoRetry = 3
 
 // NewCreateOrderLogic 创建订单逻辑对象。
@@ -212,8 +214,7 @@ func (l *CreateOrderLogic) estimatePriceSnapshot(in *proto.CreateOrderRequest) i
 
 // validateCreateOrder 校验创建订单入参。
 func validateCreateOrder(in *proto.CreateOrderRequest) error {
-	if in == nil ||
-		in.UserId <= 0 ||
+	if in.UserId <= 0 ||
 		in.CarType < 1 || in.CarType > 3 ||
 		strings.TrimSpace(in.FromAddress) == "" ||
 		strings.TrimSpace(in.ToAddress) == "" ||

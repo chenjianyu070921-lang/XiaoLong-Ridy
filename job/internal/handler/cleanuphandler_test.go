@@ -8,7 +8,7 @@ import (
 
 	"XiaoLong-Ridy/job/internal/config"
 	"XiaoLong-Ridy/job/internal/svc"
-	order "XiaoLong-Ridy/rpc/ordersvc/order"
+	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 
 	"google.golang.org/grpc"
 )

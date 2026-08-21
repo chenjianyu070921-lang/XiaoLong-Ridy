@@ -27,6 +27,8 @@ type (
 	ChangeUserStatusRequest          = adminsvc.ChangeUserStatusRequest
 	CommonResponse                   = adminsvc.CommonResponse
 	Coupon                           = adminsvc.Coupon
+	CreateCouponResponse             = adminsvc.CreateCouponResponse
+	CreatePriceRuleResponse          = adminsvc.CreatePriceRuleResponse
 	CouponIssueRequest               = adminsvc.CouponIssueRequest
 	CouponIssueResponse              = adminsvc.CouponIssueResponse
 	CouponIssueTask                  = adminsvc.CouponIssueTask
@@ -145,7 +147,7 @@ type (
 		// 查询优惠券模板列表。
 		ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error)
 		// 创建优惠券模板。
-		CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CreateCouponResponse, error)
 		// 更新优惠券模板。
 		UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 下架优惠券模板。
@@ -159,7 +161,7 @@ type (
 		// 查询计价规则详情。
 		GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error)
 		// 创建计价规则。
-		CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error)
 		// 更新计价规则。
 		UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 启用计价规则。
@@ -337,7 +339,7 @@ func (m *defaultAdminService) ListCoupons(ctx context.Context, in *CouponListReq
 }
 
 // 创建优惠券模板。
-func (m *defaultAdminService) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+func (m *defaultAdminService) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CreateCouponResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.CreateCoupon(ctx, in, opts...)
 }
@@ -379,7 +381,7 @@ func (m *defaultAdminService) GetPriceRule(ctx context.Context, in *PriceRuleDet
 }
 
 // 创建计价规则。
-func (m *defaultAdminService) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+func (m *defaultAdminService) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.CreatePriceRule(ctx, in, opts...)
 }

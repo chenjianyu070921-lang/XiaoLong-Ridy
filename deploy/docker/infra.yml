@@ -1,11 +1,11 @@
   deploy/docker/infra.yml# XiaoLong-Ridy 订单模块基础中间件
 # 启动：docker compose -f rpc/ordersvc/docker-compose/infra.yml up -d
-name: xiaolong-order-infra
+name: xiaolong-orderclient-infra
 
 services:
   mysql:
     image: mysql:8.0
-    container_name: xl-order-mysql
+    container_name: xl-orderclient-mysql
     restart: unless-stopped
     command:
       - --character-set-server=utf8mb4
@@ -31,7 +31,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: xl-order-redis
+    container_name: xl-orderclient-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
@@ -46,7 +46,7 @@ services:
 
   kafka:
     image: apache/kafka:4.3.1
-    container_name: xl-order-kafka
+    container_name: xl-orderclient-kafka
     restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1

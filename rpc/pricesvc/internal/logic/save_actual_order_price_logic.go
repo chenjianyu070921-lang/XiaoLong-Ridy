@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	ErrOrderIdInvalid      = errors.New("order id must be positive")
-	ErrActualPriceInvalid  = errors.New("actual price must be non-negative")
+	ErrOrderIdInvalid     = errors.New("orderclient id must be positive")
+	ErrActualPriceInvalid = errors.New("actual price must be non-negative")
 )
 
 type SaveActualOrderPriceLogic struct {
@@ -80,8 +80,8 @@ func (l *SaveActualOrderPriceLogic) SaveActualOrderPrice(in *proto.SaveActualOrd
 			return nil, err
 		}
 		return &proto.SaveActualOrderPriceResponse{
-			Success:       true,
-			OrderPriceId:  int64(op.Id),
+			Success:      true,
+			OrderPriceId: int64(op.Id),
 		}, nil
 
 	case errors.Is(err, gorm.ErrRecordNotFound):
@@ -102,8 +102,8 @@ func (l *SaveActualOrderPriceLogic) SaveActualOrderPrice(in *proto.SaveActualOrd
 			return nil, err
 		}
 		return &proto.SaveActualOrderPriceResponse{
-			Success:       true,
-			OrderPriceId:  int64(op.Id),
+			Success:      true,
+			OrderPriceId: int64(op.Id),
 		}, nil
 
 	default:

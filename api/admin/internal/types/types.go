@@ -195,7 +195,7 @@ type AbnormalOrderDTO struct {
 
 // OrderDetailDTO 表示订单详情聚合信息。
 type OrderDetailDTO struct {
-	Order           OrderDTO         `json:"order"`
+	Order           OrderDTO         `json:"orderclient"`
 	StatusLogs      []OrderStatusLog `json:"status_logs"`
 	DispatchRecords []DispatchRecord `json:"dispatch_records"`
 	Price           *OrderPrice      `json:"price,omitempty"`
@@ -385,6 +385,12 @@ type PriceRuleSaveRequest struct {
 	Status           int32  `json:"status"`
 	EffectiveAt      string `json:"effective_at"`
 	ExpireAt         string `json:"expire_at"`
+}
+
+// PriceRuleSaveResponse 表示计价规则创建成功后的返回数据。
+// 返回真实规则 ID，便于后台页面定位新建记录。
+type PriceRuleSaveResponse struct {
+	ID int64 `json:"id"`
 }
 
 // PriceRuleDTO 表示计价规则接口返回对象。

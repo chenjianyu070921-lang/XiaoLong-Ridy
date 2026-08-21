@@ -10,9 +10,9 @@ import (
 
 var (
 	// ErrOrderNotFound 表示订单不存在。
-	ErrOrderNotFound = errors.New("order not found")
+	ErrOrderNotFound = errors.New("orderclient not found")
 	// ErrOrderNoExists 表示订单号已存在。
-	ErrOrderNoExists = errors.New("order no already exists")
+	ErrOrderNoExists = errors.New("orderclient no already exists")
 )
 
 // OrderRepository 定义订单存储接口。

@@ -44,7 +44,7 @@ func TestFinishTripSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 4 {
-		t.Fatalf("finished order status = %d, want 4", fresh.Status)
+		t.Fatalf("finished orderclient status = %d, want 4", fresh.Status)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != 3 || logs[1].ToStatus != 4 {
@@ -101,12 +101,12 @@ func TestFinishTripRejectDriverMismatch(t *testing.T) {
 }
 
 type fakePayClient struct {
-	pay.Pay
-	createPayment func(ctx context.Context, in *pay.CreatePaymentRequest) (*pay.CreatePaymentResponse, error)
-	gotOrderId    int64
-	gotUserId     int64
+	createPayment  func(ctx context.Context, in *pay.CreatePaymentRequest) (*pay.CreatePaymentResponse, error)
+	getPayment     func(ctx context.Context, in *pay.GetPaymentRequest) (*pay.GetPaymentResponse, error)
+	gotOrderId     int64
+	gotUserId      int64
 	gotAmountCents int64
-	gotChannel    payproto.PayChannel
+	gotChannel     payproto.PayChannel
 }
 
 func (f *fakePayClient) CreatePayment(_ context.Context, in *pay.CreatePaymentRequest, _ ...grpc.CallOption) (*pay.CreatePaymentResponse, error) {
@@ -118,6 +118,30 @@ func (f *fakePayClient) CreatePayment(_ context.Context, in *pay.CreatePaymentRe
 		return f.createPayment(nil, in)
 	}
 	return &pay.CreatePaymentResponse{PaymentNo: "PAY202608170001"}, nil
+}
+
+func (f *fakePayClient) GetPayment(_ context.Context, in *pay.GetPaymentRequest, _ ...grpc.CallOption) (*pay.GetPaymentResponse, error) {
+	if f.getPayment != nil {
+		return f.getPayment(nil, in)
+	}
+	return &pay.GetPaymentResponse{
+		PaymentNo:   in.PaymentNo,
+		OrderId:     in.OrderId,
+		AmountCents: 5200,
+		Status:      2,
+	}, nil
+}
+
+func (f *fakePayClient) NotifyPayment(_ context.Context, _ *pay.NotifyPaymentRequest, _ ...grpc.CallOption) (*pay.NotifyPaymentResponse, error) {
+	return &pay.NotifyPaymentResponse{Success: true}, nil
+}
+
+func (f *fakePayClient) RefundPayment(_ context.Context, _ *pay.RefundPaymentRequest, _ ...grpc.CallOption) (*pay.RefundPaymentResponse, error) {
+	return &pay.RefundPaymentResponse{}, nil
+}
+
+func (f *fakePayClient) SettleOrder(_ context.Context, _ *pay.SettleOrderRequest, _ ...grpc.CallOption) (*pay.SettleOrderResponse, error) {
+	return &pay.SettleOrderResponse{}, nil
 }
 
 func TestFinishTripCreatesPayment(t *testing.T) {
@@ -147,7 +171,7 @@ func TestFinishTripCreatesPayment(t *testing.T) {
 		t.Fatalf("FinishTrip() payable = %d, want 5200", resp.PayableAmountCents)
 	}
 	if pc.gotOrderId != int64(order.Id) {
-		t.Fatalf("payment order id = %d, want %d", pc.gotOrderId, order.Id)
+		t.Fatalf("payment orderclient id = %d, want %d", pc.gotOrderId, order.Id)
 	}
 	if pc.gotUserId != 1001 {
 		t.Fatalf("payment user id = %d, want 1001", pc.gotUserId)
@@ -243,6 +267,6 @@ func TestFinishTripPaymentFailureNotBlocking(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 4 {
-		t.Fatalf("finished order status = %d, want 4", fresh.Status)
+		t.Fatalf("finished orderclient status = %d, want 4", fresh.Status)
 	}
 }

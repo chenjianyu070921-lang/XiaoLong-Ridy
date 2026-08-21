@@ -16,7 +16,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-var configFile = flag.String("f", "etc/order-event-consumer.yaml", "the config file")
+var configFile = flag.String("f", "etc/orderclient-event-consumer.yaml", "the config file")
 
 func main() {
 	flag.Parse()
@@ -34,12 +34,12 @@ func main() {
 
 	go func() {
 		if err := orderConsumer.Start(ctx); err != nil {
-			logx.Errorf("order event consumer failed: %v", err)
+			logx.Errorf("orderclient event consumer failed: %v", err)
 		}
 	}()
 
-	fmt.Println("Starting order-event-consumer...")
-	fmt.Println("消费订单事件流: order:event:stream")
+	fmt.Println("Starting orderclient-event-consumer...")
+	fmt.Println("消费订单事件流: orderclient:event:stream")
 	<-ctx.Done()
-	fmt.Println("order-event-consumer stopped")
+	fmt.Println("orderclient-event-consumer stopped")
 }

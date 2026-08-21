@@ -10,6 +10,7 @@ import (
 
 	commonconfig "XiaoLong-Ridy/common/config"
 	"XiaoLong-Ridy/common/datasource"
+	commonRealName "XiaoLong-Ridy/common/realname"
 	commonSMS "XiaoLong-Ridy/common/sms"
 	"XiaoLong-Ridy/rpc/usersvc/internal/config"
 	"XiaoLong-Ridy/rpc/usersvc/internal/logic"
@@ -92,7 +93,34 @@ func newServiceContext(c config.Config) *svc.ServiceContext {
 		log.Printf("本地短信验证码：phone=%s code=%s", phone, code)
 	})
 	tokens := logic.NewRedisTokenManager(redisClient, signingKey)
-	return svc.NewServiceContext(c, users, addresses, coupons, repository.NewGormRiskBlacklistRepository(db), smsService, smsService, tokens)
+	// 初始化腾讯云实名认证服务（配置为空时返回 nil，SubmitRealName 将跳过核验）
+	realNameVer, err := newRealNameVerifier(c.TencentCloud)
+	if err != nil {
+		panic(fmt.Errorf("初始化腾讯云实名认证失败: %w", err))
+	}
+
+	return svc.NewServiceContext(c, users, addresses, coupons, repository.NewGormRiskBlacklistRepository(db), smsService, smsService, tokens, realNameVer)
+}
+
+// newRealNameVerifier 根据配置创建实名认证实例；未配置时返回 nil 表示跳过核验。
+func newRealNameVerifier(c commonRealName.TencentCloudConfig) (commonRealName.Verifier, error) {
+	c = normalizeTencentCloudConf(c)
+	if c.SecretID == "" || c.SecretKey == "" {
+		log.Println("未配置腾讯云密钥，实名认证将跳过核验")
+		return nil, nil
+	}
+	return commonRealName.NewTencentCloudRealNameVerifier(c), nil
+}
+
+// normalizeTencentCloudConf 从环境变量补齐腾讯云配置。
+func normalizeTencentCloudConf(c commonRealName.TencentCloudConfig) commonRealName.TencentCloudConfig {
+	c.SecretID = firstNonEmpty(os.Getenv("TENCENTCLOUD_SECRET_ID"), c.SecretID)
+	c.SecretKey = firstNonEmpty(os.Getenv("TENCENTCLOUD_SECRET_KEY"), c.SecretKey)
+	c.Region = firstNonEmpty(os.Getenv("TENCENTCLOUD_REGION"), c.Region)
+	if c.Region == "" {
+		c.Region = "ap-beijing"
+	}
+	return c
 }
 
 // newSMSMessageSender 根据配置创建真实短信发送器；腾讯云配置齐全时作为首选通道。

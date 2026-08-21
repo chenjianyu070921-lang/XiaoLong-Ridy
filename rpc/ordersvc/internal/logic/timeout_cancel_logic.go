@@ -37,6 +37,12 @@ func (l *TimeoutCancelLogic) TimeoutCancel(in *proto.TimeoutCancelRequest) (*pro
 		reason = "超时未接单"
 	}
 
+	release, err := acquireOrderLock(l.ctx, l.svcCtx.Redis, uint64(in.OrderId))
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
 	if err != nil {
 		return nil, err
@@ -59,6 +65,9 @@ func (l *TimeoutCancelLogic) TimeoutCancel(in *proto.TimeoutCancelRequest) (*pro
 	if !ok {
 		return nil, ErrOrderStatusNotCancelable
 	}
+
+	// 同步失效该订单的待派单记录，失败不阻断超时取消主流程。
+	syncCancelDispatch(l.ctx, l.svcCtx.DispatchClient, order.Id, reason)
 
 	return &proto.TimeoutCancelResponse{
 		OrderId: in.OrderId,

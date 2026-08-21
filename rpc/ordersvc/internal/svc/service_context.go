@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"XiaoLong-Ridy/rpc/paysvc/pay"
 	"time"
 
 	cfg "XiaoLong-Ridy/common/config"
@@ -10,7 +11,6 @@ import (
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/config"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
-	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	"github.com/redis/go-redis/v9"
@@ -24,6 +24,7 @@ type ServiceContext struct {
 	Redis                   *redis.Client
 	EventBus                events.Bus
 	OrderRepository         repository.OrderRepository
+	CouponConsumer          repository.CouponConsumer
 	RiskBlacklistRepository repository.RiskBlacklistRepository
 	DispatchClient          dispatch.Dispatch
 	PriceClient             price.Price
@@ -43,7 +44,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(err)
 	}
 
-	redisClient := datasource.NewRedisClient(c.RedisConf)
+	redisClient := datasource.NewRedisClient(c.Redis)
 
 	dispatchRPC := c.DispatchRPC
 	if dispatchRPC.Target == "" && len(dispatchRPC.Endpoints) == 0 {
@@ -78,6 +79,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Redis:                   redisClient,
 		EventBus:                events.NewRedisStreamBus(redisClient, constants.OrderEventStream),
 		OrderRepository:         repository.NewGormOrderRepository(client),
+		CouponConsumer:          repository.NewGormCouponConsumer(client),
 		RiskBlacklistRepository: repository.NewGormRiskBlacklistRepository(client),
 		DispatchClient:          dispatch.NewDispatch(dispatchClient),
 		PriceClient:             price.NewPrice(priceClient),

@@ -16,18 +16,33 @@ import (
 type geoDispatchEngine struct {
 	rdb  *redis.Client
 	city string
+	// enableMock 是否允许在 GEO 查不到司机时回退 mock 候选，仅用于联调演示。
+	enableMock bool
 }
 
 // NewGeoDispatchEngine 创建 Redis GEO 派单引擎。
 func NewGeoDispatchEngine(rdb *redis.Client, city string) DispatchEngine {
+	return NewGeoDispatchEngineWithMock(rdb, city, false)
+}
+
+// NewGeoDispatchEngineWithMock 创建 Redis GEO 派单引擎，并指定是否允许 mock 回退。
+func NewGeoDispatchEngineWithMock(rdb *redis.Client, city string, enableMock bool) DispatchEngine {
 	if city == "" {
 		city = "default"
 	}
-	return &geoDispatchEngine{rdb: rdb, city: city}
+	return &geoDispatchEngine{rdb: rdb, city: city, enableMock: enableMock}
 }
 
 // FindCandidates 同时检索默认城市与指定城市 GEO，避免城市键不一致导致查空。
 func (e *geoDispatchEngine) FindCandidates(ctx context.Context, _ uint64, fromLongitude, fromLatitude float64, _ int32, cityCode string) ([]Candidate, error) {
+	if e.rdb == nil {
+		// 未配置 Redis 时视为无候选，不 panic。
+		if e.enableMock {
+			return NewMockDispatchEngine().FindCandidates(ctx, 0, fromLongitude, fromLatitude, 0, cityCode)
+		}
+		return nil, nil
+	}
+
 	keys := []string{fmt.Sprintf(constants.RedisDriverGeo, e.city)}
 	if cityCode != "" && cityCode != e.city {
 		keys = append(keys, fmt.Sprintf(constants.RedisDriverGeo, cityCode))
@@ -60,8 +75,12 @@ func (e *geoDispatchEngine) FindCandidates(ctx context.Context, _ uint64, fromLo
 		}
 	}
 	if len(byID) == 0 {
-		// GEO 无数据时回退 mock 候选，保证联调可跑通。
-		return NewMockDispatchEngine().FindCandidates(ctx, 0, fromLongitude, fromLatitude, 0, cityCode)
+		// GEO 无数据时默认返回空候选（真实派单无司机可用）；
+		// 仅当显式开启 EnableMockDispatch 时才回退 mock，避免联调"假成功"。
+		if e.enableMock {
+			return NewMockDispatchEngine().FindCandidates(ctx, 0, fromLongitude, fromLatitude, 0, cityCode)
+		}
+		return nil, nil
 	}
 
 	locs := make([]redis.GeoLocation, 0, len(byID))

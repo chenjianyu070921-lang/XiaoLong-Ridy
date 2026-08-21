@@ -20,7 +20,7 @@ func TestLoginBySMS_RecordsUserBlacklistHit(t *testing.T) {
 	risk := repository.NewMemoryRiskBlacklistRepository()
 	risk.SetActive("user", 1, repository.BlacklistEntry{ID: 88, Reason: "历史风险命中"})
 	sms := logicTestSMSVerifier{valid: true}
-	ctx := svc.NewServiceContext(config.Config{}, users, repository.NewMemoryAddressRepository(), repository.NewMemoryCouponRepository(), risk, sms, sms, logicTestTokenManager{})
+	ctx := svc.NewServiceContext(config.Config{}, users, repository.NewMemoryAddressRepository(), repository.NewMemoryCouponRepository(), risk, sms, sms, logicTestTokenManager{}, nil)
 
 	_, err := NewLoginBySMSLogic(context.Background(), ctx).LoginBySMS(&userproto.LoginBySMSRequest{Phone: "13800138000", Code: "123456"})
 	if err != nil {

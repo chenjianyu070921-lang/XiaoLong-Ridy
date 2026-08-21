@@ -73,7 +73,7 @@ func NewCreateCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Crea
 }
 
 // CreateCoupon 新增优惠券模板。
-func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.CreateCouponResponse, error) {
 	if err := validateCouponRequest(in); err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return &adminsvc.CommonResponse{Message: "ok"}, nil
+	return &adminsvc.CreateCouponResponse{Id: id, Message: "ok"}, nil
 }
 
 // UpdateCouponLogic 处理优惠券模板编辑。

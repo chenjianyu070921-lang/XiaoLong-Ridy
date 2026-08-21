@@ -15,7 +15,7 @@ func TestOrdersvcConfig_LoadsRedisConf(t *testing.T) {
 	if err := conf.Load(configPath, &c); err != nil {
 		t.Fatalf("conf.Load(%q): %v", configPath, err)
 	}
-	if c.ListenOn == "" || c.Mysql.DSN == "" || c.RedisConf.Host == "" {
-		t.Fatalf("ordersvc config missing required values: listen=%q mysql=%t redis=%q", c.ListenOn, c.Mysql.DSN != "", c.RedisConf.Host)
+	if c.ListenOn == "" || c.Mysql.DSN == "" || c.Redis.Host == "" {
+		t.Fatalf("ordersvc config missing required values: listen=%q mysql=%t redis=%q", c.ListenOn, c.Mysql.DSN != "", c.Redis.Host)
 	}
 }
