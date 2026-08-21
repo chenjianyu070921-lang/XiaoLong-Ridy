@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
+	adminconfig "XiaoLong-Ridy/rpc/adminsvc/internal/config"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
 
 	"google.golang.org/grpc/codes"
@@ -261,16 +262,23 @@ func recordOperationOrOutbox(ctx context.Context, svcCtx *svc.ServiceContext, ad
 	return nil
 }
 
-// mapMenus 返回 P0 阶段固定的后台菜单。
-func mapMenus(role int32) []*adminsvc.MenuItem {
-	items := []*adminsvc.MenuItem{
-		{Name: "用户管理", Path: "/users", Icon: "User", Perm: "user:list"},
-		{Name: "司机审核", Path: "/driver-certifications", Icon: "BadgeCheck", Perm: "driver:audit"},
-		{Name: "订单监控", Path: "/orders", Icon: "ClipboardList", Perm: "orderclient:list"},
-		{Name: "操作日志", Path: "/operation-logs", Icon: "ScrollText", Perm: "log:list"},
-	}
-	if role == 1 {
-		items = append([]*adminsvc.MenuItem{{Name: "管理员", Path: "/admins", Icon: "Shield", Perm: "admin:manage"}}, items...)
+// mapMenus 将服务配置中声明的角色菜单转换为 RPC 返回结构。
+// 未配置角色不返回菜单，避免因默认菜单导致前端暴露未授权入口。
+func mapMenus(role int32, menuRoles map[int32][]adminconfig.MenuItemConfig) []*adminsvc.MenuItem {
+	return mapMenuItems(menuRoles[role])
+}
+
+// mapMenuItems 递归转换菜单配置，并构造新的返回对象，防止调用方修改影响服务配置。
+func mapMenuItems(configs []adminconfig.MenuItemConfig) []*adminsvc.MenuItem {
+	items := make([]*adminsvc.MenuItem, 0, len(configs))
+	for _, item := range configs {
+		items = append(items, &adminsvc.MenuItem{
+			Name:     item.Name,
+			Path:     item.Path,
+			Icon:     item.Icon,
+			Perm:     item.Perm,
+			Children: mapMenuItems(item.Children),
+		})
 	}
 	return items
 }

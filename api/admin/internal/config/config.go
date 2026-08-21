@@ -5,23 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
-// Config 定义管理后台 HTTP 服务、MySQL、Redis 和鉴权相关的完整配置。
+// Config 定义管理后台 HTTP 服务、Redis、鉴权和 adminsvc RPC 客户端配置。
 type Config struct {
 	HTTPAddr string             `json:"http_addr"`
-	MySQL    MySQLConfig        `json:"mysql"`
 	Redis    RedisConfig        `json:"redis"`
 	Auth     AuthConfig         `json:"auth"`
 	AdminRPC zrpc.RpcClientConf `json:"admin_rpc"`
-}
-
-// MySQLConfig 定义 MySQL 数据源连接字符串。
-type MySQLConfig struct {
-	DSN string `json:"dsn"`
 }
 
 // RedisConfig 定义 Redis 服务地址、密码和逻辑数据库编号。
@@ -49,20 +42,13 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config file: %w", err)
 	}
 	if cfg.HTTPAddr == "" {
-		cfg.HTTPAddr = ":8083"
+		cfg.HTTPAddr = ":8717"
 	}
 	if cfg.Auth.SessionTTLHours <= 0 {
 		cfg.Auth.SessionTTLHours = 24
 	}
 	if cfg.Auth.TokenPrefix == "" {
 		cfg.Auth.TokenPrefix = "admin:sess:"
-	}
-	// 管理后台 HTTP 服务优先从环境变量读取数据库连接串，避免将共享库凭据提交到仓库。
-	if dsn := strings.TrimSpace(os.Getenv("ADMIN_API_MYSQL_DSN")); dsn != "" {
-		cfg.MySQL.DSN = dsn
-	}
-	if strings.TrimSpace(cfg.MySQL.DSN) == "" {
-		return nil, fmt.Errorf("mysql dsn is empty: set ADMIN_API_MYSQL_DSN")
 	}
 	if len(cfg.AdminRPC.Endpoints) == 0 && cfg.AdminRPC.Target == "" {
 		cfg.AdminRPC.Target = "127.0.0.1:8084"

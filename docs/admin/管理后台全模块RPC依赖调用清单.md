@@ -24,13 +24,13 @@
 | 用户详情 | 当前 `adminsvc.GetUser` | 同步 RPC | `id` | `id,phone,nickname,avatar_url,gender,real_name,id_card_no,status,created_at` | 404 显示资源不存在 |
 | 用户冻结 | 当前 `adminsvc.FreezeUser` | 同步 RPC | `id,reason,remark,admin_id,ip` | `message` | 失败时不返回假成功 |
 | 用户解冻 | 当前 `adminsvc.UnfreezeUser` | 同步 RPC | `id,reason,remark,admin_id,ip` | `message` | 失败时不返回假成功 |
-| 用户优惠券查询 | 未开放 HTTP 路由 | 后续规划 | `user_id,status,page,page_size` | `list{coupon_id,name,status,expire_at,used_at},total` | 当前后台未注册该路由；后续可由 `adminsvc` 聚合用户券数据 |
+| 用户优惠券查询 | 未开放 HTTP 路由 | 后续规划 | `user_id,status,page,page_size` | `list{coupon_id,name,status,expire_at,used_at},total` | 当前后台未注册该路由；目标由 usersvc 提供后台查询 RPC，adminsvc 只做鉴权和适配 |
 
 ### 2. 司机模块 `driversvc`
 
 | 后台场景 | RPC 方法 | 调用类型 | 请求参数 | 返回字段 | 失败处理 |
 | --- | --- | --- | --- | --- | --- |
-| 司机列表 | 未开放 HTTP 路由 | 后续规划 | `keyword,status,audit_status,page,page_size` | `list{id,phone,real_name,status,audit_status,score,created_at},total` | 后续接 driversvc 或 adminsvc 聚合 |
+| 司机列表 | 未开放 HTTP 路由 | 后续规划 | `keyword,status,audit_status,page,page_size` | `list{id,phone,real_name,status,audit_status,score,created_at},total` | 目标接 driversvc 后台查询 RPC，adminsvc 不直接聚合司机表 |
 | 司机详情 | 未开放 HTTP 路由 | 后续规划 | `driver_id` | `driver,vehicle,certification,service_stats` | 404 显示不存在 |
 | 资质审核列表 | 当前 `adminsvc.ListDriverCertifications` | 同步 RPC | `keyword,audit_status,start_time,end_time,page,page_size` | `list{id,driver_id,vehicle_id,audit_status,submitted_at},total` | 失败提示重试 |
 | 资质审核通过 | 当前 `adminsvc.ApproveDriverCertification -> driversvc.ApproveCertification` | 同步 RPC | `id,admin_id,remark,ip` | `message` | driversvc 事务更新认证、司机、车辆；adminsvc 写审计 |
@@ -73,12 +73,12 @@
 
 | 后台接口 | 当前实现 | 后续 RPC 切换目标 |
 | --- | --- | --- |
-| `GET /admin/v1/users` | `api/admin -> adminsvc.ListUsers` | 当前由 `adminsvc` 聚合用户数据；如未来拆分用户管理服务，可再迁移 |
+| `GET /admin/v1/users` | `api/admin -> adminsvc.ListUsers` | 当前仍由 adminsvc 直读用户表的过渡实现；目标为 `adminsvc -> usersvc.AdminListUsers` |
 | `GET /admin/v1/driver-certifications` | `api/admin -> adminsvc.ListDriverCertifications` | 后续可切 `driversvc.ListCertifications` |
 | `POST /admin/v1/driver-certifications/{id}/approve` | `api/admin -> adminsvc.ApproveDriverCertification -> driversvc.ApproveCertification` | 后续补 `pushsvc` MQ 通知司机端 |
 | `POST /admin/v1/driver-certifications/{id}/reject` | `api/admin -> adminsvc.RejectDriverCertification -> driversvc.RejectCertification` | 后续补 `pushsvc` MQ 通知司机端 |
-| `GET /admin/v1/orders` | `api/admin -> adminsvc.ListOrders` | 后续可切 `ordersvc.ListOrders` 聚合实现 |
-| `GET /admin/v1/orders/abnormal` | `api/admin -> adminsvc.ListAbnormalOrders` | 后续可切 `ordersvc.ListAbnormalOrders` |
+| `GET /admin/v1/orders` | `api/admin -> adminsvc.ListOrders` | 当前仍由 adminsvc 直读订单表的过渡实现；目标为 `adminsvc -> ordersvc.AdminListOrders` |
+| `GET /admin/v1/orders/abnormal` | `api/admin -> adminsvc.ListAbnormalOrders` | 当前仍由 adminsvc 直读订单关联表的过渡实现；目标为 `ordersvc.AdminListAbnormalOrders` |
 | `GET /admin/v1/coupons` | `api/admin -> adminsvc.ListCoupons` | 当前由 `adminsvc` 读 `coupon`；后续如拆营销服务，可再迁移 |
 | `POST /admin/v1/coupons` | `api/admin -> adminsvc.CreateCoupon` | 当前由 `adminsvc` 写 `coupon` 并记录操作日志 |
 | `PUT /admin/v1/coupons/{id}` | `api/admin -> adminsvc.UpdateCoupon` | 当前由 `adminsvc` 写 `coupon` 并记录操作日志 |
