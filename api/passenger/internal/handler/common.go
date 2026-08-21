@@ -31,6 +31,7 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 	case errors.Is(err, logic.ErrOrderClientNotConfigured),
 		errors.Is(err, logic.ErrPriceClientNotConfigured),
 		errors.Is(err, logic.ErrPayClientNotConfigured),
+		errors.Is(err, logic.ErrDispatchClientNotConfigured),
 		errors.Is(err, logic.ErrUserClientNotConfigured),
 		isDownstreamGRPCError(err):
 		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "downstream unavailable")
@@ -50,6 +51,10 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, codeCouponUnavailable, "coupon unavailable")
 	case matchesBusinessError(err, userproto.ErrCouponReceiveLimit):
 		writeError(w, http.StatusBadRequest, codeCouponReceiveLimit, "coupon receive limit exceeded")
+	case matchesBusinessErrorMessage(err, "invalid real name info"):
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "invalid real name info")
+	case matchesBusinessErrorMessage(err, "real name verification failed"):
+		writeError(w, http.StatusBadRequest, codeRealNameVerifyFailed, "real name verification failed")
 	case errors.Is(err, logic.ErrReviewAlreadyExists):
 		writeError(w, http.StatusBadRequest, codeReviewAlreadyExists, "review already exists")
 	case errors.Is(err, logic.ErrReviewRepositoryNotConfigured):
@@ -75,4 +80,15 @@ func matchesBusinessError(err error, target error) bool {
 		return true
 	}
 	return status.Convert(err).Message() == target.Error()
+}
+
+// matchesBusinessErrorMessage 兼容下游 RPC 将普通 Go error 包装为 gRPC status 的场景。
+func matchesBusinessErrorMessage(err error, target string) bool {
+	if err == nil {
+		return false
+	}
+	if err.Error() == target {
+		return true
+	}
+	return status.Convert(err).Message() == target
 }
