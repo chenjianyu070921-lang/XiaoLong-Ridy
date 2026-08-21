@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v3.19.4
-// source: admin.proto
+// source: rpc/adminsvc/admin.proto
 
 package adminsvc
 
@@ -61,6 +61,14 @@ const (
 	AdminService_CreateExportTask_FullMethodName           = "/adminsvc.AdminService/CreateExportTask"
 	AdminService_ListExportTasks_FullMethodName            = "/adminsvc.AdminService/ListExportTasks"
 	AdminService_GetExportTask_FullMethodName              = "/adminsvc.AdminService/GetExportTask"
+	AdminService_GetExportDownload_FullMethodName          = "/adminsvc.AdminService/GetExportDownload"
+	AdminService_DownloadExport_FullMethodName             = "/adminsvc.AdminService/DownloadExport"
+	AdminService_CreateWorkOrder_FullMethodName            = "/adminsvc.AdminService/CreateWorkOrder"
+	AdminService_ListWorkOrders_FullMethodName             = "/adminsvc.AdminService/ListWorkOrders"
+	AdminService_GetWorkOrder_FullMethodName               = "/adminsvc.AdminService/GetWorkOrder"
+	AdminService_ActWorkOrder_FullMethodName               = "/adminsvc.AdminService/ActWorkOrder"
+	AdminService_AddWorkOrderEvidence_FullMethodName       = "/adminsvc.AdminService/AddWorkOrderEvidence"
+	AdminService_ListWorkOrderEvidence_FullMethodName      = "/adminsvc.AdminService/ListWorkOrderEvidence"
 	AdminService_ListBlacklists_FullMethodName             = "/adminsvc.AdminService/ListBlacklists"
 	AdminService_AddBlacklist_FullMethodName               = "/adminsvc.AdminService/AddBlacklist"
 	AdminService_ReleaseBlacklist_FullMethodName           = "/adminsvc.AdminService/ReleaseBlacklist"
@@ -158,6 +166,22 @@ type AdminServiceClient interface {
 	ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error)
 	// 查询导出任务详情。
 	GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error)
+	// 查询已授权下载的导出任务文件元数据。
+	GetExportDownload(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (*ExportDownloadResponse, error)
+	// 流式下载已授权的导出文件内容。
+	DownloadExport(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (AdminService_DownloadExportClient, error)
+	// 创建后台投诉或申诉工单。
+	CreateWorkOrder(ctx context.Context, in *WorkOrderRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+	// 查询后台工单列表。
+	ListWorkOrders(ctx context.Context, in *WorkOrderListRequest, opts ...grpc.CallOption) (*WorkOrderListResponse, error)
+	// 查询后台工单详情。
+	GetWorkOrder(ctx context.Context, in *WorkOrderDetailRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+	// 执行后台工单流转动作。
+	ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+	// 新增工单证据索引。
+	AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error)
+	// 查询工单证据列表。
+	ListWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceListRequest, opts ...grpc.CallOption) (*WorkOrderEvidenceListResponse, error)
 	// 查询风控黑名单列表。
 	ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error)
 	// 新增风控黑名单。
@@ -596,6 +620,109 @@ func (c *adminServiceClient) GetExportTask(ctx context.Context, in *ExportTaskDe
 	return out, nil
 }
 
+func (c *adminServiceClient) GetExportDownload(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (*ExportDownloadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportDownloadResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetExportDownload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) DownloadExport(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (AdminService_DownloadExportClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AdminService_ServiceDesc.Streams[0], AdminService_DownloadExport_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &adminServiceDownloadExportClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type AdminService_DownloadExportClient interface {
+	Recv() (*ExportDownloadChunk, error)
+	grpc.ClientStream
+}
+
+type adminServiceDownloadExportClient struct {
+	grpc.ClientStream
+}
+
+func (x *adminServiceDownloadExportClient) Recv() (*ExportDownloadChunk, error) {
+	m := new(ExportDownloadChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *adminServiceClient) CreateWorkOrder(ctx context.Context, in *WorkOrderRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrder)
+	err := c.cc.Invoke(ctx, AdminService_CreateWorkOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListWorkOrders(ctx context.Context, in *WorkOrderListRequest, opts ...grpc.CallOption) (*WorkOrderListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrderListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListWorkOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetWorkOrder(ctx context.Context, in *WorkOrderDetailRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrder)
+	err := c.cc.Invoke(ctx, AdminService_GetWorkOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrder)
+	err := c.cc.Invoke(ctx, AdminService_ActWorkOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrderEvidence)
+	err := c.cc.Invoke(ctx, AdminService_AddWorkOrderEvidence_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceListRequest, opts ...grpc.CallOption) (*WorkOrderEvidenceListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrderEvidenceListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListWorkOrderEvidence_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BlacklistListResponse)
@@ -727,6 +854,22 @@ type AdminServiceServer interface {
 	ListExportTasks(context.Context, *ExportTaskListRequest) (*ExportTaskListResponse, error)
 	// 查询导出任务详情。
 	GetExportTask(context.Context, *ExportTaskDetailRequest) (*ExportTask, error)
+	// 查询已授权下载的导出任务文件元数据。
+	GetExportDownload(context.Context, *ExportDownloadRequest) (*ExportDownloadResponse, error)
+	// 流式下载已授权的导出文件内容。
+	DownloadExport(*ExportDownloadRequest, AdminService_DownloadExportServer) error
+	// 创建后台投诉或申诉工单。
+	CreateWorkOrder(context.Context, *WorkOrderRequest) (*WorkOrder, error)
+	// 查询后台工单列表。
+	ListWorkOrders(context.Context, *WorkOrderListRequest) (*WorkOrderListResponse, error)
+	// 查询后台工单详情。
+	GetWorkOrder(context.Context, *WorkOrderDetailRequest) (*WorkOrder, error)
+	// 执行后台工单流转动作。
+	ActWorkOrder(context.Context, *WorkOrderActionRequest) (*WorkOrder, error)
+	// 新增工单证据索引。
+	AddWorkOrderEvidence(context.Context, *WorkOrderEvidenceRequest) (*WorkOrderEvidence, error)
+	// 查询工单证据列表。
+	ListWorkOrderEvidence(context.Context, *WorkOrderEvidenceListRequest) (*WorkOrderEvidenceListResponse, error)
 	// 查询风控黑名单列表。
 	ListBlacklists(context.Context, *BlacklistListRequest) (*BlacklistListResponse, error)
 	// 新增风控黑名单。
@@ -867,6 +1010,30 @@ func (UnimplementedAdminServiceServer) ListExportTasks(context.Context, *ExportT
 }
 func (UnimplementedAdminServiceServer) GetExportTask(context.Context, *ExportTaskDetailRequest) (*ExportTask, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetExportTask not implemented")
+}
+func (UnimplementedAdminServiceServer) GetExportDownload(context.Context, *ExportDownloadRequest) (*ExportDownloadResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExportDownload not implemented")
+}
+func (UnimplementedAdminServiceServer) DownloadExport(*ExportDownloadRequest, AdminService_DownloadExportServer) error {
+	return status.Errorf(codes.Unimplemented, "method DownloadExport not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateWorkOrder(context.Context, *WorkOrderRequest) (*WorkOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateWorkOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) ListWorkOrders(context.Context, *WorkOrderListRequest) (*WorkOrderListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListWorkOrders not implemented")
+}
+func (UnimplementedAdminServiceServer) GetWorkOrder(context.Context, *WorkOrderDetailRequest) (*WorkOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetWorkOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) ActWorkOrder(context.Context, *WorkOrderActionRequest) (*WorkOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ActWorkOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) AddWorkOrderEvidence(context.Context, *WorkOrderEvidenceRequest) (*WorkOrderEvidence, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddWorkOrderEvidence not implemented")
+}
+func (UnimplementedAdminServiceServer) ListWorkOrderEvidence(context.Context, *WorkOrderEvidenceListRequest) (*WorkOrderEvidenceListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListWorkOrderEvidence not implemented")
 }
 func (UnimplementedAdminServiceServer) ListBlacklists(context.Context, *BlacklistListRequest) (*BlacklistListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListBlacklists not implemented")
@@ -1649,6 +1816,153 @@ func _AdminService_GetExportTask_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_GetExportDownload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportDownloadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetExportDownload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetExportDownload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetExportDownload(ctx, req.(*ExportDownloadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_DownloadExport_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ExportDownloadRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AdminServiceServer).DownloadExport(m, &adminServiceDownloadExportServer{ServerStream: stream})
+}
+
+type AdminService_DownloadExportServer interface {
+	Send(*ExportDownloadChunk) error
+	grpc.ServerStream
+}
+
+type adminServiceDownloadExportServer struct {
+	grpc.ServerStream
+}
+
+func (x *adminServiceDownloadExportServer) Send(m *ExportDownloadChunk) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _AdminService_CreateWorkOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateWorkOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateWorkOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateWorkOrder(ctx, req.(*WorkOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListWorkOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListWorkOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListWorkOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListWorkOrders(ctx, req.(*WorkOrderListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetWorkOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetWorkOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetWorkOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetWorkOrder(ctx, req.(*WorkOrderDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ActWorkOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ActWorkOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ActWorkOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ActWorkOrder(ctx, req.(*WorkOrderActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_AddWorkOrderEvidence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderEvidenceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).AddWorkOrderEvidence(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_AddWorkOrderEvidence_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).AddWorkOrderEvidence(ctx, req.(*WorkOrderEvidenceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListWorkOrderEvidence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderEvidenceListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListWorkOrderEvidence(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListWorkOrderEvidence_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListWorkOrderEvidence(ctx, req.(*WorkOrderEvidenceListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_ListBlacklists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BlacklistListRequest)
 	if err := dec(in); err != nil {
@@ -1897,6 +2211,34 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_GetExportTask_Handler,
 		},
 		{
+			MethodName: "GetExportDownload",
+			Handler:    _AdminService_GetExportDownload_Handler,
+		},
+		{
+			MethodName: "CreateWorkOrder",
+			Handler:    _AdminService_CreateWorkOrder_Handler,
+		},
+		{
+			MethodName: "ListWorkOrders",
+			Handler:    _AdminService_ListWorkOrders_Handler,
+		},
+		{
+			MethodName: "GetWorkOrder",
+			Handler:    _AdminService_GetWorkOrder_Handler,
+		},
+		{
+			MethodName: "ActWorkOrder",
+			Handler:    _AdminService_ActWorkOrder_Handler,
+		},
+		{
+			MethodName: "AddWorkOrderEvidence",
+			Handler:    _AdminService_AddWorkOrderEvidence_Handler,
+		},
+		{
+			MethodName: "ListWorkOrderEvidence",
+			Handler:    _AdminService_ListWorkOrderEvidence_Handler,
+		},
+		{
 			MethodName: "ListBlacklists",
 			Handler:    _AdminService_ListBlacklists_Handler,
 		},
@@ -1913,6 +2255,12 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_ListRiskHitRecords_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "admin.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "DownloadExport",
+			Handler:       _AdminService_DownloadExport_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "rpc/adminsvc/admin.proto",
 }

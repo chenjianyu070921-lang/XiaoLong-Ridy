@@ -1030,6 +1030,36 @@ func runExportTaskJob(svcCtx *svc.ServiceContext, taskNo string) {
 		return
 	}
 	_ = updateExportTaskStatus(ctx, svcCtx, taskNo, "success", filePath, "", time.Now().Add(7*24*time.Hour))
+	// 每次成功生成新文件后顺带清理已过期文件，避免本地导出目录无界增长。
+	if err := cleanupExpiredExportFiles(ctx, svcCtx); err != nil {
+		return
+	}
+}
+
+// cleanupExpiredExportFiles 删除已过期任务在受控目录中的 CSV，并保留任务记录用于审计。
+// 仅接受与任务号完全匹配的文件名，避免数据库异常值导致删除任意路径。
+func cleanupExpiredExportFiles(ctx context.Context, svcCtx *svc.ServiceContext) error {
+	rows, err := svcCtx.MySQL.QueryContext(ctx, `SELECT task_no, file_path FROM admin_export_task WHERE expires_at IS NOT NULL AND expires_at <= ? AND file_path <> ''`, time.Now())
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var taskNo, filePath string
+		if err := rows.Scan(&taskNo, &filePath); err != nil {
+			return err
+		}
+		if filepath.Base(filePath) != taskNo+".csv" {
+			continue
+		}
+		if err := os.Remove(filepath.Join(".tmp-admin-exports", taskNo+".csv")); err != nil && !os.IsNotExist(err) {
+			continue
+		}
+		if _, err := svcCtx.MySQL.ExecContext(ctx, `UPDATE admin_export_task SET file_path = '', file_url = '' WHERE task_no = ?`, taskNo); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 // writeExportTaskFile 按导出类型分页读取业务表并生成 CSV 文件。

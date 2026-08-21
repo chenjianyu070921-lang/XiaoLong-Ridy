@@ -5,10 +5,14 @@ package server
 
 import (
 	"context"
+	"io"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/logic/adminservice"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type AdminServiceServer struct {
@@ -259,6 +263,72 @@ func (s *AdminServiceServer) ListExportTasks(ctx context.Context, in *adminsvc.E
 func (s *AdminServiceServer) GetExportTask(ctx context.Context, in *adminsvc.ExportTaskDetailRequest) (*adminsvc.ExportTask, error) {
 	l := adminservicelogic.NewGetExportTaskLogic(ctx, s.svcCtx)
 	return l.GetExportTask(in)
+}
+
+// GetExportDownload 校验管理员对已生成导出文件的下载权限。
+func (s *AdminServiceServer) GetExportDownload(ctx context.Context, in *adminsvc.ExportDownloadRequest) (*adminsvc.ExportDownloadResponse, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).GetExportDownload(in)
+}
+
+// DownloadExport 在 adminsvc 进程内校验授权并以 gRPC 服务端流传输 CSV 文件内容。
+func (s *AdminServiceServer) DownloadExport(in *adminsvc.ExportDownloadRequest, stream adminsvc.AdminService_DownloadExportServer) error {
+	admin, err := adminservicelogic.ValidateAdminTokenFromContext(stream.Context(), s.svcCtx)
+	if err != nil {
+		return err
+	}
+	if admin.ID != in.GetAdminId() {
+		return status.Error(codes.PermissionDenied, "请求操作者与管理员会话不一致")
+	}
+	file, _, err := adminservicelogic.NewWorkOrderLogic(stream.Context(), s.svcCtx).OpenAuthorizedExportFile(&adminsvc.ExportDownloadRequest{TaskNo: in.GetTaskNo(), AdminId: admin.ID, AdminRole: admin.Role})
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	buf := make([]byte, 32*1024)
+	for {
+		n, readErr := file.Read(buf)
+		if n > 0 {
+			if err := stream.Send(&adminsvc.ExportDownloadChunk{Content: append([]byte(nil), buf[:n]...)}); err != nil {
+				return err
+			}
+		}
+		if readErr == io.EOF {
+			return nil
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
+}
+
+// CreateWorkOrder 创建后台人工处理工单。
+func (s *AdminServiceServer) CreateWorkOrder(ctx context.Context, in *adminsvc.WorkOrderRequest) (*adminsvc.WorkOrder, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).CreateWorkOrder(in)
+}
+
+// ListWorkOrders 查询后台工单列表。
+func (s *AdminServiceServer) ListWorkOrders(ctx context.Context, in *adminsvc.WorkOrderListRequest) (*adminsvc.WorkOrderListResponse, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).ListWorkOrders(in)
+}
+
+// GetWorkOrder 查询后台工单详情。
+func (s *AdminServiceServer) GetWorkOrder(ctx context.Context, in *adminsvc.WorkOrderDetailRequest) (*adminsvc.WorkOrder, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).GetWorkOrder(in)
+}
+
+// ActWorkOrder 执行后台工单状态流转。
+func (s *AdminServiceServer) ActWorkOrder(ctx context.Context, in *adminsvc.WorkOrderActionRequest) (*adminsvc.WorkOrder, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).ActWorkOrder(in)
+}
+
+// AddWorkOrderEvidence 保存后台工单证据索引。
+func (s *AdminServiceServer) AddWorkOrderEvidence(ctx context.Context, in *adminsvc.WorkOrderEvidenceRequest) (*adminsvc.WorkOrderEvidence, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).AddWorkOrderEvidence(in)
+}
+
+// ListWorkOrderEvidence 查询后台工单证据索引。
+func (s *AdminServiceServer) ListWorkOrderEvidence(ctx context.Context, in *adminsvc.WorkOrderEvidenceListRequest) (*adminsvc.WorkOrderEvidenceListResponse, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).ListWorkOrderEvidence(in)
 }
 
 func (s *AdminServiceServer) ListBlacklists(ctx context.Context, in *adminsvc.BlacklistListRequest) (*adminsvc.BlacklistListResponse, error) {

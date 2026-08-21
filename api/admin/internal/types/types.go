@@ -462,6 +462,35 @@ type ExportTaskRequest struct {
 	Filters    string `json:"filters"`
 }
 
+// WorkOrderRequest 表示后台创建投诉或申诉工单的请求体。
+type WorkOrderRequest struct {
+	WorkOrderType int32  `json:"work_order_type"`
+	SourceType    string `json:"source_type"`
+	SourceID      int64  `json:"source_id"`
+	OrderID       int64  `json:"order_id"`
+	UserID        int64  `json:"user_id"`
+	DriverID      int64  `json:"driver_id"`
+	Title         string `json:"title"`
+	Content       string `json:"content"`
+	Priority      int32  `json:"priority"`
+}
+
+// WorkOrderActionRequest 表示后台工单状态流转请求体。
+type WorkOrderActionRequest struct {
+	Action            string `json:"action"`
+	AssigneeID        int64  `json:"assignee_id"`
+	Content           string `json:"content"`
+	ArbitrationResult string `json:"arbitration_result"`
+	Version           int32  `json:"version"`
+}
+
+// WorkOrderEvidenceRequest 表示后台工单证据索引请求体。
+type WorkOrderEvidenceRequest struct {
+	EvidenceType string `json:"evidence_type"`
+	EvidenceURL  string `json:"evidence_url"`
+	Content      string `json:"content"`
+}
+
 // BlacklistRequest 表示风控黑名单新增和解除请求体。
 type BlacklistRequest struct {
 	TargetType string `json:"target_type"`
