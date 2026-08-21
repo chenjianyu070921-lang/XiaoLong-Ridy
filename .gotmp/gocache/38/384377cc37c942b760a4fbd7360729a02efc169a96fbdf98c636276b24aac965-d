@@ -1,0 +1,5 @@
+./fe.go
+./fe_amd64.go
+./fe_extra.go
+./fe_generic.go
+./fe_amd64.s

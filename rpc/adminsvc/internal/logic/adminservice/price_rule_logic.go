@@ -83,7 +83,7 @@ func (l *CreatePriceRuleLogic) CreatePriceRule(in *adminsvc.PriceRuleRequest) (*
 		return nil, err
 	}
 	detail := fmt.Sprintf("创建计价规则：%s", in.GetName())
-	if err := recordOperationOrOutbox(l.ctx, l.svcCtx, in.GetAdminId(), "price", "create", "price_rule", resp.GetId(), detail, in.GetIp()); err != nil {
+	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "price", "create", "price_rule", resp.GetId(), detail, in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CreatePriceRuleResponse{Id: resp.GetId(), Message: "ok"}, nil
@@ -105,7 +105,7 @@ func (l *UpdatePriceRuleLogic) UpdatePriceRule(in *adminsvc.PriceRuleRequest) (*
 	if _, err := l.svcCtx.PricesSvc.UpdatePriceRule(l.ctx, priceRuleRequestToPB(in)); err != nil {
 		return nil, err
 	}
-	if err := recordOperationOrOutbox(l.ctx, l.svcCtx, in.GetAdminId(), "price", "update", "price_rule", in.GetId(), fmt.Sprintf("编辑计价规则：%s", in.GetName()), in.GetIp()); err != nil {
+	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "price", "update", "price_rule", in.GetId(), fmt.Sprintf("编辑计价规则：%s", in.GetName()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -127,7 +127,7 @@ func (l *EnablePriceRuleLogic) EnablePriceRule(in *adminsvc.PriceRuleStatusReque
 	if _, err := l.svcCtx.PricesSvc.SetPriceRuleStatus(l.ctx, &priceclient.PriceRuleStatusRequest{Id: in.GetId(), Status: 1}); err != nil {
 		return nil, err
 	}
-	if err := recordOperationOrOutbox(l.ctx, l.svcCtx, in.GetAdminId(), "price", "enable", "price_rule", in.GetId(), "启用计价规则", in.GetIp()); err != nil {
+	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "price", "enable", "price_rule", in.GetId(), "启用计价规则", in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -149,7 +149,7 @@ func (l *DisablePriceRuleLogic) DisablePriceRule(in *adminsvc.PriceRuleStatusReq
 	if _, err := l.svcCtx.PricesSvc.SetPriceRuleStatus(l.ctx, &priceclient.PriceRuleStatusRequest{Id: in.GetId(), Status: 2}); err != nil {
 		return nil, err
 	}
-	if err := recordOperationOrOutbox(l.ctx, l.svcCtx, in.GetAdminId(), "price", "disable", "price_rule", in.GetId(), "停用计价规则", in.GetIp()); err != nil {
+	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "price", "disable", "price_rule", in.GetId(), "停用计价规则", in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil

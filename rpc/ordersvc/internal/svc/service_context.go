@@ -19,15 +19,16 @@ import (
 )
 
 type ServiceContext struct {
-	Config          config.Config
-	DB              *gorm.DB
-	Redis           *redis.Client
-	EventBus        events.Bus
-	OrderRepository repository.OrderRepository
-	CouponConsumer  repository.CouponConsumer
-	DispatchClient  dispatch.Dispatch
-	PriceClient     price.Price
-	PayClient       pay.Pay
+	Config                  config.Config
+	DB                      *gorm.DB
+	Redis                   *redis.Client
+	EventBus                events.Bus
+	OrderRepository         repository.OrderRepository
+	CouponConsumer          repository.CouponConsumer
+	RiskBlacklistRepository repository.RiskBlacklistRepository
+	DispatchClient          dispatch.Dispatch
+	PriceClient             price.Price
+	PayClient               pay.Pay
 }
 
 // NewServiceContext 初始化 MySQL、Redis、事件总线与订单仓储。
@@ -73,14 +74,15 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	return &ServiceContext{
-		Config:          c,
-		DB:              client,
-		Redis:           redisClient,
-		EventBus:        events.NewRedisStreamBus(redisClient, constants.OrderEventStream),
-		OrderRepository: repository.NewGormOrderRepository(client),
-		CouponConsumer:  repository.NewGormCouponConsumer(client),
-		DispatchClient:  dispatch.NewDispatch(dispatchClient),
-		PriceClient:     price.NewPrice(priceClient),
-		PayClient:       pay.NewPay(payClient),
+		Config:                  c,
+		DB:                      client,
+		Redis:                   redisClient,
+		EventBus:                events.NewRedisStreamBus(redisClient, constants.OrderEventStream),
+		OrderRepository:         repository.NewGormOrderRepository(client),
+		CouponConsumer:          repository.NewGormCouponConsumer(client),
+		RiskBlacklistRepository: repository.NewGormRiskBlacklistRepository(client),
+		DispatchClient:          dispatch.NewDispatch(dispatchClient),
+		PriceClient:             price.NewPrice(priceClient),
+		PayClient:               pay.NewPay(payClient),
 	}
 }

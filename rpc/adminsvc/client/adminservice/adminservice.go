@@ -55,6 +55,18 @@ type (
 	ExportTaskListResponse           = adminsvc.ExportTaskListResponse
 	ExportTaskRequest                = adminsvc.ExportTaskRequest
 	ExportTaskResponse               = adminsvc.ExportTaskResponse
+	ExportDownloadRequest            = adminsvc.ExportDownloadRequest
+	ExportDownloadResponse           = adminsvc.ExportDownloadResponse
+	WorkOrder                        = adminsvc.WorkOrder
+	WorkOrderRequest                 = adminsvc.WorkOrderRequest
+	WorkOrderListRequest             = adminsvc.WorkOrderListRequest
+	WorkOrderListResponse            = adminsvc.WorkOrderListResponse
+	WorkOrderDetailRequest           = adminsvc.WorkOrderDetailRequest
+	WorkOrderActionRequest           = adminsvc.WorkOrderActionRequest
+	WorkOrderEvidence                = adminsvc.WorkOrderEvidence
+	WorkOrderEvidenceRequest         = adminsvc.WorkOrderEvidenceRequest
+	WorkOrderEvidenceListRequest     = adminsvc.WorkOrderEvidenceListRequest
+	WorkOrderEvidenceListResponse    = adminsvc.WorkOrderEvidenceListResponse
 	LoginRequest                     = adminsvc.LoginRequest
 	LogoutRequest                    = adminsvc.LogoutRequest
 	MeRequest                        = adminsvc.MeRequest
@@ -178,6 +190,13 @@ type (
 		ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error)
 		// 查询导出任务详情。
 		GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error)
+		GetExportDownload(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (*ExportDownloadResponse, error)
+		CreateWorkOrder(ctx context.Context, in *WorkOrderRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+		ListWorkOrders(ctx context.Context, in *WorkOrderListRequest, opts ...grpc.CallOption) (*WorkOrderListResponse, error)
+		GetWorkOrder(ctx context.Context, in *WorkOrderDetailRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+		ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+		AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error)
+		ListWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceListRequest, opts ...grpc.CallOption) (*WorkOrderEvidenceListResponse, error)
 		// 查询风控黑名单列表。
 		ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error)
 		// 新增风控黑名单。
@@ -449,6 +468,28 @@ func (m *defaultAdminService) ListExportTasks(ctx context.Context, in *ExportTas
 func (m *defaultAdminService) GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.GetExportTask(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) GetExportDownload(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (*ExportDownloadResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).GetExportDownload(ctx, in, opts...)
+}
+func (m *defaultAdminService) CreateWorkOrder(ctx context.Context, in *WorkOrderRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).CreateWorkOrder(ctx, in, opts...)
+}
+func (m *defaultAdminService) ListWorkOrders(ctx context.Context, in *WorkOrderListRequest, opts ...grpc.CallOption) (*WorkOrderListResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListWorkOrders(ctx, in, opts...)
+}
+func (m *defaultAdminService) GetWorkOrder(ctx context.Context, in *WorkOrderDetailRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).GetWorkOrder(ctx, in, opts...)
+}
+func (m *defaultAdminService) ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ActWorkOrder(ctx, in, opts...)
+}
+func (m *defaultAdminService) AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).AddWorkOrderEvidence(ctx, in, opts...)
+}
+func (m *defaultAdminService) ListWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceListRequest, opts ...grpc.CallOption) (*WorkOrderEvidenceListResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListWorkOrderEvidence(ctx, in, opts...)
 }
 
 // 查询风控黑名单列表。

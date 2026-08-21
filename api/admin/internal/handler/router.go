@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"XiaoLong-Ridy/api/admin/internal/model"
 	"XiaoLong-Ridy/api/admin/internal/svc"
 	"XiaoLong-Ridy/api/admin/internal/types"
+	adminpb "XiaoLong-Ridy/rpc/adminsvc/adminsvc"
+	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -94,6 +97,8 @@ func (r *Router) routes() {
 
 	r.mux.HandleFunc("/admin/v1/export-tasks", r.authRequired(r.handleExportTasks))
 	r.mux.HandleFunc("/admin/v1/export-tasks/", r.authRequired(r.handleExportTaskByNo))
+	r.mux.HandleFunc("/admin/v1/work-orders", r.authRequired(r.handleWorkOrders))
+	r.mux.HandleFunc("/admin/v1/work-orders/", r.authRequired(r.handleWorkOrderByID))
 
 	r.mux.HandleFunc("/admin/v1/blacklist", r.authRequired(r.handleBlacklists))
 	r.mux.HandleFunc("/admin/v1/blacklist/", r.authRequired(r.handleBlacklistByID))
@@ -829,11 +834,16 @@ func (r *Router) handleExportTasks(w http.ResponseWriter, req *http.Request) {
 
 // handleExportTaskByNo 查询单个导出任务详情。
 func (r *Router) handleExportTaskByNo(w http.ResponseWriter, req *http.Request) {
+	taskNo := strings.Trim(strings.TrimPrefix(req.URL.Path, "/admin/v1/export-tasks/"), "/")
+	if strings.HasSuffix(taskNo, "/download") {
+		taskNo = strings.TrimSuffix(taskNo, "/download")
+		r.handleExportDownload(w, req, taskNo)
+		return
+	}
 	if req.Method != http.MethodGet {
 		writeMethodNotAllowed(w)
 		return
 	}
-	taskNo := strings.Trim(strings.TrimPrefix(req.URL.Path, "/admin/v1/export-tasks/"), "/")
 	if taskNo == "" || strings.Contains(taskNo, "/") {
 		writeError(w, http.StatusBadRequest, 40001, "invalid task no")
 		return
@@ -844,6 +854,127 @@ func (r *Router) handleExportTaskByNo(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 	writeSuccess(w, resp)
+}
+
+// handleExportDownload 校验下载授权后以流式响应返回 CSV，绝不向客户端暴露服务端文件路径。
+func (r *Router) handleExportDownload(w http.ResponseWriter, req *http.Request, taskNo string) {
+	if req.Method != http.MethodGet || taskNo == "" || strings.Contains(taskNo, "/") {
+		writeError(w, http.StatusBadRequest, 40001, "invalid task no")
+		return
+	}
+	session := sessionFromContext(req.Context())
+	if session == nil {
+		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
+		return
+	}
+	stream, err := adminpb.NewAdminServiceClient(r.ctx.AdminRPCClient.Conn()).DownloadExport(req.Context(), &adminpb.ExportDownloadRequest{TaskNo: taskNo, AdminId: session.AdminID, AdminRole: session.Role})
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+taskNo+`.csv"`)
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			return
+		}
+		if _, err = w.Write(chunk.GetContent()); err != nil {
+			return
+		}
+	}
+}
+
+// handleWorkOrders 处理后台工单创建和列表查询。
+func (r *Router) handleWorkOrders(w http.ResponseWriter, req *http.Request) {
+	session := sessionFromContext(req.Context())
+	switch req.Method {
+	case http.MethodGet:
+		resp, err := r.ctx.AdminSvc.ListWorkOrders(req.Context(), &adminclient.WorkOrderListRequest{Page: int32(intQuery(req, "page", 1)), PageSize: int32(intQuery(req, "page_size", 20)), Status: int32Query(req, "status", 0), AssigneeId: int64Query(req, "assignee_id", 0), WorkOrderType: int32Query(req, "work_order_type", 0)})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.PageResult{List: resp.GetList(), Total: resp.GetTotal(), Page: int(resp.GetPage()), PageSize: int(resp.GetPageSize())})
+	case http.MethodPost:
+		var body types.WorkOrderRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		resp, err := r.ctx.AdminSvc.CreateWorkOrder(req.Context(), &adminclient.WorkOrderRequest{WorkOrderType: body.WorkOrderType, SourceType: body.SourceType, SourceId: body.SourceID, OrderId: body.OrderID, UserId: body.UserID, DriverId: body.DriverID, Title: body.Title, Content: body.Content, Priority: body.Priority, AdminId: session.AdminID, Ip: clientIP(req)})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handleWorkOrderByID 处理工单详情、流转与证据索引接口。
+func (r *Router) handleWorkOrderByID(w http.ResponseWriter, req *http.Request) {
+	rest := strings.Trim(strings.TrimPrefix(req.URL.Path, "/admin/v1/work-orders/"), "/")
+	parts := strings.Split(rest, "/")
+	id, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil || id <= 0 {
+		writeError(w, http.StatusBadRequest, 40001, "invalid work order id")
+		return
+	}
+	session := sessionFromContext(req.Context())
+	if len(parts) == 1 && req.Method == http.MethodGet {
+		resp, err := r.ctx.AdminSvc.GetWorkOrder(req.Context(), &adminclient.WorkOrderDetailRequest{Id: id})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "actions" && req.Method == http.MethodPost {
+		var body types.WorkOrderActionRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		resp, err := r.ctx.AdminSvc.ActWorkOrder(req.Context(), &adminclient.WorkOrderActionRequest{Id: id, Action: body.Action, AssigneeId: body.AssigneeID, Content: body.Content, ArbitrationResult: body.ArbitrationResult, Version: body.Version, AdminId: session.AdminID, Ip: clientIP(req)})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "evidence" {
+		if req.Method == http.MethodGet {
+			resp, err := r.ctx.AdminSvc.ListWorkOrderEvidence(req.Context(), &adminclient.WorkOrderEvidenceListRequest{WorkOrderId: id, Page: int32(intQuery(req, "page", 1)), PageSize: int32(intQuery(req, "page_size", 20))})
+			if err != nil {
+				r.writeBizError(w, err)
+				return
+			}
+			writeSuccess(w, types.PageResult{List: resp.GetList(), Total: resp.GetTotal(), Page: int(resp.GetPage()), PageSize: int(resp.GetPageSize())})
+			return
+		}
+		if req.Method == http.MethodPost {
+			var body types.WorkOrderEvidenceRequest
+			if err := decodeJSON(req, &body); err != nil {
+				writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+				return
+			}
+			resp, err := r.ctx.AdminSvc.AddWorkOrderEvidence(req.Context(), &adminclient.WorkOrderEvidenceRequest{WorkOrderId: id, EvidenceType: body.EvidenceType, EvidenceUrl: body.EvidenceURL, Content: body.Content, AdminId: session.AdminID, Ip: clientIP(req)})
+			if err != nil {
+				r.writeBizError(w, err)
+				return
+			}
+			writeSuccess(w, resp)
+			return
+		}
+	}
+	http.NotFound(w, req)
 }
 
 // handleBlacklists 处理风控黑名单列表和新增。

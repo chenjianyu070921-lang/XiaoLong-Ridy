@@ -157,6 +157,24 @@ type fakePriceClient struct {
 	gotCityCode   string
 }
 
+// TestCreateOrder_RecordsUserBlacklistHit 验证下单用户命中黑名单时会写入下单场景审计记录。
+func TestCreateOrder_RecordsUserBlacklistHit(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	risk := repository.NewMemoryRiskBlacklistRepository()
+	risk.SetActive("user", 1001, repository.BlacklistEntry{ID: 88, Reason: "历史风险命中"})
+	l := NewCreateOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository:         repo,
+		RiskBlacklistRepository: risk,
+	})
+
+	if _, err := l.CreateOrder(validCreateOrderRequest()); err != nil {
+		t.Fatalf("CreateOrder() error = %v", err)
+	}
+	if len(risk.Hits) != 1 || risk.Hits[0].Scene != "order" || risk.Hits[0].BlacklistID != 88 || risk.Hits[0].TargetID != 1001 {
+		t.Fatalf("risk hit records = %+v, want one order record", risk.Hits)
+	}
+}
+
 func (f *fakePriceClient) EstimatePrice(_ context.Context, in *price.EstimatePriceRequest, _ ...grpc.CallOption) (*price.EstimatePriceResponse, error) {
 	f.gotCityCode = in.CityCode
 	if f.estimatePrice != nil {

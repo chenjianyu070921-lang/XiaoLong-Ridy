@@ -45,8 +45,8 @@ func (l *RegisterLogic) Register(in *adminsvc.RegisterRequest) (*adminsvc.AuthRe
 		if err != nil {
 			return nil, err
 		}
-		if operator.ID != in.GetOperatorAdminId() || operator.Role != 1 {
-			return nil, status.Error(codes.PermissionDenied, "只有超级管理员可以新增管理员")
+		if err := validateRegisterOperator(operator, in.GetOperatorAdminId()); err != nil {
+			return nil, err
 		}
 	}
 	role := in.GetRole()
@@ -87,4 +87,14 @@ func (l *RegisterLogic) Register(in *adminsvc.RegisterRequest) (*adminsvc.AuthRe
 		ExpiresIn: int64(l.svcCtx.Config.Session.SessionTTLHours) * 3600,
 		Admin:     toAdminPB(admin),
 	}, nil
+}
+
+// validateRegisterOperator 校验新增管理员操作的服务端操作者身份。
+// 入参 operator 必须来自已验证的会话，requestOperatorID 为客户端请求中声明的操作者 ID。
+// 返回 PermissionDenied 表示角色不足或请求冒用其他管理员身份。
+func validateRegisterOperator(operator *adminRow, requestOperatorID int64) error {
+	if operator == nil || operator.ID <= 0 || operator.ID != requestOperatorID || operator.Role != 1 {
+		return status.Error(codes.PermissionDenied, "只有超级管理员可以新增管理员")
+	}
+	return nil
 }

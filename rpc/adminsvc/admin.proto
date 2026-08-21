@@ -91,6 +91,22 @@ service AdminService {
   rpc ListExportTasks(ExportTaskListRequest) returns (ExportTaskListResponse);
   // 查询导出任务详情。
   rpc GetExportTask(ExportTaskDetailRequest) returns (ExportTask);
+  // 查询已授权下载的导出任务文件元数据。
+  rpc GetExportDownload(ExportDownloadRequest) returns (ExportDownloadResponse);
+  // 流式下载已授权的导出文件内容。
+  rpc DownloadExport(ExportDownloadRequest) returns (stream ExportDownloadChunk);
+  // 创建后台投诉或申诉工单。
+  rpc CreateWorkOrder(WorkOrderRequest) returns (WorkOrder);
+  // 查询后台工单列表。
+  rpc ListWorkOrders(WorkOrderListRequest) returns (WorkOrderListResponse);
+  // 查询后台工单详情。
+  rpc GetWorkOrder(WorkOrderDetailRequest) returns (WorkOrder);
+  // 执行后台工单流转动作。
+  rpc ActWorkOrder(WorkOrderActionRequest) returns (WorkOrder);
+  // 新增工单证据索引。
+  rpc AddWorkOrderEvidence(WorkOrderEvidenceRequest) returns (WorkOrderEvidence);
+  // 查询工单证据列表。
+  rpc ListWorkOrderEvidence(WorkOrderEvidenceListRequest) returns (WorkOrderEvidenceListResponse);
   // 查询风控黑名单列表。
   rpc ListBlacklists(BlacklistListRequest) returns (BlacklistListResponse);
   // 新增风控黑名单。
@@ -764,6 +780,121 @@ message ExportTask {
 
 message ExportTaskListResponse {
   repeated ExportTask list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ExportDownloadRequest {
+  string task_no = 1;
+  int64 admin_id = 2;
+  int32 admin_role = 3;
+}
+
+message ExportDownloadResponse {
+  string task_no = 1;
+  string file_name = 2;
+  string expires_at = 3;
+}
+
+message ExportDownloadChunk {
+  bytes content = 1;
+}
+
+message WorkOrderRequest {
+  int32 work_order_type = 1;
+  string source_type = 2;
+  int64 source_id = 3;
+  int64 order_id = 4;
+  int64 user_id = 5;
+  int64 driver_id = 6;
+  string title = 7;
+  string content = 8;
+  int32 priority = 9;
+  int64 admin_id = 10;
+  string ip = 11;
+}
+
+message WorkOrderListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 status = 3;
+  int64 assignee_id = 4;
+  int32 work_order_type = 5;
+}
+
+message WorkOrderDetailRequest {
+  int64 id = 1;
+}
+
+message WorkOrderActionRequest {
+  int64 id = 1;
+  string action = 2;
+  int64 assignee_id = 3;
+  string content = 4;
+  string arbitration_result = 5;
+  int32 version = 6;
+  int64 admin_id = 7;
+  string ip = 8;
+}
+
+message WorkOrderEvidenceRequest {
+  int64 work_order_id = 1;
+  string evidence_type = 2;
+  string evidence_url = 3;
+  string content = 4;
+  int64 admin_id = 5;
+  string ip = 6;
+}
+
+message WorkOrderEvidenceListRequest {
+  int64 work_order_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message WorkOrder {
+  int64 id = 1;
+  string work_order_no = 2;
+  int32 work_order_type = 3;
+  string source_type = 4;
+  int64 source_id = 5;
+  int64 order_id = 6;
+  int64 user_id = 7;
+  int64 driver_id = 8;
+  string title = 9;
+  string content = 10;
+  int32 priority = 11;
+  int32 status = 12;
+  int64 assignee_id = 13;
+  string arbitration_result = 14;
+  string remark = 15;
+  int32 version = 16;
+  int64 created_by = 17;
+  string created_at = 18;
+  string updated_at = 19;
+  string closed_at = 20;
+}
+
+message WorkOrderListResponse {
+  repeated WorkOrder list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message WorkOrderEvidence {
+  int64 id = 1;
+  int64 work_order_id = 2;
+  string evidence_type = 3;
+  string evidence_url = 4;
+  string content = 5;
+  int64 uploaded_by = 6;
+  string created_at = 7;
+}
+
+message WorkOrderEvidenceListResponse {
+  repeated WorkOrderEvidence list = 1;
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;

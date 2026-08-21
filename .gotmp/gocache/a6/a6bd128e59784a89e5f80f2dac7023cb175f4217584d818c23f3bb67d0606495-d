@@ -1,0 +1,5 @@
+./entropy.go
+./int.go
+./proba.go
+./range.go
+./unstable.go
