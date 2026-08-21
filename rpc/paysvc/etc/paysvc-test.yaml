@@ -1,0 +1,27 @@
+# paysvc 本地联调用配置（Mode: test）
+# 用途：无支付宝沙箱密钥或需要模拟支付回调时，通过 -f 指定本文件启动。
+#   - mode: test → 验签器降级 MockVerifier（不验签），支付渠道降级 MockChannel；
+#   - 生产环境请使用 paysvc.yaml（mode 留空 = 生产模式，强制要求真实密钥，M5-3）。
+Name: paysvc.rpc
+ListenOn: 0.0.0.0:50054
+Mode: test
+mysql:
+  dsn: root:root123@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+alipay:
+  # 联调模式刻意留空：触发 dev/test 降级（MockVerifier / MockChannel）。
+  appId: ""
+  privateKey: ""
+  alipayPublicKey: ""
+  gateway: https://openapi-sandbox.dl.alipaydev.com/gateway.do
+  notifyUrl: ""
+  returnUrl: ""
+  signType: RSA2
+  charset: utf-8
+  timeoutExpress: 30m
+  sandbox: true
+kafka:
+  brokers:
+    - 127.0.0.1:9092
+  topic: order.paid
+ordersvc:
+  target: 127.0.0.1:50051

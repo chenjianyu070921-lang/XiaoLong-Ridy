@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.0
 // - protoc             v3.19.4
-// source: rpc/paysvc/proto/paysvc.proto
+// source: paysvc.proto
 
 package proto
 
@@ -283,5 +283,5 @@ var Pay_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "rpc/paysvc/proto/paysvc.proto",
+	Metadata: "paysvc.proto",
 }

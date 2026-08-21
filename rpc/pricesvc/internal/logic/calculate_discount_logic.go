@@ -29,6 +29,10 @@ func NewCalculateDiscountLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 }
 
 // 优惠券抵扣计算：根据优惠券计算折扣与实付金额。
+//
+// M5-10 接入现状：CalculateDiscount 已实现（rule.CalculateDiscount 全功能），
+//   但订单模块 CreateOrder/FinishTrip 当前尚未调用，下游订单服务集成时需在此接入。
+//   接入手册见 docs/module5/模块五-计价与支付接口文档.md。
 func (l *CalculateDiscountLogic) CalculateDiscount(in *proto.CalculateDiscountRequest) (*proto.CalculateDiscountResponse, error) {
 	// 1. 构造优惠券输入
 	coupon := rule.CouponInput{

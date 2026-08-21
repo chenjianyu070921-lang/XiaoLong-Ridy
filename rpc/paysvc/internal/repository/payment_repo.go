@@ -45,7 +45,20 @@ func (r *PaymentRepo) FindByOrderId(ctx context.Context, orderId uint64) (*model
 	return &p, nil
 }
 
-// Update 更新支付单。
+// UpdateSelective 按 id 条件更新指定列（不在事务外单独使用时应放在事务里）。
+// 用 Updates(map) 仅更新给定列，避免 Save 全字段覆盖造成的：
+//   1) 并发场景下丢字段；
+//   2) created_at 被清零；
+//   3) decimals/空值污染。
+func (r *PaymentRepo) UpdateSelective(ctx context.Context, id uint64, updates map[string]interface{}) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Payment{}).
+		Where("id = ?", id).
+		Updates(updates).Error
+}
+
+// Update 是向后兼容保留的"全量 Save"，已不建议在新代码里使用。
+// 显式保留是因为 model.Payment 上的关联字段（如 PaidAt）零值会被写成 NULL，符合早期测试期望。
 func (r *PaymentRepo) Update(ctx context.Context, p *model.Payment) error {
 	return r.db.WithContext(ctx).Save(p).Error
 }

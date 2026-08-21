@@ -41,10 +41,13 @@ func TestNotifyPayment_AlreadyPaid(t *testing.T) {
 	db, mock := newMockDB(t)
 	svcCtx := newTestSvcCtx(db, nil, nil)
 
+	// 幂等路径：进入事务 → SELECT → 直接 commit（不更新）。
+	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs("PAY123", 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
 			AddRow(1, "PAY123", 1001, 2001, 25.00, "wechat", 2, "tx_1", 0.00, nil, time.Now(), time.Now()))
+	mock.ExpectCommit()
 
 	l := NewNotifyPaymentLogic(context.Background(), svcCtx)
 	resp, err := l.NotifyPayment(&proto.NotifyPaymentRequest{
@@ -62,31 +65,28 @@ func TestNotifyPayment_AlreadyPaid(t *testing.T) {
 
 func TestNotifyPayment_SuccessFullChain(t *testing.T) {
 	db, mock := newMockDB(t)
-	svcCtx := newTestSvcCtx(db, &mockOrderClient{driverId: 3001}, nil)
+	svcCtx := newTestSvcCtx(db, nil, nil)
 
-	// 1. 查询支付单（待支付 status=1）
+	// 1. 事务开始 + 读取支付单（待支付 status=1）
+	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs("PAY123", 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
 			AddRow(1, "PAY123", 1001, 2001, 25.00, "wechat", 1, "", 0.00, nil, time.Now(), time.Now()))
 
-	// 2. 更新支付单为支付成功（Save 包事务）
-	mock.ExpectBegin()
-	mock.ExpectExec("UPDATE `payment`").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
-
-	// 3. 触发结算：INSERT settlement（Create 包事务）
-	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO `settlement`").WillReturnResult(sqlmock.NewResult(1, 1))
+	// 2. 条件更新 → GORM 用条件 UPDATE 而不是事务 SAVE
+	mock.ExpectExec("UPDATE `payment` SET").
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	l := NewNotifyPaymentLogic(context.Background(), svcCtx)
 	resp, err := l.NotifyPayment(&proto.NotifyPaymentRequest{
-		PaymentNo:     "PAY123",
-		TradeStatus:   alipayTradeSuccess,
-		TransactionId: "tx_123",
-		PaidAt:        1753065600,
-		NotifyRaw:     "x=1",
+		PaymentNo:        "PAY123",
+		TradeStatus:      alipayTradeSuccess,
+		TransactionId:    "tx_123",
+		PaidAt:           1753065600,
+		NotifyRaw:        "x=1",
+		TotalAmountCents: 2500, // 与 amount(25.00) 一致
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -115,5 +115,33 @@ func TestNotifyPayment_IgnoreNonSuccessStatus(t *testing.T) {
 	}
 	if !resp.Success {
 		t.Error("expected success (ignore)")
+	}
+}
+
+// TestNotifyPayment_AmountMismatch 验签通过但回调金额与支付单不一致：必须拒绝。
+func TestNotifyPayment_AmountMismatch(t *testing.T) {
+	db, mock := newMockDB(t)
+	svcCtx := newTestSvcCtx(db, nil, nil)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
+		WithArgs("PAY123", 1).
+		WillReturnRows(sqlmock.NewRows(paymentColumns).
+			AddRow(1, "PAY123", 1001, 2001, 25.00, "wechat", 1, "", 0.00, nil, time.Now(), time.Now()))
+	// 金额比对失败 → 事务回滚，不发 UPDATE。
+	mock.ExpectRollback()
+
+	l := NewNotifyPaymentLogic(context.Background(), svcCtx)
+	_, err := l.NotifyPayment(&proto.NotifyPaymentRequest{
+		PaymentNo:        "PAY123",
+		TradeStatus:      alipayTradeSuccess,
+		NotifyRaw:        "x=1",
+		TotalAmountCents: 9999, // 与 25.00(=2500 cents) 不一致
+	})
+	if err == nil {
+		t.Fatal("expected amount mismatch error")
+	}
+	if !errors.Is(err, ErrPaymentAmountMismatch) {
+		t.Errorf("expected ErrPaymentAmountMismatch, got %v", err)
 	}
 }

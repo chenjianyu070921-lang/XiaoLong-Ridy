@@ -52,6 +52,7 @@ message NotifyPaymentRequest {
   string sign_type = 5;        // 签名类型 RSA2
   int64 paid_at = 6;           // 支付时间（Unix 秒）
   string notify_raw = 7;       // 原始回调参数字符串（验签用，url.Values 序列化）
+  int64 total_amount_cents = 8; // 回调携带的订单总金额（分），用于与支付单 amount 比对防篡改
 }
 
 // 支付回调响应

@@ -4,9 +4,14 @@
 #   1. MySQL 已运行，且已执行 scripts/sql/migrate/05_trade_module.sql（建表 + 初始计价规则）
 #      本地可用 docker 起 MySQL：
 #        docker compose -f deploy/docker/infra.yml up -d mysql
-#   2. 确认 rpc/paysvc/etc/paysvc.yaml 里 mysql.dsn 的账号密码与本地一致
-#      （infra.yml 默认 root 密码为 root，paysvc.yaml 默认为 root123，需二选一对齐）
+#   2. 确认 rpc/paysvc/etc/paysvc-test.yaml 里 mysql.dsn 的账号密码与本地一致
+#      （infra.yml 默认 root 密码为 root，test yaml 默认为 root123，需二选一对齐）
 #   3. 已安装 Go
+#
+# 说明：
+#   - 使用 paysvc-test.yaml（Mode: test）启动：验签器降级 MockVerifier、渠道降级 MockChannel，
+#     便于本地无沙箱密钥时模拟回调跑通全链路。
+#   - 生产模式联调请改用 paysvc.yaml，并用支付宝私钥对回调做真实签名。
 #
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File scripts/e2e/run_pay_e2e.ps1
@@ -19,11 +24,11 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # 项目根目录
 
-Write-Host "== 1/3 启动 paysvc ==" -ForegroundColor Cyan
+Write-Host "== 1/3 启动 paysvc（Mode: test）==" -ForegroundColor Cyan
 $outLog = Join-Path $env:TEMP "paysvc.out.log"
 $errLog = Join-Path $env:TEMP "paysvc.err.log"
 $paysvc = Start-Process -FilePath "go" `
-    -ArgumentList "run", (Join-Path $root "rpc\paysvc\paysvc.go"), "-f", (Join-Path $root "rpc\paysvc\etc\paysvc.yaml") `
+    -ArgumentList "run", (Join-Path $root "rpc\paysvc\paysvc.go"), "-f", (Join-Path $root "rpc\paysvc\etc\paysvc-test.yaml") `
     -PassThru -NoNewWindow -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 Write-Host "paysvc PID=$($paysvc.Id)，等待监听 $Target ..."
 
@@ -42,7 +47,7 @@ Write-Host "paysvc 已就绪" -ForegroundColor Green
 
 Write-Host "`n== 2/3 运行联调客户端 ==" -ForegroundColor Cyan
 try {
-    go run (Join-Path $root "scripts\e2e\pay_e2e_client.go") -target $Target
+    go run (Join-Path $root "scripts\e2e\pay_e2e_client.go") -target $Target -config (Join-Path $root "rpc\paysvc\etc\paysvc-test.yaml")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } finally {
     Write-Host "`n== 3/3 停止 paysvc ==" -ForegroundColor Cyan

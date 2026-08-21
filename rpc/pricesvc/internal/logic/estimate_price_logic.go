@@ -31,17 +31,26 @@ func NewEstimatePriceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Est
 	}
 }
 
-// 行程价格预估：根据计价规则 + 里程/时长估算费用。
+// EstimatePrice 行程价格预估：根据计价规则 + 里程/时长估算费用。
+//
+// 缺规则兜底（M5-12）：
+//   - DB 查询不到任何启用的规则时，使用规则包内置的 DefaultPriceRule（系统兜底价）；
+//   - 兜底规则显式标记 ID = DefaultPriceRuleID，便于后台对账识别；
+//   - 不阻断流程：让乘客始终能看到估算价，对应兜底价由对账任务后续替换为正式规则。
 func (l *EstimatePriceLogic) EstimatePrice(in *proto.EstimatePriceRequest) (*proto.EstimatePriceResponse, error) {
 	ruleRepo := repository.NewPriceRuleRepo(l.svcCtx.DB)
 
 	// 1. 查询启用的计价规则
 	pr, err := ruleRepo.FindActive(l.ctx, in.CityCode, int8(in.CarType))
+	usingDefault := false
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPriceRuleNotFound
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
 		}
-		return nil, err
+		// M5-12：找不到规则时用系统兜底价，不阻断预估流程。
+		l.Infof("price rule not found, fallback to default: city_code=%s, car_type=%d", in.CityCode, in.CarType)
+		pr = rule.DefaultPriceRule(in.CityCode, int8(in.CarType))
+		usingDefault = true
 	}
 
 	// 2. 判断是否夜间（根据规则时段 + 请求时刻）
@@ -78,8 +87,15 @@ func (l *EstimatePriceLogic) EstimatePrice(in *proto.EstimatePriceRequest) (*pro
 		return nil, err
 	}
 
+	// 5. 响应里如果走的是兜底规则，price_rule_id 字段置 0（让调用方无法通过 ID 查到真实规则做误导），
+	// 仅日志记录；这里保留 0 之外的 ID 仅便于后端对账。
+	ruleId := int64(pr.Id)
+	if usingDefault {
+		ruleId = 0
+	}
+
 	return &proto.EstimatePriceResponse{
-		PriceRuleId: int64(pr.Id),
+		PriceRuleId: ruleId,
 		Detail: &proto.PriceDetail{
 			BaseFeeCents:     detail.BaseFeeCents,
 			DistanceFeeCents: detail.DistanceFeeCents,

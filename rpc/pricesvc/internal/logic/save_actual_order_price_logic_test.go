@@ -46,15 +46,13 @@ func TestSaveActualOrderPrice_UpdateExisting(t *testing.T) {
 	svcCtx := newPriceSvcCtx(db)
 	ctx := context.Background()
 
-	// 1. 已存在 order_price（此前预估过）
+	// 整个调用都在一个事务里 → Begin → SELECT → UPDATE → Commit。
+	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT \\* FROM `order_price` WHERE order_id = \\?").
 		WithArgs(1001, 1).
 		WillReturnRows(sqlmock.NewRows(orderPriceColumns).
 			AddRow(1, 1001, 1, 25.00, 0.00, 8.00, 10.00, 4.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1, time.Now(), time.Now()))
-
-	// 2. 更新实际费用 → Save 包事务
-	mock.ExpectBegin()
-	mock.ExpectExec("UPDATE `order_price`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("UPDATE `order_price` SET").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	l := NewSaveActualOrderPriceLogic(ctx, svcCtx)
@@ -89,13 +87,11 @@ func TestSaveActualOrderPrice_CreateNew(t *testing.T) {
 	svcCtx := newPriceSvcCtx(db)
 	ctx := context.Background()
 
-	// 1. 不存在 → 返回 not found
+	// 整个调用都在事务里 → Begin → SELECT(not found) → INSERT → Commit。
+	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT \\* FROM `order_price` WHERE order_id = \\?").
 		WithArgs(1002, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
-
-	// 2. 新建 → INSERT 包事务
-	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO `order_price`").WillReturnResult(sqlmock.NewResult(2, 1))
 	mock.ExpectCommit()
 

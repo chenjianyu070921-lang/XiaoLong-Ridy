@@ -6,7 +6,6 @@ import (
 
 	"XiaoLong-Ridy/common/priceutil"
 	"XiaoLong-Ridy/rpc/pricesvc/internal/model"
-	"XiaoLong-Ridy/rpc/pricesvc/internal/repository"
 	"XiaoLong-Ridy/rpc/pricesvc/internal/svc"
 	"XiaoLong-Ridy/rpc/pricesvc/proto"
 
@@ -15,8 +14,8 @@ import (
 )
 
 var (
-	ErrOrderIdInvalid      = errors.New("order id must be positive")
-	ErrActualPriceInvalid  = errors.New("actual price must be non-negative")
+	ErrOrderIdInvalid     = errors.New("order id must be positive")
+	ErrActualPriceInvalid = errors.New("actual price must be non-negative")
 )
 
 type SaveActualOrderPriceLogic struct {
@@ -33,11 +32,12 @@ func NewSaveActualOrderPriceLogic(ctx context.Context, svcCtx *svc.ServiceContex
 	}
 }
 
-// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
+// SaveActualOrderPrice 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
 //
 // 行为：
-//   - 若 order_price 已存在（此前预估过），仅更新实际费用与分项明细，状态置「已确认(2)」；
-//   - 若不存在，则新建一条（estimated_price 暂按实际总价填充）。
+//   - 若 order_price 已存在（此前预估过），仅更新必要列（UpdateSelective）并把状态置「已确认(2)」；
+//   - 若不存在，则新建一条（INSERT）；
+//   - 整段读写都包在 db.Transaction() 里，避免对账与"价格已确认、订单未完结"等竞态（M5-2 / M5-5）。
 func (l *SaveActualOrderPriceLogic) SaveActualOrderPrice(in *proto.SaveActualOrderPriceRequest) (*proto.SaveActualOrderPriceResponse, error) {
 	if in.OrderId <= 0 {
 		return nil, ErrOrderIdInvalid
@@ -47,7 +47,7 @@ func (l *SaveActualOrderPriceLogic) SaveActualOrderPrice(in *proto.SaveActualOrd
 	}
 
 	actualCents := in.ActualPriceCents
-	// 若请求未显式给总价，但给了明细，则以明细 total 为准
+	// 若请求未显式给总价但给了明细，则以明细 total 为准
 	if actualCents == 0 && in.Detail != nil && in.Detail.TotalCents > 0 {
 		actualCents = in.Detail.TotalCents
 	}
@@ -62,51 +62,73 @@ func (l *SaveActualOrderPriceLogic) SaveActualOrderPrice(in *proto.SaveActualOrd
 		dynamicFee = in.Detail.DynamicFeeCents
 	}
 
-	repo := repository.NewOrderPriceRepo(l.svcCtx.DB)
+	// 单一变量 result：事务闭包传出主键与是否新建。
+	type result struct {
+		id      int64
+		created bool
+	}
+	var res result
 
-	op, err := repo.FindByOrderId(l.ctx, uint64(in.OrderId))
-	switch {
-	case err == nil:
-		// 已存在：更新实际费用与分项，状态置「已确认」
-		op.PriceRuleId = uint64(in.PriceRuleId)
-		op.ActualPrice = priceutil.CentsToYuan(actualCents)
-		op.BaseFee = priceutil.CentsToYuan(baseFee)
-		op.DistanceFee = priceutil.CentsToYuan(distanceFee)
-		op.TimeFee = priceutil.CentsToYuan(timeFee)
-		op.NightFee = priceutil.CentsToYuan(nightFee)
-		op.DynamicFee = priceutil.CentsToYuan(dynamicFee)
-		op.Status = 2 // 已确认
-		if err := repo.Update(l.ctx, op); err != nil {
-			return nil, err
-		}
-		return &proto.SaveActualOrderPriceResponse{
-			Success:       true,
-			OrderPriceId:  int64(op.Id),
-		}, nil
+	err := l.svcCtx.DB.WithContext(l.ctx).Transaction(func(tx *gorm.DB) error {
+		var existing model.OrderPrice
+		findErr := tx.Where("order_id = ?", uint64(in.OrderId)).First(&existing).Error
 
-	case errors.Is(err, gorm.ErrRecordNotFound):
-		// 不存在：新建实际费用快照
-		op = &model.OrderPrice{
-			OrderId:        uint64(in.OrderId),
-			PriceRuleId:    uint64(in.PriceRuleId),
-			EstimatedPrice: priceutil.CentsToYuan(actualCents), // 首次落库以实际总价兜底
-			ActualPrice:    priceutil.CentsToYuan(actualCents),
-			BaseFee:        priceutil.CentsToYuan(baseFee),
-			DistanceFee:    priceutil.CentsToYuan(distanceFee),
-			TimeFee:        priceutil.CentsToYuan(timeFee),
-			NightFee:       priceutil.CentsToYuan(nightFee),
-			DynamicFee:     priceutil.CentsToYuan(dynamicFee),
-			Status:         2, // 已确认
-		}
-		if err := repo.Create(l.ctx, op); err != nil {
-			return nil, err
-		}
-		return &proto.SaveActualOrderPriceResponse{
-			Success:       true,
-			OrderPriceId:  int64(op.Id),
-		}, nil
+		switch {
+		case findErr == nil:
+			// 已存在：仅更新必要列（Updates(map)），不改 created_at / 其它无关列。
+			updates := map[string]interface{}{
+				"price_rule_id": uint64(in.PriceRuleId),
+				"actual_price":  priceutil.CentsToYuan(actualCents),
+				"base_fee":      priceutil.CentsToYuan(baseFee),
+				"distance_fee":  priceutil.CentsToYuan(distanceFee),
+				"time_fee":      priceutil.CentsToYuan(timeFee),
+				"night_fee":     priceutil.CentsToYuan(nightFee),
+				"dynamic_fee":   priceutil.CentsToYuan(dynamicFee),
+				"status":        2, // 已确认
+			}
+			upd := tx.Model(&model.OrderPrice{}).
+				Where("id = ?", existing.Id).
+				Updates(updates)
+			if upd.Error != nil {
+				return upd.Error
+			}
+			res.id = int64(existing.Id)
+			res.created = false
+			return nil
 
-	default:
+		case errors.Is(findErr, gorm.ErrRecordNotFound):
+			// 不存在：新建一条（INSERT）。
+			op := &model.OrderPrice{
+				OrderId:        uint64(in.OrderId),
+				PriceRuleId:    uint64(in.PriceRuleId),
+				EstimatedPrice: priceutil.CentsToYuan(actualCents), // 首次落库以实际总价兜底
+				ActualPrice:    priceutil.CentsToYuan(actualCents),
+				BaseFee:        priceutil.CentsToYuan(baseFee),
+				DistanceFee:    priceutil.CentsToYuan(distanceFee),
+				TimeFee:        priceutil.CentsToYuan(timeFee),
+				NightFee:       priceutil.CentsToYuan(nightFee),
+				DynamicFee:     priceutil.CentsToYuan(dynamicFee),
+				Status:         2, // 已确认
+			}
+			if err := tx.Create(op).Error; err != nil {
+				return err
+			}
+			res.id = int64(op.Id)
+			res.created = true
+			return nil
+
+		default:
+			return findErr
+		}
+	})
+	if err != nil {
 		return nil, err
 	}
+
+	_ = res.created // 留口用于将来按 created 分支发不同事件
+
+	return &proto.SaveActualOrderPriceResponse{
+		Success:      true,
+		OrderPriceId: res.id,
+	}, nil
 }
