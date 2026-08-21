@@ -26,13 +26,14 @@ type TokenManager interface {
 
 // ServiceContext 集中保存 usersvc 运行时依赖，server 层只负责转发请求。
 type ServiceContext struct {
-	Config      config.Config
-	Users       repository.UserRepository
-	Addresses   repository.AddressRepository
-	Coupons     repository.CouponRepository
-	SMSSender   SMSCodeSender
-	SMSVerifier SMSCodeVerifier
-	Tokens      TokenManager
+	Config        config.Config
+	Users         repository.UserRepository
+	Addresses     repository.AddressRepository
+	Coupons       repository.CouponRepository
+	RiskBlacklist repository.RiskBlacklistRepository
+	SMSSender     SMSCodeSender
+	SMSVerifier   SMSCodeVerifier
+	Tokens        TokenManager
 }
 
 // NewServiceContext 按 goctl 风格根据配置和依赖创建 usersvc 服务上下文。
@@ -41,17 +42,19 @@ func NewServiceContext(
 	users repository.UserRepository,
 	addresses repository.AddressRepository,
 	coupons repository.CouponRepository,
+	riskBlacklist repository.RiskBlacklistRepository,
 	smsSender SMSCodeSender,
 	smsVerifier SMSCodeVerifier,
 	tokens TokenManager,
 ) *ServiceContext {
 	return &ServiceContext{
-		Config:      c,
-		Users:       users,
-		Addresses:   addresses,
-		Coupons:     coupons,
-		SMSSender:   smsSender,
-		SMSVerifier: smsVerifier,
-		Tokens:      tokens,
+		Config:        c,
+		Users:         users,
+		Addresses:     addresses,
+		Coupons:       coupons,
+		RiskBlacklist: riskBlacklist,
+		SMSSender:     smsSender,
+		SMSVerifier:   smsVerifier,
+		Tokens:        tokens,
 	}
 }

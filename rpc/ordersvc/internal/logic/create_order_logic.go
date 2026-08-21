@@ -16,6 +16,7 @@ import (
 	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
 
 type CreateOrderLogic struct {
@@ -47,6 +48,9 @@ type orderCreatedEvent struct {
 // CreateOrder 校验参数并创建待接单订单，同时写入创建状态日志并发布订单创建事件。
 func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.CreateOrderResponse, error) {
 	if err := validateCreateOrder(in); err != nil {
+		return nil, err
+	}
+	if err := l.recordBlacklistOrderHit(uint64(in.UserId)); err != nil {
 		return nil, err
 	}
 
@@ -111,6 +115,53 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 	}
 
 	return nil, ErrInvalidOrderParams
+}
+
+// recordBlacklistOrderHit 检查下单用户是否命中生效黑名单，并持久化下单场景审计记录。
+// 黑名单查询失败仅记录日志并放行下单；已确认命中后写入失败返回错误，避免风险记录静默缺失。
+func (l *CreateOrderLogic) recordBlacklistOrderHit(userID uint64) error {
+	if l.svcCtx.RiskBlacklistRepository == nil {
+		return nil
+	}
+	entry, err := l.svcCtx.RiskBlacklistRepository.FindActiveByTarget(l.ctx, "user", userID)
+	if err != nil {
+		l.Logger.Errorf("query order blacklist failed, user_id=%d: %v", userID, err)
+		return nil
+	}
+	if entry == nil {
+		return nil
+	}
+	return l.svcCtx.RiskBlacklistRepository.CreateHitRecord(l.ctx, &repository.BlacklistHitRecord{
+		BlacklistID: entry.ID,
+		TargetType:  "user",
+		TargetID:    userID,
+		Scene:       "order",
+		RiskLevel:   3,
+		HitReason:   entry.Reason,
+		RequestID:   riskRequestID(l.ctx),
+	})
+}
+
+// riskRequestID 从 gRPC 入站元数据提取请求链路 ID，并限制在运营表字段允许的长度内。
+// 现有协议未强制携带该字段，缺失时返回空字符串以兼容历史调用。
+func riskRequestID(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+	for _, key := range []string{"x-request-id", "request-id", "trace-id"} {
+		for _, value := range md.Get(key) {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				continue
+			}
+			if len(value) > 64 {
+				return value[:64]
+			}
+			return value
+		}
+	}
+	return ""
 }
 
 // buildRideOrder 根据 RPC 入参构造待接单订单，每次调用都会生成新的订单号。

@@ -186,6 +186,44 @@ func TestIssueCoupon_RejectsDraftCoupon(t *testing.T) {
 	}
 }
 
+// TestIssueCoupon_WritesPublishRecordInTransaction 验证实际发券、任务和发布记录必须同事务提交。
+func TestIssueCoupon_WritesPublishRecordInTransaction(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	validEndAt := time.Now().Add(time.Hour)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT valid_end_at, status, total_count, received_count, per_user_limit`).
+		WithArgs(int64(10)).
+		WillReturnRows(sqlmock.NewRows([]string{"valid_end_at", "status", "total_count", "received_count", "per_user_limit"}).
+			AddRow(validEndAt, int32(2), int64(10), int64(0), int64(1)))
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon WHERE user_id = \? AND coupon_id = \?`).
+		WithArgs(int64(1001), int64(10)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectExec(`INSERT INTO user_coupon`).
+		WithArgs(int64(1001), int64(10), sqlmock.AnyArg(), validEndAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`INSERT INTO admin_coupon_issue_task`).
+		WithArgs(sqlmock.AnyArg(), int64(10), "user", `{"user_ids":[1001]}`, 1, int64(1), int64(0), int32(3), "", int64(9001)).
+		WillReturnResult(sqlmock.NewResult(2, 1))
+	mock.ExpectExec(`UPDATE coupon SET received_count = received_count \+ \? WHERE id = \?`).
+		WithArgs(int64(1), int64(10)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`INSERT INTO admin_operation_log`).
+		WithArgs(int64(9001), "coupon", "issue", "coupon", int64(10), sqlmock.AnyArg(), "127.0.0.1").
+		WillReturnResult(sqlmock.NewResult(3, 1))
+	mock.ExpectExec(`INSERT INTO admin_coupon_publish_record`).
+		WithArgs(int64(10), sqlmock.AnyArg(), `{"user_ids":[1001]}`, int32(2), "", int64(9001)).
+		WillReturnResult(sqlmock.NewResult(4, 1))
+	mock.ExpectCommit()
+
+	resp, err := NewIssueCouponLogic(context.Background(), svcCtx).IssueCoupon(&adminsvc.CouponIssueRequest{
+		CouponId: 10, AdminId: 9001, TargetType: "user", TargetConfig: `{"user_ids":[1001]}`, Ip: "127.0.0.1",
+	})
+	if err != nil || resp.GetStatus() != "success" {
+		t.Fatalf("IssueCoupon() = %#v, %v; want successful transaction", resp, err)
+	}
+}
+
 // TestGetCouponStatistics_CountsEnabledStatus 验证启用券统计只统计状态 2。
 func TestGetCouponStatistics_CountsEnabledStatus(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)

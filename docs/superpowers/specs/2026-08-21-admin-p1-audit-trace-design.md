@@ -12,7 +12,7 @@
 
 ## 黑名单命中记录
 
-`usersvc.LoginBySMS` 与 `ordersvc.CreateOrder` 在各自业务入口检查 `blacklist` 表：登录按手机号目标检查，下单按用户 ID 目标检查。命中后向 `risk_blacklist_hit_record` 写入 `login` 或 `order` 场景、目标、关联黑名单 ID、风险等级、原因与请求链路 ID。
+`usersvc.LoginBySMS` 与 `ordersvc.CreateOrder` 在各自业务入口检查 `blacklist` 表。当前基础表的 `target_id` 为数值字段，且目标类型定义为 `user/driver/device`，因此登录在用户定位完成后与下单一致，均按 `user` 加用户 ID 检查；不将手机号错误映射为数值 ID。命中后向 `risk_blacklist_hit_record` 写入 `login` 或 `order` 场景、目标、关联黑名单 ID、风险等级、原因与请求链路 ID。
 
 首轮只记录命中，不改变当前登录或下单的准入结果，避免未经产品确认的业务拦截。检查失败不影响原业务，但应记录错误日志；命中记录写入失败返回错误，避免成功业务动作不可追溯。
 

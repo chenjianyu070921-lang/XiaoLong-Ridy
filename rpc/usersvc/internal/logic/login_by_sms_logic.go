@@ -11,6 +11,7 @@ import (
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
 
 // LoginBySMSLogic 处理短信验证码登录 RPC 的完整业务流程。
@@ -52,6 +53,9 @@ func (l *LoginBySMSLogic) LoginBySMS(in *userproto.LoginBySMSRequest) (*userprot
 	if user.Status == model.UserStatusFrozen {
 		return nil, ErrAccountFrozen
 	}
+	if err := l.recordBlacklistLoginHit(user.ID); err != nil {
+		return nil, err
+	}
 
 	// 登录成功后统一签发 Access Token 和 Refresh Token，供乘客端后续接口鉴权使用。
 	token, refreshToken, err := l.svcCtx.Tokens.Issue(user.ID, user.Phone, user.Status)
@@ -65,6 +69,54 @@ func (l *LoginBySMSLogic) LoginBySMS(in *userproto.LoginBySMSRequest) (*userprot
 		IsNewUser:    isNewUser,
 		User:         toUserInfo(user),
 	}, nil
+}
+
+// recordBlacklistLoginHit 检查登录用户是否命中生效黑名单，并落库保存登录场景审计记录。
+// 基础表仅支持数值 target_id，因此登录按已定位的用户 ID 查询，而不将手机号错误转换为数值 ID。
+// 查询基础设施异常不阻断登录；已确认命中后记录写入失败必须返回错误，避免命中事实静默丢失。
+func (l *LoginBySMSLogic) recordBlacklistLoginHit(userID uint64) error {
+	if l.svcCtx.RiskBlacklist == nil {
+		return nil
+	}
+	entry, err := l.svcCtx.RiskBlacklist.FindActiveByTarget(l.ctx, "user", userID)
+	if err != nil {
+		l.Logger.Errorf("query login blacklist failed, user_id=%d: %v", userID, err)
+		return nil
+	}
+	if entry == nil {
+		return nil
+	}
+	return l.svcCtx.RiskBlacklist.CreateHitRecord(l.ctx, &repository.BlacklistHitRecord{
+		BlacklistID: entry.ID,
+		TargetType:  "user",
+		TargetID:    userID,
+		Scene:       "login",
+		RiskLevel:   3,
+		HitReason:   entry.Reason,
+		RequestID:   riskRequestID(l.ctx),
+	})
+}
+
+// riskRequestID 从 gRPC 入站元数据提取请求链路 ID，并限制在运营表字段允许的长度内。
+// 现有协议未强制携带该字段，缺失时返回空字符串以兼容历史调用。
+func riskRequestID(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+	for _, key := range []string{"x-request-id", "request-id", "trace-id"} {
+		for _, value := range md.Get(key) {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				continue
+			}
+			if len(value) > 64 {
+				return value[:64]
+			}
+			return value
+		}
+	}
+	return ""
 }
 
 // findOrCreateUser 按手机号查询用户；不存在时按短信登录规则自动注册。

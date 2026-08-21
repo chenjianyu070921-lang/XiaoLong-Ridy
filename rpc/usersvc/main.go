@@ -92,7 +92,7 @@ func newServiceContext(c config.Config) *svc.ServiceContext {
 		log.Printf("本地短信验证码：phone=%s code=%s", phone, code)
 	})
 	tokens := logic.NewRedisTokenManager(redisClient, signingKey)
-	return svc.NewServiceContext(c, users, addresses, coupons, smsService, smsService, tokens)
+	return svc.NewServiceContext(c, users, addresses, coupons, repository.NewGormRiskBlacklistRepository(db), smsService, smsService, tokens)
 }
 
 // newSMSMessageSender 根据配置创建真实短信发送器；腾讯云配置齐全时作为首选通道。

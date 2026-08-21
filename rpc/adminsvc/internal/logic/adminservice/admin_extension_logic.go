@@ -124,6 +124,9 @@ func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*admins
 	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "issue", "coupon", in.GetCouponId(), fmt.Sprintf("创建发券任务：%s，成功%d，失败%d", taskNo, successCount, failCount), in.GetIp()); err != nil {
 		return nil, err
 	}
+	if err := writeCouponPublishRecordTx(l.ctx, tx, in.GetCouponId(), taskNo, in.GetTargetConfig(), couponPublishStatus(taskStatus), failureReason, in.GetAdminId()); err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
@@ -134,6 +137,26 @@ func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*admins
 		FailCount:    failCount,
 		Status:       couponIssueStatusText(taskStatus),
 	}, nil
+}
+
+// writeCouponPublishRecordTx 在发券主事务中写入优惠券发布记录。
+// 该记录与发券任务、用户券及领取数量保持原子一致，避免后台无法追溯已实际执行的发券动作。
+func writeCouponPublishRecordTx(ctx context.Context, tx *sql.Tx, couponID int64, taskNo, targetConfig string, publishStatus int32, failureReason string, adminID int64) error {
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO admin_coupon_publish_record
+			(coupon_id, publish_version, publish_scope, target_config, status, failure_reason, operator_id)
+		VALUES (?, ?, 'full', ?, ?, ?, ?)
+	`, couponID, taskNo, targetConfig, publishStatus, failureReason, adminID)
+	return err
+}
+
+// couponPublishStatus 将发券任务结果映射到优惠券发布记录状态。
+// 全部成功记为发布成功；部分失败和全部失败均保留失败状态，并由 failure_reason 说明实际结果。
+func couponPublishStatus(taskStatus int32) int32 {
+	if taskStatus == 3 {
+		return 2
+	}
+	return 3
 }
 
 // ListCouponIssueTasksLogic 处理发券任务列表查询。
