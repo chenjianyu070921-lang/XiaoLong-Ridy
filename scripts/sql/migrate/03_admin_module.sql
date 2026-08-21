@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS `coupon` (
   `per_user_limit` INT NOT NULL DEFAULT 1 COMMENT 'per user limit',
   `valid_start_at` DATETIME NOT NULL COMMENT 'valid start time',
   `valid_end_at` DATETIME NOT NULL COMMENT 'valid end time',
-  `status` TINYINT NOT NULL DEFAULT 1 COMMENT 'status: 1 enabled, 2 disabled',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT 'status: 1 draft, 2 enabled, 3 disabled',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'updated time',
   PRIMARY KEY (`id`)

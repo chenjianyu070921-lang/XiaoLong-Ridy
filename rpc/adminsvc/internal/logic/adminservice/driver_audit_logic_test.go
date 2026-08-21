@@ -103,9 +103,8 @@ func TestRejectDriverCertification_CallsDriversvcAndWritesAuditLog(t *testing.T)
 	}
 }
 
-// TestApproveDriverCertification_ReturnsErrorWhenAuditLogFails 验证敏感审核操作在审计日志失败时不能返回成功。
-// driversvc 已完成的跨服务状态变更无法由 adminsvc 本地事务回滚，因此策略是阻断成功响应，并写入 admin_audit_outbox 等待后续补偿审计。
-func TestApproveDriverCertification_ReturnsErrorWhenAuditLogFails(t *testing.T) {
+// TestApproveDriverCertification_CreatesOutboxAndReturnsSuccess 验证跨服务审核成功后审计失败会补偿且保留成功响应。
+func TestApproveDriverCertification_CreatesOutboxAndReturnsSuccess(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
 	defer cleanup()
 	driverClient := &fakeDriversClient{}
@@ -123,11 +122,8 @@ func TestApproveDriverCertification_ReturnsErrorWhenAuditLogFails(t *testing.T) 
 		AdminId: 9001,
 		Ip:      "127.0.0.1",
 	})
-	if err == nil {
-		t.Fatal("ApproveDriverCertification() error = nil, want audit log error")
-	}
-	if resp != nil {
-		t.Fatalf("ApproveDriverCertification() response = %#v, want nil", resp)
+	if err != nil || resp.GetMessage() != "ok" {
+		t.Fatalf("ApproveDriverCertification() = %#v, %v; want successful compensated response", resp, err)
 	}
 	if driverClient.approveReq == nil {
 		t.Fatal("ApproveDriverCertification() should call driversvc before audit log failure is observed")

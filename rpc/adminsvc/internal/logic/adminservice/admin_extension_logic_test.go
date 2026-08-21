@@ -12,6 +12,8 @@ import (
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // newAdminSQLMock 创建 adminsvc 逻辑层测试使用的 sqlmock 数据库。
@@ -53,7 +55,8 @@ func TestCreateExportTask_StartsAsyncStateMachine(t *testing.T) {
 	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
 		WithArgs("running", "", "", "", nil, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery(`SELECT id, order_no, user_id, driver_id, status, estimated_price, created_at\s+FROM ride_order\s+ORDER BY id DESC\s+LIMIT 5000`).
+	mock.ExpectQuery(`SELECT id, order_no, user_id, driver_id, status, estimated_price, created_at\s+FROM ride_order\s+WHERE 1=1 AND status = \?\s+ORDER BY id DESC\s+LIMIT 5000`).
+		WithArgs(int32(5)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "order_no", "user_id", "driver_id", "status", "estimated_price", "created_at"}).
 			AddRow(int64(1001), "RO202608200001", int64(2001), int64(3001), int32(5), "28.50", createdAt))
 	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
@@ -109,9 +112,8 @@ func TestGetStatisticsOverview_ReturnsSQLError(t *testing.T) {
 	}
 }
 
-// TestAddBlacklist_ReturnsOperationLogError 验证黑名单新增时审计日志失败必须向上返回。
-// 风控黑名单属于敏感操作，不能出现业务成功但 admin_operation_log 缺失的假成功。
-func TestAddBlacklist_ReturnsOperationLogError(t *testing.T) {
+// TestAddBlacklist_CreatesOutboxAndReturnsSuccess 验证业务写入成功后审计失败会创建补偿任务并返回成功。
+func TestAddBlacklist_CreatesOutboxAndReturnsSuccess(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
 	defer cleanup()
 
@@ -120,16 +122,82 @@ func TestAddBlacklist_ReturnsOperationLogError(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(88, 1))
 	mock.ExpectExec(`INSERT INTO admin_operation_log`).
 		WillReturnError(errors.New("operation log write failed"))
+	mock.ExpectExec(`INSERT INTO admin_audit_outbox`).
+		WithArgs(sqlmock.AnyArg(), "risk", "add_blacklist", "blacklist", int64(88), int64(9001), "新增黑名单：user/1001", "127.0.0.1", "operation log write failed").
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	_, err := NewAddBlacklistLogic(context.Background(), svcCtx).AddBlacklist(&adminsvc.BlacklistRequest{
+	resp, err := NewAddBlacklistLogic(context.Background(), svcCtx).AddBlacklist(&adminsvc.BlacklistRequest{
 		TargetType: "user",
 		TargetId:   1001,
 		Reason:     "恶意取消订单",
 		AdminId:    9001,
 		Ip:         "127.0.0.1",
 	})
-	if err == nil {
-		t.Fatal("AddBlacklist() error = nil, want operation log error")
+	if err != nil || resp.GetMessage() != "ok" {
+		t.Fatalf("AddBlacklist() = %#v, %v; want successful compensated response", resp, err)
+	}
+}
+
+// TestCreateExportTask_RejectsUnknownFilter 验证创建任务时拒绝未定义筛选字段，防止条件被静默忽略。
+func TestCreateExportTask_RejectsUnknownFilter(t *testing.T) {
+	svcCtx, _, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	_, err := NewCreateExportTaskLogic(context.Background(), svcCtx).CreateExportTask(&adminsvc.ExportTaskRequest{
+		ExportType: "orders", Filters: `{"unknown":1}`, AdminId: 9001,
+	})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("CreateExportTask() error code = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
+// TestPromotionActionValidation 验证发布范围和目标配置必须符合活动状态机入口约束。
+func TestPromotionActionValidation(t *testing.T) {
+	err := validatePromotionAction(&adminsvc.PromotionActivityActionRequest{Id: 1, AdminId: 1, PublishScope: "all", TargetConfig: `{}`}, true)
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("validatePromotionAction() code = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
+// TestGetStatisticsOverview_RejectsUnsupportedCityFilter 验证不存在城市归属字段时拒绝城市筛选，避免静默返回跨城市口径。
+func TestGetStatisticsOverview_RejectsUnsupportedCityFilter(t *testing.T) {
+	svcCtx, _, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	_, err := NewGetStatisticsOverviewLogic(context.Background(), svcCtx).GetStatisticsOverview(&adminsvc.StatisticsRequest{CityCode: "110000"})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("GetStatisticsOverview() error code = %v, want FailedPrecondition", status.Code(err))
+	}
+}
+
+// TestIssueCoupon_RejectsDraftCoupon 验证草稿券不能进入发券事务，防止未发布规则提前影响用户权益。
+func TestIssueCoupon_RejectsDraftCoupon(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT valid_end_at, status, total_count, received_count, per_user_limit`).
+		WithArgs(int64(10)).
+		WillReturnRows(sqlmock.NewRows([]string{"valid_end_at", "status", "total_count", "received_count", "per_user_limit"}).
+			AddRow(time.Now().Add(time.Hour), int32(1), int64(10), int64(0), int64(1)))
+	mock.ExpectRollback()
+	_, err := NewIssueCouponLogic(context.Background(), svcCtx).IssueCoupon(&adminsvc.CouponIssueRequest{
+		CouponId: 10, AdminId: 1, TargetType: "user", TargetConfig: `{"user_ids":[1001]}`,
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("IssueCoupon() error code = %v, want FailedPrecondition", status.Code(err))
+	}
+}
+
+// TestGetCouponStatistics_CountsEnabledStatus 验证启用券统计只统计状态 2。
+func TestGetCouponStatistics_CountsEnabledStatus(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM coupon$`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM coupon WHERE status = 2`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon$`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon WHERE status = 2`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon WHERE status = 3`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	resp, err := NewGetCouponStatisticsLogic(context.Background(), svcCtx).GetCouponStatistics(&adminsvc.StatisticsRequest{})
+	if err != nil || resp.GetEnabledCouponCount() != 1 {
+		t.Fatalf("GetCouponStatistics() = %#v, %v; want one enabled coupon", resp, err)
 	}
 }
 

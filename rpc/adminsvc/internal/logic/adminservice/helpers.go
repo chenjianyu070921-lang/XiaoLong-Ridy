@@ -216,6 +216,26 @@ func createOperationLog(ctx context.Context, svcCtx *svc.ServiceContext, adminID
 	return err
 }
 
+// createOperationLogTx 在业务事务内写入后台操作日志，保证同库业务变更与审计记录原子提交。
+func createOperationLogTx(ctx context.Context, tx *sql.Tx, adminID int64, module, action, targetType string, targetID int64, detail, ip string) error {
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO admin_operation_log (admin_id, module, action, target_type, target_id, detail, ip)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, adminID, module, action, targetType, targetID, detail, ip)
+	return err
+}
+
+// writeAuditAfterCommitted 为已提交或跨服务业务操作补写审计日志。
+// 审计失败但补偿任务创建成功时仍返回 nil，避免调用方把已成功的业务动作误判为失败。
+func writeAuditAfterCommitted(ctx context.Context, svcCtx *svc.ServiceContext, adminID int64, module, action, targetType string, targetID int64, detail, ip string) error {
+	if err := createOperationLog(ctx, svcCtx, adminID, module, action, targetType, targetID, detail, ip); err != nil {
+		if outboxErr := recordAuditOutbox(ctx, svcCtx, adminID, module, action, targetType, targetID, detail, ip, err); outboxErr != nil {
+			return fmt.Errorf("业务操作已成功，但审计日志和补偿任务均写入失败: audit=%w; outbox=%v", err, outboxErr)
+		}
+	}
+	return nil
+}
+
 // recordAuditOutbox 写入审计补偿任务。
 // 跨服务操作已经提交但本地审计日志写入失败时，adminsvc 用该表记录待补偿事件，
 // 后续可由 job 或 MQ 消费者重放到 admin_operation_log 或独立 auditsvc。

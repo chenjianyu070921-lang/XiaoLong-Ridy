@@ -97,7 +97,7 @@ func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.
 	if err != nil {
 		return nil, err
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "create", "coupon", id, fmt.Sprintf("创建优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
+	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "create", "coupon", id, fmt.Sprintf("创建优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -148,7 +148,7 @@ func (l *UpdateCouponLogic) UpdateCoupon(in *adminsvc.CouponRequest) (*adminsvc.
 	if affected == 0 {
 		return nil, status.Error(codes.NotFound, "优惠券不存在")
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "update", "coupon", in.GetId(), fmt.Sprintf("编辑优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
+	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "update", "coupon", in.GetId(), fmt.Sprintf("编辑优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -194,7 +194,7 @@ func (l *DisableCouponLogic) DisableCoupon(in *adminsvc.CouponRequest) (*adminsv
 	if affected == 0 {
 		return nil, status.Error(codes.NotFound, "优惠券不存在或已停用")
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "disable", "coupon", in.GetId(), fmt.Sprintf("下架优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
+	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "disable", "coupon", in.GetId(), fmt.Sprintf("下架优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
