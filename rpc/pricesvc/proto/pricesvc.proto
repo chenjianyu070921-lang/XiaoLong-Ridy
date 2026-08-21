@@ -17,7 +17,7 @@ service Price {
   // 计价规则详情查询。
   rpc GetPriceRule(PriceRuleDetailRequest) returns (PriceRule);
   // 创建计价规则。
-  rpc CreatePriceRule(PriceRuleRequest) returns (CommonResponse);
+  rpc CreatePriceRule(PriceRuleRequest) returns (CreatePriceRuleResponse);
   // 更新计价规则。
   rpc UpdatePriceRule(PriceRuleRequest) returns (CommonResponse);
   // 更新计价规则状态。
@@ -99,6 +99,12 @@ message SaveActualOrderPriceResponse {
 // 通用响应
 message CommonResponse {
   string message = 1;
+}
+
+// 创建计价规则响应，返回持久化后的规则 ID 供上游审计关联。
+message CreatePriceRuleResponse {
+  int64 id = 1;
+  string message = 2;
 }
 
 // 计价规则对象。

@@ -81,12 +81,12 @@
 | --- | --- | --- |
 | 司机审核通过 | `rpc/driversvc` + `rpc/adminsvc` | `adminsvc` 同步调用 `driversvc.ApproveCertification`；driversvc 在本地事务内更新 `driver_certification`、`driver`、`driver_vehicle`；adminsvc 写审计日志，失败时写 `admin_audit_outbox` 补偿任务 |
 | 司机审核驳回 | `rpc/driversvc` + `rpc/adminsvc` | `adminsvc` 同步调用 `driversvc.RejectCertification`；driversvc 在本地事务内只更新审核状态；adminsvc 写审计日志，失败时写 `admin_audit_outbox` 补偿任务 |
-| 优惠券新增/编辑/下架 | `rpc/adminsvc` | 写入或更新 `coupon` 表 |
+| 优惠券新增/编辑/下架 | `rpc/adminsvc` | 写入或更新 `coupon` 表；新增与 `admin_operation_log` 使用同一事务，成功响应返回新优惠券 ID |
 | 优惠券发放任务 | `rpc/adminsvc` | 写入 `admin_coupon_issue_task`，同步写入 `user_coupon`，更新 `coupon.received_count` |
-| 计价规则管理 | `rpc/adminsvc` + `rpc/pricesvc` | `api/admin` 和 `adminsvc` 均不直接修改 `price_rule`；由 `adminsvc` 转发到 `pricesvc` 完成列表、详情、新增、编辑、启停 |
+| 计价规则管理 | `rpc/adminsvc` + `rpc/pricesvc` | `api/admin` 和 `adminsvc` 均不直接修改 `price_rule`；由 `adminsvc` 转发到 `pricesvc` 完成列表、详情、新增、编辑、启停；创建响应透传真实规则 ID，审计失败写入 `admin_audit_outbox` 后仍返回已生效结果 |
 | 活动配置发布/回滚 | `rpc/adminsvc` | 更新 `promotion_activity.status`，写入 `admin_operation_log` |
 | 风控黑名单 | `rpc/adminsvc` | 写入或更新 `blacklist`，查询 `risk_blacklist_hit_record` |
-| 导出任务 | `rpc/adminsvc` | 写入 `admin_export_task` 独立任务表，并由 goroutine 异步生成 CSV 文件；迁移脚本为 `scripts/sql/migrate/09_admin_export_audit_task.sql` |
+| 导出任务 | `rpc/adminsvc` | 写入 `admin_export_task` 独立任务表，并由 goroutine 异步生成 CSV 文件；当前仅支持 `orders`，筛选字段只允许 `status`、`user_id`、`driver_id`、`start_time`、`end_time`；迁移脚本为 `scripts/sql/migrate/09_admin_export_audit_task.sql` |
 | 用户冻结/解封 | `rpc/adminsvc` | 更新 `user.status` |
 | 操作审计 | `rpc/adminsvc` | 写入 `admin_operation_log` |
 
@@ -136,3 +136,5 @@
 | 导出任务 | 支持创建、列表和详情查询；使用 `admin_export_task` 承载 `pending/running/success/failed/canceled` 状态、文件路径、失败原因和过期时间，后台异步生成 CSV |
 | 风控管理 | 支持黑名单列表、新增、解除，以及命中记录查询 |
 | 接口自动化测试 | `api/admin/internal/handler/router_test.go` 已覆盖当前已注册 HTTP 接口的全量冒烟测试；`go test ./api/admin/... ./rpc/adminsvc/... ./rpc/pricesvc/... ./rpc/driversvc/...` 已通过 |
+
+统计与城市筛选限制：当前 `ride_order` 没有权威 `city_code` 字段，因此运营总览和订单统计收到非空 `city_code` 会返回参数错误，不能静默返回跨城市数据。订单相关指标的时间范围统一按订单创建时间过滤。

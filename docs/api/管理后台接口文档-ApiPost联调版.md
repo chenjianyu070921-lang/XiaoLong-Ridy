@@ -566,6 +566,8 @@ Body：
 }
 ```
 
+成功返回 `data.id`（由 `pricesvc` 创建并经 `adminsvc` 透传的真实规则 ID）。规则已在 pricesvc 生效后，即使即时审计写入失败，也会写入 `admin_audit_outbox` 补偿任务并保持创建成功语义。
+
 ### 9.4 编辑规则
 
 `PUT /admin/v1/price-rules/{id}`，Body 同新增。
@@ -638,7 +640,7 @@ Body：
 
 ## 十一、数据统计
 
-统一 Query：`start_time`、`end_time`、`city_code`（均可选）。
+统一 Query：`start_time`、`end_time`、`city_code`。当前订单表尚未保存权威 `city_code`，因此运营总览和订单统计传入非空 `city_code` 会返回 `400 / 40001`；不得将其静默降级为全量统计。订单相关指标的时间范围按订单创建时间生效。
 
 ### 11.1 运营总览
 
@@ -670,14 +672,16 @@ Body：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `export_type` | string | 是 | 如 `orders`、`users` |
-| `filters` | string | 否 | JSON 字符串，如 `{"start_time":"2026-08-01 00:00:00"}` |
+| `export_type` | string | 是 | 当前仅支持 `orders` |
+| `filters` | string | 否 | JSON 字符串；只允许 `status`、`user_id`、`driver_id`、`start_time`、`end_time` |
 
 ```json
 { "export_type": "orders", "filters": "{\"start_time\":\"2026-08-01 00:00:00\"}" }
 ```
 
 当前实现：写入 `admin_export_task` 独立任务表，响应 `data`：`task_no`、`status`、`message`。后台 goroutine 异步生成 CSV 文件，并回写 `file_path`、`failure_reason`、`updated_at`、`expires_at`。
+
+`filters` 出现未知字段、类型不符、非法时间或 `city_code` 时返回 `400 / 40001`，不会退化为全量订单导出。
 
 ### 12.2 导出任务列表
 

@@ -387,6 +387,12 @@ type PriceRuleSaveRequest struct {
 	ExpireAt         string `json:"expire_at"`
 }
 
+// PriceRuleSaveResponse 表示计价规则创建成功后的返回数据。
+// 返回真实规则 ID，便于后台页面定位新建记录。
+type PriceRuleSaveResponse struct {
+	ID int64 `json:"id"`
+}
+
 // PriceRuleDTO 表示计价规则接口返回对象。
 type PriceRuleDTO struct {
 	ID               int64  `json:"id"`

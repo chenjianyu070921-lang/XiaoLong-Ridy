@@ -507,7 +507,7 @@
       },
       "post": {
         "tags": ["计价规则"],
-        "summary": "新增计价规则",
+        "summary": "新增计价规则（返回新 ID）",
         "requestBody": {
           "required": true,
           "content": {
@@ -518,7 +518,7 @@
           }
         },
         "responses": {
-          "200": { "description": "成功" },
+          "200": { "description": "成功，data.id 为 pricesvc 创建的真实规则 ID" },
           "400": { "description": "参数校验失败 40001" }
         }
       }
@@ -686,7 +686,7 @@
         "parameters": [
           { "name": "start_time", "in": "query", "schema": { "type": "string" } },
           { "name": "end_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "city_code", "in": "query", "schema": { "type": "string" } }
+          { "name": "city_code", "in": "query", "description": "当前订单表无权威城市字段；非空会返回 40001", "schema": { "type": "string" } }
         ],
         "responses": {
           "200": {
@@ -703,7 +703,7 @@
         "parameters": [
           { "name": "start_time", "in": "query", "schema": { "type": "string" } },
           { "name": "end_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "city_code", "in": "query", "schema": { "type": "string" } }
+          { "name": "city_code", "in": "query", "description": "当前订单表无权威城市字段；非空会返回 40001", "schema": { "type": "string" } }
         ],
         "responses": {
           "200": {
@@ -751,7 +751,7 @@
           "content": {
             "application/json": {
               "schema": { "$ref": "#/components/schemas/ExportTaskRequest" },
-              "example": { "export_type": "orders", "filters": "{\"start_time\":\"2026-08-01 00:00:00\"}" }
+              "example": { "export_type": "orders", "filters": "{\"start_time\":\"2026-08-01 00:00:00\",\"status\":5}" }
             }
           }
         },
@@ -760,7 +760,7 @@
             "description": "成功",
             "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "task_no": "EX20260818163232307500", "status": "pending", "message": "导出任务已创建，后台正在异步生成文件" } } } }
           },
-          "400": { "description": "export_type 为空 40001" }
+          "400": { "description": "仅支持 orders；filters 仅允许 status、user_id、driver_id、start_time、end_time，参数错误返回 40001" }
         }
       }
     },

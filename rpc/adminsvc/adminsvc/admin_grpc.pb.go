@@ -115,7 +115,7 @@ type AdminServiceClient interface {
 	// 查询优惠券模板列表。
 	ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error)
 	// 创建优惠券模板。
-	CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CreateCouponResponse, error)
 	// 更新优惠券模板。
 	UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 下架优惠券模板。
@@ -129,7 +129,7 @@ type AdminServiceClient interface {
 	// 查询计价规则详情。
 	GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error)
 	// 创建计价规则。
-	CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error)
 	// 更新计价规则。
 	UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 启用计价规则。
@@ -376,9 +376,9 @@ func (c *adminServiceClient) ListCoupons(ctx context.Context, in *CouponListRequ
 	return out, nil
 }
 
-func (c *adminServiceClient) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+func (c *adminServiceClient) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CreateCouponResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CommonResponse)
+	out := new(CreateCouponResponse)
 	err := c.cc.Invoke(ctx, AdminService_CreateCoupon_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -446,9 +446,9 @@ func (c *adminServiceClient) GetPriceRule(ctx context.Context, in *PriceRuleDeta
 	return out, nil
 }
 
-func (c *adminServiceClient) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+func (c *adminServiceClient) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CommonResponse)
+	out := new(CreatePriceRuleResponse)
 	err := c.cc.Invoke(ctx, AdminService_CreatePriceRule_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -684,7 +684,7 @@ type AdminServiceServer interface {
 	// 查询优惠券模板列表。
 	ListCoupons(context.Context, *CouponListRequest) (*CouponListResponse, error)
 	// 创建优惠券模板。
-	CreateCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
+	CreateCoupon(context.Context, *CouponRequest) (*CreateCouponResponse, error)
 	// 更新优惠券模板。
 	UpdateCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
 	// 下架优惠券模板。
@@ -698,7 +698,7 @@ type AdminServiceServer interface {
 	// 查询计价规则详情。
 	GetPriceRule(context.Context, *PriceRuleDetailRequest) (*PriceRule, error)
 	// 创建计价规则。
-	CreatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error)
+	CreatePriceRule(context.Context, *PriceRuleRequest) (*CreatePriceRuleResponse, error)
 	// 更新计价规则。
 	UpdatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error)
 	// 启用计价规则。
@@ -802,7 +802,7 @@ func (UnimplementedAdminServiceServer) ListAbnormalOrders(context.Context, *Abno
 func (UnimplementedAdminServiceServer) ListCoupons(context.Context, *CouponListRequest) (*CouponListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListCoupons not implemented")
 }
-func (UnimplementedAdminServiceServer) CreateCoupon(context.Context, *CouponRequest) (*CommonResponse, error) {
+func (UnimplementedAdminServiceServer) CreateCoupon(context.Context, *CouponRequest) (*CreateCouponResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateCoupon not implemented")
 }
 func (UnimplementedAdminServiceServer) UpdateCoupon(context.Context, *CouponRequest) (*CommonResponse, error) {
@@ -823,7 +823,7 @@ func (UnimplementedAdminServiceServer) ListPriceRules(context.Context, *PriceRul
 func (UnimplementedAdminServiceServer) GetPriceRule(context.Context, *PriceRuleDetailRequest) (*PriceRule, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPriceRule not implemented")
 }
-func (UnimplementedAdminServiceServer) CreatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error) {
+func (UnimplementedAdminServiceServer) CreatePriceRule(context.Context, *PriceRuleRequest) (*CreatePriceRuleResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreatePriceRule not implemented")
 }
 func (UnimplementedAdminServiceServer) UpdatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error) {

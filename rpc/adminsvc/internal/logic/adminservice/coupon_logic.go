@@ -73,7 +73,7 @@ func NewCreateCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Crea
 }
 
 // CreateCoupon 新增优惠券模板。
-func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.CreateCouponResponse, error) {
 	if err := validateCouponRequest(in); err != nil {
 		return nil, err
 	}
@@ -97,13 +97,13 @@ func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.
 	if err != nil {
 		return nil, err
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "create", "coupon", id, fmt.Sprintf("创建优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
+	if _, err := tx.ExecContext(l.ctx, `INSERT INTO admin_operation_log (admin_id, module, action, target_type, target_id, detail, ip) VALUES (?, ?, ?, ?, ?, ?, ?)`, in.GetAdminId(), "coupon", "create", "coupon", id, fmt.Sprintf("创建优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return &adminsvc.CommonResponse{Message: "ok"}, nil
+	return &adminsvc.CreateCouponResponse{Id: id, Message: "ok"}, nil
 }
 
 // UpdateCouponLogic 处理优惠券模板编辑。

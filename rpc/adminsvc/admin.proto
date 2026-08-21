@@ -48,7 +48,7 @@ service AdminService {
   // 查询优惠券模板列表。
   rpc ListCoupons(CouponListRequest) returns (CouponListResponse);
   // 创建优惠券模板。
-  rpc CreateCoupon(CouponRequest) returns (CommonResponse);
+  rpc CreateCoupon(CouponRequest) returns (CreateCouponResponse);
   // 更新优惠券模板。
   rpc UpdateCoupon(CouponRequest) returns (CommonResponse);
   // 下架优惠券模板。
@@ -62,7 +62,7 @@ service AdminService {
   // 查询计价规则详情。
   rpc GetPriceRule(PriceRuleDetailRequest) returns (PriceRule);
   // 创建计价规则。
-  rpc CreatePriceRule(PriceRuleRequest) returns (CommonResponse);
+  rpc CreatePriceRule(PriceRuleRequest) returns (CreatePriceRuleResponse);
   // 更新计价规则。
   rpc UpdatePriceRule(PriceRuleRequest) returns (CommonResponse);
   // 启用计价规则。
@@ -170,6 +170,18 @@ message MenusResponse {
 
 message CommonResponse {
   string message = 1;
+}
+
+// 创建优惠券响应，返回事务提交后的优惠券 ID。
+message CreateCouponResponse {
+  int64 id = 1;
+  string message = 2;
+}
+
+// 创建计价规则响应，返回 pricesvc 创建成功后的规则 ID。
+message CreatePriceRuleResponse {
+  int64 id = 1;
+  string message = 2;
 }
 
 message OperationLogListRequest {
