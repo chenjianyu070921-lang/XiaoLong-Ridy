@@ -1,179 +1,358 @@
-// Package types 定义司机端 API 的请求与响应数据结构。
 package types
 
-// ============ 通用响应 ============
+import "encoding/json"
 
-// Response 是接口文档约定的统一响应格式（与 passenger 端保持一致）。
 type Response struct {
-	Code      int    `json:"code"`      // 业务码，0 表示成功
-	Message   string `json:"message"`   // 提示信息
-	Data      any    `json:"data"`      // 业务数据，可为任意结构
-	Timestamp int64  `json:"timestamp"` // 响应生成时的秒级时间戳
-	TraceID   string `json:"traceId"`   // 请求链路追踪 ID
+	Code      int    `json:"code"`
+	Message   string `json:"message"`
+	Data      any    `json:"data"`
+	Timestamp int64  `json:"timestamp"`
+	TraceID   string `json:"traceId"`
 }
 
-// ============ 司机（增删改查四个核心接口） ============
+type RegisterDriverRequest struct {
+	Phone           string `json:"phone"`
+	Password        string `json:"password"`
+	RealName        string `json:"realName"`
+	IdCardNo        string `json:"idCardNo"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
+	AvatarURL       string `json:"avatarUrl"`
+}
 
-// CreateDriverRequest 创建司机请求。
+func (r *RegisterDriverRequest) UnmarshalJSON(data []byte) error {
+	type alias RegisterDriverRequest
+	var raw struct {
+		alias
+		PasswordHash          string `json:"password_hash"`
+		RealNameLegacy        string `json:"real_name"`
+		IdCardNoLegacy        string `json:"id_card_no"`
+		DriverLicenseNoLegacy string `json:"driver_license_no"`
+		AvatarURLLegacy       string `json:"avatar_url"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*r = RegisterDriverRequest(raw.alias)
+	if r.Password == "" {
+		r.Password = raw.PasswordHash
+	}
+	if r.RealName == "" {
+		r.RealName = raw.RealNameLegacy
+	}
+	if r.IdCardNo == "" {
+		r.IdCardNo = raw.IdCardNoLegacy
+	}
+	if r.DriverLicenseNo == "" {
+		r.DriverLicenseNo = raw.DriverLicenseNoLegacy
+	}
+	if r.AvatarURL == "" {
+		r.AvatarURL = raw.AvatarURLLegacy
+	}
+	return nil
+}
+
+type RegisterDriverResponse struct {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
 type CreateDriverRequest struct {
-	Phone           string `json:"phone"`           // 手机号（登录账号）
-	PasswordHash    string `json:"passwordHash"`    // 密码哈希
-	RealName        string `json:"realName"`        // 真实姓名
-	IdCardNo        string `json:"idCardNo"`        // 身份证号
-	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号
-	AvatarURL       string `json:"avatarUrl"`       // 头像地址
+	Phone           string `json:"phone"`
+	Password        string `json:"password"`
+	RealName        string `json:"realName"`
+	IdCardNo        string `json:"idCardNo"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
+	AvatarURL       string `json:"avatarUrl"`
 }
 
-// CreateDriverResponse 创建司机响应。
 type CreateDriverResponse struct {
-	ID        int64  `json:"id"`        // 新建司机 ID
-	Status    string `json:"status"`    // 初始状态（待审核）
-	CreatedAt int64  `json:"createdAt"` // 创建时间（Unix 秒）
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
 }
 
-// UpdateDriverRequest 更新司机请求，除 id 外字段均为可选（指针表示可缺省）。
 type UpdateDriverRequest struct {
-	ID              int64   `json:"id"`              // 待更新司机 ID
-	Phone           *string `json:"phone,omitempty"` // 可选手机号
-	PasswordHash    *string `json:"passwordHash,omitempty"`    // 可选密码哈希
-	RealName        *string `json:"realName,omitempty"`        // 可选真实姓名
-	IdCardNo        *string `json:"idCardNo,omitempty"`        // 可选身份证号
-	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"` // 可选驾驶证号
-	AvatarURL       *string `json:"avatarUrl,omitempty"`       // 可选头像地址
-	Status          *string `json:"status,omitempty"`          // 可选账号状态
+	ID              int64   `json:"id"`
+	Phone           *string `json:"phone,omitempty"`
+	Password        *string `json:"password,omitempty"`
+	RealName        *string `json:"realName,omitempty"`
+	IdCardNo        *string `json:"idCardNo,omitempty"`
+	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"`
+	AvatarURL       *string `json:"avatarUrl,omitempty"`
+	Status          *string `json:"status,omitempty"`
 }
 
-// UpdateDriverResponse 更新司机响应。
 type UpdateDriverResponse struct {
-	ID        int64  `json:"id"`        // 司机 ID
-	Status    string `json:"status"`    // 更新后的状态
-	UpdatedAt int64  `json:"updatedAt"` // 更新时间（Unix 秒）
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	UpdatedAt int64  `json:"updatedAt"`
 }
 
-// DriverDetail 司机完整信息。
+type GetDriverRequest struct {
+	ID int64 `form:"id"`
+}
+
 type DriverDetail struct {
-	ID              int64  `json:"id"`              // 司机 ID
-	Phone           string `json:"phone"`           // 手机号
-	RealName        string `json:"realName"`        // 真实姓名
-	IdCardNo        string `json:"idCardNo"`        // 身份证号
-	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号
-	AvatarURL       string `json:"avatarUrl"`       // 头像地址
-	Status          string `json:"status"`          // 账号状态
-	OnlineStatus    int    `json:"onlineStatus"`    // 在线状态：0离线 1在线
-	CreatedAt       int64  `json:"createdAt"`       // 创建时间（Unix 秒）
-	UpdatedAt       int64  `json:"updatedAt"`       // 更新时间（Unix 秒）
+	ID              int64  `json:"id"`
+	Phone           string `json:"phone"`
+	RealName        string `json:"realName"`
+	IdCardNo        string `json:"idCardNo"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
+	AvatarURL       string `json:"avatarUrl"`
+	Status          string `json:"status"`
+	OnlineStatus    int    `json:"onlineStatus"`
+	CreatedAt       int64  `json:"createdAt"`
+	UpdatedAt       int64  `json:"updatedAt"`
 }
 
-// GetDriverResponse 查询司机详情响应。
 type GetDriverResponse struct {
-	Driver DriverDetail `json:"driver"` // 司机完整信息
+	Driver DriverDetail `json:"driver"`
 }
 
-// DeleteResponse 删除操作通用响应。
+type DeleteDriverRequest struct {
+	ID int64 `form:"id"`
+}
+
 type DeleteResponse struct {
-	ID      int64 `json:"id"`      // 资源 ID
-	Success bool  `json:"success"` // 是否删除成功
+	ID      int64 `json:"id"`
+	Success bool  `json:"success"`
 }
 
-// ============ 司机登录认证 ============
-
-// SendSMSCodeRequest 发送登录短信验证码请求。
 type SendSMSCodeRequest struct {
-	Phone string `json:"phone"` // 手机号
+	Phone string `json:"phone"`
 }
 
-// SendSMSCodeResponse 发送登录短信验证码响应。
 type SendSMSCodeResponse struct {
-	Success  bool `json:"success"`  // 是否发送成功
-	ExpireIn int  `json:"expireIn"` // 验证码有效期（秒）
+	Success  bool `json:"success"`
+	ExpireIn int  `json:"expireIn"`
 }
 
-// LoginByPasswordRequest 手机号 + 密码登录请求。
 type LoginByPasswordRequest struct {
-	Phone    string `json:"phone"`    // 手机号
-	Password string `json:"password"` // 明文密码
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
 }
 
-// LoginBySMSRequest 手机号 + 验证码登录请求。
 type LoginBySMSRequest struct {
-	Phone string `json:"phone"` // 手机号
-	Code  string `json:"code"`  // 短信验证码
+	Phone string `json:"phone"`
+	Code  string `json:"code"`
 }
 
-// LoginResponse 登录响应，返回 JWT 与司机基础信息。
-type LoginResponse struct {
-	Token   string      `json:"token"`   // JWT 登录凭证
-	ExpireIn int64      `json:"expireIn"` // 有效期（秒）
-	Driver  DriverBrief `json:"driver"`  // 司机基础信息
-}
-
-// DriverBrief 司机登录后可暴露的简要信息（脱敏）。
 type DriverBrief struct {
-	ID     int64  `json:"id"`     // 司机 ID
-	Phone  string `json:"phone"`  // 脱敏手机号
-	Status string `json:"status"` // 账号状态
+	ID     int64  `json:"id"`
+	Phone  string `json:"phone"`
+	Status string `json:"status"`
 }
 
-// ============ 司机上下线 ============
+type LoginResponse struct {
+	Token    string      `json:"token"`
+	ExpireIn int64       `json:"expireIn"`
+	Driver   DriverBrief `json:"driver"`
+}
 
-// SetOnlineResponse 司机上线响应。
+type SetOnlineRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type SetOfflineRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
 type SetOnlineResponse struct {
-	DriverID     int64 `json:"driverId"`     // 司机 ID
-	OnlineStatus int   `json:"onlineStatus"` // 上线后状态：1在线
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
 }
 
-// SetOfflineResponse 司机下线响应。
 type SetOfflineResponse struct {
-	DriverID     int64 `json:"driverId"`     // 司机 ID
-	OnlineStatus int   `json:"onlineStatus"` // 下线后状态：0离线
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
 }
 
-// ============ 司机接单 / 行程 ============
+type HeartbeatRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
 
-// AcceptOrderRequest 司机接单请求。
+type HeartbeatResponse struct {
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+	ServerTime   int64 `json:"serverTime"`
+}
+
+type ReportLocationRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type ReportLocationResponse struct {
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+	ReportTime   int64 `json:"reportTime"`
+}
+
+type AiScoreFactor struct {
+	Key    string  `json:"key"`
+	Label  string  `json:"label"`
+	Value  float64 `json:"value"`
+	Impact string  `json:"impact"`
+	Hint   string  `json:"hint"`
+}
+
+type GetDriverAiScoreRequest struct {
+	DriverID int64 `form:"id"`
+}
+
+type GetDriverAiScoreResponse struct {
+	DriverID      int64           `json:"driverId"`
+	AiScore       float64         `json:"aiScore"`
+	Level         int32           `json:"level"`
+	Factors       []AiScoreFactor `json:"factors"`
+	Degraded      bool            `json:"degraded"`
+	DegradeReason string          `json:"degradeReason"`
+}
+
+type UploadCertificationRequest struct {
+	VehicleID      int64  `json:"vehicleId"`
+	IdCardFront    string `json:"idCardFront"`
+	IdCardBack     string `json:"idCardBack"`
+	DriverLicense  string `json:"driverLicense"`
+	VehicleLicense string `json:"vehicleLicense"`
+}
+
+type CertificationInfo struct {
+	ID                int64  `json:"id"`
+	DriverID          int64  `json:"driverId"`
+	VehicleID         int64  `json:"vehicleId"`
+	IdCardFrontURL    string `json:"idCardFrontUrl"`
+	IdCardBackURL     string `json:"idCardBackUrl"`
+	DriverLicenseURL  string `json:"driverLicenseUrl"`
+	VehicleLicenseURL string `json:"vehicleLicenseUrl"`
+	AuditStatus       int    `json:"auditStatus"`
+	AuditRemark       string `json:"auditRemark"`
+}
+
+type UploadCertificationResponse struct {
+	ID            int64              `json:"id"`
+	Certification *CertificationInfo `json:"certification"`
+}
+
+type GetCertificationResponse struct {
+	Certification *CertificationInfo `json:"certification"`
+	Found         bool               `json:"found"`
+}
+
 type AcceptOrderRequest struct {
-	OrderID int64 `json:"orderId"` // 待接订单 ID
+	OrderID int64 `json:"orderId"`
 }
 
-// AcceptOrderResponse 司机接单响应。
 type AcceptOrderResponse struct {
-	OrderID int64 `json:"orderId"` // 订单 ID
-	Status  int32 `json:"status"`  // 接单后订单状态（见 ordersvc OrderStatus 枚举）
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
 }
 
-// StartTripRequest 司机开始行程请求。
-type StartTripRequest struct {
-	OrderID int64 `json:"orderId"` // 订单 ID
-}
-
-// StartTripResponse 司机开始行程响应。
-type StartTripResponse struct {
-	OrderID int64 `json:"orderId"` // 订单 ID
-	Status  int32 `json:"status"`  // 行程开始后订单状态
-}
-
-// ConfirmArriveRequest 司机确认到达请求。
 type ConfirmArriveRequest struct {
-	OrderID int64 `json:"orderId"` // 订单 ID
+	OrderID int64 `json:"orderId"`
 }
 
-// ConfirmArriveResponse 司机确认到达响应。
 type ConfirmArriveResponse struct {
-	OrderID int64 `json:"orderId"` // 订单 ID
-	Status  int32 `json:"status"`  // 确认到达后订单状态
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
 }
 
-// FinishTripRequest 司机结束行程请求。
+type StartTripRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type StartTripResponse struct {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
 type FinishTripRequest struct {
-	OrderID           int64 `json:"orderId"`           // 订单 ID
-	ActualDistanceM   int64 `json:"actualDistanceM"`   // 实际里程（米）
-	ActualDurationS   int64 `json:"actualDurationS"`   // 实际时长（秒）
-	ActualPriceCents  int64 `json:"actualPriceCents"`  // 实际金额（分）
+	OrderID          int64 `json:"orderId"`
+	ActualDistanceM  int64 `json:"actualDistanceM"`
+	ActualDurationS  int64 `json:"actualDurationS"`
+	ActualPriceCents int64 `json:"actualPriceCents"`
 }
 
-// FinishTripResponse 司机结束行程响应。
 type FinishTripResponse struct {
-	OrderID            int64 `json:"orderId"`            // 订单 ID
-	Status             int32 `json:"status"`             // 行程结束后订单状态
-	PayableAmountCents int64 `json:"payableAmountCents"` // 应付金额（分）
+	OrderID            int64 `json:"orderId"`
+	Status             int32 `json:"status"`
+	PayableAmountCents int64 `json:"payableAmountCents"`
+}
+
+type RejectOrderRequest struct {
+	OrderID int64  `json:"orderId"`
+	Reason  string `json:"reason"`
+}
+
+type RejectOrderResponse struct {
+	OrderID  int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	Status   int32 `json:"status"`
+}
+
+type ListMyDispatchesRequest struct {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+	Status   int32 `json:"status"`
+}
+
+type DispatchRecord struct {
+	ID           int64   `json:"id"`
+	OrderID      int64   `json:"orderId"`
+	DriverID     int64   `json:"driverId"`
+	DispatchType int32   `json:"dispatchType"`
+	Status       int32   `json:"status"`
+	MatchScore   float64 `json:"matchScore"`
+	Remark       string  `json:"remark"`
+	CreatedAt    int64   `json:"createdAt"`
+	UpdatedAt    int64   `json:"updatedAt"`
+}
+
+type OrderBrief struct {
+	OrderID             int64  `json:"orderId"`
+	OrderNo             string `json:"orderNo"`
+	FromAddress         string `json:"fromAddress"`
+	ToAddress           string `json:"toAddress"`
+	Status              int32  `json:"status"`
+	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
+	CreatedAt           int64  `json:"createdAt"`
+}
+
+type MyDispatchItem struct {
+	Dispatch DispatchRecord `json:"dispatch"`
+	Order    OrderBrief     `json:"order"`
+}
+
+type ListMyDispatchesResponse struct {
+	List     []MyDispatchItem `json:"list"`
+	Total    int64            `json:"total"`
+	Page     int32            `json:"page"`
+	PageSize int32            `json:"pageSize"`
+}
+
+type AgentChatRequest struct {
+	Question string `json:"question"`
+}
+
+type AgentObservation struct {
+	ToolName string `json:"toolName"`
+	Result   string `json:"result"`
+}
+
+type AgentChatResponse struct {
+	Answer       string             `json:"answer"`
+	LoopCount    int                `json:"loopCount"`
+	Observations []AgentObservation `json:"observations"`
+	Mode         string             `json:"mode"`
 }
