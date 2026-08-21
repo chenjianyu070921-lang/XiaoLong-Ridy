@@ -12,7 +12,7 @@ import (
 	"XiaoLong-Ridy/api/admin/internal/svc"
 )
 
-// main 负责加载配置、初始化 MySQL 和 Redis 依赖、注册 HTTP 路由并启动服务。
+// main 负责加载配置、初始化 adminsvc RPC 客户端、注册 HTTP 路由并启动服务。
 // 按 README 的目录约定，应在 api/admin 目录中执行启动命令。
 func main() {
 	cfgPath := filepath.Join("etc", "admin.json")
@@ -21,7 +21,7 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	// ServiceContext 统一持有数据库、缓存和仓储依赖，供 HTTP 层与业务层复用。
+	// ServiceContext 只持有 RPC 依赖，所有业务数据访问统一由 adminsvc 承担。
 	ctx, err := svc.NewServiceContext(cfg)
 	if err != nil {
 		log.Fatalf("init service context: %v", err)

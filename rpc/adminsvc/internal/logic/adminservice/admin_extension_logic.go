@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
@@ -19,6 +20,42 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+const (
+	// maxConcurrentExportJobs 限制同一 adminsvc 实例内同时执行的导出任务数，防止大文件导出耗尽数据库连接和内存。
+	maxConcurrentExportJobs = 4
+	// exportJobQueueSize 限制尚未开始执行的导出任务数量，避免高峰请求无限积压在进程内。
+	exportJobQueueSize = 64
+)
+
+// exportJob 表示已持久化、等待本实例执行的导出任务。
+// 任务编号已写入数据库，worker 只负责驱动其状态机，不在内存中保存业务数据。
+type exportJob struct {
+	svcCtx *svc.ServiceContext
+	taskNo string
+}
+
+var (
+	exportJobQueue   = make(chan exportJob, exportJobQueueSize)
+	exportWorkerOnce sync.Once
+	// exportFileWriter 保留文件生成函数注入点，供测试覆盖 worker 的 panic 恢复路径。
+	exportFileWriter   = writeExportTaskFile
+	exportFileWriterMu sync.RWMutex
+)
+
+// startExportWorkers 按固定数量启动导出 worker。
+// worker 数量固定，避免每次创建任务都启动一个 goroutine；队列容量同时限制等待任务数量。
+func startExportWorkers() {
+	exportWorkerOnce.Do(func() {
+		for i := 0; i < maxConcurrentExportJobs; i++ {
+			go func() {
+				for job := range exportJobQueue {
+					runExportTaskJob(job.svcCtx, job.taskNo)
+				}
+			}()
+		}
+	})
+}
 
 // couponIssueTargetConfig 表示后台发券任务的目标用户配置。
 // P1 当前只落地显式用户 ID 发放，后续 crowd 人群包可由 MQ/Job 异步扩展。
@@ -393,29 +430,25 @@ func (l *GetStatisticsOverviewLogic) GetStatisticsOverview(in *adminsvc.Statisti
 	orderWhere, orderArgs := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
 	payWhere, payArgs := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
 	resp := &adminsvc.StatisticsOverviewResponse{}
-	var err error
-	if resp.UserCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user WHERE deleted_at IS NULL`); err != nil {
-		return nil, err
-	}
-	if resp.DriverCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM driver WHERE deleted_at IS NULL`); err != nil {
-		return nil, err
-	}
-	if resp.OrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+orderWhere, orderArgs...); err != nil {
-		return nil, err
-	}
-	if resp.CompletedOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(orderWhere, "status = 5"), orderArgs...); err != nil {
-		return nil, err
-	}
-	if resp.AbnormalOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(orderWhere, "status = 6"), orderArgs...); err != nil {
-		return nil, err
-	}
-	if resp.CouponIssueCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon`); err != nil {
-		return nil, err
-	}
-	if resp.BlacklistCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM blacklist WHERE status = 1`); err != nil {
-		return nil, err
-	}
-	if resp.Gmv, err = sumSQL(l.ctx, l.svcCtx.MySQL, `SELECT COALESCE(SUM(amount), 0) FROM payment `+appendWhere(payWhere, "status = 2"), payArgs...); err != nil {
+	// 将全部聚合放入一次 SELECT，使 MySQL 在同一语句快照内计算指标，避免高并发写入造成指标互相不一致。
+	args := make([]any, 0, len(orderArgs)*3+len(payArgs))
+	args = append(args, orderArgs...)
+	args = append(args, orderArgs...)
+	args = append(args, orderArgs...)
+	args = append(args, payArgs...)
+	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+		SELECT
+			(SELECT COUNT(1) FROM user WHERE deleted_at IS NULL),
+			(SELECT COUNT(1) FROM driver WHERE deleted_at IS NULL),
+			(SELECT COUNT(1) FROM ride_order `+orderWhere+`),
+			(SELECT COUNT(1) FROM ride_order `+appendWhere(orderWhere, "status = 5")+`),
+			(SELECT COUNT(1) FROM ride_order `+appendWhere(orderWhere, "status = 6")+`),
+			(SELECT COUNT(1) FROM user_coupon),
+			(SELECT COUNT(1) FROM blacklist WHERE status = 1),
+			(SELECT COALESCE(SUM(amount), 0) FROM payment `+appendWhere(payWhere, "status = 2")+`)
+	`, args...).Scan(&resp.UserCount, &resp.DriverCount, &resp.OrderCount, &resp.CompletedOrderCount,
+		&resp.AbnormalOrderCount, &resp.CouponIssueCount, &resp.BlacklistCount, &resp.Gmv)
+	if err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -439,20 +472,20 @@ func (l *GetOrderStatisticsLogic) GetOrderStatistics(in *adminsvc.StatisticsRequ
 	}
 	where, args := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
 	resp := &adminsvc.OrderStatisticsResponse{}
-	var err error
-	if resp.OrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+where, args...); err != nil {
-		return nil, err
-	}
-	if resp.CompletedOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 5"), args...); err != nil {
-		return nil, err
-	}
-	if resp.CanceledOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 6"), args...); err != nil {
-		return nil, err
-	}
-	if resp.TimeoutOrderCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM dispatch_record WHERE status = 4`); err != nil {
-		return nil, err
-	}
-	if resp.PaymentAbnormalCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM payment WHERE status = 3`); err != nil {
+	queryArgs := make([]any, 0, len(args)*3)
+	queryArgs = append(queryArgs, args...)
+	queryArgs = append(queryArgs, args...)
+	queryArgs = append(queryArgs, args...)
+	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+		SELECT
+			(SELECT COUNT(1) FROM ride_order `+where+`),
+			(SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 5")+`),
+			(SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 6")+`),
+			(SELECT COUNT(1) FROM dispatch_record WHERE status = 4),
+			(SELECT COUNT(1) FROM payment WHERE status = 3)
+	`, queryArgs...).Scan(&resp.OrderCount, &resp.CompletedOrderCount, &resp.CanceledOrderCount,
+		&resp.TimeoutOrderCount, &resp.PaymentAbnormalCount)
+	if err != nil {
 		return nil, err
 	}
 	resp.CompletionRate = percentText(resp.CompletedOrderCount, resp.OrderCount)
@@ -477,20 +510,16 @@ func (l *GetCouponStatisticsLogic) GetCouponStatistics(in *adminsvc.StatisticsRe
 		return nil, status.Error(codes.FailedPrecondition, "当前优惠券数据未保存城市编码，暂不支持按城市统计")
 	}
 	resp := &adminsvc.CouponStatisticsResponse{}
-	var err error
-	if resp.CouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM coupon`); err != nil {
-		return nil, err
-	}
-	if resp.EnabledCouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM coupon WHERE status = 2`); err != nil {
-		return nil, err
-	}
-	if resp.IssuedCouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon`); err != nil {
-		return nil, err
-	}
-	if resp.UsedCouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon WHERE status = 2`); err != nil {
-		return nil, err
-	}
-	if resp.ExpiredCouponCount, err = countSQL(l.ctx, l.svcCtx.MySQL, `SELECT COUNT(1) FROM user_coupon WHERE status = 3 OR (status = 1 AND expire_at < NOW())`); err != nil {
+	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+		SELECT
+			(SELECT COUNT(1) FROM coupon),
+			(SELECT COUNT(1) FROM coupon WHERE status = 2),
+			(SELECT COUNT(1) FROM user_coupon),
+			(SELECT COUNT(1) FROM user_coupon WHERE status = 2),
+			(SELECT COUNT(1) FROM user_coupon WHERE status = 3 OR (status = 1 AND expire_at < NOW()))
+	`).Scan(&resp.CouponCount, &resp.EnabledCouponCount, &resp.IssuedCouponCount,
+		&resp.UsedCouponCount, &resp.ExpiredCouponCount)
+	if err != nil {
 		return nil, err
 	}
 	resp.UseRate = percentText(resp.UsedCouponCount, resp.IssuedCouponCount)
@@ -529,7 +558,18 @@ func (l *CreateExportTaskLogic) CreateExportTask(in *adminsvc.ExportTaskRequest)
 		return nil, err
 	}
 	_ = createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "export", "create", exportType, 0, fmt.Sprintf("创建导出任务：%s", taskNo), in.GetIp())
-	go runExportTaskJob(l.svcCtx, taskNo)
+	startExportWorkers()
+	select {
+	case exportJobQueue <- exportJob{svcCtx: l.svcCtx, taskNo: taskNo}:
+		// 任务由固定数量 worker 异步执行，接口立即返回 pending 状态。
+	case <-l.ctx.Done():
+		markExportTaskFailed(l.svcCtx, taskNo, "导出任务投递已取消")
+		return nil, status.Error(codes.Canceled, "导出任务投递已取消")
+	default:
+		// 内存队列满时不能让任务永久保持 pending；明确落失败状态，调用方可稍后重新创建任务。
+		markExportTaskFailed(l.svcCtx, taskNo, "导出任务队列繁忙，请稍后重试")
+		return nil, status.Error(codes.ResourceExhausted, "导出任务队列繁忙，请稍后重试")
+	}
 	return &adminsvc.ExportTaskResponse{TaskNo: taskNo, Status: "pending", Message: "导出任务已创建，后台正在异步生成文件"}, nil
 }
 
@@ -1013,25 +1053,54 @@ func updateExportTaskStatus(ctx context.Context, svcCtx *svc.ServiceContext, tas
 }
 
 // runExportTaskJob 在后台执行导出文件生成，并把 running/success/failed 状态写回独立任务表。
+// 任意步骤失败和 panic 都会尽力回写 failed，避免任务卡在 pending 或 running 状态。
 func runExportTaskJob(svcCtx *svc.ServiceContext, taskNo string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			// goroutine 内 panic 不得传播到服务进程；失败回写本身仅尽力执行。
+			markExportTaskFailed(svcCtx, taskNo, fmt.Sprintf("导出任务异常: %v", recovered))
+		}
+	}()
 
 	task, err := loadExportTaskByNo(ctx, svcCtx, taskNo)
 	if err != nil {
+		markExportTaskFailed(svcCtx, taskNo, fmt.Sprintf("加载导出任务失败: %v", err))
 		return
 	}
 	if err := updateExportTaskStatus(ctx, svcCtx, taskNo, "running", "", "", nil); err != nil {
+		markExportTaskFailed(svcCtx, taskNo, fmt.Sprintf("更新导出任务运行状态失败: %v", err))
 		return
 	}
-	filePath, err := writeExportTaskFile(ctx, svcCtx, task)
+	filePath, err := callExportFileWriter(ctx, svcCtx, task)
 	if err != nil {
-		_ = updateExportTaskStatus(ctx, svcCtx, taskNo, "failed", "", err.Error(), nil)
+		markExportTaskFailed(svcCtx, taskNo, fmt.Sprintf("生成导出文件失败: %v", err))
 		return
 	}
-	_ = updateExportTaskStatus(ctx, svcCtx, taskNo, "success", filePath, "", time.Now().Add(7*24*time.Hour))
+	if err := updateExportTaskStatus(ctx, svcCtx, taskNo, "success", filePath, "", time.Now().Add(7*24*time.Hour)); err != nil {
+		markExportTaskFailed(svcCtx, taskNo, fmt.Sprintf("更新导出任务成功状态失败: %v", err))
+		return
+	}
 	// 每次成功生成新文件后顺带清理已过期文件，避免本地导出目录无界增长。
-	if err := cleanupExpiredExportFiles(ctx, svcCtx); err != nil {
+	_ = cleanupExpiredExportFiles(ctx, svcCtx)
+}
+
+// callExportFileWriter 在读取可替换的文件生成器时提供并发保护。
+// 正常运行固定使用 writeExportTaskFile，测试替换生成器时不会与异步 worker 发生数据竞争。
+func callExportFileWriter(ctx context.Context, svcCtx *svc.ServiceContext, task *adminsvc.ExportTask) (string, error) {
+	exportFileWriterMu.RLock()
+	fileWriter := exportFileWriter
+	exportFileWriterMu.RUnlock()
+	return fileWriter(ctx, svcCtx, task)
+}
+
+// markExportTaskFailed 尽力将任务标记为失败。
+// 失败回写使用独立的短超时上下文，避免导出主流程已超时时无法收口任务状态。
+func markExportTaskFailed(svcCtx *svc.ServiceContext, taskNo, failureReason string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := updateExportTaskStatus(ctx, svcCtx, taskNo, "failed", "", failureReason, nil); err != nil {
 		return
 	}
 }

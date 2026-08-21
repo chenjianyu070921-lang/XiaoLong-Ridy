@@ -78,6 +78,72 @@ func TestCreateExportTask_StartsAsyncStateMachine(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 }
 
+// TestRunExportTaskJob_MarksFailedWhenLoadFails 验证任务读取失败时会回写 failed，避免任务永久停留在 pending。
+func TestRunExportTaskJob_MarksFailedWhenLoadFails(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`SELECT task_no, export_type, COALESCE\(CAST\(filters AS CHAR\), ''\), status, admin_id,\s+file_path, file_url, failure_reason, created_at, updated_at, expires_at\s+FROM admin_export_task\s+WHERE task_no = \?`).
+		WithArgs("EXLOADFAILED").
+		WillReturnError(errors.New("database unavailable"))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("failed", "", "", sqlmock.AnyArg(), nil, "EXLOADFAILED").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	runExportTaskJob(svcCtx, "EXLOADFAILED")
+}
+
+// TestRunExportTaskJob_MarksFailedWhenRunningUpdateFails 验证更新 running 失败后会立即尝试写入 failed。
+func TestRunExportTaskJob_MarksFailedWhenRunningUpdateFails(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	createdAt := time.Date(2026, 8, 20, 12, 0, 0, 0, time.Local)
+	mock.ExpectQuery(`SELECT task_no, export_type, COALESCE\(CAST\(filters AS CHAR\), ''\), status, admin_id,\s+file_path, file_url, failure_reason, created_at, updated_at, expires_at\s+FROM admin_export_task\s+WHERE task_no = \?`).
+		WithArgs("EXRUNFAILED").
+		WillReturnRows(sqlmock.NewRows([]string{"task_no", "export_type", "filters", "status", "admin_id", "file_path", "file_url", "failure_reason", "created_at", "updated_at", "expires_at"}).
+			AddRow("EXRUNFAILED", "orders", `{"status":5}`, "pending", int64(9001), "", "", "", createdAt, createdAt, nil))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("running", "", "", "", nil, "EXRUNFAILED").
+		WillReturnError(errors.New("database unavailable"))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("failed", "", "", sqlmock.AnyArg(), nil, "EXRUNFAILED").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	runExportTaskJob(svcCtx, "EXRUNFAILED")
+}
+
+// TestRunExportTaskJob_RecoversPanicAndMarksFailed 验证 CSV 生成 panic 被恢复，并将任务标记为 failed。
+func TestRunExportTaskJob_RecoversPanicAndMarksFailed(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	createdAt := time.Date(2026, 8, 20, 12, 0, 0, 0, time.Local)
+	mock.ExpectQuery(`SELECT task_no, export_type, COALESCE\(CAST\(filters AS CHAR\), ''\), status, admin_id,\s+file_path, file_url, failure_reason, created_at, updated_at, expires_at\s+FROM admin_export_task\s+WHERE task_no = \?`).
+		WithArgs("EXPANIC").
+		WillReturnRows(sqlmock.NewRows([]string{"task_no", "export_type", "filters", "status", "admin_id", "file_path", "file_url", "failure_reason", "created_at", "updated_at", "expires_at"}).
+			AddRow("EXPANIC", "orders", `{"status":5}`, "pending", int64(9001), "", "", "", createdAt, createdAt, nil))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("running", "", "", "", nil, "EXPANIC").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("failed", "", "", "导出任务异常: test panic", nil, "EXPANIC").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// 替换文件生成器以模拟真实 worker 内部 panic，并使用同一锁避免与异步 worker 竞争。
+	exportFileWriterMu.Lock()
+	previousWriter := exportFileWriter
+	exportFileWriter = func(context.Context, *svc.ServiceContext, *adminsvc.ExportTask) (string, error) {
+		panic("test panic")
+	}
+	exportFileWriterMu.Unlock()
+	defer func() {
+		exportFileWriterMu.Lock()
+		exportFileWriter = previousWriter
+		exportFileWriterMu.Unlock()
+	}()
+
+	runExportTaskJob(svcCtx, "EXPANIC")
+}
+
 // TestGetExportTask_ReturnsFileAndFailureFields 验证导出任务详情会返回文件路径、失败原因和更新时间字段。
 func TestGetExportTask_ReturnsFileAndFailureFields(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
@@ -224,15 +290,13 @@ func TestIssueCoupon_WritesPublishRecordInTransaction(t *testing.T) {
 	}
 }
 
-// TestGetCouponStatistics_CountsEnabledStatus 验证启用券统计只统计状态 2。
+// TestGetCouponStatistics_UsesSingleAggregateQuery 验证优惠券统计使用一次聚合查询，并且启用券只统计状态 2。
 func TestGetCouponStatistics_CountsEnabledStatus(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
 	defer cleanup()
-	mock.ExpectQuery(`SELECT COUNT\(1\) FROM coupon$`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
-	mock.ExpectQuery(`SELECT COUNT\(1\) FROM coupon WHERE status = 2`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon$`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon WHERE status = 2`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon WHERE status = 3`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(`SELECT\s+\(SELECT COUNT\(1\) FROM coupon\),`).
+		WillReturnRows(sqlmock.NewRows([]string{"coupon_count", "enabled_coupon_count", "issued_coupon_count", "used_coupon_count", "expired_coupon_count"}).
+			AddRow(3, 1, 0, 0, 0))
 	resp, err := NewGetCouponStatisticsLogic(context.Background(), svcCtx).GetCouponStatistics(&adminsvc.StatisticsRequest{})
 	if err != nil || resp.GetEnabledCouponCount() != 1 {
 		t.Fatalf("GetCouponStatistics() = %#v, %v; want one enabled coupon", resp, err)
