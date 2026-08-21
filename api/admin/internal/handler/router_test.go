@@ -154,9 +154,9 @@ func (f *fakeAdminService) GetPriceRule(ctx context.Context, in *adminclient.Pri
 }
 
 // CreatePriceRule 记录新增请求，验证 HTTP 层已补充管理员和 IP 信息。
-func (f *fakeAdminService) CreatePriceRule(ctx context.Context, in *adminclient.PriceRuleRequest, opts ...grpc.CallOption) (*adminclient.CommonResponse, error) {
+func (f *fakeAdminService) CreatePriceRule(ctx context.Context, in *adminclient.PriceRuleRequest, opts ...grpc.CallOption) (*adminclient.CreatePriceRuleResponse, error) {
 	f.createReq = in
-	return &adminclient.CommonResponse{Message: "ok"}, nil
+	return &adminclient.CreatePriceRuleResponse{Id: 1, Message: "ok"}, nil
 }
 
 // UpdatePriceRule 记录编辑请求，验证路径 ID 会覆盖请求体 ID。
@@ -248,8 +248,8 @@ func (f *fakeAdminService) ListCoupons(ctx context.Context, in *adminclient.Coup
 }
 
 // CreateCoupon 返回优惠券创建成功结果。
-func (f *fakeAdminService) CreateCoupon(ctx context.Context, in *adminclient.CouponRequest, opts ...grpc.CallOption) (*adminclient.CommonResponse, error) {
-	return &adminclient.CommonResponse{Message: "ok"}, nil
+func (f *fakeAdminService) CreateCoupon(ctx context.Context, in *adminclient.CouponRequest, opts ...grpc.CallOption) (*adminclient.CreateCouponResponse, error) {
+	return &adminclient.CreateCouponResponse{Id: 1, Message: "ok"}, nil
 }
 
 // UpdateCoupon 返回优惠券编辑成功结果。

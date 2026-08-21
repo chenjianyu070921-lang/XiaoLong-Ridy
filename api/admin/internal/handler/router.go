@@ -603,11 +603,12 @@ func (r *Router) handlePriceRules(w http.ResponseWriter, req *http.Request) {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
-		if err := priceRuleLogic.Create(req.Context(), body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+		resp, err := priceRuleLogic.Create(req.Context(), body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
 			r.writeBizError(w, err)
 			return
 		}
-		writeSuccess(w, types.CommonResponse{Message: "ok"})
+		writeSuccess(w, resp)
 	default:
 		writeMethodNotAllowed(w)
 	}

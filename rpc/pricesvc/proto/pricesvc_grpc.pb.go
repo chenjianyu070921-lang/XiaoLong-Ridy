@@ -46,7 +46,7 @@ type PriceClient interface {
 	// 计价规则详情查询。
 	GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error)
 	// 创建计价规则。
-	CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error)
 	// 更新计价规则。
 	UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 更新计价规则状态。
@@ -111,9 +111,9 @@ func (c *priceClient) GetPriceRule(ctx context.Context, in *PriceRuleDetailReque
 	return out, nil
 }
 
-func (c *priceClient) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+func (c *priceClient) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CommonResponse)
+	out := new(CreatePriceRuleResponse)
 	err := c.cc.Invoke(ctx, Price_CreatePriceRule_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ type PriceServer interface {
 	// 计价规则详情查询。
 	GetPriceRule(context.Context, *PriceRuleDetailRequest) (*PriceRule, error)
 	// 创建计价规则。
-	CreatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error)
+	CreatePriceRule(context.Context, *PriceRuleRequest) (*CreatePriceRuleResponse, error)
 	// 更新计价规则。
 	UpdatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error)
 	// 更新计价规则状态。
@@ -185,7 +185,7 @@ func (UnimplementedPriceServer) ListPriceRules(context.Context, *PriceRuleListRe
 func (UnimplementedPriceServer) GetPriceRule(context.Context, *PriceRuleDetailRequest) (*PriceRule, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPriceRule not implemented")
 }
-func (UnimplementedPriceServer) CreatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error) {
+func (UnimplementedPriceServer) CreatePriceRule(context.Context, *PriceRuleRequest) (*CreatePriceRuleResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreatePriceRule not implemented")
 }
 func (UnimplementedPriceServer) UpdatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error) {

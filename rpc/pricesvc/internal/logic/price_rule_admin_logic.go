@@ -77,7 +77,7 @@ func (l *PriceRuleAdminLogic) GetPriceRule(in *proto.PriceRuleDetailRequest) (*p
 }
 
 // CreatePriceRule 新增计价规则。
-func (l *PriceRuleAdminLogic) CreatePriceRule(in *proto.PriceRuleRequest) (*proto.CommonResponse, error) {
+func (l *PriceRuleAdminLogic) CreatePriceRule(in *proto.PriceRuleRequest) (*proto.CreatePriceRuleResponse, error) {
 	rule, err := priceRuleRequestToModel(in, true)
 	if err != nil {
 		return nil, invalidPriceRuleArgument(err.Error())
@@ -85,7 +85,7 @@ func (l *PriceRuleAdminLogic) CreatePriceRule(in *proto.PriceRuleRequest) (*prot
 	if err := repository.NewPriceRuleRepo(l.svcCtx.DB).Create(l.ctx, rule); err != nil {
 		return nil, err
 	}
-	return &proto.CommonResponse{Message: "ok"}, nil
+	return &proto.CreatePriceRuleResponse{Id: int64(rule.Id), Message: "ok"}, nil
 }
 
 // UpdatePriceRule 更新计价规则。

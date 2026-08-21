@@ -233,6 +233,14 @@ func recordAuditOutbox(ctx context.Context, svcCtx *svc.ServiceContext, adminID 
 	return err
 }
 
+// recordOperationOrOutbox 优先写操作审计；跨服务业务已提交时，审计失败改写补偿任务。
+func recordOperationOrOutbox(ctx context.Context, svcCtx *svc.ServiceContext, adminID int64, module, action, targetType string, targetID int64, detail, ip string) error {
+	if err := createOperationLog(ctx, svcCtx, adminID, module, action, targetType, targetID, detail, ip); err != nil {
+		return recordAuditOutbox(ctx, svcCtx, adminID, module, action, targetType, targetID, detail, ip, err)
+	}
+	return nil
+}
+
 // mapMenus 返回 P0 阶段固定的后台菜单。
 func mapMenus(role int32) []*adminsvc.MenuItem {
 	items := []*adminsvc.MenuItem{
