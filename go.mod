@@ -6,7 +6,6 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/IBM/sarama v1.60.1
 	github.com/go-sql-driver/mysql v1.10.0
-	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/smartwalle/alipay/v3 v3.2.31
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.3.161

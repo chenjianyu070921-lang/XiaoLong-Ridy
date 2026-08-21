@@ -152,6 +152,7 @@ func TestCreateOrderTriggersDispatchAndIgnoresDispatchError(t *testing.T) {
 }
 
 type fakePriceClient struct {
+	price.Price
 	estimatePrice func(ctx context.Context, in *price.EstimatePriceRequest) (*price.EstimatePriceResponse, error)
 	gotCityCode   string
 }

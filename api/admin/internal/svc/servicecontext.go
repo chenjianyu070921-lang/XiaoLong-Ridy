@@ -7,29 +7,20 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/api/admin/internal/config"
-	"XiaoLong-Ridy/api/admin/internal/repository"
 	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 // ServiceContext 是管理后台服务的依赖容器。
-// handler 和 logic 层通过它复用数据库、缓存和各类仓储对象。
+// handler 和 logic 层通过它复用数据库连接与 adminsvc RPC 客户端。
+// HTTP 层只负责参数解析、登录态透传和响应映射，业务读写统一下沉到 adminsvc。
 type ServiceContext struct {
-	Config                 *config.Config
-	MySQL                  *sql.DB
-	Redis                  *redis.Client
-	AdminSvc               adminclient.AdminService
-	AdminRPCClient         zrpc.Client
-	AdminRepository        *repository.AdminRepository
-	SessionRepository      *repository.SessionRepository
-	OperationLogRepository *repository.OperationLogRepository
-	UserRepository         *repository.UserRepository
-	DriverRepository       *repository.DriverRepository
-	OrderRepository        *repository.OrderRepository
-	CouponRepository       *repository.CouponRepository
+	Config         *config.Config
+	MySQL          *sql.DB
+	AdminSvc       adminclient.AdminService
+	AdminRPCClient zrpc.Client
 }
 
 // NewServiceContext 初始化服务依赖。
@@ -50,49 +41,23 @@ func NewServiceContext(cfg *config.Config) (*ServiceContext, error) {
 		return nil, fmt.Errorf("ping mysql: %w", err)
 	}
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	})
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		_ = db.Close()
-		_ = redisClient.Close()
-		return nil, fmt.Errorf("ping redis: %w", err)
-	}
-
-	sessionTTL := time.Duration(cfg.Auth.SessionTTLHours) * time.Hour
-	adminRepo := repository.NewAdminRepository(db)
-	sessionRepo := repository.NewSessionRepository(redisClient, cfg.Auth.TokenPrefix, sessionTTL)
 	adminRPCClient, adminSvc, err := newAdminRPCClient(cfg.AdminRPC)
 	if err != nil {
 		_ = db.Close()
-		_ = redisClient.Close()
 		return nil, err
 	}
 
 	return &ServiceContext{
-		Config:                 cfg,
-		MySQL:                  db,
-		Redis:                  redisClient,
-		AdminSvc:               adminSvc,
-		AdminRPCClient:         adminRPCClient,
-		AdminRepository:        adminRepo,
-		SessionRepository:      sessionRepo,
-		OperationLogRepository: repository.NewOperationLogRepository(db),
-		UserRepository:         repository.NewUserRepository(db),
-		DriverRepository:       repository.NewDriverRepository(db),
-		OrderRepository:        repository.NewOrderRepository(db),
-		CouponRepository:       repository.NewCouponRepository(db),
+		Config:         cfg,
+		MySQL:          db,
+		AdminSvc:       adminSvc,
+		AdminRPCClient: adminRPCClient,
 	}, nil
 }
 
 // Close 关闭服务依赖。
 // 服务退出时调用，避免连接资源泄漏。
 func (s *ServiceContext) Close() {
-	if s.Redis != nil {
-		_ = s.Redis.Close()
-	}
 	if s.MySQL != nil {
 		_ = s.MySQL.Close()
 	}

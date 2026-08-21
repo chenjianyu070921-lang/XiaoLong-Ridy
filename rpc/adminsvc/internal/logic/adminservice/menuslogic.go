@@ -27,5 +27,12 @@ func NewMenusLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MenusLogic 
 
 // Menus 返回 P0 阶段按角色固定配置的后台菜单。
 func (l *MenusLogic) Menus(in *adminsvc.MenusRequest) (*adminsvc.MenusResponse, error) {
+	if in.GetToken() != "" {
+		admin, err := validateSession(l.ctx, l.svcCtx, in.GetToken())
+		if err != nil {
+			return nil, err
+		}
+		return &adminsvc.MenusResponse{Items: mapMenus(admin.Role)}, nil
+	}
 	return &adminsvc.MenusResponse{Items: mapMenus(in.GetRole())}, nil
 }

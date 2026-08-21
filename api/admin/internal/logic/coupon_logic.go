@@ -37,24 +37,11 @@ func (l *CouponLogic) List(ctx context.Context, req types.CouponListRequest) (*t
 
 // Create 新增优惠券模板。
 func (l *CouponLogic) Create(ctx context.Context, req types.CouponSaveRequest, session *model.AdminSession, ip string) (*types.CouponSaveResponse, error) {
-	_, err := l.ctx.AdminSvc.CreateCoupon(ctx, couponRequestToPB(0, req, session, ip))
+	resp, err := l.ctx.AdminSvc.CreateCoupon(ctx, couponRequestToPB(0, req, session, ip))
 	if err != nil {
 		return nil, err
 	}
-	// adminsvc 当前创建接口保持通用 CommonResponse，未在 RPC 响应中直接返回自增 ID。
-	// HTTP 层创建成功后按本次名称回查最新模板，确保前端仍能拿到新建优惠券 ID。
-	resp, err := l.ctx.AdminSvc.ListCoupons(ctx, &adminclient.CouponListRequest{
-		Page:     1,
-		PageSize: 1,
-		Keyword:  req.Name,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(resp.List) == 0 {
-		return &types.CouponSaveResponse{}, nil
-	}
-	return &types.CouponSaveResponse{ID: resp.List[0].Id}, nil
+	return &types.CouponSaveResponse{ID: resp.GetId()}, nil
 }
 
 // Update 编辑优惠券模板。

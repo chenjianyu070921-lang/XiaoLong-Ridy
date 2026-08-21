@@ -12,6 +12,16 @@ service Price {
   rpc CalculateDiscount(CalculateDiscountRequest) returns (CalculateDiscountResponse);
   // 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
   rpc SaveActualOrderPrice(SaveActualOrderPriceRequest) returns (SaveActualOrderPriceResponse);
+  // 计价规则列表查询。
+  rpc ListPriceRules(PriceRuleListRequest) returns (PriceRuleListResponse);
+  // 计价规则详情查询。
+  rpc GetPriceRule(PriceRuleDetailRequest) returns (PriceRule);
+  // 创建计价规则。
+  rpc CreatePriceRule(PriceRuleRequest) returns (CreatePriceRuleResponse);
+  // 更新计价规则。
+  rpc UpdatePriceRule(PriceRuleRequest) returns (CommonResponse);
+  // 更新计价规则状态。
+  rpc SetPriceRuleStatus(PriceRuleStatusRequest) returns (CommonResponse);
 }
 
 // 优惠券类型
@@ -84,4 +94,84 @@ message SaveActualOrderPriceRequest {
 message SaveActualOrderPriceResponse {
   bool success = 1;
   int64 order_price_id = 2;      // order_price 记录ID
+}
+
+// 通用响应
+message CommonResponse {
+  string message = 1;
+}
+
+// 创建计价规则响应，返回持久化后的规则 ID 供上游审计关联。
+message CreatePriceRuleResponse {
+  int64 id = 1;
+  string message = 2;
+}
+
+// 计价规则对象。
+message PriceRule {
+  int64 id = 1;
+  string name = 2;
+  string city_code = 3;
+  int32 car_type = 4;
+  string base_price = 5;
+  string base_distance_km = 6;
+  string per_km_price = 7;
+  string per_minute_price = 8;
+  string night_start_time = 9;
+  string night_end_time = 10;
+  string night_surcharge = 11;
+  string dynamic_max_factor = 12;
+  int32 status = 13;
+  string effective_at = 14;
+  string expire_at = 15;
+  string created_at = 16;
+  string updated_at = 17;
+}
+
+// 计价规则列表查询请求。
+message PriceRuleListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  string city_code = 4;
+  int32 car_type = 5;
+  int32 status = 6;
+}
+
+// 计价规则列表查询响应。
+message PriceRuleListResponse {
+  repeated PriceRule list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// 计价规则详情请求。
+message PriceRuleDetailRequest {
+  int64 id = 1;
+}
+
+// 计价规则保存请求。
+message PriceRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  string city_code = 3;
+  int32 car_type = 4;
+  string base_price = 5;
+  string base_distance_km = 6;
+  string per_km_price = 7;
+  string per_minute_price = 8;
+  string night_start_time = 9;
+  string night_end_time = 10;
+  string night_surcharge = 11;
+  string dynamic_max_factor = 12;
+  int32 status = 13;
+  string effective_at = 14;
+  string expire_at = 15;
+}
+
+// 计价规则状态修改请求。
+message PriceRuleStatusRequest {
+  int64 id = 1;
+  int32 status = 2;
 }

@@ -21,3 +21,8 @@ sms:
   templateId: ""
 tokenAuth:
   signingKey: local-development-signing-key
+tencentCloud:
+  secretId: "axMeMqAqC7dSjc"
+  secretKey: "c7yOfdspqwvJLelxUscNXvR3rd0U"  
+  region: "ap-beijing"  # 地域：ap-beijing / ap-guangzhou / ap-shanghai 等
+

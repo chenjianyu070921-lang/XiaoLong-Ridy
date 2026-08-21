@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Redis       cfg.RedisConf      `yaml:"redis" json:"redis"`
 	DispatchRPC zrpc.RpcClientConf `yaml:"dispatchrpc" json:"dispatchrpc"`
+	OrderRPC    zrpc.RpcClientConf `yaml:"orderrpc" json:"orderrpc"`
 	Log         LogConfig          `yaml:"log" json:"log"`
 }
 

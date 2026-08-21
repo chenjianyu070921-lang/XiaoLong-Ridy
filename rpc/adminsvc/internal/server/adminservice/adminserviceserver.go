@@ -40,6 +40,12 @@ func (s *AdminServiceServer) Logout(ctx context.Context, in *adminsvc.LogoutRequ
 	return l.Logout(in)
 }
 
+// 校验管理员登录会话。
+func (s *AdminServiceServer) ValidateSession(ctx context.Context, in *adminsvc.ValidateSessionRequest) (*adminsvc.ValidateSessionResponse, error) {
+	l := adminservicelogic.NewValidateSessionLogic(ctx, s.svcCtx)
+	return l.ValidateSession(in)
+}
+
 // 查询当前管理员信息。
 func (s *AdminServiceServer) Me(ctx context.Context, in *adminsvc.MeRequest) (*adminsvc.MeResponse, error) {
 	l := adminservicelogic.NewMeLogic(ctx, s.svcCtx)
@@ -137,7 +143,7 @@ func (s *AdminServiceServer) ListCoupons(ctx context.Context, in *adminsvc.Coupo
 }
 
 // 创建优惠券。
-func (s *AdminServiceServer) CreateCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+func (s *AdminServiceServer) CreateCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CreateCouponResponse, error) {
 	l := adminservicelogic.NewCreateCouponLogic(ctx, s.svcCtx)
 	return l.CreateCoupon(in)
 }
@@ -162,6 +168,42 @@ func (s *AdminServiceServer) IssueCoupon(ctx context.Context, in *adminsvc.Coupo
 func (s *AdminServiceServer) ListCouponIssueTasks(ctx context.Context, in *adminsvc.CouponIssueTaskListRequest) (*adminsvc.CouponIssueTaskListResponse, error) {
 	l := adminservicelogic.NewListCouponIssueTasksLogic(ctx, s.svcCtx)
 	return l.ListCouponIssueTasks(in)
+}
+
+// 查询计价规则列表。
+func (s *AdminServiceServer) ListPriceRules(ctx context.Context, in *adminsvc.PriceRuleListRequest) (*adminsvc.PriceRuleListResponse, error) {
+	l := adminservicelogic.NewListPriceRulesLogic(ctx, s.svcCtx)
+	return l.ListPriceRules(in)
+}
+
+// 查询计价规则详情。
+func (s *AdminServiceServer) GetPriceRule(ctx context.Context, in *adminsvc.PriceRuleDetailRequest) (*adminsvc.PriceRule, error) {
+	l := adminservicelogic.NewGetPriceRuleLogic(ctx, s.svcCtx)
+	return l.GetPriceRule(in)
+}
+
+// 创建计价规则。
+func (s *AdminServiceServer) CreatePriceRule(ctx context.Context, in *adminsvc.PriceRuleRequest) (*adminsvc.CreatePriceRuleResponse, error) {
+	l := adminservicelogic.NewCreatePriceRuleLogic(ctx, s.svcCtx)
+	return l.CreatePriceRule(in)
+}
+
+// 更新计价规则。
+func (s *AdminServiceServer) UpdatePriceRule(ctx context.Context, in *adminsvc.PriceRuleRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewUpdatePriceRuleLogic(ctx, s.svcCtx)
+	return l.UpdatePriceRule(in)
+}
+
+// 启用计价规则。
+func (s *AdminServiceServer) EnablePriceRule(ctx context.Context, in *adminsvc.PriceRuleStatusRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewEnablePriceRuleLogic(ctx, s.svcCtx)
+	return l.EnablePriceRule(in)
+}
+
+// 停用计价规则。
+func (s *AdminServiceServer) DisablePriceRule(ctx context.Context, in *adminsvc.PriceRuleStatusRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewDisablePriceRuleLogic(ctx, s.svcCtx)
+	return l.DisablePriceRule(in)
 }
 
 func (s *AdminServiceServer) ListPromotionActivities(ctx context.Context, in *adminsvc.PromotionActivityListRequest) (*adminsvc.PromotionActivityListResponse, error) {
@@ -212,6 +254,11 @@ func (s *AdminServiceServer) CreateExportTask(ctx context.Context, in *adminsvc.
 func (s *AdminServiceServer) ListExportTasks(ctx context.Context, in *adminsvc.ExportTaskListRequest) (*adminsvc.ExportTaskListResponse, error) {
 	l := adminservicelogic.NewListExportTasksLogic(ctx, s.svcCtx)
 	return l.ListExportTasks(in)
+}
+
+func (s *AdminServiceServer) GetExportTask(ctx context.Context, in *adminsvc.ExportTaskDetailRequest) (*adminsvc.ExportTask, error) {
+	l := adminservicelogic.NewGetExportTaskLogic(ctx, s.svcCtx)
+	return l.GetExportTask(in)
 }
 
 func (s *AdminServiceServer) ListBlacklists(ctx context.Context, in *adminsvc.BlacklistListRequest) (*adminsvc.BlacklistListResponse, error) {

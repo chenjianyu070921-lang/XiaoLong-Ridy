@@ -85,6 +85,12 @@ func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.Con
 		return nil, ErrOrderStatusNotAllowed
 	}
 
+	if l.svcCtx.CouponConsumer != nil {
+		if err := l.svcCtx.CouponConsumer.ConsumeByOrder(l.ctx, order.UserId, order.Id); err != nil {
+			return nil, err
+		}
+	}
+
 	if l.svcCtx.EventBus != nil {
 		payload, _ := json.Marshal(map[string]interface{}{
 			"order_id":    in.OrderId,

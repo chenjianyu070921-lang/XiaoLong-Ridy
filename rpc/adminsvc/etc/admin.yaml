@@ -5,7 +5,7 @@ Etcd:
   - 127.0.0.1:2379
   Key: admin.rpc
 MySQL:
-  DSN: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  DSN: ""
 Cache:
   Host: 127.0.0.1:6379
   Password: ""
@@ -17,3 +17,5 @@ OrdersRPC:
   Target: 127.0.0.1:50051
 DriversRPC:
   Target: 127.0.0.1:8080
+PricesRPC:
+  Target: 127.0.0.1:50053

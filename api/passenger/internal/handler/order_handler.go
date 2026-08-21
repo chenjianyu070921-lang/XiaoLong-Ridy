@@ -87,3 +87,19 @@ func PayOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+// PollOrderStatusHandler 处理乘客端订单状态轮询兜底请求。
+func PollOrderStatusHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.OrderStatusPollRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx, bearerToken(r)).PollOrderStatus(&req)
+		if err != nil {
+			writeBusinessError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

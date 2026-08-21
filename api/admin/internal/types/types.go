@@ -359,6 +359,61 @@ type CouponIssueResponse struct {
 	Status       string `json:"status"`
 }
 
+// PriceRuleListRequest 表示计价规则列表查询条件。
+type PriceRuleListRequest struct {
+	Page     int
+	PageSize int
+	Keyword  string
+	CityCode string
+	CarType  int32
+	Status   int32
+}
+
+// PriceRuleSaveRequest 表示计价规则新增和编辑请求体。
+type PriceRuleSaveRequest struct {
+	Name             string `json:"name"`
+	CityCode         string `json:"city_code"`
+	CarType          int32  `json:"car_type"`
+	BasePrice        string `json:"base_price"`
+	BaseDistanceKm   string `json:"base_distance_km"`
+	PerKmPrice       string `json:"per_km_price"`
+	PerMinutePrice   string `json:"per_minute_price"`
+	NightStartTime   string `json:"night_start_time"`
+	NightEndTime     string `json:"night_end_time"`
+	NightSurcharge   string `json:"night_surcharge"`
+	DynamicMaxFactor string `json:"dynamic_max_factor"`
+	Status           int32  `json:"status"`
+	EffectiveAt      string `json:"effective_at"`
+	ExpireAt         string `json:"expire_at"`
+}
+
+// PriceRuleSaveResponse 表示计价规则创建成功后的返回数据。
+// 返回真实规则 ID，便于后台页面定位新建记录。
+type PriceRuleSaveResponse struct {
+	ID int64 `json:"id"`
+}
+
+// PriceRuleDTO 表示计价规则接口返回对象。
+type PriceRuleDTO struct {
+	ID               int64  `json:"id"`
+	Name             string `json:"name"`
+	CityCode         string `json:"city_code"`
+	CarType          int32  `json:"car_type"`
+	BasePrice        string `json:"base_price"`
+	BaseDistanceKm   string `json:"base_distance_km"`
+	PerKmPrice       string `json:"per_km_price"`
+	PerMinutePrice   string `json:"per_minute_price"`
+	NightStartTime   string `json:"night_start_time"`
+	NightEndTime     string `json:"night_end_time"`
+	NightSurcharge   string `json:"night_surcharge"`
+	DynamicMaxFactor string `json:"dynamic_max_factor"`
+	Status           int32  `json:"status"`
+	EffectiveAt      string `json:"effective_at"`
+	ExpireAt         string `json:"expire_at"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
+}
+
 // PromotionActivityListRequest 表示活动配置列表查询条件。
 type PromotionActivityListRequest struct {
 	Page      int

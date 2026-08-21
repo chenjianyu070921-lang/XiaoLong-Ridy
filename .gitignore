@@ -49,3 +49,5 @@ logs/
 Thumbs.db
 desktop.ini
 .tmp-gocache/
+.gotmp/
+gocache/
