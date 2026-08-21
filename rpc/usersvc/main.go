@@ -93,14 +93,13 @@ func newServiceContext(c config.Config) *svc.ServiceContext {
 		log.Printf("本地短信验证码：phone=%s code=%s", phone, code)
 	})
 	tokens := logic.NewRedisTokenManager(redisClient, signingKey)
-
 	// 初始化腾讯云实名认证服务（配置为空时返回 nil，SubmitRealName 将跳过核验）
 	realNameVer, err := newRealNameVerifier(c.TencentCloud)
 	if err != nil {
 		panic(fmt.Errorf("初始化腾讯云实名认证失败: %w", err))
 	}
 
-	return svc.NewServiceContext(c, users, addresses, coupons, smsService, smsService, tokens, realNameVer)
+	return svc.NewServiceContext(c, users, addresses, coupons, repository.NewGormRiskBlacklistRepository(db), smsService, smsService, tokens, realNameVer)
 }
 
 // newRealNameVerifier 根据配置创建实名认证实例；未配置时返回 nil 表示跳过核验。

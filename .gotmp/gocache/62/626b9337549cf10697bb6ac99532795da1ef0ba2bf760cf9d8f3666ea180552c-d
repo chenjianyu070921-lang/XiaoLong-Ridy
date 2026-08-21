@@ -1,0 +1,9 @@
+./matchcondition.go
+./mutatingwebhook.go
+./mutatingwebhookconfiguration.go
+./rule.go
+./rulewithoperations.go
+./servicereference.go
+./validatingwebhook.go
+./validatingwebhookconfiguration.go
+./webhookclientconfig.go
