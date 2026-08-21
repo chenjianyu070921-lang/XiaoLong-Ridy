@@ -390,10 +390,13 @@ func NewPublishPromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceCo
 
 // PublishPromotionActivity 将活动状态置为运行中，并写入操作日志。
 func (l *PublishPromotionActivityLogic) PublishPromotionActivity(in *adminsvc.PromotionActivityActionRequest) (*adminsvc.CommonResponse, error) {
-	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 2); err != nil {
+	if err := validatePromotionAction(in, true); err != nil {
 		return nil, err
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "publish", "promotion_activity", in.GetId(), fmt.Sprintf("发布活动，范围：%s，配置：%s", in.GetPublishScope(), in.GetTargetConfig()), in.GetIp()); err != nil {
+	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 1, 2); err != nil {
+		return nil, err
+	}
+	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "publish", "promotion_activity", in.GetId(), fmt.Sprintf("发布活动，范围：%s，配置：%s", in.GetPublishScope(), in.GetTargetConfig()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -412,10 +415,13 @@ func NewRollbackPromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceC
 
 // RollbackPromotionActivity 将活动回滚为未开始状态，并写入操作日志。
 func (l *RollbackPromotionActivityLogic) RollbackPromotionActivity(in *adminsvc.PromotionActivityActionRequest) (*adminsvc.CommonResponse, error) {
-	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 1); err != nil {
+	if err := validatePromotionAction(in, false); err != nil {
 		return nil, err
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "rollback", "promotion_activity", in.GetId(), fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp()); err != nil {
+	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 2, 1); err != nil {
+		return nil, err
+	}
+	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "rollback", "promotion_activity", in.GetId(), fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -833,17 +839,31 @@ func validatePromotionActivity(in *adminsvc.PromotionActivityRequest) error {
 	return nil
 }
 
-// changePromotionStatus 修改活动运行状态。
-func changePromotionStatus(ctx context.Context, svcCtx *svc.ServiceContext, id int64, targetStatus int32) error {
+// validatePromotionAction 校验活动发布与回滚的操作参数。
+func validatePromotionAction(in *adminsvc.PromotionActivityActionRequest, publish bool) error {
+	if in.GetId() <= 0 || in.GetAdminId() <= 0 {
+		return status.Error(codes.InvalidArgument, "活动ID和管理员ID不能为空")
+	}
+	if publish && in.GetPublishScope() != "gray" && in.GetPublishScope() != "full" {
+		return status.Error(codes.InvalidArgument, "活动发布范围仅支持gray或full")
+	}
+	if !json.Valid([]byte(in.GetTargetConfig())) {
+		return status.Error(codes.InvalidArgument, "活动目标配置必须是合法JSON")
+	}
+	return nil
+}
+
+// changePromotionStatus 通过源状态限制更新，保证发布和回滚不会跨过活动状态机。
+func changePromotionStatus(ctx context.Context, svcCtx *svc.ServiceContext, id int64, expectedStatus, targetStatus int32) error {
 	if id <= 0 {
 		return status.Error(codes.InvalidArgument, "活动ID不能为空")
 	}
-	res, err := svcCtx.MySQL.ExecContext(ctx, `UPDATE promotion_activity SET status = ? WHERE id = ?`, targetStatus, id)
+	res, err := svcCtx.MySQL.ExecContext(ctx, `UPDATE promotion_activity SET status = ? WHERE id = ? AND status = ?`, targetStatus, id, expectedStatus)
 	if err != nil {
 		return err
 	}
 	if affected, _ := res.RowsAffected(); affected == 0 {
-		return status.Error(codes.NotFound, "活动配置不存在")
+		return status.Error(codes.FailedPrecondition, "活动当前状态不允许执行该操作")
 	}
 	return nil
 }
