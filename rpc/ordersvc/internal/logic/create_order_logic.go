@@ -173,6 +173,7 @@ func buildRideOrder(in *proto.CreateOrderRequest, estimatedPriceCents int64) *mo
 		UserId:             uint64(in.UserId),
 		DriverId:           0,
 		CarType:            int8(in.CarType),
+		CityCode:           strings.TrimSpace(in.CityCode),
 		FromAddress:        strings.TrimSpace(in.FromAddress),
 		FromLongitude:      in.FromLongitude,
 		FromLatitude:       in.FromLatitude,

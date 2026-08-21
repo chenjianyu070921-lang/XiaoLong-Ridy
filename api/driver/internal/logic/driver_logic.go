@@ -151,6 +151,7 @@ func (l *DriverLogic) GetDriver(id int64) (*types.GetDriverResponse, error) {
 		DriverLicenseNo: d.GetDriverLicenseNo(),
 		AvatarURL:       d.GetAvatarUrl(),
 		Status:          d.GetStatus().String(),
+		OnlineStatus:    int(d.GetOnlineStatus()),
 		CreatedAt:       d.GetCreatedAt(),
 		UpdatedAt:       d.GetUpdatedAt(),
 	}}, nil

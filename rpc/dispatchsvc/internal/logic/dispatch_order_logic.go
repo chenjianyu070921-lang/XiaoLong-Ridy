@@ -3,10 +3,11 @@ package logic
 import (
 	"context"
 	"encoding/json"
-	"sync"
+	"fmt"
 	"time"
 
 	"XiaoLong-Ridy/common/constants"
+	"XiaoLong-Ridy/common/redisx"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/model"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/svc"
 	"XiaoLong-Ridy/rpc/dispatchsvc/proto"
@@ -17,16 +18,31 @@ import (
 // defaultDispatchTimeout 未配置 dispatchTimeoutSeconds 时的派单超时阈值。
 const defaultDispatchTimeout = 60 * time.Second
 
-// dispatchOrderLocks 派单互斥锁集合（按订单维度），保证同一订单的并发派单只插入一次记录。
-// 单实例部署下可靠；多实例部署需升级为 Redis 分布式锁或在 dispatch_record 加 (order_id, driver_id) 唯一约束。
-var dispatchOrderLocks sync.Map // map[uint64]*sync.Mutex
+// dispatchLockTTL 派单互斥锁过期时间，配合看门狗续期避免进程崩溃导致锁永久占用。
+const dispatchLockTTL = 15 * time.Second
 
-// lockDispatchOrder 获取该订单的派单互斥锁，返回释放函数。
-func lockDispatchOrder(orderID uint64) func() {
-	mu, _ := dispatchOrderLocks.LoadOrStore(orderID, &sync.Mutex{})
-	m := mu.(*sync.Mutex)
-	m.Lock()
-	return m.Unlock
+// dispatchLockKey 派单互斥锁的 Redis key（按订单维度）。
+func dispatchLockKey(orderID uint64) string {
+	return fmt.Sprintf("r:lock:dispatch:%d", orderID)
+}
+
+// lockDispatchOrder 获取该订单的派单互斥锁（Redis 分布式锁，跨实例生效），返回释放函数。
+//
+// 修复说明（P1-M4-3）：原实现用进程内 sync.Map 锁，多实例部署时各实例各自加锁，
+// 并发派单会重复插入 dispatch_record。改为 Redis 分布式锁（带 owner token + 看门狗续期），
+// 且始终返回非 nil 的 release 函数，未配置 Redis 时退化为空释放函数（单实例兼容）。
+func (l *DispatchOrderLogic) lockDispatchOrder(ctx context.Context, orderID uint64) func() {
+	noop := func() {}
+	if l.svcCtx.Redis == nil {
+		return noop
+	}
+	lk, err := redisx.TryLock(ctx, l.svcCtx.Redis, dispatchLockKey(orderID), dispatchLockTTL)
+	if err != nil {
+		// 获取锁失败时退化为不阻塞（由 DB 唯一约束/状态校验兜底），仅告警。
+		l.Logger.Errorf("acquire dispatch lock failed, orderId=%d: %v", orderID, err)
+		return noop
+	}
+	return lk.Release
 }
 
 type DispatchOrderLogic struct {
@@ -54,7 +70,7 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 	}
 
 	// 按订单互斥串行化"检查-插入"临界区，防止并发派单插入重复记录。
-	unlock := lockDispatchOrder(uint64(in.OrderId))
+	unlock := l.lockDispatchOrder(context.Background(), uint64(in.OrderId))
 	defer unlock()
 
 	timeout := time.Duration(l.svcCtx.Config.DispatchTimeoutSeconds) * time.Second
@@ -110,7 +126,10 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 		driverIDs = append(driverIDs, int64(candidate.DriverID))
 	}
 
-	// 派单落库后发布通知事件，供司机端实时提醒（失败不阻断派单主流程）。
+	// 派单落库后发布通知事件，供司机端实时提醒。
+	// 修复说明（P1-M4-4）：原实现发布失败仅记普通日志，Redis 瞬时抖动时事件静默丢失、
+	// 司机端永远收不到派单导致订单卡死。此处增加一次重试，失败则输出告警级日志
+	// （含可重放的关键字段），便于排查与人工/定时任务补偿，且不返回 error 以免上游误触发重复派单。
 	if l.svcCtx.EventBus != nil && len(driverIDs) > 0 {
 		payload, _ := json.Marshal(dispatchNewEvent{
 			OrderId:       in.OrderId,
@@ -121,8 +140,9 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 			CityCode:      in.CityCode,
 			DispatchedAt:  time.Now().Unix(),
 		})
-		if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicDispatchNew, payload); err != nil {
-			l.Logger.Errorf("publish dispatch.new failed: %v", err)
+		if err := l.publishWithRetry(l.ctx, constants.TopicDispatchNew, payload); err != nil {
+			l.Logger.Errorf("publish dispatch.new failed after retry, orderId=%d driverIds=%v: %v",
+				in.OrderId, driverIDs, err)
 		}
 	}
 
@@ -147,6 +167,17 @@ func (l *DispatchOrderLogic) hasActiveDispatch(records []model.DispatchRecord, n
 	return false
 }
 
+// publishWithRetry 发布事件，网络/中间件瞬时抖动时重试一次，降低事件静默丢失概率。
+func (l *DispatchOrderLogic) publishWithRetry(ctx context.Context, topic string, payload []byte) error {
+	if err := l.svcCtx.EventBus.Publish(ctx, topic, payload); err != nil {
+		l.Logger.Errorf("publish %s first attempt failed: %v, retrying", topic, err)
+		// 短暂退避后重试一次，避免上游误触发重复派单时不放大失败。
+		time.Sleep(50 * time.Millisecond)
+		return l.svcCtx.EventBus.Publish(ctx, topic, payload)
+	}
+	return nil
+}
+
 // toProtoDispatchRecord 将仓储派单记录转换为 proto 结构。
 func toProtoDispatchRecord(record *model.DispatchRecord) *proto.DispatchRecord {
 	return &proto.DispatchRecord{
@@ -162,13 +193,13 @@ func toProtoDispatchRecord(record *model.DispatchRecord) *proto.DispatchRecord {
 	}
 }
 
-// dispatchNewEvent 派单通知事件 payload。
+// dispatchNewEvent 派单通知事件 payload（统一 snake_case，与消费端 DispatchNewEvent 对齐）。
 type dispatchNewEvent struct {
-	OrderId       int64   `json:"orderId"`
-	DriverIds     []int64 `json:"driverIds"`
-	FromLongitude float64 `json:"fromLongitude"`
-	FromLatitude  float64 `json:"fromLatitude"`
-	CarType       int32   `json:"carType"`
-	CityCode      string  `json:"cityCode"`
-	DispatchedAt  int64   `json:"dispatchedAt"`
+	OrderId       int64   `json:"order_id"`
+	DriverIds     []int64 `json:"driver_ids"`
+	FromLongitude float64 `json:"from_longitude"`
+	FromLatitude  float64 `json:"from_latitude"`
+	CarType       int32   `json:"car_type"`
+	CityCode      string  `json:"city_code"`
+	DispatchedAt  int64   `json:"dispatched_at"`
 }

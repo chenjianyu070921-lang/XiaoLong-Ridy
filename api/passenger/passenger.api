@@ -167,6 +167,46 @@ type PayOrderResponse {
 	Status int32 `json:"status"`
 }
 
+type PaymentStatusRequest {
+	PaymentNo string `json:"paymentNo"`
+	OrderID int64 `json:"orderId"`
+}
+
+type PaymentStatusResponse {
+	PaymentID int64 `json:"paymentId"`
+	PaymentNo string `json:"paymentNo"`
+	OrderID int64 `json:"orderId"`
+	AmountCents int64 `json:"amountCents"`
+	Channel string `json:"channel"`
+	Status int32 `json:"status"`
+	TransactionID string `json:"transactionId"`
+	RefundAmountCents int64 `json:"refundAmountCents"`
+}
+
+type DispatchStatusRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type DispatchRecord {
+	ID int64 `json:"id"`
+	OrderID int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	DispatchType int32 `json:"dispatchType"`
+	Status int32 `json:"status"`
+	MatchScore float64 `json:"matchScore"`
+	Remark string `json:"remark"`
+	CreatedAt int64 `json:"createdAt"`
+	UpdatedAt int64 `json:"updatedAt"`
+}
+
+type DispatchStatusResponse {
+	OrderID int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	DispatchStatus int32 `json:"dispatchStatus"`
+	Records []DispatchRecord `json:"records"`
+	Total int64 `json:"total"`
+}
+
 type OrderStatusPollRequest {
 	OrderID int64 `json:"orderId"`
 	KnownStatus int32 `json:"knownStatus"`
@@ -178,6 +218,8 @@ type OrderStatusPollResponse {
 	Changed bool `json:"changed"`
 	UpdatedAt int64 `json:"updatedAt"`
 	DriverID int64 `json:"driverId"`
+	Payment PaymentStatusResponse `json:"payment,optional"`
+	Dispatch DispatchStatusResponse `json:"dispatch,optional"`
 }
 
 type SubmitReviewRequest {
@@ -311,6 +353,12 @@ service passenger-api {
 
 	@handler PayOrderHandler
 	post /api/passenger/v1/orders/pay (PayOrderRequest) returns (PayOrderResponse)
+
+	@handler GetPaymentStatusHandler
+	post /api/passenger/v1/orders/payment-status (PaymentStatusRequest) returns (PaymentStatusResponse)
+
+	@handler GetDispatchStatusHandler
+	post /api/passenger/v1/orders/dispatch-status (DispatchStatusRequest) returns (DispatchStatusResponse)
 
 	@handler CreateAddressHandler
 	post /api/passenger/v1/addresses/create (CreateAddressRequest) returns (AddressInfo)

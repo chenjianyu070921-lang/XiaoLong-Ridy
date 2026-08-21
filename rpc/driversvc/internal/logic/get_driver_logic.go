@@ -39,6 +39,7 @@ func (l *GetDriverLogic) GetDriver(in *proto.GetDriverRequest) (*proto.GetDriver
 			DriverLicenseNo: d.DriverLicenseNo,
 			AvatarUrl:       d.AvatarUrl,
 			Status:          proto.DriverStatus(d.Status),
+			OnlineStatus:    int32(d.OnlineStatus),
 			CreatedAt:       d.CreatedAt.Unix(),
 			UpdatedAt:       d.UpdatedAt.Unix(),
 		},

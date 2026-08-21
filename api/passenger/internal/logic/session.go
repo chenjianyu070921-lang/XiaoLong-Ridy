@@ -21,6 +21,8 @@ var (
 	ErrPriceClientNotConfigured = errors.New("price client not configured")
 	// ErrPayClientNotConfigured 表示支付服务客户端未配置。
 	ErrPayClientNotConfigured = errors.New("pay client not configured")
+	// ErrDispatchClientNotConfigured 表示派单服务客户端未配置。
+	ErrDispatchClientNotConfigured = errors.New("dispatch client not configured")
 	// ErrOrderNotPayable 表示订单当前状态不能发起支付。
 	ErrOrderNotPayable = errors.New("order not payable")
 )

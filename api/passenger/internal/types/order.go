@@ -113,6 +113,51 @@ type PayOrderResponse struct {
 	Status        int32  `json:"status"`
 }
 
+// PaymentStatusRequest 表示支付结果主动查询请求，支付单号和订单 ID 至少传一个。
+type PaymentStatusRequest struct {
+	PaymentNo string `json:"paymentNo"`
+	OrderID   int64  `json:"orderId"`
+}
+
+// PaymentStatusResponse 表示支付单状态查询结果。
+type PaymentStatusResponse struct {
+	PaymentID         int64  `json:"paymentId"`
+	PaymentNo         string `json:"paymentNo"`
+	OrderID           int64  `json:"orderId"`
+	AmountCents       int64  `json:"amountCents"`
+	Channel           string `json:"channel"`
+	Status            int32  `json:"status"`
+	TransactionID     string `json:"transactionId"`
+	RefundAmountCents int64  `json:"refundAmountCents"`
+}
+
+// DispatchStatusRequest 表示派单状态主动查询请求。
+type DispatchStatusRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+// DispatchRecord 表示乘客端可展示的派单记录摘要。
+type DispatchRecord struct {
+	ID           int64   `json:"id"`
+	OrderID      int64   `json:"orderId"`
+	DriverID     int64   `json:"driverId"`
+	DispatchType int32   `json:"dispatchType"`
+	Status       int32   `json:"status"`
+	MatchScore   float64 `json:"matchScore"`
+	Remark       string  `json:"remark"`
+	CreatedAt    int64   `json:"createdAt"`
+	UpdatedAt    int64   `json:"updatedAt"`
+}
+
+// DispatchStatusResponse 表示订单派单兜底查询结果。
+type DispatchStatusResponse struct {
+	OrderID        int64            `json:"orderId"`
+	DriverID       int64            `json:"driverId"`
+	DispatchStatus int32            `json:"dispatchStatus"`
+	Records        []DispatchRecord `json:"records"`
+	Total          int64            `json:"total"`
+}
+
 // OrderStatusPollRequest 表示乘客端轮询订单状态的请求参数。
 type OrderStatusPollRequest struct {
 	OrderID     int64 `json:"orderId"`
@@ -121,9 +166,11 @@ type OrderStatusPollRequest struct {
 
 // OrderStatusPollResponse 表示订单状态轮询结果，changed 为 true 时前端刷新展示节点。
 type OrderStatusPollResponse struct {
-	OrderID   int64 `json:"orderId"`
-	Status    int32 `json:"status"`
-	Changed   bool  `json:"changed"`
-	UpdatedAt int64 `json:"updatedAt"`
-	DriverID  int64 `json:"driverId"`
+	OrderID   int64                   `json:"orderId"`
+	Status    int32                   `json:"status"`
+	Changed   bool                    `json:"changed"`
+	UpdatedAt int64                   `json:"updatedAt"`
+	DriverID  int64                   `json:"driverId"`
+	Payment   *PaymentStatusResponse  `json:"payment,omitempty"`
+	Dispatch  *DispatchStatusResponse `json:"dispatch,omitempty"`
 }

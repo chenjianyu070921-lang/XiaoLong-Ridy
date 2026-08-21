@@ -31,4 +31,6 @@ type DispatchRepository interface {
 	// ListTimeoutPendingOrderIDs 分页查询存在超时（created_at <= before 且仍为 Pending）
 	// 派单记录的订单 ID（去重），返回 ID 列表与订单总数。
 	ListTimeoutPendingOrderIDs(ctx context.Context, before time.Time, page, pageSize int32) ([]uint64, int64, error)
+	// GetDriverScore 读取司机服务质量分；记录不存在时返回 (nil, nil)。
+	GetDriverScore(ctx context.Context, driverID uint64) (*model.DriverScore, error)
 }

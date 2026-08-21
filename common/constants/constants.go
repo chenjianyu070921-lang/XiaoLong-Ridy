@@ -34,8 +34,9 @@ const (
 	RedisOrderInfo    = "order:info:%d"   // 订单信息
 	RedisSmsCode      = "sms:code:%s"     // 验证码
 	RedisOrderLock    = "r:lock:order:%d" // 接单分布式锁
-	RedisDriverGeo    = "driver:geo:%s"   // 司机位置 GEO，按城市
-	RedisDriverOnline = "driver:online"   // 在线司机集合
+	RedisDriverGeo      = "driver:geo:%s"         // 司机位置 GEO，按城市
+	RedisDriverOnline   = "driver:online"         // 在线司机集合
+	RedisDriverAvailable = "driver:available:%d"   // 派给司机的待接单集合（driverID）
 )
 
 // Kafka/事件主题
