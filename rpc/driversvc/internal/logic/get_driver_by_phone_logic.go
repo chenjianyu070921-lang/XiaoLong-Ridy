@@ -33,9 +33,9 @@ func (l *GetDriverByPhoneLogic) GetDriverByPhone(in *proto.GetDriverByPhoneReque
 		Driver: &proto.Driver{
 			Id:              int64(d.Id),
 			Phone:           d.Phone,
-			PasswordHash:    "", // 不返回密码哈希，避免凭据泄露
+			PasswordHash:    d.PasswordHash,
 			RealName:        d.RealName,
-			IdCardNo:        maskIDCard(d.IdCardNo), // 身份证脱敏返回
+			IdCardNo:        d.IdCardNo,
 			DriverLicenseNo: d.DriverLicenseNo,
 			AvatarUrl:       d.AvatarUrl,
 			Status:          proto.DriverStatus(d.Status),
@@ -43,12 +43,4 @@ func (l *GetDriverByPhoneLogic) GetDriverByPhone(in *proto.GetDriverByPhoneReque
 			UpdatedAt:       d.UpdatedAt.Unix(),
 		},
 	}, nil
-}
-
-// maskIDCard 对身份证号做脱敏：保留前 4 位与后 2 位，中间以 * 替代。
-func maskIDCard(no string) string {
-	if len(no) <= 6 {
-		return no
-	}
-	return no[:4] + "**********" + no[len(no)-2:]
 }

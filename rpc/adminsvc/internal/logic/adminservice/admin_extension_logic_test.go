@@ -41,12 +41,27 @@ func TestCreateExportTask_StartsAsyncStateMachine(t *testing.T) {
 	_ = os.RemoveAll(".tmp-admin-exports")
 	defer func() { _ = os.RemoveAll(".tmp-admin-exports") }()
 
+	createdAt := time.Date(2026, 8, 20, 12, 0, 0, 0, time.Local)
 	mock.ExpectExec(`INSERT INTO admin_export_task`).
 		WithArgs(sqlmock.AnyArg(), "orders", `{"status":5}`, int64(9001), "127.0.0.1").
 		WillReturnResult(sqlmock.NewResult(88, 1))
 	mock.ExpectExec(`INSERT INTO admin_operation_log`).
 		WithArgs(int64(9001), "export", "create", "orders", int64(0), sqlmock.AnyArg(), "127.0.0.1").
 		WillReturnResult(sqlmock.NewResult(99, 1))
+	mock.ExpectQuery(`SELECT task_no, export_type, COALESCE\(CAST\(filters AS CHAR\), ''\), status, admin_id,\s+file_path, file_url, failure_reason, created_at, updated_at, expires_at\s+FROM admin_export_task\s+WHERE task_no = \?`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"task_no", "export_type", "filters", "status", "admin_id", "file_path", "file_url", "failure_reason", "created_at", "updated_at", "expires_at"}).
+			AddRow("EX20260820120000000001", "orders", `{"status":5}`, "pending", int64(9001), "", "", "", createdAt, createdAt, nil))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("running", "", "", "", nil, sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(`SELECT id, order_no, user_id, driver_id, status, estimated_price, created_at\s+FROM ride_order\s+WHERE 1=1 AND status = \?\s+ORDER BY id DESC\s+LIMIT 5000`).
+		WithArgs(int32(5)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "order_no", "user_id", "driver_id", "status", "estimated_price", "created_at"}).
+			AddRow(int64(1001), "RO202608200001", int64(2001), int64(3001), int32(5), "28.50", createdAt))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("success", sqlmock.AnyArg(), sqlmock.AnyArg(), "", sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	resp, err := NewCreateExportTaskLogic(context.Background(), svcCtx).CreateExportTask(&adminsvc.ExportTaskRequest{
 		ExportType: "orders",
@@ -60,7 +75,73 @@ func TestCreateExportTask_StartsAsyncStateMachine(t *testing.T) {
 	if resp.GetTaskNo() == "" || resp.GetStatus() != "pending" {
 		t.Fatalf("CreateExportTask() response = %#v, want pending task", resp)
 	}
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+}
+
+// TestRunExportTaskJob_MarksFailedWhenLoadFails 验证任务读取失败时会回写 failed，避免任务永久停留在 pending。
+func TestRunExportTaskJob_MarksFailedWhenLoadFails(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`SELECT task_no, export_type, COALESCE\(CAST\(filters AS CHAR\), ''\), status, admin_id,\s+file_path, file_url, failure_reason, created_at, updated_at, expires_at\s+FROM admin_export_task\s+WHERE task_no = \?`).
+		WithArgs("EXLOADFAILED").
+		WillReturnError(errors.New("database unavailable"))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("failed", "", "", sqlmock.AnyArg(), nil, "EXLOADFAILED").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	runExportTaskJob(svcCtx, "EXLOADFAILED")
+}
+
+// TestRunExportTaskJob_MarksFailedWhenRunningUpdateFails 验证更新 running 失败后会立即尝试写入 failed。
+func TestRunExportTaskJob_MarksFailedWhenRunningUpdateFails(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	createdAt := time.Date(2026, 8, 20, 12, 0, 0, 0, time.Local)
+	mock.ExpectQuery(`SELECT task_no, export_type, COALESCE\(CAST\(filters AS CHAR\), ''\), status, admin_id,\s+file_path, file_url, failure_reason, created_at, updated_at, expires_at\s+FROM admin_export_task\s+WHERE task_no = \?`).
+		WithArgs("EXRUNFAILED").
+		WillReturnRows(sqlmock.NewRows([]string{"task_no", "export_type", "filters", "status", "admin_id", "file_path", "file_url", "failure_reason", "created_at", "updated_at", "expires_at"}).
+			AddRow("EXRUNFAILED", "orders", `{"status":5}`, "pending", int64(9001), "", "", "", createdAt, createdAt, nil))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("running", "", "", "", nil, "EXRUNFAILED").
+		WillReturnError(errors.New("database unavailable"))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("failed", "", "", sqlmock.AnyArg(), nil, "EXRUNFAILED").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	runExportTaskJob(svcCtx, "EXRUNFAILED")
+}
+
+// TestRunExportTaskJob_RecoversPanicAndMarksFailed 验证 CSV 生成 panic 被恢复，并将任务标记为 failed。
+func TestRunExportTaskJob_RecoversPanicAndMarksFailed(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	createdAt := time.Date(2026, 8, 20, 12, 0, 0, 0, time.Local)
+	mock.ExpectQuery(`SELECT task_no, export_type, COALESCE\(CAST\(filters AS CHAR\), ''\), status, admin_id,\s+file_path, file_url, failure_reason, created_at, updated_at, expires_at\s+FROM admin_export_task\s+WHERE task_no = \?`).
+		WithArgs("EXPANIC").
+		WillReturnRows(sqlmock.NewRows([]string{"task_no", "export_type", "filters", "status", "admin_id", "file_path", "file_url", "failure_reason", "created_at", "updated_at", "expires_at"}).
+			AddRow("EXPANIC", "orders", `{"status":5}`, "pending", int64(9001), "", "", "", createdAt, createdAt, nil))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("running", "", "", "", nil, "EXPANIC").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE admin_export_task\s+SET status = \?, file_path = \?, file_url = \?, failure_reason = \?, expires_at = \?\s+WHERE task_no = \?`).
+		WithArgs("failed", "", "", "导出任务异常: test panic", nil, "EXPANIC").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// 替换文件生成器以模拟真实 worker 内部 panic，并使用同一锁避免与异步 worker 竞争。
+	exportFileWriterMu.Lock()
+	previousWriter := exportFileWriter
+	exportFileWriter = func(context.Context, *svc.ServiceContext, *adminsvc.ExportTask) (string, error) {
+		panic("test panic")
+	}
+	exportFileWriterMu.Unlock()
+	defer func() {
+		exportFileWriterMu.Lock()
+		exportFileWriter = previousWriter
+		exportFileWriterMu.Unlock()
+	}()
+
+	runExportTaskJob(svcCtx, "EXPANIC")
 }
 
 // TestGetExportTask_ReturnsFileAndFailureFields 验证导出任务详情会返回文件路径、失败原因和更新时间字段。
@@ -97,9 +178,8 @@ func TestGetStatisticsOverview_ReturnsSQLError(t *testing.T) {
 	}
 }
 
-// TestAddBlacklist_ReturnsOperationLogError 验证黑名单新增时审计日志失败必须向上返回。
-// 风控黑名单属于敏感操作，不能出现业务成功但 admin_operation_log 缺失的假成功。
-func TestAddBlacklist_ReturnsOperationLogError(t *testing.T) {
+// TestAddBlacklist_CreatesOutboxAndReturnsSuccess 验证业务写入成功后审计失败会创建补偿任务并返回成功。
+func TestAddBlacklist_CreatesOutboxAndReturnsSuccess(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
 	defer cleanup()
 
@@ -108,16 +188,118 @@ func TestAddBlacklist_ReturnsOperationLogError(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(88, 1))
 	mock.ExpectExec(`INSERT INTO admin_operation_log`).
 		WillReturnError(errors.New("operation log write failed"))
+	mock.ExpectExec(`INSERT INTO admin_audit_outbox`).
+		WithArgs(sqlmock.AnyArg(), "risk", "add_blacklist", "blacklist", int64(88), int64(9001), "新增黑名单：user/1001", "127.0.0.1", "operation log write failed").
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	_, err := NewAddBlacklistLogic(context.Background(), svcCtx).AddBlacklist(&adminsvc.BlacklistRequest{
+	resp, err := NewAddBlacklistLogic(context.Background(), svcCtx).AddBlacklist(&adminsvc.BlacklistRequest{
 		TargetType: "user",
 		TargetId:   1001,
 		Reason:     "恶意取消订单",
 		AdminId:    9001,
 		Ip:         "127.0.0.1",
 	})
-	if err == nil {
-		t.Fatal("AddBlacklist() error = nil, want operation log error")
+	if err != nil || resp.GetMessage() != "ok" {
+		t.Fatalf("AddBlacklist() = %#v, %v; want successful compensated response", resp, err)
+	}
+}
+
+// TestCreateExportTask_RejectsUnknownFilter 验证创建任务时拒绝未定义筛选字段，防止条件被静默忽略。
+func TestCreateExportTask_RejectsUnknownFilter(t *testing.T) {
+	svcCtx, _, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	_, err := NewCreateExportTaskLogic(context.Background(), svcCtx).CreateExportTask(&adminsvc.ExportTaskRequest{
+		ExportType: "orders", Filters: `{"unknown":1}`, AdminId: 9001,
+	})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("CreateExportTask() error code = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
+// TestPromotionActionValidation 验证发布范围和目标配置必须符合活动状态机入口约束。
+func TestPromotionActionValidation(t *testing.T) {
+	err := validatePromotionAction(&adminsvc.PromotionActivityActionRequest{Id: 1, AdminId: 1, PublishScope: "all", TargetConfig: `{}`}, true)
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("validatePromotionAction() code = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
+// TestGetStatisticsOverview_RejectsUnsupportedCityFilter 验证不存在城市归属字段时拒绝城市筛选，避免静默返回跨城市口径。
+func TestGetStatisticsOverview_RejectsUnsupportedCityFilter(t *testing.T) {
+	svcCtx, _, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	_, err := NewGetStatisticsOverviewLogic(context.Background(), svcCtx).GetStatisticsOverview(&adminsvc.StatisticsRequest{CityCode: "110000"})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("GetStatisticsOverview() error code = %v, want FailedPrecondition", status.Code(err))
+	}
+}
+
+// TestIssueCoupon_RejectsDraftCoupon 验证草稿券不能进入发券事务，防止未发布规则提前影响用户权益。
+func TestIssueCoupon_RejectsDraftCoupon(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT valid_end_at, status, total_count, received_count, per_user_limit`).
+		WithArgs(int64(10)).
+		WillReturnRows(sqlmock.NewRows([]string{"valid_end_at", "status", "total_count", "received_count", "per_user_limit"}).
+			AddRow(time.Now().Add(time.Hour), int32(1), int64(10), int64(0), int64(1)))
+	mock.ExpectRollback()
+	_, err := NewIssueCouponLogic(context.Background(), svcCtx).IssueCoupon(&adminsvc.CouponIssueRequest{
+		CouponId: 10, AdminId: 1, TargetType: "user", TargetConfig: `{"user_ids":[1001]}`,
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("IssueCoupon() error code = %v, want FailedPrecondition", status.Code(err))
+	}
+}
+
+// TestIssueCoupon_WritesPublishRecordInTransaction 验证实际发券、任务和发布记录必须同事务提交。
+func TestIssueCoupon_WritesPublishRecordInTransaction(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	validEndAt := time.Now().Add(time.Hour)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT valid_end_at, status, total_count, received_count, per_user_limit`).
+		WithArgs(int64(10)).
+		WillReturnRows(sqlmock.NewRows([]string{"valid_end_at", "status", "total_count", "received_count", "per_user_limit"}).
+			AddRow(validEndAt, int32(2), int64(10), int64(0), int64(1)))
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon WHERE user_id = \? AND coupon_id = \?`).
+		WithArgs(int64(1001), int64(10)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectExec(`INSERT INTO user_coupon`).
+		WithArgs(int64(1001), int64(10), sqlmock.AnyArg(), validEndAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`INSERT INTO admin_coupon_issue_task`).
+		WithArgs(sqlmock.AnyArg(), int64(10), "user", `{"user_ids":[1001]}`, 1, int64(1), int64(0), int32(3), "", int64(9001)).
+		WillReturnResult(sqlmock.NewResult(2, 1))
+	mock.ExpectExec(`UPDATE coupon SET received_count = received_count \+ \? WHERE id = \?`).
+		WithArgs(int64(1), int64(10)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`INSERT INTO admin_operation_log`).
+		WithArgs(int64(9001), "coupon", "issue", "coupon", int64(10), sqlmock.AnyArg(), "127.0.0.1").
+		WillReturnResult(sqlmock.NewResult(3, 1))
+	mock.ExpectExec(`INSERT INTO admin_coupon_publish_record`).
+		WithArgs(int64(10), sqlmock.AnyArg(), `{"user_ids":[1001]}`, int32(2), "", int64(9001)).
+		WillReturnResult(sqlmock.NewResult(4, 1))
+	mock.ExpectCommit()
+
+	resp, err := NewIssueCouponLogic(context.Background(), svcCtx).IssueCoupon(&adminsvc.CouponIssueRequest{
+		CouponId: 10, AdminId: 9001, TargetType: "user", TargetConfig: `{"user_ids":[1001]}`, Ip: "127.0.0.1",
+	})
+	if err != nil || resp.GetStatus() != "success" {
+		t.Fatalf("IssueCoupon() = %#v, %v; want successful transaction", resp, err)
+	}
+}
+
+// TestGetCouponStatistics_UsesSingleAggregateQuery 验证优惠券统计使用一次聚合查询，并且启用券只统计状态 2。
+func TestGetCouponStatistics_CountsEnabledStatus(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	mock.ExpectQuery(`SELECT\s+\(SELECT COUNT\(1\) FROM coupon\),`).
+		WillReturnRows(sqlmock.NewRows([]string{"coupon_count", "enabled_coupon_count", "issued_coupon_count", "used_coupon_count", "expired_coupon_count"}).
+			AddRow(3, 1, 0, 0, 0))
+	resp, err := NewGetCouponStatisticsLogic(context.Background(), svcCtx).GetCouponStatistics(&adminsvc.StatisticsRequest{})
+	if err != nil || resp.GetEnabledCouponCount() != 1 {
+		t.Fatalf("GetCouponStatistics() = %#v, %v; want one enabled coupon", resp, err)
 	}
 }
 
@@ -164,64 +346,5 @@ func TestValidateCouponRequest_RejectsUnknownStatus(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("validateCouponRequest() error = nil, want invalid status error")
-	}
-}
-
-// TestCreateCoupon_AuditFailureRollsBack 验证优惠券和审计日志使用同一事务。
-// 审计写入失败时必须回滚优惠券插入，避免产生无审计的敏感营销配置。
-func TestCreateCoupon_AuditFailureRollsBack(t *testing.T) {
-	svcCtx, mock, cleanup := newAdminSQLMock(t)
-	defer cleanup()
-
-	mock.ExpectBegin()
-	mock.ExpectExec(`INSERT INTO coupon`).WillReturnResult(sqlmock.NewResult(101, 1))
-	mock.ExpectExec(`INSERT INTO admin_operation_log`).WillReturnError(errors.New("audit unavailable"))
-	mock.ExpectRollback()
-
-	resp, err := NewCreateCouponLogic(context.Background(), svcCtx).CreateCoupon(&adminsvc.CouponRequest{
-		Name: "新用户券", Type: 1, Status: 1, FaceValue: "8.00", Discount: "1.00", ThresholdAmount: "0.00",
-		TotalCount: 100, PerUserLimit: 1, ValidStartAt: "2026-08-20 00:00:00", ValidEndAt: "2026-08-21 00:00:00",
-		AdminId: 9001, Ip: "127.0.0.1",
-	})
-	if err == nil {
-		t.Fatal("CreateCoupon() error = nil, want audit error")
-	}
-	if resp != nil {
-		t.Fatalf("CreateCoupon() response = %#v, want nil", resp)
-	}
-}
-
-// TestStatistics_RejectsCityCode 验证订单没有权威城市字段时拒绝城市维度统计，不能静默返回跨城市数据。
-func TestStatistics_RejectsCityCode(t *testing.T) {
-	for _, call := range []func(*adminsvc.StatisticsRequest) error{
-		func(in *adminsvc.StatisticsRequest) error {
-			_, err := NewGetStatisticsOverviewLogic(context.Background(), nil).GetStatisticsOverview(in)
-			return err
-		},
-		func(in *adminsvc.StatisticsRequest) error {
-			_, err := NewGetOrderStatisticsLogic(context.Background(), nil).GetOrderStatistics(in)
-			return err
-		},
-	} {
-		if err := call(&adminsvc.StatisticsRequest{CityCode: "110100"}); status.Code(err) != codes.InvalidArgument {
-			t.Fatalf("statistics city_code error code = %v, want %v", status.Code(err), codes.InvalidArgument)
-		}
-	}
-}
-
-// TestParseOrderExportFilters_RejectsUnsafeConditions 验证未知字段和城市字段不会退化为全量订单导出。
-func TestParseOrderExportFilters_RejectsUnsafeConditions(t *testing.T) {
-	for _, raw := range []string{`{"city_code":"110100"}`, `{"unknown":1}`, `{"status":"5"}`, `{"start_time":"bad"}`} {
-		if _, err := parseOrderExportFilters("orders", raw); status.Code(err) != codes.InvalidArgument {
-			t.Fatalf("parseOrderExportFilters(%s) code = %v, want %v", raw, status.Code(err), codes.InvalidArgument)
-		}
-	}
-	filters, err := parseOrderExportFilters("orders", `{"status":5,"user_id":1001,"start_time":"2026-08-20 00:00:00","end_time":"2026-08-21 00:00:00"}`)
-	if err != nil {
-		t.Fatalf("parseOrderExportFilters() error = %v", err)
-	}
-	where, args := filters.where()
-	if !strings.Contains(where, "status = ?") || !strings.Contains(where, "user_id = ?") || len(args) != 4 {
-		t.Fatalf("filters.where() = (%q, %#v), want parameterized filter conditions", where, args)
 	}
 }

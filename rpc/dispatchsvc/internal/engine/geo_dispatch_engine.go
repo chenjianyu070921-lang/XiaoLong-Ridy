@@ -12,12 +12,18 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// DriverScoreProvider 提供司机的真实服务质量评分，用于派单权重计算。
+// 返回评分(rating, 0~5)与完单率(completion, 0~1)。查询失败或缺失时返回零值，引擎降级为默认权重。
+type DriverScoreProvider func(ctx context.Context, driverID uint64) (rating float64, completion float64)
+
 // geoDispatchEngine 基于 Redis GEO 的派单引擎：查附近司机并按距离/评分加权。
 type geoDispatchEngine struct {
 	rdb  *redis.Client
 	city string
 	// enableMock 是否允许在 GEO 查不到司机时回退 mock 候选，仅用于联调演示。
 	enableMock bool
+	// scoreProvider 真实司机评分查询，nil 时评分权重使用默认值。
+	scoreProvider DriverScoreProvider
 }
 
 // NewGeoDispatchEngine 创建 Redis GEO 派单引擎。
@@ -31,6 +37,14 @@ func NewGeoDispatchEngineWithMock(rdb *redis.Client, city string, enableMock boo
 		city = "default"
 	}
 	return &geoDispatchEngine{rdb: rdb, city: city, enableMock: enableMock}
+}
+
+// NewGeoDispatchEngineWithScore 创建 Redis GEO 派单引擎，并注入真实司机评分查询（driver_score 表），
+// 替换写死的默认权重。不设置时保持旧默认行为，兼容已有测试。
+func NewGeoDispatchEngineWithScore(rdb *redis.Client, city string, enableMock bool, p DriverScoreProvider) DispatchEngine {
+	e := NewGeoDispatchEngineWithMock(rdb, city, enableMock).(*geoDispatchEngine)
+	e.scoreProvider = p
+	return e
 }
 
 // FindCandidates 同时检索默认城市与指定城市 GEO，避免城市键不一致导致查空。
@@ -92,8 +106,12 @@ func (e *geoDispatchEngine) FindCandidates(ctx context.Context, _ uint64, fromLo
 	candidates := make([]Candidate, 0, len(locs))
 	for _, loc := range locs {
 		distanceScore := math.Max(0, 100-loc.Dist/1000*10)
-		rating := 4.5
-		completion := 0.9
+		rating, completion := 4.5, 0.9 // 默认权重，无真实评分数据时降级
+		if e.scoreProvider != nil {
+			if r, c := e.scoreProvider(ctx, mustParseID(loc.Name)); r > 0 || c > 0 {
+				rating, completion = r, c
+			}
+		}
 		score := distanceScore*0.6 + rating*10*0.3 + completion*100*0.1
 		candidates = append(candidates, Candidate{DriverID: mustParseID(loc.Name), MatchScore: score})
 	}

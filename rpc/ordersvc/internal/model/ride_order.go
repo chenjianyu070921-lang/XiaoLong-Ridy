@@ -9,6 +9,7 @@ type RideOrder struct {
 	UserId             uint64     `gorm:"column:user_id" json:"userId"`
 	DriverId           uint64     `gorm:"column:driver_id;default:0" json:"driverId"`
 	CarType            int8       `gorm:"column:car_type;default:1" json:"carType"`
+	CityCode           string     `gorm:"column:city_code;size:16;default:''" json:"cityCode"`
 	FromAddress        string     `gorm:"column:from_address;size:255" json:"fromAddress"`
 	FromLongitude      float64    `gorm:"column:from_longitude;type:decimal(10,6)" json:"fromLongitude"`
 	FromLatitude       float64    `gorm:"column:from_latitude;type:decimal(10,6)" json:"fromLatitude"`

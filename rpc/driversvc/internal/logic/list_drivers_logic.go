@@ -49,9 +49,9 @@ func (l *ListDriversLogic) ListDrivers(in *proto.ListDriversRequest) (*proto.Lis
 		list = append(list, &proto.Driver{
 			Id:              int64(d.Id),
 			Phone:           d.Phone,
-			PasswordHash:    "", // 不返回密码哈希，避免凭据泄露
+			PasswordHash:    d.PasswordHash,
 			RealName:        d.RealName,
-			IdCardNo:        maskIDCard(d.IdCardNo), // 身份证脱敏返回
+			IdCardNo:        d.IdCardNo,
 			DriverLicenseNo: d.DriverLicenseNo,
 			AvatarUrl:       d.AvatarUrl,
 			Status:          proto.DriverStatus(d.Status),

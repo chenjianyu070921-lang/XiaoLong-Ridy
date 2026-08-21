@@ -7,7 +7,6 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // errorsIsNotFound 判断是否为 GORM 记录不存在错误。
@@ -68,20 +67,6 @@ func (r *gormDriverRepository) Delete(ctx context.Context, driver *model.Driver)
 	return r.db.WithContext(ctx).Delete(driver).Error
 }
 
-// GetDriverScore 按司机 ID 查询其服务分与运营指标（driver_score 表）。
-// 未查到记录时返回 (nil, nil)，由调用方决定降级策略。
-func (r *gormDriverRepository) GetDriverScore(ctx context.Context, driverID uint64) (*model.DriverScore, error) {
-	var score model.DriverScore
-	err := r.db.WithContext(ctx).Where("driver_id = ?", driverID).First(&score).Error
-	if err != nil {
-		if errorsIsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &score, nil
-}
-
 // List 分页查询司机列表，支持状态与关键字（手机号/姓名）过滤。
 // 返回本页记录与符合条件的总记录数；软删记录不可见。
 func (r *gormDriverRepository) List(ctx context.Context, filter DriverListFilter) ([]*model.Driver, int64, error) {
@@ -129,25 +114,6 @@ func (r *gormDriverRepository) List(ctx context.Context, filter DriverListFilter
 // earthRadiusMeters 地球平均半径（米），用于 Haversine 球面距离计算。
 const earthRadiusMeters = 6371000.0
 
-// UpsertLocation 写入/更新司机最新位置与在线状态。
-// 按 driver_id 幂等 upsert：已存在则更新经纬度/在线状态/上报时间，不存在则插入。
-func (r *gormDriverRepository) UpsertLocation(ctx context.Context, loc *model.DriverLocation) error {
-	return r.db.WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "driver_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"longitude", "latitude", "online_status", "report_time"}),
-		}).
-		Create(loc).Error
-}
-
-// UpdateLocationStatus 仅更新司机位置表中的在线状态，不覆盖最新经纬度。
-func (r *gormDriverRepository) UpdateLocationStatus(ctx context.Context, driverID uint64, onlineStatus int8) error {
-	return r.db.WithContext(ctx).
-		Model(&model.DriverLocation{}).
-		Where("driver_id = ?", driverID).
-		Update("online_status", onlineStatus).Error
-}
-
 // ListNearbyDrivers 按经纬度 + 半径查找在线司机（online_status=1）。
 // 使用 Haversine 公式在 SQL 中直接计算球面距离，过滤半径内记录并按距离升序返回。
 func (r *gormDriverRepository) ListNearbyDrivers(ctx context.Context, filter NearbyDriverFilter) ([]*model.DriverLocation, error) {
@@ -188,10 +154,10 @@ func (r *gormDriverRepository) ListNearbyDrivers(ctx context.Context, filter Nea
 	if err := r.db.WithContext(ctx).
 		Raw(sql,
 			filter.Longitude, filter.Latitude, filter.Latitude, // SELECT haversine
-			model.LocationOnline,                               // online_status 过滤
+			model.LocationOnline,                  // online_status 过滤
 			filter.Longitude, filter.Latitude, filter.Latitude, // WHERE haversine
-			radius, // 半径
-			limit,  // 条数
+			radius,  // 半径
+			limit,   // 条数
 		).Scan(&locations).Error; err != nil {
 		return nil, err
 	}

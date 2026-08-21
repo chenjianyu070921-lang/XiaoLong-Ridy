@@ -41,12 +41,6 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 
 // Login 校验手机号、账号状态与密码，成功则签发 JWT 并返回司机简要信息。
 func (l *LoginLogic) Login(in *proto.LoginRequest) (*proto.LoginResponse, error) {
-	if in == nil || !driverPhoneRegexp.MatchString(in.GetPhone()) {
-		return nil, ErrLoginAccountNotFound
-	}
-	if err := validateDriverPassword(in.GetPassword()); err != nil {
-		return nil, ErrLoginPasswordWrong
-	}
 	// 按手机号查询司机（不存在时统一返回账号不存在）。
 	d, err := l.svcCtx.DriverRepository.GetByPhone(l.ctx, in.GetPhone())
 	if err != nil {
@@ -90,49 +84,6 @@ func (l *LoginLogic) Login(in *proto.LoginRequest) (*proto.LoginResponse, error)
 			OnlineStatus:    int32(d.OnlineStatus),
 			CreatedAt:       d.CreatedAt.Unix(),
 			UpdatedAt:       d.UpdatedAt.Unix(),
-		},
-	}, nil
-}
-
-// LoginBySMS signs a driver in after the API gateway has validated the SMS code.
-func (l *LoginLogic) LoginBySMS(in *proto.LoginBySMSRequest) (*proto.LoginResponse, error) {
-	if in == nil || !driverPhoneRegexp.MatchString(in.GetPhone()) {
-		return nil, ErrLoginAccountNotFound
-	}
-	driver, err := l.svcCtx.DriverRepository.GetByPhone(l.ctx, in.GetPhone())
-	if err != nil {
-		return nil, ErrLoginAccountNotFound
-	}
-	if driver.Status == int8(proto.DriverStatus_DRIVER_STATUS_FROZEN) ||
-		driver.Status == int8(proto.DriverStatus_DRIVER_STATUS_CANCELLED) {
-		return nil, ErrLoginAccountBlocked
-	}
-	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
-		AccountID:     uint64(driver.Id),
-		AccountType:   "driver",
-		AccountStatus: int(driver.Status),
-		Phone:         driver.Phone,
-		Role:          "driver",
-		Issuer:        "driversvc",
-		TTL:           loginTokenTTL,
-	}, l.svcCtx.Config.SigningKey)
-	if err != nil {
-		return nil, err
-	}
-	return &proto.LoginResponse{
-		Token:    token,
-		ExpireIn: int64(loginTokenTTL.Seconds()),
-		Driver: &proto.Driver{
-			Id:              int64(driver.Id),
-			Phone:           driver.Phone,
-			RealName:        driver.RealName,
-			IdCardNo:        driver.IdCardNo,
-			DriverLicenseNo: driver.DriverLicenseNo,
-			AvatarUrl:       driver.AvatarUrl,
-			Status:          proto.DriverStatus(driver.Status),
-			OnlineStatus:    int32(driver.OnlineStatus),
-			CreatedAt:       driver.CreatedAt.Unix(),
-			UpdatedAt:       driver.UpdatedAt.Unix(),
 		},
 	}, nil
 }

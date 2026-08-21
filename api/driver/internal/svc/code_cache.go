@@ -32,15 +32,14 @@ func (c *CodeCache) TTL() time.Duration {
 	return c.ttl
 }
 
-// Set 保存指定手机号的验证码，覆盖写入并重置过期时间为当前时间 + TTL。
+// Set 保存指定手机号的验证码。
 func (c *CodeCache) Set(phone, code string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries[phone] = codeEntry{code: code, expiresAt: time.Now().Add(c.ttl)}
 }
 
-// Verify 校验手机号验证码：匹配且未过期返回 true，并立即删除该验证码（一次性，防重放）；
-// 不存在或已过期均返回 false。
+// Verify 校验手机号验证码，匹配且未过期返回 true，并立即作废（防止重放）。
 func (c *CodeCache) Verify(phone, code string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()

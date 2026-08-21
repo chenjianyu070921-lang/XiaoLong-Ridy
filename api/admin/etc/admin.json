@@ -1,8 +1,5 @@
 {
-  "http_addr": ":8083",
-  "mysql": {
-    "dsn": ""
-  },
+  "http_addr": ":8717",
   "redis": {
     "addr": "127.0.0.1:6379",
     "password": "",
@@ -13,6 +10,7 @@
     "token_prefix": "admin:sess:"
   },
   "admin_rpc": {
-    "target": "127.0.0.1:8084"
+    "target": "127.0.0.1:8084",
+    "nonblock": true
   }
 }

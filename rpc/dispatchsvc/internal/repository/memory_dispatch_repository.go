@@ -187,3 +187,8 @@ func (r *MemoryDispatchRepository) ListTimeoutPendingOrderIDs(_ context.Context,
 	}
 	return ids[start:end], total, nil
 }
+
+// GetDriverScore 内存实现：测试环境无真实司机分数据，返回 nil。
+func (r *MemoryDispatchRepository) GetDriverScore(_ context.Context, _ uint64) (*model.DriverScore, error) {
+	return nil, nil
+}

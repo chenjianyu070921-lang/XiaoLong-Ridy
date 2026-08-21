@@ -171,7 +171,7 @@ import { h } from 'vue'
 // 组件选项必须用 h() 渲染函数，不能写 template 字符串，否则浏览器白屏。
 const router = createRouter({
   history: createWebHashHistory(),
-  routes: [{ path: '/', component: { render: () => h('div', 'web-admin ok') } }],
+  routes: [{ path: '/', component: { render: () => h('div', 'web ok') } }],
 })
 
 export default router

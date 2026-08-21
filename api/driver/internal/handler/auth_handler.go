@@ -11,7 +11,7 @@ import (
 )
 
 // SendSMSCodeHandler POST /api/driver/v1/auth/send-sms-code
-// 发送登录短信验证码：解析请求、调用认证逻辑生成验证码（联调阶段验证码输出到日志顶替短信通道）。
+// 发送登录短信验证码（联调阶段验证码输出到日志顶替短信通道）。
 func SendSMSCodeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.SendSMSCodeRequest
@@ -28,7 +28,7 @@ func SendSMSCodeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // LoginByPasswordHandler POST /api/driver/v1/auth/login-by-password
-// 手机号 + 密码登录：解析请求、调用认证逻辑校验并签发 JWT，成功返回统一登录响应。
+// 手机号 + 密码登录，成功返回 JWT。
 func LoginByPasswordHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.LoginByPasswordRequest
@@ -45,7 +45,7 @@ func LoginByPasswordHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // LoginBySMSHandler POST /api/driver/v1/auth/login-by-sms
-// 手机号 + 验证码登录：解析请求、调用认证逻辑校验验证码并签发 JWT，成功返回统一登录响应。
+// 手机号 + 验证码登录，成功返回 JWT。
 func LoginBySMSHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.LoginBySMSRequest
@@ -61,8 +61,7 @@ func LoginBySMSHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
-// writeAuthError 将认证相关错误映射为统一错误响应：区分账号/密码错误、封禁、验证码错误、
-// 下游不可用及 gRPC 透传等场景，写入对应的 HTTP 状态码与业务码。
+// writeAuthError 将认证相关错误映射为统一错误响应。
 func writeAuthError(w http.ResponseWriter, err error) {
 	switch err {
 	case logic.ErrDriverAuthFailed:

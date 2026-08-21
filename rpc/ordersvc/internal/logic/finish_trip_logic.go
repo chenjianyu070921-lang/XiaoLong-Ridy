@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
@@ -60,7 +61,7 @@ func (l *FinishTripLogic) FinishTrip(in *proto.FinishTripRequest) (*proto.Finish
 	}
 
 	// 服务端计价权威：优先按实际里程/时长调 pricesvc 重算应收，失败降级为下单预估快照。
-	serverAmountCents, serverPriced := l.settleAmountCents(order, in)
+	serverAmountCents, serverPriced, settleResp := l.settleAmountCents(order, in)
 	effectiveAmount := serverAmountCents
 	if effectiveAmount <= 0 {
 		// 无权威金额（计价服务不可用且无预估快照）时，采用司机上报值兜底。
@@ -97,6 +98,19 @@ func (l *FinishTripLogic) FinishTrip(in *proto.FinishTripRequest) (*proto.Finish
 		return nil, ErrOrderStatusNotAllowed
 	}
 
+	// P1：若实际费用来自服务端实时计价，落库实际计价明细，供结算与对账使用。
+	if serverPriced && l.svcCtx.PriceClient != nil && settleResp != nil {
+		actual := &price.SaveActualOrderPriceRequest{
+			OrderId:          int64(order.Id),
+			PriceRuleId:      settleResp.PriceRuleId,
+			ActualPriceCents: effectiveAmount,
+			Detail:           settleResp.Detail,
+		}
+		if _, err := l.svcCtx.PriceClient.SaveActualOrderPrice(l.ctx, actual); err != nil {
+			l.Logger.Errorf("save actual order price failed, orderId=%d: %v", order.Id, err)
+		}
+	}
+
 	l.createPayment(order, effectiveAmount)
 
 	return &proto.FinishTripResponse{
@@ -108,24 +122,33 @@ func (l *FinishTripLogic) FinishTrip(in *proto.FinishTripRequest) (*proto.Finish
 
 // settleAmountCents 计算服务端权威应收金额（分）。
 // 优先用实际里程/时长调 pricesvc 重算；pricesvc 未配置、调用失败或金额非法时降级为下单预估快照。
-// 返回 (金额, 是否为服务端实时计价)；两者均无法取得时金额为 0。
-func (l *FinishTripLogic) settleAmountCents(order *model.RideOrder, in *proto.FinishTripRequest) (int64, bool) {
+// 返回 (金额, 是否为服务端实时计价, 计价响应)；两者均无法取得时金额为 0、resp 为 nil。
+func (l *FinishTripLogic) settleAmountCents(order *model.RideOrder, in *proto.FinishTripRequest) (int64, bool, *price.EstimatePriceResponse) {
 	estimatedCents := int64(math.Round(order.EstimatedPrice * 100))
 	if l.svcCtx.PriceClient == nil {
-		return estimatedCents, false
+		return estimatedCents, false, nil
 	}
 	resp, err := l.svcCtx.PriceClient.EstimatePrice(l.ctx, &price.EstimatePriceRequest{
 		UserId:    int64(order.UserId),
-		CityCode:  defaultCityCode, // 城市未随订单落库，结算重算统一走兜底城市
+		CityCode:  orderCityCode(order.CityCode), // 优先用订单落库的真实城市，空则兜底默认城市
 		CarType:   int32(order.CarType),
 		DistanceM: in.ActualDistanceM,
 		DurationS: in.ActualDurationS,
 	})
 	if err != nil || resp == nil || resp.TotalCents <= 0 {
 		l.Logger.Errorf("settle price failed, fallback to estimate %d: %v", estimatedCents, err)
-		return estimatedCents, false
+		return estimatedCents, false, nil
 	}
-	return resp.TotalCents, true
+	return resp.TotalCents, true, resp
+}
+
+// orderCityCode 返回订单的真实城市编码，空则兜底默认城市。
+func orderCityCode(code string) string {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return defaultCityCode
+	}
+	return code
 }
 
 // createPayment 调 paysvc 生成支付单，返回支付单号；失败返回空串（不阻断订单状态）。

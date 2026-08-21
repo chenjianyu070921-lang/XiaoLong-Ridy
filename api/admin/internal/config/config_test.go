@@ -6,25 +6,15 @@ import (
 	"testing"
 )
 
-// TestLoadPrefersEnvironmentDSN 验证环境变量覆盖配置文件，防止真实凭据重新写回仓库配置。
-func TestLoadPrefersEnvironmentDSN(t *testing.T) {
-	t.Setenv("ADMIN_API_MYSQL_DSN", "env-dsn")
-	path := writeTestConfig(t, `{"mysql":{"dsn":"file-dsn"}}`)
+// TestLoadDoesNotRequireMySQLDSN 验证网关只依赖 adminsvc RPC，不再要求本地 MySQL DSN。
+func TestLoadDoesNotRequireMySQLDSN(t *testing.T) {
+	path := writeTestConfig(t, `{}`)
 	cfg, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.MySQL.DSN != "env-dsn" {
-		t.Fatalf("dsn = %q, want environment value", cfg.MySQL.DSN)
-	}
-}
-
-// TestLoadRejectsMissingDSN 验证未配置凭据时服务在启动前失败，而不是用空连接串继续运行。
-func TestLoadRejectsMissingDSN(t *testing.T) {
-	t.Setenv("ADMIN_API_MYSQL_DSN", "")
-	path := writeTestConfig(t, `{"mysql":{"dsn":""}}`)
-	if _, err := Load(path); err == nil {
-		t.Fatal("Load() should reject empty mysql dsn")
+	if cfg.AdminRPC.Target != "127.0.0.1:8084" {
+		t.Fatalf("admin rpc target = %q, want default target", cfg.AdminRPC.Target)
 	}
 }
 

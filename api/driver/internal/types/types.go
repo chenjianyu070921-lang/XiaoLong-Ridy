@@ -1,24 +1,6 @@
 // Package types 定义司机端 API 的请求与响应数据结构。
 package types
 
-import "encoding/json"
-
-type AgentChatRequest struct {
-	Question string `json:"question"`
-}
-
-type AgentObservation struct {
-	ToolName string `json:"toolName"`
-	Result   string `json:"result"`
-}
-
-type AgentChatResponse struct {
-	Answer       string             `json:"answer"`
-	LoopCount    int                `json:"loopCount"`
-	Observations []AgentObservation `json:"observations"`
-	Mode         string             `json:"mode"`
-}
-
 // ============ 通用响应 ============
 
 // Response 是接口文档约定的统一响应格式（与 passenger 端保持一致）。
@@ -32,28 +14,14 @@ type Response struct {
 
 // ============ 司机（增删改查四个核心接口） ============
 
-// CreateDriverRequest 管理员创建司机请求（后台建号）。
+// CreateDriverRequest 创建司机请求。
 type CreateDriverRequest struct {
 	Phone           string `json:"phone"`           // 手机号（登录账号）
-	Password        string `json:"password"`        // 明文密码（服务端 bcrypt 哈希后存储）
+	PasswordHash    string `json:"passwordHash"`    // 密码哈希
 	RealName        string `json:"realName"`        // 真实姓名
 	IdCardNo        string `json:"idCardNo"`        // 身份证号
 	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号
 	AvatarURL       string `json:"avatarUrl"`       // 头像地址
-}
-
-func (r *CreateDriverRequest) UnmarshalJSON(data []byte) error {
-	payload, err := decodeDriverRegistrationPayload(data)
-	if err != nil {
-		return err
-	}
-	r.Phone = valueOrEmpty(payload.Phone)
-	r.Password = valueOrEmpty(payload.Password)
-	r.RealName = valueOrEmpty(payload.RealName)
-	r.IdCardNo = valueOrEmpty(payload.IdCardNo)
-	r.DriverLicenseNo = valueOrEmpty(payload.DriverLicenseNo)
-	r.AvatarURL = valueOrEmpty(payload.AvatarURL)
-	return nil
 }
 
 // CreateDriverResponse 创建司机响应。
@@ -63,86 +31,11 @@ type CreateDriverResponse struct {
 	CreatedAt int64  `json:"createdAt"` // 创建时间（Unix 秒）
 }
 
-// RegisterDriverRequest 司机自注册请求（App 端注册入口）。
-type RegisterDriverRequest struct {
-	Phone           string `json:"phone"`           // 手机号（登录账号，必填）
-	Password        string `json:"password"`        // 明文密码（服务端 bcrypt 哈希后存储，必填）
-	RealName        string `json:"realName"`        // 真实姓名（必填）
-	IdCardNo        string `json:"idCardNo"`        // 身份证号（必填）
-	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号（必填）
-	AvatarURL       string `json:"avatarUrl"`       // 头像地址（可选）
-}
-
-func (r *RegisterDriverRequest) UnmarshalJSON(data []byte) error {
-	payload, err := decodeDriverRegistrationPayload(data)
-	if err != nil {
-		return err
-	}
-	r.Phone = valueOrEmpty(payload.Phone)
-	r.Password = valueOrEmpty(payload.Password)
-	r.RealName = valueOrEmpty(payload.RealName)
-	r.IdCardNo = valueOrEmpty(payload.IdCardNo)
-	r.DriverLicenseNo = valueOrEmpty(payload.DriverLicenseNo)
-	r.AvatarURL = valueOrEmpty(payload.AvatarURL)
-	return nil
-}
-
-type driverRegistrationPayload struct {
-	Phone                 *string `json:"phone"`
-	Password              *string `json:"password"`
-	PasswordHash          *string `json:"passwordHash"`
-	PasswordHashLegacy    *string `json:"password_hash"`
-	RealName              *string `json:"realName"`
-	RealNameLegacy        *string `json:"real_name"`
-	IdCardNo              *string `json:"idCardNo"`
-	IdCardNoLegacy        *string `json:"id_card_no"`
-	DriverLicenseNo       *string `json:"driverLicenseNo"`
-	DriverLicenseNoLegacy *string `json:"driver_license_no"`
-	AvatarURL             *string `json:"avatarUrl"`
-	AvatarURLLegacy       *string `json:"avatar_url"`
-}
-
-func decodeDriverRegistrationPayload(data []byte) (driverRegistrationPayload, error) {
-	var payload driverRegistrationPayload
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return driverRegistrationPayload{}, err
-	}
-	payload.Password = firstString(payload.Password, payload.PasswordHash, payload.PasswordHashLegacy)
-	payload.RealName = firstString(payload.RealName, payload.RealNameLegacy)
-	payload.IdCardNo = firstString(payload.IdCardNo, payload.IdCardNoLegacy)
-	payload.DriverLicenseNo = firstString(payload.DriverLicenseNo, payload.DriverLicenseNoLegacy)
-	payload.AvatarURL = firstString(payload.AvatarURL, payload.AvatarURLLegacy)
-	return payload, nil
-}
-
-func firstString(values ...*string) *string {
-	for _, value := range values {
-		if value != nil {
-			return value
-		}
-	}
-	return nil
-}
-
-func valueOrEmpty(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
-}
-
-// RegisterDriverResponse 司机自注册响应。
-type RegisterDriverResponse struct {
-	ID        int64  `json:"id"`        // 新建司机 ID
-	Status    string `json:"status"`    // 初始状态（待审核）
-	CreatedAt int64  `json:"createdAt"` // 创建时间（Unix 秒）
-}
-
 // UpdateDriverRequest 更新司机请求，除 id 外字段均为可选（指针表示可缺省）。
 type UpdateDriverRequest struct {
-	ID              int64   `json:"id"`                        // 待更新司机 ID
-	Phone           *string `json:"phone,omitempty"`           // 可选手机号
-	Password        *string `json:"password,omitempty"`        // 可选明文密码（服务端 bcrypt 哈希后存储）
+	ID              int64   `json:"id"`              // 待更新司机 ID
+	Phone           *string `json:"phone,omitempty"` // 可选手机号
+	PasswordHash    *string `json:"passwordHash,omitempty"`    // 可选密码哈希
 	RealName        *string `json:"realName,omitempty"`        // 可选真实姓名
 	IdCardNo        *string `json:"idCardNo,omitempty"`        // 可选身份证号
 	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"` // 可选驾驶证号
@@ -209,9 +102,9 @@ type LoginBySMSRequest struct {
 
 // LoginResponse 登录响应，返回 JWT 与司机基础信息。
 type LoginResponse struct {
-	Token    string      `json:"token"`    // JWT 登录凭证
-	ExpireIn int64       `json:"expireIn"` // 有效期（秒）
-	Driver   DriverBrief `json:"driver"`   // 司机基础信息
+	Token   string      `json:"token"`   // JWT 登录凭证
+	ExpireIn int64      `json:"expireIn"` // 有效期（秒）
+	Driver  DriverBrief `json:"driver"`  // 司机基础信息
 }
 
 // DriverBrief 司机登录后可暴露的简要信息（脱敏）。
@@ -223,32 +116,16 @@ type DriverBrief struct {
 
 // ============ 司机上下线 ============
 
-// SetOnlineRequest 司机上线请求。
-type SetOnlineRequest struct {
-	DeviceID  string  `json:"deviceId"`  // 设备标识，用于多端互踢判定
-	Longitude float64 `json:"longitude"` // 上报经度（可选，0 表示未知）
-	Latitude  float64 `json:"latitude"`  // 上报纬度（可选，0 表示未知）
-}
-
-// SetOfflineRequest 司机下线请求。
-type SetOfflineRequest struct {
-	DeviceID  string  `json:"deviceId"`  // 设备标识，用于多端互踢判定
-	Longitude float64 `json:"longitude"` // 上报经度（可选，0 表示未知）
-	Latitude  float64 `json:"latitude"`  // 上报纬度（可选，0 表示未知）
-}
-
 // SetOnlineResponse 司机上线响应。
 type SetOnlineResponse struct {
 	DriverID     int64 `json:"driverId"`     // 司机 ID
 	OnlineStatus int   `json:"onlineStatus"` // 上线后状态：1在线
-	Kicked       bool  `json:"kicked"`       // 是否被其他设备顶替，需重新登录
 }
 
 // SetOfflineResponse 司机下线响应。
 type SetOfflineResponse struct {
 	DriverID     int64 `json:"driverId"`     // 司机 ID
 	OnlineStatus int   `json:"onlineStatus"` // 下线后状态：0离线
-	Kicked       bool  `json:"kicked"`       // 是否被其他设备顶替
 }
 
 // ============ 司机接单 / 行程 ============
@@ -288,10 +165,10 @@ type ConfirmArriveResponse struct {
 
 // FinishTripRequest 司机结束行程请求。
 type FinishTripRequest struct {
-	OrderID          int64 `json:"orderId"`          // 订单 ID
-	ActualDistanceM  int64 `json:"actualDistanceM"`  // 实际里程（米）
-	ActualDurationS  int64 `json:"actualDurationS"`  // 实际时长（秒）
-	ActualPriceCents int64 `json:"actualPriceCents"` // 实际金额（分）
+	OrderID           int64 `json:"orderId"`           // 订单 ID
+	ActualDistanceM   int64 `json:"actualDistanceM"`   // 实际里程（米）
+	ActualDurationS   int64 `json:"actualDurationS"`   // 实际时长（秒）
+	ActualPriceCents  int64 `json:"actualPriceCents"`  // 实际金额（分）
 }
 
 // FinishTripResponse 司机结束行程响应。
@@ -299,151 +176,4 @@ type FinishTripResponse struct {
 	OrderID            int64 `json:"orderId"`            // 订单 ID
 	Status             int32 `json:"status"`             // 行程结束后订单状态
 	PayableAmountCents int64 `json:"payableAmountCents"` // 应付金额（分）
-}
-
-// RejectOrderRequest 司机拒绝派单请求。
-type RejectOrderRequest struct {
-	OrderID int64  `json:"orderId"` // 订单 ID
-	Reason  string `json:"reason"`  // 拒单原因（可选）
-}
-
-// RejectOrderResponse 司机拒绝派单响应，待 dispatchsvc 提供 RPC 后补充具体字段。
-type RejectOrderResponse struct {
-	OrderID  int64 `json:"orderId"` // 订单 ID
-	DriverID int64 `json:"driverId"`
-	Status   int32 `json:"status"`
-}
-
-// ListMyDispatchesRequest 我的派单列表请求。
-type ListMyDispatchesRequest struct {
-	Page     int32 `json:"page"`     // 页码，缺省为 1
-	PageSize int32 `json:"pageSize"` // 每页条数，缺省为 20
-	Status   int32 `json:"status"`   // 派单状态，默认 1（待派单）
-}
-
-// DispatchRecord 我的派单记录，字段与 dispatchsvc.DispatchRecord 对齐。
-type DispatchRecord struct {
-	ID           int64   `json:"id"`
-	OrderID      int64   `json:"orderId"`
-	DriverID     int64   `json:"driverId"`
-	DispatchType int32   `json:"dispatchType"`
-	Status       int32   `json:"status"`
-	MatchScore   float64 `json:"matchScore"`
-	Remark       string  `json:"remark"`
-	CreatedAt    int64   `json:"createdAt"`
-	UpdatedAt    int64   `json:"updatedAt"`
-}
-
-// ListMyDispatchesResponse 我的派单列表响应。
-type ListMyDispatchesResponse struct {
-	List     []MyDispatchItem `json:"list"`
-	Total    int64            `json:"total"`
-	Page     int32            `json:"page"`
-	PageSize int32            `json:"pageSize"`
-}
-
-type MyDispatchItem struct {
-	Dispatch DispatchRecord `json:"dispatch"`
-	Order    OrderBrief     `json:"order"`
-}
-
-type OrderBrief struct {
-	OrderID             int64  `json:"orderId"`
-	OrderNo             string `json:"orderNo"`
-	FromAddress         string `json:"fromAddress"`
-	ToAddress           string `json:"toAddress"`
-	Status              int32  `json:"status"`
-	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
-	CreatedAt           int64  `json:"createdAt"`
-}
-
-// ============ AI 智能推荐得分 ============
-
-// AiScoreFactor 单项维度指标，展示给司机看的影响推荐优先级的因素。
-type AiScoreFactor struct {
-	Key    string  `json:"key"`    // 维度标识
-	Label  string  `json:"label"`  // 维度中文名
-	Value  float64 `json:"value"`  // 原始数值
-	Impact string  `json:"impact"` // 影响：positive 提升 / negative 降低 / neutral 中性
-	Hint   string  `json:"hint"`   // 优化提示
-}
-
-// GetDriverAiScoreRequest 查询司机 AI 推荐得分请求。
-type GetDriverAiScoreRequest struct {
-	DriverID int64 `json:"driverId"` // 司机 ID（也可由 ?id= 传入）
-}
-
-// GetDriverAiScoreResponse 查询司机 AI 推荐得分响应。
-type GetDriverAiScoreResponse struct {
-	DriverID      int64           `json:"driverId"`      // 司机 ID
-	AiScore       float64         `json:"aiScore"`       // 综合推荐得分（0~100）
-	Level         int32           `json:"level"`         // 司机等级
-	Factors       []AiScoreFactor `json:"factors"`       // 各维度指标
-	Degraded      bool            `json:"degraded"`      // 是否降级（AI 不可用时回退距离优先）
-	DegradeReason string          `json:"degradeReason"` // 降级原因
-}
-
-// ============ 司机心跳 ============
-
-// HeartbeatRequest 司机心跳上报请求。
-type HeartbeatRequest struct {
-	DeviceID  string  `json:"deviceId"`  // 设备标识，用于多端互踢判定
-	Longitude float64 `json:"longitude"` // 当前经度（可选）
-	Latitude  float64 `json:"latitude"`  // 当前纬度（可选）
-}
-
-// HeartbeatResponse 司机心跳上报响应。
-type HeartbeatResponse struct {
-	OnlineStatus int   `json:"onlineStatus"` // 当前在线状态：0离线 1在线 2行程中
-	Kicked       bool  `json:"kicked"`       // 是否被其他设备顶替，需重新登录
-	ServerTime   int64 `json:"serverTime"`   // 服务端时间戳（秒）
-}
-
-type ReportLocationRequest struct {
-	DeviceID  string  `json:"deviceId"`
-	Longitude float64 `json:"longitude"`
-	Latitude  float64 `json:"latitude"`
-}
-
-type ReportLocationResponse struct {
-	DriverID     int64 `json:"driverId"`
-	OnlineStatus int   `json:"onlineStatus"`
-	Kicked       bool  `json:"kicked"`
-	ReportTime   int64 `json:"reportTime"`
-}
-
-// ============ 司机资质 ============
-
-// CertificationInfo 司机资质记录（与 driversvc.CertificationInfo 对齐）。
-type CertificationInfo struct {
-	ID                int64  `json:"id"`                // 资质记录 ID
-	DriverID          int64  `json:"driverId"`          // 司机 ID
-	VehicleID         int64  `json:"vehicleId"`         // 关联车辆 ID
-	IdCardFrontURL    string `json:"idCardFrontUrl"`    // 身份证人像面 URL
-	IdCardBackURL     string `json:"idCardBackUrl"`     // 身份证国徽面 URL
-	DriverLicenseURL  string `json:"driverLicenseUrl"`  // 驾驶证 URL
-	VehicleLicenseURL string `json:"vehicleLicenseUrl"` // 行驶证 URL
-	AuditStatus       int    `json:"auditStatus"`       // 审核状态：1待审核 2通过 3驳回
-	AuditRemark       string `json:"auditRemark"`       // 审核备注
-}
-
-// UploadCertificationRequest 司机资质上传请求（图片以 base64 传入）。
-type UploadCertificationRequest struct {
-	VehicleID      int64  `json:"vehicleId"`      // 关联车辆 ID（可选）
-	IdCardFront    string `json:"idCardFront"`    // 身份证人像面 base64（可选）
-	IdCardBack     string `json:"idCardBack"`     // 身份证国徽面 base64（可选）
-	DriverLicense  string `json:"driverLicense"`  // 驾驶证 base64（可选）
-	VehicleLicense string `json:"vehicleLicense"` // 行驶证 base64（可选）
-}
-
-// UploadCertificationResponse 司机资质上传响应。
-type UploadCertificationResponse struct {
-	ID            int64              `json:"id"`            // 资质记录 ID
-	Certification *CertificationInfo `json:"certification"` // 最新资质记录
-}
-
-// GetCertificationResponse 司机资质查询响应。
-type GetCertificationResponse struct {
-	Certification *CertificationInfo `json:"certification"` // 资质记录（无记录时为空）
-	Found         bool               `json:"found"`         // 是否查到记录
 }

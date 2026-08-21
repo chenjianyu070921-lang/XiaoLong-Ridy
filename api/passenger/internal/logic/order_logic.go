@@ -6,6 +6,7 @@ import (
 
 	"XiaoLong-Ridy/api/passenger/internal/svc"
 	"XiaoLong-Ridy/api/passenger/internal/types"
+	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
@@ -69,7 +70,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		}
 		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
 			TotalCents: originalPriceCents,
-			Coupon:     toPriceCoupon(selectedCoupon),
+			Coupon:     toPriceCoupon(selectedCoupon, req.CouponMaxDiscountCents),
 		})
 		if err != nil {
 			return nil, err
@@ -286,9 +287,69 @@ func (l *OrderLogic) PayOrder(req *types.PayOrderRequest) (*types.PayOrderRespon
 	}, nil
 }
 
+// GetPaymentStatus 主动查询当前乘客订单对应的支付状态。
+func (l *OrderLogic) GetPaymentStatus(req *types.PaymentStatusRequest) (*types.PaymentStatusResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || (strings.TrimSpace(req.PaymentNo) == "" && req.OrderID <= 0) {
+		return nil, ErrInvalidRequest
+	}
+	payClient, err := l.payClient()
+	if err != nil {
+		return nil, err
+	}
+	payment, err := payClient.GetPayment(l.ctx, &payproto.GetPaymentRequest{
+		PaymentNo: strings.TrimSpace(req.PaymentNo),
+		OrderId:   req.OrderID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if payment.GetOrderId() <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	if err := l.ensureOrderOwner(payment.GetOrderId(), userID); err != nil {
+		return nil, err
+	}
+	return toPaymentStatusResponse(payment), nil
+}
+
+// GetDispatchStatus 主动查询当前乘客订单对应的派单记录。
+func (l *OrderLogic) GetDispatchStatus(req *types.DispatchStatusRequest) (*types.DispatchStatusResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	order, err := l.getOwnedOrder(req.OrderID, userID)
+	if err != nil {
+		return nil, err
+	}
+	dispatchClient, err := l.dispatchClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := dispatchClient.ListDispatchRecords(l.ctx, &dispatchproto.ListDispatchRecordsRequest{
+		OrderId:  req.OrderID,
+		Page:     1,
+		PageSize: 20,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toDispatchStatusResponse(req.OrderID, order.GetDriverId(), resp), nil
+}
+
 // validateCreateOrder 校验下单请求中的必填地址和车型参数。
 func validateCreateOrder(req *types.CreateOrderRequest) error {
 	if req == nil || strings.TrimSpace(req.FromAddress) == "" || strings.TrimSpace(req.ToAddress) == "" {
+		return ErrInvalidRequest
+	}
+	if req.CouponMaxDiscountCents < 0 {
 		return ErrInvalidRequest
 	}
 	if req.CarType < 1 || req.CarType > 3 {
@@ -306,17 +367,19 @@ func hasUserCoupon(req *types.CreateOrderRequest) bool {
 	return req != nil && req.UserCouponID > 0
 }
 
-// toPriceCoupon 将 usersvc 校验并锁定后的券信息转换为 pricesvc 抵扣计算参数。
-func toPriceCoupon(coupon *userproto.CouponInfo) priceclient.Coupon {
+// toPriceCoupon 将 usersvc 校验后的券信息转换为 pricesvc 抵扣计算参数。
+// 当前 usersvc.CouponInfo 尚未暴露最大抵扣字段，乘客端先透传下单请求中的最大抵扣上限以保持折扣券封顶规则生效。
+func toPriceCoupon(coupon *userproto.CouponInfo, maxDiscountCents int64) priceclient.Coupon {
 	if coupon == nil {
 		return priceclient.Coupon{}
 	}
 	return priceclient.Coupon{
-		CouponID:       int64(coupon.GetCouponId()),
-		Type:           coupon.GetType(),
-		FaceValueCents: coupon.GetFaceValueCents(),
-		Discount:       coupon.GetDiscount(),
-		ThresholdCents: coupon.GetThresholdCents(),
+		CouponID:         int64(coupon.GetCouponId()),
+		Type:             coupon.GetType(),
+		FaceValueCents:   coupon.GetFaceValueCents(),
+		Discount:         coupon.GetDiscount(),
+		ThresholdCents:   coupon.GetThresholdCents(),
+		MaxDiscountCents: maxDiscountCents,
 	}
 }
 
@@ -376,6 +439,14 @@ func (l *OrderLogic) payClient() (svc.PayClient, error) {
 		return nil, ErrPayClientNotConfigured
 	}
 	return l.svcCtx.PayClient, nil
+}
+
+// dispatchClient 获取派单服务客户端，供乘客主动查询派单进展使用。
+func (l *OrderLogic) dispatchClient() (svc.DispatchClient, error) {
+	if l.svcCtx == nil || l.svcCtx.DispatchClient == nil {
+		return nil, ErrDispatchClientNotConfigured
+	}
+	return l.svcCtx.DispatchClient, nil
 }
 
 // toPayChannel 将乘客端数字渠道转换为 paysvc proto 枚举。
@@ -469,13 +540,20 @@ func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.
 		return nil, ErrForbidden
 	}
 	status := int32(order.GetStatus())
-	return &types.OrderStatusPollResponse{
+	resp := &types.OrderStatusPollResponse{
 		OrderID:   order.GetOrderId(),
 		Status:    status,
 		Changed:   req.KnownStatus != status,
 		UpdatedAt: order.GetUpdatedAt(),
 		DriverID:  order.GetDriverId(),
-	}, nil
+	}
+	if payment, err := l.paymentStatusByOrder(order.GetOrderId(), userID); err == nil {
+		resp.Payment = payment
+	}
+	if dispatch, err := l.dispatchStatusByOrder(order, userID); err == nil {
+		resp.Dispatch = dispatch
+	}
+	return resp, nil
 }
 
 // orderCityCode returns the request city code or the passenger default city.
@@ -485,4 +563,128 @@ func orderCityCode(cityCode string) string {
 		return "110000"
 	}
 	return cityCode
+}
+
+// ensureOrderOwner 校验订单归属，防止通过支付单号查询到其他乘客的支付信息。
+func (l *OrderLogic) ensureOrderOwner(orderID int64, userID uint64) error {
+	_, err := l.getOwnedOrder(orderID, userID)
+	return err
+}
+
+// getOwnedOrder 查询订单并校验属于当前乘客。
+func (l *OrderLogic) getOwnedOrder(orderID int64, userID uint64) (*orderproto.GetOrderResponse, error) {
+	if orderID <= 0 || userID == 0 {
+		return nil, ErrInvalidRequest
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: orderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetUserId() != int64(userID) {
+		return nil, ErrForbidden
+	}
+	return order, nil
+}
+
+// paymentStatusByOrder 按订单 ID 查询支付状态，供订单轮询接口合并展示。
+func (l *OrderLogic) paymentStatusByOrder(orderID int64, userID uint64) (*types.PaymentStatusResponse, error) {
+	payClient, err := l.payClient()
+	if err != nil {
+		return nil, err
+	}
+	payment, err := payClient.GetPayment(l.ctx, &payproto.GetPaymentRequest{OrderId: orderID})
+	if err != nil {
+		return nil, err
+	}
+	if payment.GetOrderId() <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	if err := l.ensureOrderOwner(payment.GetOrderId(), userID); err != nil {
+		return nil, err
+	}
+	return toPaymentStatusResponse(payment), nil
+}
+
+// dispatchStatusByOrder 查询派单记录，供订单轮询接口在推送断开时兜底展示候选司机。
+func (l *OrderLogic) dispatchStatusByOrder(order *orderproto.GetOrderResponse, userID uint64) (*types.DispatchStatusResponse, error) {
+	if order == nil || order.GetOrderId() <= 0 || order.GetUserId() != int64(userID) {
+		return nil, ErrInvalidRequest
+	}
+	dispatchClient, err := l.dispatchClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := dispatchClient.ListDispatchRecords(l.ctx, &dispatchproto.ListDispatchRecordsRequest{
+		OrderId:  order.GetOrderId(),
+		Page:     1,
+		PageSize: 20,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toDispatchStatusResponse(order.GetOrderId(), order.GetDriverId(), resp), nil
+}
+
+// toPaymentStatusResponse 将 paysvc 支付查询响应转换为乘客端 HTTP 响应。
+func toPaymentStatusResponse(payment *payproto.GetPaymentResponse) *types.PaymentStatusResponse {
+	if payment == nil {
+		return nil
+	}
+	return &types.PaymentStatusResponse{
+		PaymentID:         payment.GetPaymentId(),
+		PaymentNo:         payment.GetPaymentNo(),
+		OrderID:           payment.GetOrderId(),
+		AmountCents:       payment.GetAmountCents(),
+		Channel:           payment.GetChannel(),
+		Status:            payment.GetStatus(),
+		TransactionID:     payment.GetTransactionId(),
+		RefundAmountCents: payment.GetRefundAmountCents(),
+	}
+}
+
+// toDispatchStatusResponse 将 dispatchsvc 派单记录响应转换为乘客端 HTTP 响应。
+func toDispatchStatusResponse(orderID, orderDriverID int64, resp *dispatchproto.ListDispatchRecordsResponse) *types.DispatchStatusResponse {
+	result := &types.DispatchStatusResponse{
+		OrderID:  orderID,
+		DriverID: orderDriverID,
+		Records:  make([]types.DispatchRecord, 0),
+	}
+	if resp == nil {
+		return result
+	}
+	result.Total = resp.GetTotal()
+	for _, item := range resp.GetList() {
+		record := types.DispatchRecord{
+			ID:           item.GetId(),
+			OrderID:      item.GetOrderId(),
+			DriverID:     item.GetDriverId(),
+			DispatchType: item.GetDispatchType(),
+			Status:       item.GetStatus(),
+			MatchScore:   item.GetMatchScore(),
+			Remark:       item.GetRemark(),
+			CreatedAt:    item.GetCreatedAt(),
+			UpdatedAt:    item.GetUpdatedAt(),
+		}
+		result.Records = append(result.Records, record)
+		if shouldUseDispatchDriver(result.DriverID, record.Status, record.DriverID) {
+			result.DriverID = record.DriverID
+			result.DispatchStatus = record.Status
+		}
+	}
+	return result
+}
+
+// shouldUseDispatchDriver 判断派单记录是否可作为乘客端展示的当前候选司机。
+func shouldUseDispatchDriver(currentDriverID int64, status int32, driverID int64) bool {
+	if driverID <= 0 {
+		return false
+	}
+	if status == 2 {
+		return true
+	}
+	return currentDriverID <= 0 && status == 1
 }

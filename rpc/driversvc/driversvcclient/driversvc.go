@@ -24,51 +24,42 @@ type (
 	UpdateDriverRequest  = proto.UpdateDriverRequest
 	UpdateDriverResponse = proto.UpdateDriverResponse
 
-	CreateVehicleRequest           = proto.CreateVehicleRequest
-	CreateVehicleResponse          = proto.CreateVehicleResponse
-	DeleteVehicleRequest           = proto.DeleteVehicleRequest
-	DeleteVehicleResponse          = proto.DeleteVehicleResponse
-	GetVehicleRequest              = proto.GetVehicleRequest
-	GetVehicleResponse             = proto.GetVehicleResponse
-	UpdateVehicleRequest           = proto.UpdateVehicleRequest
-	UpdateVehicleResponse          = proto.UpdateVehicleResponse
-	Vehicle                        = proto.Vehicle
-	GetDriverByPhoneRequest        = proto.GetDriverByPhoneRequest
-	GetDriverByPhoneResponse       = proto.GetDriverByPhoneResponse
-	SetDriverOnlineRequest         = proto.SetDriverOnlineRequest
-	SetDriverOnlineResponse        = proto.SetDriverOnlineResponse
-	SetDriverOfflineRequest        = proto.SetDriverOfflineRequest
-	SetDriverOfflineResponse       = proto.SetDriverOfflineResponse
-	ReportLocationRequest          = proto.ReportLocationRequest
-	ReportLocationResponse         = proto.ReportLocationResponse
-	SetDriverServiceStatusRequest  = proto.SetDriverServiceStatusRequest
-	SetDriverServiceStatusResponse = proto.SetDriverServiceStatusResponse
-	ListDriversRequest             = proto.ListDriversRequest
-	ListDriversResponse            = proto.ListDriversResponse
-	LoginRequest                   = proto.LoginRequest
-	LoginBySMSRequest              = proto.LoginBySMSRequest
-	LoginResponse                  = proto.LoginResponse
-	ListNearbyDriversRequest       = proto.ListNearbyDriversRequest
-	ListNearbyDriversResponse      = proto.ListNearbyDriversResponse
+	CreateVehicleRequest  = proto.CreateVehicleRequest
+	CreateVehicleResponse = proto.CreateVehicleResponse
+	DeleteVehicleRequest  = proto.DeleteVehicleRequest
+	DeleteVehicleResponse = proto.DeleteVehicleResponse
+	GetVehicleRequest     = proto.GetVehicleRequest
+	GetVehicleResponse    = proto.GetVehicleResponse
+	UpdateVehicleRequest  = proto.UpdateVehicleRequest
+	UpdateVehicleResponse = proto.UpdateVehicleResponse
+	Vehicle               = proto.Vehicle
+	GetDriverByPhoneRequest  = proto.GetDriverByPhoneRequest
+	GetDriverByPhoneResponse = proto.GetDriverByPhoneResponse
+	SetDriverOnlineRequest   = proto.SetDriverOnlineRequest
+	SetDriverOnlineResponse  = proto.SetDriverOnlineResponse
+	SetDriverOfflineRequest  = proto.SetDriverOfflineRequest
+	SetDriverOfflineResponse = proto.SetDriverOfflineResponse
+	ListDriversRequest       = proto.ListDriversRequest
+	ListDriversResponse      = proto.ListDriversResponse
+	LoginRequest             = proto.LoginRequest
+	LoginResponse            = proto.LoginResponse
+	ListNearbyDriversRequest = proto.ListNearbyDriversRequest
+	ListNearbyDriversResponse = proto.ListNearbyDriversResponse
 
 	Driversvc interface {
 		CreateDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
-		RegisterDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
 		UpdateDriver(ctx context.Context, in *UpdateDriverRequest, opts ...grpc.CallOption) (*UpdateDriverResponse, error)
 		DeleteDriver(ctx context.Context, in *DeleteDriverRequest, opts ...grpc.CallOption) (*DeleteDriverResponse, error)
 		GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error)
 		GetDriverByPhone(ctx context.Context, in *GetDriverByPhoneRequest, opts ...grpc.CallOption) (*GetDriverByPhoneResponse, error)
 		SetDriverOnline(ctx context.Context, in *SetDriverOnlineRequest, opts ...grpc.CallOption) (*SetDriverOnlineResponse, error)
 		SetDriverOffline(ctx context.Context, in *SetDriverOfflineRequest, opts ...grpc.CallOption) (*SetDriverOfflineResponse, error)
-		ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error)
-		SetDriverServiceStatus(ctx context.Context, in *SetDriverServiceStatusRequest, opts ...grpc.CallOption) (*SetDriverServiceStatusResponse, error)
 		CreateVehicle(ctx context.Context, in *CreateVehicleRequest, opts ...grpc.CallOption) (*CreateVehicleResponse, error)
 		UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error)
 		DeleteVehicle(ctx context.Context, in *DeleteVehicleRequest, opts ...grpc.CallOption) (*DeleteVehicleResponse, error)
 		GetVehicle(ctx context.Context, in *GetVehicleRequest, opts ...grpc.CallOption) (*GetVehicleResponse, error)
 		ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error)
 		Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
-		LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 		ListNearbyDrivers(ctx context.Context, in *ListNearbyDriversRequest, opts ...grpc.CallOption) (*ListNearbyDriversResponse, error)
 	}
 
@@ -86,11 +77,6 @@ func NewDriversvc(cli zrpc.Client) Driversvc {
 func (m *defaultDriversvc) CreateDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error) {
 	client := proto.NewDriversvcClient(m.cli.Conn())
 	return client.CreateDriver(ctx, in, opts...)
-}
-
-func (m *defaultDriversvc) RegisterDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error) {
-	client := proto.NewDriversvcClient(m.cli.Conn())
-	return client.RegisterDriver(ctx, in, opts...)
 }
 
 func (m *defaultDriversvc) UpdateDriver(ctx context.Context, in *UpdateDriverRequest, opts ...grpc.CallOption) (*UpdateDriverResponse, error) {
@@ -123,16 +109,6 @@ func (m *defaultDriversvc) SetDriverOffline(ctx context.Context, in *SetDriverOf
 	return client.SetDriverOffline(ctx, in, opts...)
 }
 
-func (m *defaultDriversvc) ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error) {
-	client := proto.NewDriversvcClient(m.cli.Conn())
-	return client.ReportLocation(ctx, in, opts...)
-}
-
-func (m *defaultDriversvc) SetDriverServiceStatus(ctx context.Context, in *SetDriverServiceStatusRequest, opts ...grpc.CallOption) (*SetDriverServiceStatusResponse, error) {
-	client := proto.NewDriversvcClient(m.cli.Conn())
-	return client.SetDriverServiceStatus(ctx, in, opts...)
-}
-
 func (m *defaultDriversvc) CreateVehicle(ctx context.Context, in *CreateVehicleRequest, opts ...grpc.CallOption) (*CreateVehicleResponse, error) {
 	client := proto.NewDriversvcClient(m.cli.Conn())
 	return client.CreateVehicle(ctx, in, opts...)
@@ -161,11 +137,6 @@ func (m *defaultDriversvc) ListDrivers(ctx context.Context, in *ListDriversReque
 func (m *defaultDriversvc) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
 	client := proto.NewDriversvcClient(m.cli.Conn())
 	return client.Login(ctx, in, opts...)
-}
-
-func (m *defaultDriversvc) LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
-	client := proto.NewDriversvcClient(m.cli.Conn())
-	return client.LoginBySMS(ctx, in, opts...)
 }
 
 func (m *defaultDriversvc) ListNearbyDrivers(ctx context.Context, in *ListNearbyDriversRequest, opts ...grpc.CallOption) (*ListNearbyDriversResponse, error) {

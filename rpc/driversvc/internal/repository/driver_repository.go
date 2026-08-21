@@ -22,16 +22,10 @@ type DriverRepository interface {
 	List(ctx context.Context, filter DriverListFilter) ([]*model.Driver, int64, error)
 	// ListNearbyDrivers 按经纬度 + 半径查找在线司机（同库查 driver_location）。
 	ListNearbyDrivers(ctx context.Context, filter NearbyDriverFilter) ([]*model.DriverLocation, error)
-	// UpsertLocation 写入/更新司机最新位置与在线状态（driver_location 表，按 driver_id 幂等 upsert）。
-	UpsertLocation(ctx context.Context, loc *model.DriverLocation) error
-	// UpdateLocationStatus 仅更新司机位置表中的在线状态，不覆盖最新经纬度。
-	UpdateLocationStatus(ctx context.Context, driverID uint64, onlineStatus int8) error
 	// Update 按 ID 增量更新司机字段。
 	Update(ctx context.Context, id uint64, updates map[string]interface{}) error
 	// Delete 软删除指定司机（设置 deleted_at）。
 	Delete(ctx context.Context, driver *model.Driver) error
-	// GetDriverScore 按司机 ID 查询其服务分与运营指标（driver_score 表）。
-	GetDriverScore(ctx context.Context, driverID uint64) (*model.DriverScore, error)
 }
 
 // NearbyDriverFilter 附近司机查询过滤条件。
