@@ -50,4 +50,4 @@ Thumbs.db
 desktop.ini
 .tmp-gocache/
 .gotmp/
-gocache/
+gocache/gotmp/
