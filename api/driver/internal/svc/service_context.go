@@ -2,6 +2,9 @@ package svc
 
 import (
 	"context"
+	"errors"
+	"os"
+	"strings"
 	"time"
 
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
@@ -26,6 +29,8 @@ type DriverClient interface {
 	DeleteDriver(ctx context.Context, req *driversproto.DeleteDriverRequest) (*driversproto.DeleteDriverResponse, error)
 	Login(ctx context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error)
 	LoginBySMS(ctx context.Context, req *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error)
+	CreateVehicle(ctx context.Context, req *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error)
+	GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error)
 	GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
 	UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error)
 	GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error)
@@ -87,6 +92,14 @@ func (g *grpcClient) LoginBySMS(ctx context.Context, req *driversproto.LoginBySM
 	return g.cli.LoginBySMS(ctx, req)
 }
 
+func (g *grpcClient) CreateVehicle(ctx context.Context, req *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error) {
+	return g.cli.CreateVehicle(ctx, req)
+}
+
+func (g *grpcClient) GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error) {
+	return g.cli.GetVehicle(ctx, req)
+}
+
 func (g *grpcClient) GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
 	return g.cli.GetDriverAiScore(ctx, req)
 }
@@ -101,6 +114,7 @@ func (g *grpcClient) GetCertification(ctx context.Context, req *driversproto.Get
 
 type OrderClient interface {
 	GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error)
+	ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error)
 	AcceptOrder(ctx context.Context, req *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error)
 	StartTrip(ctx context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error)
 	ConfirmArrive(ctx context.Context, req *orderproto.ConfirmArriveRequest) (*orderproto.ConfirmArriveResponse, error)
@@ -113,6 +127,10 @@ type orderGRPCClient struct {
 
 func (g *orderGRPCClient) GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
 	return g.cli.GetOrder(ctx, req)
+}
+
+func (g *orderGRPCClient) ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
+	return g.cli.ListOrders(ctx, req)
 }
 
 func (g *orderGRPCClient) AcceptOrder(ctx context.Context, req *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error) {
@@ -160,12 +178,13 @@ const defaultSigningKey = "local-development-signing-key"
 
 const defaultCodeTTL = 5 * time.Minute
 
-func NewServiceContext(driverGRPCAddr, orderGRPCAddr string) *ServiceContext {
+func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr string) *ServiceContext {
 	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	svcCtx := &ServiceContext{
-		SigningKey: defaultSigningKey,
+		SigningKey: resolveSigningKey(),
 		CodeCache:  NewCodeCache(defaultCodeTTL),
 	}
 	if driverErr == nil {
@@ -174,5 +193,25 @@ func NewServiceContext(driverGRPCAddr, orderGRPCAddr string) *ServiceContext {
 	if orderErr == nil {
 		svcCtx.OrderClient = &orderGRPCClient{cli: orderproto.NewOrderClient(orderConn)}
 	}
+	if dispatchErr == nil {
+		svcCtx.DispatchClient = &dispatchGRPCClient{cli: dispatchproto.NewDispatchClient(dispatchConn)}
+	}
 	return svcCtx
+}
+
+func resolveSigningKey() string {
+	if key := strings.TrimSpace(os.Getenv("DRIVER_SIGNING_KEY")); key != "" {
+		return key
+	}
+	return defaultSigningKey
+}
+
+func (s *ServiceContext) ValidateSigningKey() error {
+	if s == nil || strings.TrimSpace(s.SigningKey) == "" {
+		return errors.New("driver signing key is empty")
+	}
+	if expected := strings.TrimSpace(os.Getenv("DRIVERSVC_SIGNING_KEY")); expected != "" && expected != s.SigningKey {
+		return errors.New("DRIVER_SIGNING_KEY and DRIVERSVC_SIGNING_KEY mismatch")
+	}
+	return nil
 }

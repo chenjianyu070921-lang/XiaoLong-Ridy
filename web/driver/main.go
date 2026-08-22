@@ -44,7 +44,10 @@ func main() {
 	r.POST("/driver/online", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/online", true))
 	r.POST("/driver/offline", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/offline", true))
 	r.POST("/driver/update", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/update", true))
+	r.POST("/driver/dispatches", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/dispatches", true))
+	r.POST("/driver/orders", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/list", true))
 	r.POST("/driver/orders/accept", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/accept", true))
+	r.POST("/driver/orders/reject", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/reject", true))
 	r.POST("/driver/orders/confirm-arrive", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/confirm-arrive", true))
 	r.POST("/driver/orders/start-trip", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/start-trip", true))
 	r.POST("/driver/orders/finish-trip", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/finish-trip", true))
@@ -53,7 +56,11 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	if err := r.Run(":8080"); err != nil {
+	webAddr := strings.TrimSpace(os.Getenv("DRIVER_WEB_ADDR"))
+	if webAddr == "" {
+		webAddr = ":8080"
+	}
+	if err := r.Run(webAddr); err != nil {
 		log.Fatalf("driver web server exited: %v", err)
 	}
 }

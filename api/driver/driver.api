@@ -222,6 +222,47 @@ type GetCertificationResponse {
 	Found         bool               `json:"found"`
 }
 
+type CreateVehicleRequest {
+	PlateNo           string `json:"plateNo"`
+	Brand             string `json:"brand"`
+	Model             string `json:"model"`
+	Color             string `json:"color"`
+	VehicleType       int32  `json:"vehicleType"`
+	RegistrationDate  int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       string `json:"insuranceNo"`
+	InsuranceExpireAt int64  `json:"insuranceExpireAt,omitempty"`
+}
+
+type CreateVehicleResponse {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type GetVehicleRequest {
+	ID int64 `form:"id"`
+}
+
+type VehicleInfo {
+	ID                int64  `json:"id"`
+	DriverID          int64  `json:"driverId"`
+	PlateNo           string `json:"plateNo"`
+	Brand             string `json:"brand"`
+	Model             string `json:"model"`
+	Color             string `json:"color"`
+	VehicleType       int32  `json:"vehicleType"`
+	RegistrationDate  int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       string `json:"insuranceNo"`
+	InsuranceExpireAt int64  `json:"insuranceExpireAt,omitempty"`
+	Status            string `json:"status"`
+	CreatedAt         int64  `json:"createdAt"`
+	UpdatedAt         int64  `json:"updatedAt"`
+}
+
+type GetVehicleResponse {
+	Vehicle VehicleInfo `json:"vehicle"`
+}
+
 type AcceptOrderRequest {
 	OrderID int64 `json:"orderId"`
 }
@@ -313,6 +354,19 @@ type ListMyDispatchesResponse {
 	PageSize int32            `json:"pageSize"`
 }
 
+type ListMyOrdersRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+	Status   int32 `json:"status"`
+}
+
+type ListMyOrdersResponse {
+	List     []OrderBrief `json:"list"`
+	Total    int64        `json:"total"`
+	Page     int32        `json:"page"`
+	PageSize int32        `json:"pageSize"`
+}
+
 type AgentChatRequest {
 	Question string `json:"question"`
 }
@@ -375,6 +429,12 @@ service driver-api {
 	@handler GetCertificationHandler
 	get /api/driver/v1/drivers/certification returns (GetCertificationResponse)
 
+	@handler CreateVehicleHandler
+	post /api/driver/v1/vehicles (CreateVehicleRequest) returns (CreateVehicleResponse)
+
+	@handler GetVehicleHandler
+	get /api/driver/v1/vehicles/get (GetVehicleRequest) returns (GetVehicleResponse)
+
 	@handler AcceptOrderHandler
 	post /api/driver/v1/orders/accept (AcceptOrderRequest) returns (AcceptOrderResponse)
 
@@ -383,6 +443,9 @@ service driver-api {
 
 	@handler ListMyDispatchesHandler
 	post /api/driver/v1/orders/dispatches (ListMyDispatchesRequest) returns (ListMyDispatchesResponse)
+
+	@handler ListMyOrdersHandler
+	post /api/driver/v1/orders/list (ListMyOrdersRequest) returns (ListMyOrdersResponse)
 
 	@handler StartTripHandler
 	post /api/driver/v1/orders/start-trip (StartTripRequest) returns (StartTripResponse)

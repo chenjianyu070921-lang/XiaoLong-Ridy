@@ -29,6 +29,10 @@ func writeParamError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, 50000, err.Error())
 		return
 	}
+	if errors.Is(err, logic.ErrForbiddenDriverResource) {
+		writeError(w, http.StatusForbidden, 40301, "无权访问该司机资源")
+		return
+	}
 
 	if st, ok := status.FromError(err); ok {
 		switch st.Code() {

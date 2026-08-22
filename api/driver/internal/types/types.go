@@ -250,6 +250,47 @@ type GetCertificationResponse struct {
 	Found         bool               `json:"found"`
 }
 
+type CreateVehicleRequest struct {
+	PlateNo           string `json:"plateNo"`
+	Brand             string `json:"brand"`
+	Model             string `json:"model"`
+	Color             string `json:"color"`
+	VehicleType       int32  `json:"vehicleType"`
+	RegistrationDate  int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       string `json:"insuranceNo"`
+	InsuranceExpireAt int64  `json:"insuranceExpireAt,omitempty"`
+}
+
+type CreateVehicleResponse struct {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type GetVehicleRequest struct {
+	ID int64 `form:"id"`
+}
+
+type VehicleInfo struct {
+	ID                int64  `json:"id"`
+	DriverID          int64  `json:"driverId"`
+	PlateNo           string `json:"plateNo"`
+	Brand             string `json:"brand"`
+	Model             string `json:"model"`
+	Color             string `json:"color"`
+	VehicleType       int32  `json:"vehicleType"`
+	RegistrationDate  int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       string `json:"insuranceNo"`
+	InsuranceExpireAt int64  `json:"insuranceExpireAt,omitempty"`
+	Status            string `json:"status"`
+	CreatedAt         int64  `json:"createdAt"`
+	UpdatedAt         int64  `json:"updatedAt"`
+}
+
+type GetVehicleResponse struct {
+	Vehicle VehicleInfo `json:"vehicle"`
+}
+
 type AcceptOrderRequest struct {
 	OrderID int64 `json:"orderId"`
 }
@@ -339,6 +380,19 @@ type ListMyDispatchesResponse struct {
 	Total    int64            `json:"total"`
 	Page     int32            `json:"page"`
 	PageSize int32            `json:"pageSize"`
+}
+
+type ListMyOrdersRequest struct {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+	Status   int32 `json:"status"`
+}
+
+type ListMyOrdersResponse struct {
+	List     []OrderBrief `json:"list"`
+	Total    int64        `json:"total"`
+	Page     int32        `json:"page"`
+	PageSize int32        `json:"pageSize"`
 }
 
 type AgentChatRequest struct {

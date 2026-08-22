@@ -36,9 +36,12 @@
 | 在线状态 | `POST /drivers/location/report` | [13-driver-location-report.md](13-driver-location-report.md) |
 | 资质 | `POST /drivers/certification/upload` | [14-certification-upload.md](14-certification-upload.md) |
 | 资质 | `GET /drivers/certification` | [15-certification-get.md](15-certification-get.md) |
+| 车辆 | `POST /vehicles` | [24-vehicle-create.md](24-vehicle-create.md) |
+| 车辆 | `GET /vehicles/get` | [25-vehicle-get.md](25-vehicle-get.md) |
 | 订单行程 | `POST /orders/accept` | [16-order-accept.md](16-order-accept.md) |
 | 订单行程 | `POST /orders/reject` | [17-order-reject.md](17-order-reject.md) |
 | 订单行程 | `POST /orders/dispatches` | [18-order-dispatches.md](18-order-dispatches.md) |
+| 订单行程 | `POST /orders/list` | [23-order-list.md](23-order-list.md) |
 | 订单行程 | `POST /orders/start-trip` | [19-order-start-trip.md](19-order-start-trip.md) |
 | 订单行程 | `POST /orders/confirm-arrive` | [20-order-confirm-arrive.md](20-order-confirm-arrive.md) |
 | 订单行程 | `POST /orders/finish-trip` | [21-order-finish-trip.md](21-order-finish-trip.md) |

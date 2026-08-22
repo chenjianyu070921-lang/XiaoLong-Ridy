@@ -9,13 +9,27 @@ const menuButton = document.querySelector("[data-menu-button]");
 const menuPanel = document.querySelector("[data-menu-panel]");
 const panelButtons = document.querySelectorAll("[data-panel-target]");
 const panels = document.querySelectorAll("[data-panel]");
+const editModal = document.querySelector("[data-edit-modal]");
+const editMessage = document.querySelector("[data-edit-message]");
+const orderList = document.querySelector("[data-order-list]");
+const orderListEmpty = document.querySelector("[data-order-list-empty]");
+const orderStatus = document.querySelector("[data-order-status]");
+const orderSummary = document.querySelector("[data-order-summary]");
+const orderPageLabel = document.querySelector("[data-order-page]");
+const orderPrevious = document.querySelector("[data-order-prev]");
+const orderNext = document.querySelector("[data-order-next]");
+const cachedDriver = readJSON("driverProfile") || null;
 
 const state = {
   token: localStorage.getItem("driverToken") || "",
-  driver: readJSON("driverProfile") || null,
-  onlineStatus: Number(localStorage.getItem("driverOnlineStatus") || 0),
+  driver: cachedDriver,
+  onlineStatus: Number(cachedDriver?.onlineStatus ?? 0),
   tripPhase: localStorage.getItem("driverTripPhase") || "idle",
   currentOrderId: localStorage.getItem("driverCurrentOrderId") || "",
+  orderPage: 1,
+  orderPageSize: 8,
+  orderStatus: 0,
+  orderTotal: 0,
 };
 
 buttons.forEach((button) => {
@@ -78,6 +92,27 @@ panelButtons.forEach((button) => {
   });
 });
 
+document.querySelector("[data-open-edit]").addEventListener("click", () => {
+  openEditModal();
+  menuPanel.hidden = true;
+});
+
+document.querySelectorAll("[data-close-edit]").forEach((button) => {
+  button.addEventListener("click", closeEditModal);
+});
+
+editModal.addEventListener("click", (event) => {
+  if (event.target === editModal) {
+    closeEditModal();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !editModal.hidden) {
+    closeEditModal();
+  }
+});
+
 document.querySelector("[data-logout]").addEventListener("click", () => {
   state.token = "";
   state.driver = null;
@@ -98,6 +133,34 @@ document.querySelector("[data-refresh]").addEventListener("click", () => {
   loadDashboardData();
 });
 
+document.querySelector("[data-refresh-orders]").addEventListener("click", () => {
+  loadOrders(1);
+});
+
+orderStatus.addEventListener("change", () => {
+  state.orderStatus = Number(orderStatus.value || 0);
+  loadOrders(1);
+});
+
+orderPrevious.addEventListener("click", () => {
+  if (state.orderPage > 1) {
+    loadOrders(state.orderPage - 1);
+  }
+});
+
+orderNext.addEventListener("click", () => {
+  if (state.orderPage * state.orderPageSize < state.orderTotal) {
+    loadOrders(state.orderPage + 1);
+  }
+});
+
+orderList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-order-action]");
+  if (button) {
+    handleOrderAction(button.dataset.orderAction, button.dataset.orderId);
+  }
+});
+
 document.querySelector("[data-online]").addEventListener("click", async () => {
   await setWorkStatus("/driver/online", 1, "已上线，当前空闲中");
 });
@@ -106,22 +169,19 @@ document.querySelector("[data-offline]").addEventListener("click", async () => {
   await setWorkStatus("/driver/offline", 0, "已下线休息");
 });
 
-document.querySelectorAll("[data-order-action]").forEach((button) => {
-  button.addEventListener("click", () => {
-    handleOrderAction(button.dataset.orderAction);
-  });
-});
-
 document.querySelector("[data-edit-form]").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!state.driver?.id) {
-    setDashboardMessage("司机信息缺失，请重新登录", "error");
+    setEditMessage("司机信息缺失，请重新登录", "error");
     return;
   }
 
   const form = event.currentTarget;
   const payload = compactPayload(Object.fromEntries(new FormData(form).entries()));
   payload.id = state.driver.id;
+  const submitButton = form.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  setEditMessage("正在保存...");
 
   try {
     await requestJSON(form.action, {
@@ -129,11 +189,13 @@ document.querySelector("[data-edit-form]").addEventListener("submit", async (eve
       token: state.token,
       body: JSON.stringify(payload),
     });
-    setDashboardMessage("司机信息已更新", "success");
-    showPanel("profile");
+    setEditMessage("司机信息已更新", "success");
     await loadDashboardData();
+    window.setTimeout(closeEditModal, 500);
   } catch (error) {
-    setDashboardMessage(error.message || "保存失败", "error");
+    setEditMessage(error.message || "保存失败", "error");
+  } finally {
+    submitButton.disabled = false;
   }
 });
 
@@ -151,7 +213,7 @@ async function loadDashboardData() {
   }
 
   try {
-    const [profileResult, scoreResult] = await Promise.allSettled([
+    const [profileResult, scoreResult, ordersResult] = await Promise.allSettled([
       requestJSON(`/driver/me?driverId=${encodeURIComponent(state.driver.id)}`, {
         method: "GET",
         token: state.token,
@@ -160,12 +222,15 @@ async function loadDashboardData() {
         method: "GET",
         token: state.token,
       }),
+      requestOrders(state.orderPage),
     ]);
 
     if (profileResult.status === "fulfilled") {
       const driver = profileResult.value.data.driver;
       state.driver = { ...state.driver, ...driver };
+      state.onlineStatus = Number(driver.onlineStatus ?? 0);
       localStorage.setItem("driverProfile", JSON.stringify(state.driver));
+      localStorage.setItem("driverOnlineStatus", String(state.onlineStatus));
       renderDriver();
     } else {
       renderDriver();
@@ -179,10 +244,114 @@ async function loadDashboardData() {
       document.querySelector("[data-service-score]").textContent = "--";
     }
 
+    if (ordersResult.status === "fulfilled") {
+      renderOrders(ordersResult.value.data);
+    } else {
+      renderOrders({ list: [], total: 0, page: state.orderPage, pageSize: state.orderPageSize });
+      setDashboardMessage(ordersResult.reason.message || "订单列表加载失败", "error");
+    }
+
     renderStatus();
   } catch (error) {
     setDashboardMessage("主页数据加载失败", "error");
   }
+}
+
+async function loadOrders(page = state.orderPage) {
+  if (!state.token) {
+    return;
+  }
+
+  setOrderListLoading(true);
+  try {
+    const result = await requestOrders(page);
+    renderOrders(result.data);
+  } catch (error) {
+    renderOrders({ list: [], total: 0, page, pageSize: state.orderPageSize });
+    setDashboardMessage(error.message || "订单列表加载失败", "error");
+  } finally {
+    setOrderListLoading(false);
+  }
+}
+
+async function requestOrders(page) {
+  if (state.orderStatus === 1) {
+    const dispatches = await requestDispatches(page);
+    return normalizeDispatchResult(dispatches.data);
+  }
+
+  if (state.orderStatus !== 0) {
+    return requestOrderList(page, state.orderStatus);
+  }
+
+  const [dispatches, orders] = await Promise.all([
+    requestDispatches(page),
+    requestOrderList(page, 0),
+  ]);
+  return mergeOrderResults(dispatches.data, orders.data);
+}
+
+function requestOrderList(page, status) {
+  return requestJSON("/driver/orders", {
+    method: "POST",
+    token: state.token,
+    body: JSON.stringify({
+      page,
+      pageSize: state.orderPageSize,
+      status,
+    }),
+  });
+}
+
+function requestDispatches(page) {
+  return requestJSON("/driver/dispatches", {
+    method: "POST",
+    token: state.token,
+    body: JSON.stringify({
+      page,
+      pageSize: state.orderPageSize,
+      status: 1,
+    }),
+  });
+}
+
+function normalizeDispatchResult(data = {}) {
+  return {
+    data: {
+      list: normalizeDispatchOrders(data),
+      total: Number(data.total || 0),
+      page: Number(data.page || state.orderPage || 1),
+      pageSize: Number(data.pageSize || state.orderPageSize),
+    },
+  };
+}
+
+function mergeOrderResults(dispatchData = {}, orderData = {}) {
+  const dispatchOrders = normalizeDispatchOrders(dispatchData);
+  const dispatchOrderIds = new Set(dispatchOrders.map((order) => Number(order.orderId || 0)));
+  const orders = Array.isArray(orderData.list)
+    ? orderData.list.filter((order) => !dispatchOrderIds.has(Number(order.orderId || 0)))
+    : [];
+  return {
+    data: {
+      list: [...dispatchOrders, ...orders],
+      total: Number(dispatchData.total || 0) + Number(orderData.total || 0),
+      page: Number(orderData.page || dispatchData.page || state.orderPage || 1),
+      pageSize: Number(orderData.pageSize || dispatchData.pageSize || state.orderPageSize),
+    },
+  };
+}
+
+function normalizeDispatchOrders(data = {}) {
+  return Array.isArray(data.list)
+    ? data.list.map((item) => ({
+        ...(item.order || {}),
+        source: "dispatch",
+        dispatchStatus: item.dispatch?.status || 0,
+        dispatchId: item.dispatch?.id || 0,
+        matchScore: item.dispatch?.matchScore || 0,
+      }))
+    : [];
 }
 
 async function setWorkStatus(path, fallbackStatus, successText) {
@@ -196,6 +365,7 @@ async function setWorkStatus(path, fallbackStatus, successText) {
     });
     state.onlineStatus = Number(result.data.onlineStatus ?? fallbackStatus);
     localStorage.setItem("driverOnlineStatus", String(state.onlineStatus));
+    persistOnlineStatus();
     if (state.onlineStatus === 0) {
       state.tripPhase = "idle";
       state.currentOrderId = "";
@@ -213,12 +383,10 @@ async function setWorkStatus(path, fallbackStatus, successText) {
   }
 }
 
-async function handleOrderAction(action) {
-  const orderInput = document.querySelector("[data-order-id]");
-  const orderID = Number(orderInput.value || state.currentOrderId);
+async function handleOrderAction(action, orderId) {
+  const orderID = Number(orderId || state.currentOrderId);
   if (!orderID || orderID <= 0) {
-    setDashboardMessage("请先输入订单ID", "error");
-    orderInput.focus();
+    setDashboardMessage("订单信息无效，请刷新订单列表", "error");
     return;
   }
 
@@ -228,6 +396,12 @@ async function handleOrderAction(action) {
       phase: "pickup",
       message: "接单成功，状态已切换为正在接驾",
       payload: { orderId: orderID },
+    },
+    reject: {
+      path: "/driver/orders/reject",
+      phase: "idle",
+      message: "已拒绝派单",
+      payload: { orderId: orderID, reason: "司机主动拒单" },
     },
     "confirm-arrive": {
       path: "/driver/orders/confirm-arrive",
@@ -271,20 +445,22 @@ async function handleOrderAction(action) {
     if (config.phase === "trip") {
       state.onlineStatus = 2;
       localStorage.setItem("driverOnlineStatus", "2");
+      persistOnlineStatus();
     }
     if (config.phase === "idle" && state.onlineStatus === 2) {
       state.onlineStatus = 1;
       localStorage.setItem("driverOnlineStatus", "1");
+      persistOnlineStatus();
     }
     localStorage.setItem("driverTripPhase", state.tripPhase);
     if (state.currentOrderId) {
       localStorage.setItem("driverCurrentOrderId", state.currentOrderId);
     } else {
       localStorage.removeItem("driverCurrentOrderId");
-      orderInput.value = "";
     }
     renderStatus();
     renderCoreArea();
+    await loadOrders(state.orderPage);
     setDashboardMessage(config.message, "success");
   } catch (error) {
     setDashboardMessage(error.message || "订单操作失败", "error");
@@ -307,6 +483,18 @@ function showPanel(target) {
   });
 }
 
+function openEditModal() {
+  renderDriver();
+  setEditMessage("");
+  editModal.hidden = false;
+  document.querySelector("[data-edit-real-name]").focus();
+}
+
+function closeEditModal() {
+  editModal.hidden = true;
+  setEditMessage("");
+}
+
 function renderDriver() {
   const driver = state.driver || {};
   const name = driver.realName || "司机";
@@ -316,7 +504,6 @@ function renderDriver() {
   document.querySelector("[data-driver-name]").textContent = name;
   document.querySelector("[data-driver-phone]").textContent = phone;
   document.querySelector("[data-driver-initial]").textContent = name.slice(0, 1) || "司";
-  document.querySelector("[data-profile-id]").textContent = driver.id || "--";
   document.querySelector("[data-profile-phone]").textContent = phone;
   document.querySelector("[data-profile-license]").textContent = driver.driverLicenseNo || "--";
   document.querySelector("[data-profile-status]").textContent = formatDriverStatus(driver.status);
@@ -379,7 +566,6 @@ function setStatusButtonsDisabled(disabled) {
 }
 
 function renderCoreArea() {
-  const orderInput = document.querySelector("[data-order-id]");
   const corePill = document.querySelector("[data-core-pill]");
   const tripEmpty = document.querySelector("[data-trip-empty]");
   const idleBadge = document.querySelector("[data-idle-badge]");
@@ -387,10 +573,6 @@ function renderCoreArea() {
   const idleDesc = document.querySelector("[data-idle-desc]");
   const fromAddress = document.querySelector("[data-from-address]");
   const toAddress = document.querySelector("[data-to-address]");
-
-  if (state.currentOrderId && !orderInput.value) {
-    orderInput.value = state.currentOrderId;
-  }
 
   const hasTrip = state.tripPhase === "pickup" || state.tripPhase === "trip";
   corePill.textContent = hasTrip ? (state.tripPhase === "pickup" ? "正在接驾" : "行程进行中") : "空闲";
@@ -411,6 +593,145 @@ function setOrderButtonsDisabled(disabled) {
   document.querySelectorAll("[data-order-action]").forEach((button) => {
     button.disabled = disabled;
   });
+}
+
+function persistOnlineStatus() {
+  if (!state.driver) {
+    return;
+  }
+  state.driver = { ...state.driver, onlineStatus: state.onlineStatus };
+  localStorage.setItem("driverProfile", JSON.stringify(state.driver));
+}
+
+function setOrderListLoading(loading) {
+  document.querySelector("[data-refresh-orders]").disabled = loading;
+  orderStatus.disabled = loading;
+  orderPrevious.disabled = loading;
+  orderNext.disabled = loading;
+  if (loading) {
+    orderList.innerHTML = '<div class="order-list-loading">正在加载订单...</div>';
+    orderListEmpty.hidden = true;
+  }
+}
+
+function renderOrders(data = {}) {
+  const list = Array.isArray(data.list) ? data.list : [];
+  const total = Number(data.total || 0);
+  const page = Number(data.page || state.orderPage || 1);
+  const pageSize = Number(data.pageSize || state.orderPageSize);
+
+  state.orderPage = page;
+  state.orderPageSize = pageSize;
+  state.orderTotal = total;
+  orderStatus.value = String(state.orderStatus);
+  orderList.innerHTML = list.map(renderOrderItem).join("");
+  orderListEmpty.hidden = list.length !== 0;
+  orderSummary.textContent = total ? `共 ${total} 条记录` : "暂无订单";
+  orderPageLabel.textContent = `${page} / ${Math.max(1, Math.ceil(total / pageSize))}`;
+  orderPrevious.disabled = page <= 1;
+  orderNext.disabled = page * pageSize >= total;
+}
+
+function renderOrderItem(item) {
+  const order = item || {};
+  const orderId = Number(order.orderId || 0);
+  const actions = renderOrderActions(order, orderId);
+  const statusText = order.source === "dispatch" ? formatDispatchStatus(order.dispatchStatus) : formatOrderStatus(order.status);
+  return `
+    <article class="order-item">
+      <div class="order-item-main">
+        <div class="order-item-heading">
+          <strong>${escapeHTML(order.orderNo || `订单 ${orderId || "--"}`)}</strong>
+          <span class="status-tag" data-order-status="${order.status || 0}" data-dispatch-status="${order.dispatchStatus || 0}">${statusText}</span>
+        </div>
+        <div class="order-route">
+          <span>${escapeHTML(order.fromAddress || "--")}</span>
+          <span class="route-arrow">→</span>
+          <span>${escapeHTML(order.toAddress || "--")}</span>
+        </div>
+        <div class="order-meta">
+          <span>${statusText}</span>
+          <span>${formatPrice(order.estimatedPriceCents)}</span>
+          <span>${formatTimestamp(order.createdAt)}</span>
+        </div>
+      </div>
+      <div class="order-item-actions">${actions}</div>
+    </article>
+  `;
+}
+
+function renderOrderActions(order, orderId) {
+  if (!orderId) {
+    return "";
+  }
+  if (order.source === "dispatch" || order.status === 1) {
+    return [
+      orderActionButton("accept", orderId, "接单", "primary-button"),
+      orderActionButton("reject", orderId, "拒单", "secondary-button"),
+    ].join("");
+  }
+  if (order.status === 2) {
+    return [
+      orderActionButton("confirm-arrive", orderId, "确认到达", "secondary-button"),
+      orderActionButton("start-trip", orderId, "开始行程", "secondary-button"),
+    ].join("");
+  }
+  if (order.status === 3) {
+    return orderActionButton("finish-trip", orderId, "结束行程", "primary-button");
+  }
+  return "";
+}
+
+function orderActionButton(action, orderId, label, className) {
+  return `<button class="${className} compact order-row-button" type="button" data-order-action="${action}" data-order-id="${orderId}">${label}</button>`;
+}
+
+function formatDispatchStatus(status) {
+  return {
+    1: "待处理派单",
+    2: "已接受派单",
+    3: "已拒绝派单",
+    4: "派单超时",
+    5: "派单取消",
+  }[status] || "派单状态未知";
+}
+
+function formatOrderStatus(status) {
+  return {
+    1: "订单待接单",
+    2: "已接单",
+    3: "行程中",
+    4: "待支付",
+    5: "已完成",
+    6: "已取消",
+  }[status] || "状态未知";
+}
+
+function formatPrice(cents) {
+  const value = Number(cents);
+  return Number.isFinite(value) ? `预估 ¥${(value / 100).toFixed(2)}` : "价格待定";
+}
+
+function formatTimestamp(timestamp) {
+  const value = Number(timestamp);
+  if (!value) {
+    return "--";
+  }
+  return new Date(value * 1000).toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 async function requestJSON(url, options = {}) {
@@ -465,6 +786,12 @@ function setDashboardMessage(text, type) {
   dashboardMessage.textContent = text;
   dashboardMessage.classList.toggle("is-success", type === "success");
   dashboardMessage.classList.toggle("is-error", type === "error");
+}
+
+function setEditMessage(text, type) {
+  editMessage.textContent = text;
+  editMessage.classList.toggle("is-success", type === "success");
+  editMessage.classList.toggle("is-error", type === "error");
 }
 
 function readJSON(key) {

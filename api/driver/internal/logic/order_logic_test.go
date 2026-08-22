@@ -11,14 +11,33 @@ import (
 )
 
 type fakeOrderClient struct {
-	acceptRequest *orderproto.AcceptOrderRequest
-	arriveRequest *orderproto.ConfirmArriveRequest
-	startRequest  *orderproto.StartTripRequest
-	finishRequest *orderproto.FinishTripRequest
+	acceptRequest     *orderproto.AcceptOrderRequest
+	arriveRequest     *orderproto.ConfirmArriveRequest
+	startRequest      *orderproto.StartTripRequest
+	finishRequest     *orderproto.FinishTripRequest
+	listOrdersRequest *orderproto.ListOrdersRequest
 }
 
 func (f *fakeOrderClient) GetOrder(_ context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
 	return &orderproto.GetOrderResponse{OrderId: req.OrderId, OrderNo: "NO-1001", FromAddress: "起点", ToAddress: "终点", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 29900, CreatedAt: 100}, nil
+}
+
+func (f *fakeOrderClient) ListOrders(_ context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
+	f.listOrdersRequest = req
+	return &orderproto.ListOrdersResponse{
+		List: []*orderproto.OrderSummary{{
+			OrderId:             1001,
+			OrderNo:             "NO-1001",
+			FromAddress:         "起点",
+			ToAddress:           "终点",
+			Status:              req.Status,
+			EstimatedPriceCents: 29900,
+			CreatedAt:           100,
+		}},
+		Total:    1,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
 }
 
 func (f *fakeOrderClient) AcceptOrder(_ context.Context, req *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error) {
@@ -206,5 +225,24 @@ func TestListMyDispatchesCombinesDispatchAndOrder(t *testing.T) {
 	}
 	if dispatchClient.listRequest.GetDriverId() != 25 || dispatchClient.listRequest.GetStatus() != 1 {
 		t.Fatalf("ListMyDispatches() request = %+v", dispatchClient.listRequest)
+	}
+}
+
+func TestListMyOrdersUsesOrderService(t *testing.T) {
+	client := &fakeOrderClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
+
+	resp, err := logic.ListMyOrders(25, 2, 8, int32(orderproto.OrderStatus_ORDER_STATUS_COMPLETED))
+	if err != nil {
+		t.Fatalf("ListMyOrders() error = %v", err)
+	}
+	if resp.Total != 1 || len(resp.List) != 1 || resp.List[0].OrderNo != "NO-1001" {
+		t.Fatalf("ListMyOrders() response = %+v", resp)
+	}
+	if client.listOrdersRequest.GetDriverId() != 25 ||
+		client.listOrdersRequest.GetPage() != 2 ||
+		client.listOrdersRequest.GetPageSize() != 8 ||
+		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_COMPLETED {
+		t.Fatalf("ListMyOrders() request = %+v", client.listOrdersRequest)
 	}
 }

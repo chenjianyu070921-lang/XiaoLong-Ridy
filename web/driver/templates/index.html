@@ -76,7 +76,7 @@
         </button>
         <div class="menu-panel" data-menu-panel hidden>
           <button type="button" data-panel-target="profile">个人信息</button>
-          <button type="button" data-panel-target="edit">修改司机信息</button>
+          <button type="button" data-open-edit>修改司机信息</button>
           <button type="button" data-logout>退出登录</button>
         </div>
       </div>
@@ -140,6 +140,16 @@
           <span class="core-pill" data-core-pill>空闲</span>
         </div>
 
+        <div class="map-surface" aria-label="司机地图">
+          <span class="map-road map-road-one"></span>
+          <span class="map-road map-road-two"></span>
+          <span class="map-road map-road-three"></span>
+          <span class="map-pin map-pin-current"></span>
+          <span class="map-pin map-pin-order"></span>
+          <div class="map-location-label">当前位置</div>
+          <div class="map-status-label">附近订单实时更新</div>
+        </div>
+
         <div class="idle-state" data-trip-empty>
           <span class="idle-badge" data-idle-badge>空闲状态</span>
           <strong data-idle-title>没接单</strong>
@@ -162,24 +172,38 @@
         </div>
       </article>
 
-      <article class="dispatch-board">
+      <article class="dispatch-board order-list-panel">
         <div class="panel-title">
           <div>
-            <p class="eyebrow">Order Action</p>
-            <h2>接单操作</h2>
+            <p class="eyebrow">Order List</p>
+            <h2>我的订单</h2>
+          </div>
+          <div class="order-toolbar">
+            <label class="inline-field">
+              <span>订单状态</span>
+              <select data-order-status aria-label="订单状态">
+                <option value="0">全部</option>
+                <option value="1">待接单</option>
+                <option value="2">已接单</option>
+                <option value="3">行程中</option>
+                <option value="4">待支付</option>
+                <option value="5">已完成</option>
+                <option value="6">已取消</option>
+              </select>
+            </label>
+            <button class="text-button" type="button" data-refresh-orders>查询</button>
           </div>
         </div>
 
-        <label>
-          <span>订单ID</span>
-          <input type="number" min="1" step="1" inputmode="numeric" placeholder="请输入订单ID" data-order-id>
-        </label>
-
-        <div class="order-actions">
-          <button class="primary-button order-button" type="button" data-order-action="accept">接单</button>
-          <button class="secondary-button order-button" type="button" data-order-action="confirm-arrive">确认到达</button>
-          <button class="secondary-button order-button" type="button" data-order-action="start-trip">开始行程</button>
-          <button class="secondary-button order-button" type="button" data-order-action="finish-trip">结束行程</button>
+        <div class="order-list" data-order-list aria-live="polite"></div>
+        <div class="order-list-empty" data-order-list-empty hidden>暂无订单</div>
+        <div class="order-pagination">
+          <span data-order-summary>--</span>
+          <div class="pagination-actions">
+            <button class="text-button" type="button" data-order-prev>上一页</button>
+            <span data-order-page>1 / 1</span>
+            <button class="text-button" type="button" data-order-next>下一页</button>
+          </div>
         </div>
       </article>
     </section>
@@ -191,17 +215,21 @@
           <button class="text-button" type="button" data-refresh>刷新</button>
         </div>
         <dl class="profile-list">
-          <div><dt>司机ID</dt><dd data-profile-id>--</dd></div>
           <div><dt>手机号</dt><dd data-profile-phone>--</dd></div>
           <div><dt>驾驶证号</dt><dd data-profile-license>--</dd></div>
           <div><dt>账号状态</dt><dd data-profile-status>--</dd></div>
         </dl>
       </article>
+    </section>
 
-      <article class="info-panel" data-panel="edit" hidden>
+    <div class="modal-backdrop" data-edit-modal hidden>
+      <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="edit-title">
         <div class="panel-title">
-          <h2>修改司机信息</h2>
-          <button class="text-button" type="button" data-panel-target="profile">返回</button>
+          <div>
+            <p class="eyebrow">Driver Profile</p>
+            <h2 id="edit-title">修改司机信息</h2>
+          </div>
+          <button class="text-button" type="button" data-close-edit>关闭</button>
         </div>
         <form class="edit-form" data-edit-form action="/driver/update" method="post">
           <label>
@@ -216,10 +244,14 @@
             <span>驾驶证号</span>
             <input type="text" name="driverLicenseNo" data-edit-license>
           </label>
-          <button class="primary-button" type="submit">保存修改</button>
+          <div class="modal-actions">
+            <button class="secondary-button" type="button" data-close-edit>取消</button>
+            <button class="primary-button" type="submit">保存修改</button>
+          </div>
         </form>
-      </article>
-    </section>
+        <p class="modal-message" data-edit-message role="status"></p>
+      </section>
+    </div>
 
     <p class="dashboard-message" data-dashboard-message role="status"></p>
   </main>

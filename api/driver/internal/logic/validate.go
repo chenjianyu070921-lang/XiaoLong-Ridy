@@ -12,6 +12,7 @@ var (
 	ErrDriverClientNotConfigured = errors.New("driver client not configured")
 	ErrOrderClientNotConfigured  = errors.New("order client not configured")
 	ErrInvalidParam              = errors.New("invalid param")
+	ErrForbiddenDriverResource   = errors.New("forbidden driver resource")
 )
 
 var phoneRegexp = regexp.MustCompile(`^1[3-9]\d{9}$`)

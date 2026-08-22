@@ -214,6 +214,45 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 	}, nil
 }
 
+func (l *OrderLogic) ListMyOrders(driverID int64, page, pageSize, status int32) (*types.ListMyOrdersResponse, error) {
+	if driverID <= 0 || status < 0 || status > int32(orderproto.OrderStatus_ORDER_STATUS_CANCELLED) {
+		return nil, ErrInvalidParam
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	page, pageSize = clampPage(page, pageSize)
+	resp, err := orderClient.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
+		DriverId: driverID,
+		Status:   orderproto.OrderStatus(status),
+		Page:     page,
+		PageSize: pageSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]types.OrderBrief, 0, len(resp.GetList()))
+	for _, order := range resp.GetList() {
+		items = append(items, types.OrderBrief{
+			OrderID:             order.GetOrderId(),
+			OrderNo:             order.GetOrderNo(),
+			FromAddress:         order.GetFromAddress(),
+			ToAddress:           order.GetToAddress(),
+			Status:              int32(order.GetStatus()),
+			EstimatedPriceCents: order.GetEstimatedPriceCents(),
+			CreatedAt:           order.GetCreatedAt(),
+		})
+	}
+	return &types.ListMyOrdersResponse{
+		List:     items,
+		Total:    resp.GetTotal(),
+		Page:     resp.GetPage(),
+		PageSize: resp.GetPageSize(),
+	}, nil
+}
+
 // orderClient 从服务上下文中安全取出 ordersvc 客户端。
 func (l *OrderLogic) orderClient() (svc.OrderClient, error) {
 	if l.svcCtx == nil || l.svcCtx.OrderClient == nil {

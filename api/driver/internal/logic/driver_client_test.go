@@ -9,8 +9,16 @@ import (
 type fakeDriverClient struct {
 	reportLocationRequest    *driversproto.ReportLocationRequest
 	serviceStatusRequests    []*driversproto.SetDriverServiceStatusRequest
+	loginRequest             *driversproto.LoginRequest
+	loginBySMSRequest        *driversproto.LoginBySMSRequest
+	createVehicleRequest     *driversproto.CreateVehicleRequest
+	getVehicleRequest        *driversproto.GetVehicleRequest
 	reportLocationResponse   *driversproto.ReportLocationResponse
 	setServiceStatusResponse *driversproto.SetDriverServiceStatusResponse
+	loginResponse            *driversproto.LoginResponse
+	loginBySMSResponse       *driversproto.LoginResponse
+	createVehicleResponse    *driversproto.CreateVehicleResponse
+	getVehicleResponse       *driversproto.GetVehicleResponse
 }
 
 func (f *fakeDriverClient) CreateDriver(context.Context, *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
@@ -41,12 +49,36 @@ func (f *fakeDriverClient) SetDriverOffline(context.Context, *driversproto.SetDr
 	return nil, nil
 }
 
-func (f *fakeDriverClient) Login(context.Context, *driversproto.LoginRequest) (*driversproto.LoginResponse, error) {
-	return nil, nil
+func (f *fakeDriverClient) Login(_ context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error) {
+	f.loginRequest = req
+	if f.loginResponse != nil {
+		return f.loginResponse, nil
+	}
+	return &driversproto.LoginResponse{
+		Token:    "token",
+		ExpireIn: 7200,
+		Driver: &driversproto.Driver{
+			Id:     25,
+			Phone:  "13800000001",
+			Status: driversproto.DriverStatus_DRIVER_STATUS_NORMAL,
+		},
+	}, nil
 }
 
-func (f *fakeDriverClient) LoginBySMS(context.Context, *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error) {
-	return nil, nil
+func (f *fakeDriverClient) LoginBySMS(_ context.Context, req *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error) {
+	f.loginBySMSRequest = req
+	if f.loginBySMSResponse != nil {
+		return f.loginBySMSResponse, nil
+	}
+	return &driversproto.LoginResponse{
+		Token:    "sms-token",
+		ExpireIn: 7200,
+		Driver: &driversproto.Driver{
+			Id:     25,
+			Phone:  "13800000001",
+			Status: driversproto.DriverStatus_DRIVER_STATUS_NORMAL,
+		},
+	}, nil
 }
 
 func (f *fakeDriverClient) DeleteDriver(context.Context, *driversproto.DeleteDriverRequest) (*driversproto.DeleteDriverResponse, error) {
@@ -63,6 +95,35 @@ func (f *fakeDriverClient) UploadCertification(context.Context, *driversproto.Up
 
 func (f *fakeDriverClient) GetCertification(context.Context, *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error) {
 	return nil, nil
+}
+
+func (f *fakeDriverClient) CreateVehicle(_ context.Context, req *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error) {
+	f.createVehicleRequest = req
+	if f.createVehicleResponse != nil {
+		return f.createVehicleResponse, nil
+	}
+	return &driversproto.CreateVehicleResponse{
+		Id:        77,
+		Status:    driversproto.VehicleStatus_VEHICLE_STATUS_PENDING,
+		CreatedAt: 123,
+	}, nil
+}
+
+func (f *fakeDriverClient) GetVehicle(_ context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error) {
+	f.getVehicleRequest = req
+	if f.getVehicleResponse != nil {
+		return f.getVehicleResponse, nil
+	}
+	return &driversproto.GetVehicleResponse{
+		Vehicle: &driversproto.Vehicle{
+			Id:       req.GetId(),
+			DriverId: 25,
+			PlateNo:  "粤B12345",
+			Brand:    "BYD",
+			Model:    "Han",
+			Status:   driversproto.VehicleStatus_VEHICLE_STATUS_PENDING,
+		},
+	}, nil
 }
 
 func (f *fakeDriverClient) Heartbeat(context.Context, *driversproto.HeartbeatRequest) (*driversproto.HeartbeatResponse, error) {

@@ -69,3 +69,25 @@ func TestAgentChatEndpointRequiresDriverTokenAndRunsAgent(t *testing.T) {
 		t.Fatalf("unexpected response: %s", response.Body.String())
 	}
 }
+
+func TestOrderEndpointsRequireDriverToken(t *testing.T) {
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "order-route-test-key"})
+	paths := []string{
+		"/api/driver/v1/vehicles",
+		"/api/driver/v1/vehicles/get?id=77",
+		"/api/driver/v1/orders/reject",
+		"/api/driver/v1/orders/dispatches",
+		"/api/driver/v1/orders/list",
+	}
+
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{}`))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusUnauthorized, response.Body.String())
+			}
+		})
+	}
+}

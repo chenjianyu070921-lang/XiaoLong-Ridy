@@ -18,6 +18,8 @@ const defaultDriverGRPCAddr = "127.0.0.1:5055"
 
 const defaultOrderGRPCAddr = "127.0.0.1:50051"
 
+const defaultDispatchGRPCAddr = "127.0.0.1:8083"
+
 func main() {
 	address := os.Getenv("DRIVER_HTTP_ADDR")
 	if address == "" {
@@ -34,12 +36,22 @@ func main() {
 		orderGRPCAddr = defaultOrderGRPCAddr
 	}
 
-	server := &http.Server{
-		Addr:    address,
-		Handler: newHTTPHandler(svc.NewServiceContext(driverGRPCAddr, orderGRPCAddr)),
+	dispatchGRPCAddr := os.Getenv("DISPATCH_GRPC_ADDR")
+	if dispatchGRPCAddr == "" {
+		dispatchGRPCAddr = defaultDispatchGRPCAddr
 	}
 
-	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s)", address, driverGRPCAddr, orderGRPCAddr)
+	svcCtx := svc.NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr)
+	if err := svcCtx.ValidateSigningKey(); err != nil {
+		panic(fmt.Errorf("driver api signing key check: %w", err))
+	}
+
+	server := &http.Server{
+		Addr:    address,
+		Handler: newHTTPHandler(svcCtx),
+	}
+
+	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, dispatchsvc gRPC: %s)", address, driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(fmt.Errorf("start driver api: %w", err))
 	}
@@ -65,7 +77,12 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/drivers/ai-score", protected(methodSwitch("GET", handler.GetDriverAiScoreHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/certification/upload", protected(methodSwitch("POST", handler.UploadCertificationHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/certification", protected(methodSwitch("GET", handler.GetCertificationHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles", protected(methodSwitch("POST", handler.CreateVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles/get", protected(methodSwitch("GET", handler.GetVehicleHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/accept", protected(methodSwitch("POST", handler.AcceptOrderHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/reject", protected(methodSwitch("POST", handler.RejectOrderHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/dispatches", protected(methodSwitch("POST", handler.ListMyDispatchesHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/list", protected(methodSwitch("POST", handler.ListMyOrdersHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/start-trip", protected(methodSwitch("POST", handler.StartTripHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/confirm-arrive", protected(methodSwitch("POST", handler.ConfirmArriveHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", handler.FinishTripHandler(svcCtx))))

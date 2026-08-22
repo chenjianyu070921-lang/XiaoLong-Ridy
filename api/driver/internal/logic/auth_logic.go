@@ -6,14 +6,14 @@ import (
 	"errors"
 	"log"
 	"strings"
-	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
-	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	"XiaoLong-Ridy/common/jwtx"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 
-	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -26,9 +26,6 @@ var (
 	// ErrCodeSendFailed 表示验证码生成失败。
 	ErrCodeSendFailed = errors.New("验证码发送失败")
 )
-
-// accessTokenTTL 司机登录令牌有效期。
-const accessTokenTTL = 2 * time.Hour
 
 // AuthLogic 封装司机登录、发码等认证逻辑。
 type AuthLogic struct {
@@ -62,78 +59,76 @@ func (l *AuthLogic) SendSMSCode(req *types.SendSMSCodeRequest) (*types.SendSMSCo
 	}, nil
 }
 
-// LoginByPassword 手机号 + 密码登录，校验通过后签发 JWT。
+// LoginByPassword 手机号 + 密码登录，委托 driversvc 校验账号状态与密码并签发 JWT。
 func (l *AuthLogic) LoginByPassword(req *types.LoginByPasswordRequest) (*types.LoginResponse, error) {
-	driver, err := l.loadDriverByPhone(req.Phone)
-	if err != nil {
-		return nil, err
-	}
-	// 比对 bcrypt 密码哈希。
-	if bcrypt.CompareHashAndPassword([]byte(driver.GetPasswordHash()), []byte(req.Password)) != nil {
-		return nil, ErrDriverAuthFailed
-	}
-	return l.issueToken(driver)
-}
-
-// LoginBySMS 手机号 + 验证码登录，校验通过后签发 JWT。
-func (l *AuthLogic) LoginBySMS(req *types.LoginBySMSRequest) (*types.LoginResponse, error) {
-	// 先校验验证码（无论司机是否存在都校验，避免泄露账号存在性）。
-	if !l.svcCtx.CodeCache.Verify(req.Phone, strings.TrimSpace(req.Code)) {
-		return nil, ErrCodeInvalid
-	}
-	driver, err := l.loadDriverByPhone(req.Phone)
-	if err != nil {
-		return nil, err
-	}
-	return l.issueToken(driver)
-}
-
-// loadDriverByPhone 通过手机号查询司机，并完成账号状态基础校验。
-func (l *AuthLogic) loadDriverByPhone(phone string) (*driversproto.Driver, error) {
-	if !validPhone(strings.TrimSpace(phone)) {
+	if req == nil || !validPhone(strings.TrimSpace(req.Phone)) {
 		return nil, ErrDriverAuthFailed
 	}
 	client, err := l.driverClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.GetDriverByPhone(l.ctx, &driversproto.GetDriverByPhoneRequest{Phone: strings.TrimSpace(phone)})
+	resp, err := client.Login(l.ctx, &driversproto.LoginRequest{
+		Phone:    strings.TrimSpace(req.Phone),
+		Password: req.Password,
+	})
 	if err != nil {
-		// 未找到司机或下游异常，统一返回登录失败，避免泄露细节。
-		return nil, ErrDriverAuthFailed
+		return nil, normalizeLoginError(err)
 	}
-	d := resp.GetDriver()
-	// 冻结/注销账号拒绝登录。
-	if d.GetStatus() == driversproto.DriverStatus_DRIVER_STATUS_FROZEN ||
-		d.GetStatus() == driversproto.DriverStatus_DRIVER_STATUS_CANCELLED {
-		return nil, ErrDriverFrozen
-	}
-	return d, nil
+	return toLoginResponse(resp), nil
 }
 
-// issueToken 为司机签发 JWT 并构造登录响应。
-func (l *AuthLogic) issueToken(d *driversproto.Driver) (*types.LoginResponse, error) {
-	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
-		AccountID:     uint64(d.GetId()),
-		AccountType:   "driver",
-		AccountStatus: int(d.GetStatus()),
-		Phone:         d.GetPhone(),
-		Role:          "driver",
-		Issuer:        "driver-api",
-		TTL:           accessTokenTTL,
-	}, l.svcCtx.SigningKey)
+// LoginBySMS 手机号 + 验证码登录；验证码由 API 校验，账号状态与 JWT 签发委托 driversvc。
+func (l *AuthLogic) LoginBySMS(req *types.LoginBySMSRequest) (*types.LoginResponse, error) {
+	if req == nil || !validPhone(strings.TrimSpace(req.Phone)) {
+		return nil, ErrDriverAuthFailed
+	}
+	if !l.svcCtx.CodeCache.Verify(req.Phone, strings.TrimSpace(req.Code)) {
+		return nil, ErrCodeInvalid
+	}
+	client, err := l.driverClient()
 	if err != nil {
 		return nil, err
 	}
+	resp, err := client.LoginBySMS(l.ctx, &driversproto.LoginBySMSRequest{Phone: strings.TrimSpace(req.Phone)})
+	if err != nil {
+		return nil, normalizeLoginError(err)
+	}
+	return toLoginResponse(resp), nil
+}
+
+func toLoginResponse(resp *driversproto.LoginResponse) *types.LoginResponse {
+	d := resp.GetDriver()
 	return &types.LoginResponse{
-		Token:    token,
-		ExpireIn: int64(accessTokenTTL.Seconds()),
+		Token:    resp.GetToken(),
+		ExpireIn: resp.GetExpireIn(),
 		Driver: types.DriverBrief{
 			ID:     d.GetId(),
 			Phone:  jwtx.MaskPhone(d.GetPhone()),
 			Status: d.GetStatus().String(),
 		},
-	}, nil
+	}
+}
+
+func normalizeLoginError(err error) error {
+	st, ok := status.FromError(err)
+	if !ok {
+		if strings.Contains(err.Error(), "冻结") || strings.Contains(err.Error(), "注销") || strings.Contains(err.Error(), "blocked") {
+			return ErrDriverFrozen
+		}
+		return ErrDriverAuthFailed
+	}
+	switch st.Code() {
+	case codes.PermissionDenied:
+		return ErrDriverFrozen
+	case codes.Unavailable:
+		return err
+	default:
+		if strings.Contains(st.Message(), "冻结") || strings.Contains(st.Message(), "注销") || strings.Contains(st.Message(), "blocked") {
+			return ErrDriverFrozen
+		}
+		return ErrDriverAuthFailed
+	}
 }
 
 // driverClient 从服务上下文中安全取出 driversvc 客户端。
