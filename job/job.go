@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"time"
 
 	"XiaoLong-Ridy/job/internal/config"
@@ -58,6 +57,17 @@ func main() {
 	}()
 
 	go func() {
+		// 派单失败补偿队列消费：10s 粒度可覆盖 5s/15s/45s 的退避窗口（P1-M4-2）。
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := h.RetryPendingDispatches(); err != nil {
+				logx.Errorf("RetryPendingDispatches failed: %v", err)
+			}
+		}
+	}()
+
+	go func() {
 		for {
 			now := time.Now()
 			next := time.Date(now.Year(), now.Month(), now.Day()+1, 1, 0, 0, 0, now.Location())
@@ -68,13 +78,13 @@ func main() {
 		}
 	}()
 
-	fmt.Println("Starting job scheduler...")
-	fmt.Println("定时任务:")
-	fmt.Println("  - 每小时: 清理过期位置数据")
-	fmt.Println("  - 每10分钟: 同步异常订单状态")
-	fmt.Println("  - 每1分钟: 超时未接单订单自动取消")
-	fmt.Println("  - 每30秒: 派单超时重派")
-	fmt.Println("  - 每日凌晨1点: 生成统计报表")
+	logx.Info("Starting job scheduler...")
+	logx.Info("定时任务:")
+	logx.Info("  - 每小时: 清理过期位置数据")
+	logx.Info("  - 每10秒: 派单失败补偿重试")
+	logx.Info("  - 每1分钟: 超时未接单订单自动取消")
+	logx.Info("  - 每30秒: 派单超时重派")
+	logx.Info("  - 每日凌晨1点: 生成统计报表")
 
 	select {}
 }

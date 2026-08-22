@@ -10,11 +10,6 @@ myredis:
   dialTimeout: 0
   readTimeout: 0
   writeTimeout: 0
-kafka:
-  brokers:
-    - 127.0.0.1:9092
-  topic: orderclient.created
-  group: orderclient-event-consumer
 dispatchrpc:
   Target: 127.0.0.1:8083
 pricerpc:

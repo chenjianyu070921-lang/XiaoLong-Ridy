@@ -35,8 +35,9 @@ const (
 	RedisSmsCode      = "sms:code:%s"     // 验证码
 	RedisOrderLock    = "r:lock:order:%d" // 接单分布式锁
 	RedisDriverGeo      = "driver:geo:%s"         // 司机位置 GEO，按城市
-	RedisDriverOnline   = "driver:online"         // 在线司机集合
-	RedisDriverAvailable = "driver:available:%d"   // 派给司机的待接单集合（driverID）
+	RedisDriverOnline   = "driver:online"         // 在线司机集合（location-consumer 位置上报时写入）
+	RedisDriverBusy     = "driver:busy"           // 忙碌司机集合（接单后写入、订单结束/取消时移除，派单过滤用）
+	RedisDriverAvailable = "driver:available:%d"  // 派给司机的待接单集合（driverID）
 )
 
 // Kafka/事件主题
@@ -55,4 +56,11 @@ const (
 const (
 	OrderEventStream     = "order:event:stream"     // 订单事件流
 	DriverLocationStream = "driver:location:stream" // 司机位置流
+)
+
+// 派单失败延迟重试队列（Redis ZSet）：member 为派单重试任务 JSON，score 为下次重试时间戳。
+// ordersvc 下单后同步直派失败时入队，job 服务 RetryPendingDispatches 定时扫描消费（P1-M4-2）。
+const (
+	DispatchRetryQueueKey = "dispatch:retry:orders"
+	MaxDispatchRetryAttempt = 3
 )
