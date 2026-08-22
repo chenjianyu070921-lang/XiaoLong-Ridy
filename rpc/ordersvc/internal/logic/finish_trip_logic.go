@@ -98,6 +98,9 @@ func (l *FinishTripLogic) FinishTrip(in *proto.FinishTripRequest) (*proto.Finish
 		return nil, ErrOrderStatusNotAllowed
 	}
 
+	// 行程结束，司机恢复可接单状态：从忙碌集合移出（P1-M4-8）。
+	unmarkDriverBusy(l.ctx, l.svcCtx, uint64(in.DriverId))
+
 	// P1：若实际费用来自服务端实时计价，落库实际计价明细，供结算与对账使用。
 	if serverPriced && l.svcCtx.PriceClient != nil && settleResp != nil {
 		actual := &price.SaveActualOrderPriceRequest{

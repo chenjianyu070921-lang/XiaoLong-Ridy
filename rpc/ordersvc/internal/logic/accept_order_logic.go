@@ -67,6 +67,9 @@ func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.Acc
 		l.Logger.Errorf("mark dispatch accepted failed, orderId=%d driverId=%d: %v", order.Id, in.DriverId, err)
 	}
 
+	// 司机进入忙碌态：派单引擎据此过滤，避免司机同时接多单（P1-M4-8）。
+	markDriverBusy(l.ctx, l.svcCtx, uint64(in.DriverId))
+
 	if l.svcCtx.EventBus != nil {
 		payload, _ := json.Marshal(map[string]interface{}{
 			"order_id":    in.OrderId,

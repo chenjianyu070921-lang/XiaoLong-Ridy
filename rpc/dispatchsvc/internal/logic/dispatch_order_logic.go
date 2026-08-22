@@ -70,7 +70,11 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 	}
 
 	// 按订单互斥串行化"检查-插入"临界区，防止并发派单插入重复记录。
-	unlock := l.lockDispatchOrder(context.Background(), uint64(in.OrderId))
+	// 锁等待限制 5s：Redis 不可达或锁长期占有时避免派单请求无限挂起（P2-M4-7）。
+	// 注意：cancel 必须 defer（而非立即调用），否则锁上下文被取消会导致分布式锁失效。
+	lockCtx, cancel := context.WithTimeout(l.ctx, 5*time.Second)
+	defer cancel()
+	unlock := l.lockDispatchOrder(lockCtx, uint64(in.OrderId))
 	defer unlock()
 
 	timeout := time.Duration(l.svcCtx.Config.DispatchTimeoutSeconds) * time.Second
@@ -78,6 +82,20 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 		timeout = defaultDispatchTimeout
 	}
 	now := time.Now()
+
+	// 状态复核：订单必须仍为待接单才可派单，防止取消/超时订单被竞态派单（P0-M4-1）。
+	// 复核失败（下游不可用）时 fail-safe 拒绝派单；订单状态非待接单时直接返回空派单结果。
+	if l.svcCtx.OrderStatusVerifier != nil {
+		status, err := l.svcCtx.OrderStatusVerifier(l.ctx, in.OrderId)
+		if err != nil {
+			l.Logger.Errorf("verify order %d status failed, skip dispatch: %v", in.OrderId, err)
+			return nil, err
+		}
+		if status != int32(constants.OrderStatusWaitAccept) {
+			l.Logger.Infof("order %d status=%d is not wait_accept, skip dispatch", in.OrderId, status)
+			return &proto.DispatchOrderResponse{OrderId: in.OrderId, List: []*proto.DispatchRecord{}}, nil
+		}
+	}
 
 	if existing, total, err := l.svcCtx.DispatchRepository.ListByOrder(l.ctx, uint64(in.OrderId), 1, 100); err != nil {
 		return nil, err

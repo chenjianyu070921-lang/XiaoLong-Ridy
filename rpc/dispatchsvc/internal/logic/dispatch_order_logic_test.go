@@ -168,3 +168,67 @@ func TestListDispatchRecordsRejectsInvalidOrderID(t *testing.T) {
 		t.Fatalf("ListDispatchRecords() error = %v, want %v", err, ErrInvalidOrderParams)
 	}
 }
+
+// TestDispatchOrderSkipsCancelledOrder 验证订单已取消（status=6）时不再派单，且不写入任何派单记录（P0-M4-1）。
+func TestDispatchOrderSkipsCancelledOrder(t *testing.T) {
+	ctx := context.Background()
+	svcCtx := newDispatchTestSvcCtx()
+	svcCtx.OrderStatusVerifier = func(_ context.Context, _ int64) (int32, error) {
+		return 6, nil // constants.OrderStatusCanceled
+	}
+	l := NewDispatchOrderLogic(ctx, svcCtx)
+
+	resp, err := l.DispatchOrder(&proto.DispatchOrderRequest{
+		OrderId: 1, FromLongitude: 116.47, FromLatitude: 39.9, CarType: 1, CityCode: "110000",
+	})
+	if err != nil {
+		t.Fatalf("DispatchOrder() error = %v", err)
+	}
+	if resp.OrderId != 1 || len(resp.List) != 0 {
+		t.Fatalf("DispatchOrder() should skip cancelled order, got %+v", resp)
+	}
+	_, total, err := svcCtx.DispatchRepository.ListByOrder(ctx, 1, 1, 100)
+	if err != nil {
+		t.Fatalf("ListByOrder() error = %v", err)
+	}
+	if total != 0 {
+		t.Fatalf("DispatchOrder() should not create records for cancelled order, total = %d", total)
+	}
+}
+
+// TestDispatchOrderVerifyErrorFailsSafe 验证订单状态复核失败（下游不可用）时拒绝派单（fail-safe，P0-M4-1）。
+func TestDispatchOrderVerifyErrorFailsSafe(t *testing.T) {
+	ctx := context.Background()
+	svcCtx := newDispatchTestSvcCtx()
+	svcCtx.OrderStatusVerifier = func(_ context.Context, _ int64) (int32, error) {
+		return 0, errors.New("ordersvc unavailable")
+	}
+	l := NewDispatchOrderLogic(ctx, svcCtx)
+
+	_, err := l.DispatchOrder(&proto.DispatchOrderRequest{
+		OrderId: 1, FromLongitude: 116.47, FromLatitude: 39.9, CarType: 1, CityCode: "110000",
+	})
+	if err == nil {
+		t.Fatal("DispatchOrder() should fail when order status verifier errors")
+	}
+}
+
+// TestDispatchOrderWaitAcceptPasses 验证订单处于待接单（status=1）时正常派单（P0-M4-1）。
+func TestDispatchOrderWaitAcceptPasses(t *testing.T) {
+	ctx := context.Background()
+	svcCtx := newDispatchTestSvcCtx()
+	svcCtx.OrderStatusVerifier = func(_ context.Context, _ int64) (int32, error) {
+		return 1, nil // constants.OrderStatusWaitAccept
+	}
+	l := NewDispatchOrderLogic(ctx, svcCtx)
+
+	resp, err := l.DispatchOrder(&proto.DispatchOrderRequest{
+		OrderId: 1, FromLongitude: 116.47, FromLatitude: 39.9, CarType: 1, CityCode: "110000",
+	})
+	if err != nil {
+		t.Fatalf("DispatchOrder() error = %v", err)
+	}
+	if len(resp.List) == 0 {
+		t.Fatal("DispatchOrder() should dispatch when order is wait_accept")
+	}
+}
