@@ -51,17 +51,24 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		c.Session.TokenPrefix = "admin:sess:"
 	}
 
-	ordersClient, ordersSvc, err := newOrdersRPCClient(c.OrdersRPC)
-	if err != nil {
-		panic(err)
-	}
-	driversClient, driversSvc, err := newDriversRPCClient(c.DriversRPC)
-	if err != nil {
-		panic(err)
-	}
-	pricesClient, pricesSvc, err := newPricesRPCClient(c.PricesRPC)
-	if err != nil {
-		panic(err)
+	var ordersClient, driversClient, pricesClient zrpc.Client
+	var ordersSvc ordersvcproto.OrderClient
+	var driversSvc driversvcproto.DriversvcClient
+	var pricesSvc pricesvcproto.Price
+	// 本地最小服务集无需预建不可达下游连接；默认配置仍完整初始化全部下游 RPC 客户端。
+	if !c.DisableDownstreamRPC {
+		ordersClient, ordersSvc, err = newOrdersRPCClient(c.OrdersRPC)
+		if err != nil {
+			panic(err)
+		}
+		driversClient, driversSvc, err = newDriversRPCClient(c.DriversRPC)
+		if err != nil {
+			panic(err)
+		}
+		pricesClient, pricesSvc, err = newPricesRPCClient(c.PricesRPC)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return &ServiceContext{
