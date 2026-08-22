@@ -5,14 +5,18 @@ import "github.com/zeromicro/go-zero/zrpc"
 
 // Config 是 adminsvc 的完整配置，包含 go-zero RPC、MySQL、Redis 和鉴权参数。
 type Config struct {
-	zrpc.RpcServerConf
-	MySQL      MySQLConfig                `json:"MySQL"`
-	Cache      RedisConfig                `json:"Cache"`
-	Session    AuthConfig                 `json:"Session"`
-	OrdersRPC  zrpc.RpcClientConf         `json:"OrdersRPC,optional"`
-	DriversRPC zrpc.RpcClientConf         `json:"DriversRPC,optional"`
-	PricesRPC  zrpc.RpcClientConf         `json:"PricesRPC,optional"`
-	MenuRoles  map[int32][]MenuItemConfig `json:"MenuRoles,optional"`
+	// RpcServerConf 以内联形式承载 Name、ListenOn 等 go-zero RPC 基础字段。
+	zrpc.RpcServerConf `yaml:",inline"`
+	MySQL              MySQLConfig        `json:"MySQL"`
+	Cache              RedisConfig        `json:"Cache"`
+	Session            AuthConfig         `json:"Session"`
+	OrdersRPC          zrpc.RpcClientConf `json:"OrdersRPC,optional"`
+	DriversRPC         zrpc.RpcClientConf `json:"DriversRPC,optional"`
+	PricesRPC          zrpc.RpcClientConf `json:"PricesRPC,optional"`
+	// DisableDownstreamRPC 仅供本地最小服务集使用。启用后不创建未启动下游服务的 gRPC 客户端，
+	// 避免本地开发时由连接重试占用大量内存；默认 false，线上行为保持不变。
+	DisableDownstreamRPC bool                       `json:"DisableDownstreamRPC,optional" yaml:"DisableDownstreamRPC"`
+	MenuRoles            map[int32][]MenuItemConfig `json:"MenuRoles,optional"`
 }
 
 // MySQLConfig 定义本服务访问业务数据库所需的数据源。
