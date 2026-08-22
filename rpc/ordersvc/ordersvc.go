@@ -8,11 +8,11 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/internal/config"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/server"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
+	"github.com/zeromicro/go-zero/zrpc"
+	"google.golang.org/grpc"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 

@@ -18,6 +18,7 @@ type RideOrder struct {
 	EstimatedDistanceM int        `gorm:"column:estimated_distance_m;default:0" json:"estimatedDistanceM"`
 	EstimatedDurationS int        `gorm:"column:estimated_duration_s;default:0" json:"estimatedDurationS"`
 	EstimatedPrice     float64    `gorm:"column:estimated_price;type:decimal(10,2);default:0" json:"estimatedPrice"`
+	CityCode           string     `gorm:"column:city_code;size:20;default:''" json:"cityCode"`
 	Status             int8       `gorm:"column:status;default:1" json:"status"`
 	CancelReason       string     `gorm:"column:cancel_reason;size:255;default:''" json:"cancelReason"`
 	CancelBy           string     `gorm:"column:cancel_by;size:20;default:''" json:"cancelBy"`

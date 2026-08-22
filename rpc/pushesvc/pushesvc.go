@@ -7,6 +7,7 @@ import (
 
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/config"
+	"XiaoLong-Ridy/rpc/pushesvc/internal/model"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/server"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/svc"
 	"XiaoLong-Ridy/rpc/pushesvc/pushesvc"
@@ -39,6 +40,10 @@ func main() {
 	}
 	if err := sqlDB.Ping(); err != nil {
 		panic(err)
+	}
+	// 自动迁移：确保 notices / push_log 表结构与 model 定义一致（含 biz_type、extras 等新增列）
+	if err := mysqlDB.AutoMigrate(&model.Notice{}, &model.PushLog{}); err != nil {
+		panic(fmt.Errorf("自动迁移表结构失败: %w", err))
 	}
 	fmt.Println("MySQL 连接成功")
 

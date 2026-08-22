@@ -73,6 +73,10 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		payableAmountCents = discount.PayableAmountCents
 	}
 
+	cityCode := strings.TrimSpace(req.CityCode)
+	if cityCode == "" {
+		cityCode = l.svcCtx.PriceCityCode
+	}
 	order, err := orderClient.CreateOrder(l.ctx, &orderproto.CreateOrderRequest{
 		UserId:              int64(userID),
 		CarType:             req.CarType,
@@ -85,6 +89,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		EstimatedDistanceM:  price.EstimatedDistanceM,
 		EstimatedDurationS:  price.EstimatedDurationS,
 		EstimatedPriceCents: payableAmountCents,
+		CityCode:            cityCode,
 	})
 	if err != nil {
 		return nil, err

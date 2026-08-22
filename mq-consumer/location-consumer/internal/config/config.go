@@ -1,14 +1,10 @@
 package config
 
-type Config struct {
-	Kafka KafkaConfig
-	Log   LogConfig
-}
+import "XiaoLong-Ridy/common/config"
 
-type KafkaConfig struct {
-	Brokers []string
-	Topic   string
-	Group   string
+type Config struct {
+	RedisConf config.RedisConf
+	Log       LogConfig
 }
 
 type LogConfig struct {

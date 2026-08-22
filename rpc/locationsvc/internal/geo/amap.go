@@ -8,17 +8,30 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"XiaoLong-Ridy/rpc/locationsvc/internal/config"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/model"
 )
 
+const (
+	defaultRetryCount = 3
+	defaultCacheTTL   = 5 * time.Minute
+)
+
+type cacheItem struct {
+	data      []byte
+	expiresAt time.Time
+}
+
 // Client 高德地图客户端
 type Client struct {
 	apiKey  string
 	baseURL string
 	httpCli *http.Client
+	mu      sync.RWMutex
+	cache   map[string]cacheItem
 }
 
 // NewClient 创建高德地图客户端
@@ -27,7 +40,56 @@ func NewClient(c config.MapServiceConfig) *Client {
 		apiKey:  c.ApiKey,
 		baseURL: c.BaseUrl,
 		httpCli: &http.Client{Timeout: 5 * time.Second},
+		cache:   make(map[string]cacheItem),
 	}
+}
+
+// doWithRetry 对高德 HTTP 请求做指数退避重试，提高网络抖动场景下的成功率。
+func (c *Client) doWithRetry(reqURL string) ([]byte, error) {
+	var lastErr error
+	for i := 0; i < defaultRetryCount; i++ {
+		if i > 0 {
+			time.Sleep(time.Duration(i) * time.Second)
+		}
+		httpResp, err := c.httpCli.Get(reqURL)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		body, err := io.ReadAll(httpResp.Body)
+		httpResp.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		return body, nil
+	}
+	return nil, fmt.Errorf("请求高德API失败（已重试%d次）: %w", defaultRetryCount, lastErr)
+}
+
+func (c *Client) getCache(key string) []byte {
+	c.mu.RLock()
+	item, ok := c.cache[key]
+	c.mu.RUnlock()
+	if !ok {
+		return nil
+	}
+	if time.Now().After(item.expiresAt) {
+		c.mu.Lock()
+		delete(c.cache, key)
+		c.mu.Unlock()
+		return nil
+	}
+	return item.data
+}
+
+func (c *Client) setCache(key string, data []byte, ttl time.Duration) {
+	if ttl <= 0 {
+		ttl = defaultCacheTTL
+	}
+	c.mu.Lock()
+	c.cache[key] = cacheItem{data: data, expiresAt: time.Now().Add(ttl)}
+	c.mu.Unlock()
 }
 
 // AmapPoiResponse 高德周边搜索接口响应结构
@@ -44,9 +106,8 @@ type AmapPoiResponse struct {
 	} `json:"pois"`
 }
 
-// SearchPoi 调用高德"周边搜索"（place/around）接口
+// SearchPoi 调用高德"周边搜索"（place/around）接口，结果做 5 分钟内存缓存。
 func (c *Client) SearchPoi(keyword string, lat, lng float64, radius, page, size int32) (*AmapPoiResponse, error) {
-	// 参数兜底：防止空值传到高德
 	if radius <= 0 {
 		radius = 5000
 	}
@@ -68,16 +129,16 @@ func (c *Client) SearchPoi(keyword string, lat, lng float64, radius, page, size 
 	params.Set("output", "json")
 
 	reqURL := fmt.Sprintf("%s/place/around?%s", c.baseURL, params.Encode())
+	cacheKey := fmt.Sprintf("poi:%s:%.6f:%.6f:%d:%d:%d", keyword, lat, lng, radius, page, size)
 
-	httpResp, err := c.httpCli.Get(reqURL)
-	if err != nil {
-		return nil, fmt.Errorf("请求高德API失败: %w", err)
-	}
-	defer httpResp.Body.Close()
-
-	body, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取高德响应失败: %w", err)
+	body := c.getCache(cacheKey)
+	if body == nil {
+		var err error
+		body, err = c.doWithRetry(reqURL)
+		if err != nil {
+			return nil, err
+		}
+		c.setCache(cacheKey, body, defaultCacheTTL)
 	}
 
 	var result AmapPoiResponse
@@ -87,7 +148,6 @@ func (c *Client) SearchPoi(keyword string, lat, lng float64, radius, page, size 
 	if result.Status != "1" {
 		return nil, fmt.Errorf("高德API返回错误: %s", result.Info)
 	}
-
 	return &result, nil
 }
 
@@ -97,7 +157,7 @@ func (r *AmapPoiResponse) ToPoiModels() []model.Poi {
 	for _, p := range r.Pois {
 		lng, lat, err := parseLocation(p.Location)
 		if err != nil {
-			continue // 坐标解析失败的直接跳过，不阻塞整体
+			continue
 		}
 		distance, _ := strconv.Atoi(p.Distance)
 		list = append(list, model.Poi{
@@ -121,24 +181,24 @@ func (r *AmapPoiResponse) Total() int32 {
 
 // AmapRegeoResponse 高德逆地理编码（regeo）响应结构
 type AmapRegeoResponse struct {
-	Status string `json:"status"` // 1=成功
-	Info   string `json:"info"`   // 提示信息
+	Status string `json:"status"`
+	Info   string `json:"info"`
 	Regeocode struct {
-		FormattedAddress json.RawMessage `json:"formatted_address"` // 结构化地址（境外坐标会返回空数组）
+		FormattedAddress json.RawMessage `json:"formatted_address"`
 		AddressComponent struct {
-			Province string          `json:"province"` // 省
-			City     json.RawMessage `json:"city"`     // 市（直辖市时高德返回空数组）
-			District string          `json:"district"` // 区
-			Township string          `json:"township"` // 街道
+			Province string          `json:"province"`
+			City     json.RawMessage `json:"city"`
+			District string          `json:"district"`
+			Township string          `json:"township"`
 		} `json:"addressComponent"`
 		Pois []struct {
 			Name string `json:"name"`
 			Type string `json:"type"`
-		} `json:"pois"` // 附近POI
+		} `json:"pois"`
 	} `json:"regeocode"`
 }
 
-// ReverseGeocode 调用高德"逆地理编码"（geocode/regeo）接口，把经纬度转成地址
+// ReverseGeocode 调用高德"逆地理编码"接口，带重试 + 内存缓存降级。
 func (c *Client) ReverseGeocode(lat, lng float64) (*AmapRegeoResponse, error) {
 	params := url.Values{}
 	params.Set("key", c.apiKey)
@@ -147,16 +207,16 @@ func (c *Client) ReverseGeocode(lat, lng float64) (*AmapRegeoResponse, error) {
 	params.Set("output", "json")
 
 	reqURL := fmt.Sprintf("%s/geocode/regeo?%s", c.baseURL, params.Encode())
+	cacheKey := fmt.Sprintf("regeo:%.6f:%.6f", lat, lng)
 
-	httpResp, err := c.httpCli.Get(reqURL)
-	if err != nil {
-		return nil, fmt.Errorf("请求高德逆地理编码失败: %w", err)
-	}
-	defer httpResp.Body.Close()
-
-	body, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取高德响应失败: %w", err)
+	body := c.getCache(cacheKey)
+	if body == nil {
+		var err error
+		body, err = c.doWithRetry(reqURL)
+		if err != nil {
+			return nil, err
+		}
+		c.setCache(cacheKey, body, defaultCacheTTL)
 	}
 
 	var result AmapRegeoResponse
@@ -166,11 +226,10 @@ func (c *Client) ReverseGeocode(lat, lng float64) (*AmapRegeoResponse, error) {
 	if result.Status != "1" {
 		return nil, fmt.Errorf("高德API返回错误: %s", result.Info)
 	}
-
 	return &result, nil
 }
 
-// AddressStr 获取结构化地址字符串（境外坐标高德返回空数组）
+// AddressStr 获取结构化地址字符串
 func (r *AmapRegeoResponse) AddressStr() string {
 	raw := r.Regeocode.FormattedAddress
 	if len(raw) == 0 {
@@ -183,7 +242,7 @@ func (r *AmapRegeoResponse) AddressStr() string {
 	return addr
 }
 
-// CityStr 兼容直辖市：高德对直辖市返回空数组，返回空字符串
+// CityStr 兼容直辖市
 func (r *AmapRegeoResponse) CityStr() string {
 	raw := r.Regeocode.AddressComponent.City
 	if len(raw) == 0 {
@@ -196,45 +255,45 @@ func (r *AmapRegeoResponse) CityStr() string {
 	return city
 }
 
-// AmapRouteResponse 高德驾车路径规划（direction/driving）响应结构
+// AmapRouteResponse 高德驾车路径规划响应结构
 type AmapRouteResponse struct {
-	Status string `json:"status"` // 1=成功
-	Info   string `json:"info"`   // 提示信息
+	Status string `json:"status"`
+	Info   string `json:"info"`
 	Route  struct {
 		Origin      string `json:"origin"`
 		Destination string `json:"destination"`
 		Paths       []struct {
-			Distance string `json:"distance"` // 距离（米）
-			Duration string `json:"duration"` // 预计时间（秒）
+			Distance string `json:"distance"`
+			Duration string `json:"duration"`
 			Strategy string `json:"strategy"`
 			Steps    []struct {
 				Instruction string `json:"instruction"`
-				Polyline    string `json:"polyline"` // 路线点串 "lng,lat;lng,lat;..."
+				Polyline    string `json:"polyline"`
 			} `json:"steps"`
 		} `json:"paths"`
 	} `json:"route"`
 }
 
-// RoutePlan 调用高德"驾车路径规划"（direction/driving）接口，返回真实可行驶路线
+// RoutePlan 调用高德"驾车路径规划"接口，带重试 + 内存缓存降级。
 func (c *Client) RoutePlan(originLat, originLng, destLat, destLng float64) (*AmapRouteResponse, error) {
 	params := url.Values{}
 	params.Set("key", c.apiKey)
 	params.Set("origin", fmt.Sprintf("%.6f,%.6f", originLng, originLat))
 	params.Set("destination", fmt.Sprintf("%.6f,%.6f", destLng, destLat))
-	params.Set("extensions", "all") // all 才能拿到路线点串 polyline
+	params.Set("extensions", "all")
 	params.Set("output", "json")
 
 	reqURL := fmt.Sprintf("%s/direction/driving?%s", c.baseURL, params.Encode())
+	cacheKey := fmt.Sprintf("route:%.6f:%.6f:%.6f:%.6f", originLat, originLng, destLat, destLng)
 
-	httpResp, err := c.httpCli.Get(reqURL)
-	if err != nil {
-		return nil, fmt.Errorf("请求高德驾车路径规划失败: %w", err)
-	}
-	defer httpResp.Body.Close()
-
-	body, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取高德响应失败: %w", err)
+	body := c.getCache(cacheKey)
+	if body == nil {
+		var err error
+		body, err = c.doWithRetry(reqURL)
+		if err != nil {
+			return nil, err
+		}
+		c.setCache(cacheKey, body, defaultCacheTTL)
 	}
 
 	var result AmapRouteResponse
@@ -247,7 +306,6 @@ func (c *Client) RoutePlan(originLat, originLng, destLat, destLng float64) (*Ama
 	if len(result.Route.Paths) == 0 {
 		return nil, fmt.Errorf("高德未返回可行路线")
 	}
-
 	return &result, nil
 }
 

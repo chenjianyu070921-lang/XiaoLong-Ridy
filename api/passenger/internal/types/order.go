@@ -9,6 +9,7 @@ type CreateOrderRequest struct {
 	ToAddress              string  `json:"toAddress"`
 	ToLongitude            float64 `json:"toLongitude"`
 	ToLatitude             float64 `json:"toLatitude"`
+	CityCode               string  `json:"cityCode"` // 城市编码，用于按城市派单（如 110000）
 	CouponID               int64   `json:"couponId"`
 	CouponType             int32   `json:"couponType"`
 	CouponFaceValueCents   int64   `json:"couponFaceValueCents"`

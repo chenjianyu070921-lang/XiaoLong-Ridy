@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/job/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/ordersvcclient"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
-
-// driverGeoKey 与 locationsvc 写入 Redis GEO 的 key 保持一致
-const driverGeoKey = "driver:geo"
 
 // Task 定时任务业务逻辑
 type Task struct {
@@ -23,7 +21,8 @@ func NewTask(svcCtx *svc.ServiceContext) *Task {
 	return &Task{svcCtx: svcCtx}
 }
 
-// CleanExpiredLocation 清理过期司机位置数据（默认保留最近 7 天）
+// CleanExpiredLocation 清理过期司机位置数据（默认保留最近 7 天）。
+// 由于 locationsvc 已按城市分桶（driver:geo:<city>），这里扫描所有 driver:geo:* key 分别清理。
 func (t *Task) CleanExpiredLocation(retentionDays int) error {
 	if retentionDays <= 0 {
 		retentionDays = 7
@@ -39,14 +38,32 @@ func (t *Task) CleanExpiredLocation(retentionDays int) error {
 		return fmt.Errorf("查询过期位置失败: %w", err)
 	}
 
-	// 2. 从 Redis GEO 移除这些司机（member 为字符串 driver_id，与上报时一致）
+	// 2. 从所有城市分桶的 Redis GEO 中移除过期司机
 	if len(driverIDs) > 0 {
 		members := make([]interface{}, 0, len(driverIDs))
 		for _, id := range driverIDs {
 			members = append(members, fmt.Sprintf("%d", id))
 		}
-		if err := t.svcCtx.Redis.ZRem(ctx, driverGeoKey, members...).Err(); err != nil {
-			logx.Errorf("清理 Redis GEO 失败: %v", err)
+		var cursor uint64
+		for {
+			keys, next, err := t.svcCtx.Redis.Scan(ctx, cursor, constants.DriverGeoKey+":*", 100).Result()
+			if err != nil {
+				logx.Errorf("扫描 GEO key 失败: %v", err)
+				break
+			}
+			for _, key := range keys {
+				if err := t.svcCtx.Redis.ZRem(ctx, key, members...).Err(); err != nil {
+					logx.Errorf("清理 Redis GEO %s 失败: %v", key, err)
+				}
+			}
+			// 同时清理默认 GEO key
+			if err := t.svcCtx.Redis.ZRem(ctx, constants.DriverGeoKey, members...).Err(); err != nil {
+				logx.Errorf("清理 Redis GEO %s 失败: %v", constants.DriverGeoKey, err)
+			}
+			if next == 0 {
+				break
+			}
+			cursor = next
 		}
 	}
 
@@ -90,7 +107,8 @@ func (t *Task) SyncOrderStatus() error {
 			}
 			canceled++
 		}
-		if int64(page*pageSize) >= resp.Total {
+		// 当返回条数不足一页时说明已到最后一页，避免总数非整百导致提前退出或多跑一页
+		if len(resp.List) < int(pageSize) {
 			break
 		}
 		page++
@@ -134,7 +152,8 @@ func (t *Task) DailyReport() error {
 				other++
 			}
 		}
-		if int64(page*pageSize) >= resp.Total {
+		// 当返回条数不足一页时说明已到最后一页，避免总数非整百导致提前退出或多跑一页
+		if len(resp.List) < int(pageSize) {
 			break
 		}
 		page++

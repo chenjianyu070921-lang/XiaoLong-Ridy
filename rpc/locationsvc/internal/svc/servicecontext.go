@@ -3,6 +3,7 @@ package svc
 import (
 	"sync"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/config"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/geo"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/model"
@@ -11,8 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// DriverGeoKey Redis GEO 集合 key：司机实时位置
-const DriverGeoKey = "driver:geo"
+// DriverGeoKey Redis GEO 集合 key：司机实时位置（复用公共常量，避免与 job/consumer 硬编码不一致）
+const DriverGeoKey = constants.DriverGeoKey
 
 type ServiceContext struct {
 	mu                  sync.RWMutex

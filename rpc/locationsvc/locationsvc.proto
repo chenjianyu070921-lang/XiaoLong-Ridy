@@ -83,6 +83,7 @@ message ReportLocationReq {
   double speed_kmh     = 5;  // 当前速度（km/h）
   int32  online_status = 6;  // 听单状态：0离线 1在线 2行程中
   int64  order_id      = 7;  // 关联订单ID，无则0
+  string city          = 8;  // 城市编码，用于 GEO 按城市分桶（如 "110100"）
 }
 
 message ReportLocationResp {
@@ -95,6 +96,7 @@ message NearbyDriversReq {
   double lat    = 2;  // 中心纬度
   double radius = 3;  // 搜索半径（米）
   int32  limit  = 4;  // 返回条数上限
+  string city   = 5;  // 城市编码，用于 GEO 按城市分桶
 }
 
 message NearbyDriver {

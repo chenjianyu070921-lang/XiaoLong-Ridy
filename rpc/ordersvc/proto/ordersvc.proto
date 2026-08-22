@@ -41,6 +41,7 @@ message CreateOrderRequest {
   int64 estimated_distance_m = 9; // 预估距离（米）
   int64 estimated_duration_s = 10; // 预估时长（秒）
   int64 estimated_price_cents = 11; // 预估价格（分）
+  string city_code = 12; // 城市编码，用于按城市派单（如 110000）
 }
 
 message CreateOrderResponse {

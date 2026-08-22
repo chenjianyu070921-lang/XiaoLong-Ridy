@@ -1,10 +1,13 @@
 Name: location-consumer
 
-Kafka:
-  Brokers:
-    - 127.0.0.1:9092
-  Topic: location-report
-  Group: location-consumer-group
+RedisConf:
+  Host: "127.0.0.1:6379"
+  Pass: ""
+  Db: 0
+  PoolSize: 10
+  dialTimeout: 5
+  readTimeout: 3
+  writeTimeout: 3
 
 Log:
   ServiceName: location-consumer

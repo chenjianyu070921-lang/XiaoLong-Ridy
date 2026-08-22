@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/model"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/svc"
 	"XiaoLong-Ridy/rpc/locationsvc/locationsvc"
@@ -52,8 +53,10 @@ func (l *ReportLocationLogic) ReportLocation(in *locationsvc.ReportLocationReq) 
 		return nil, err
 	}
 
-	// 2. 写 Redis GEO，供附近司机查询
-	if err := l.svcCtx.Redis.GeoAdd(l.ctx, svc.DriverGeoKey, &redis.GeoLocation{
+	geoKey := constants.DriverGeoKeyOf(in.City)
+
+	// 2. 写 Redis GEO（按城市分桶），供附近司机查询
+	if err := l.svcCtx.Redis.GeoAdd(l.ctx, geoKey, &redis.GeoLocation{
 		Name:      fmt.Sprintf("%d", in.DriverId),
 		Longitude: in.Lng,
 		Latitude:  in.Lat,
@@ -62,6 +65,22 @@ func (l *ReportLocationLogic) ReportLocation(in *locationsvc.ReportLocationReq) 
 		return nil, err
 	}
 
-	l.Infof("司机位置上报成功: driverId=%d lng=%.6f lat=%.6f", in.DriverId, in.Lng, in.Lat)
+	// 3. 发布位置事件到 Redis Stream，供 location-consumer 消费（在线状态维护、离线清理等）
+	if err := l.svcCtx.Redis.XAdd(l.ctx, &redis.XAddArgs{
+		Stream: constants.LocationStreamKey,
+		Values: map[string]interface{}{
+			"driver_id":     fmt.Sprintf("%d", in.DriverId),
+			"lng":           in.Lng,
+			"lat":           in.Lat,
+			"online_status": in.OnlineStatus,
+			"city":          in.City,
+			"ts":            time.Now().Unix(),
+		},
+	}).Err(); err != nil {
+		// 位置流失败不影响主链路（GEO 已写入），仅告警
+		l.Errorf("发布位置事件到 Stream 失败: %v", err)
+	}
+
+	l.Infof("司机位置上报成功: driverId=%d city=%s lng=%.6f lat=%.6f", in.DriverId, in.City, in.Lng, in.Lat)
 	return &locationsvc.ReportLocationResp{Success: true}, nil
 }

@@ -14,8 +14,10 @@ type PushLog struct {
 	Title     string    `gorm:"column:title;size:200"`
 	Content   string    `gorm:"column:content;type:text;not null"`
 	Target    string    `gorm:"column:target;size:100"`
+	BizType   int8      `gorm:"column:biz_type;type:tinyint;default:0"`
 	Result    int8      `gorm:"column:result;type:tinyint;default:0"`
 	ErrorMsg  string    `gorm:"column:error_msg;size:500"`
+	Extras    string    `gorm:"column:extras;type:text"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
 }
 

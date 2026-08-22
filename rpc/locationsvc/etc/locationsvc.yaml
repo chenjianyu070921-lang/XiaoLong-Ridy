@@ -1,11 +1,6 @@
 Name: locationsvc.rpc
 ListenOn: 0.0.0.0:9001
 
-Etcd:
-  Hosts:
-    - 127.0.0.1:2379
-  Key: locationsvc.rpc
-
 Mysql:
   Dsn: "root:root@tcp(127.0.0.1:3306)/xiaolongridy?charset=utf8mb4&parseTime=true&loc=Local"
   MaxOpenConn: 100
@@ -17,6 +12,9 @@ RedisConf:
   Pass: ""
   Db: 0
   PoolSize: 10
+  dialTimeout: 1
+  readTimeout: 1
+  writeTimeout: 1
 
 # 地图服务配置（后续对接高德/腾讯地图时使用）
 MapService:

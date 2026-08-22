@@ -1,5 +1,7 @@
 package constants
 
+import "fmt"
+
 // 订单状态
 const (
 	OrderStatusWaitAccept = 1 // 待接单
@@ -24,6 +26,22 @@ const (
 	RedisOrderInfo = "order:info:%d" // 订单信息
 	RedisSmsCode   = "sms:code:%s"   // 验证码
 )
+
+// 司机位置相关 Redis Key（locationsvc / job / location-consumer 共用，避免各模块硬编码不一致）
+const (
+	DriverGeoKey      = "driver:geo"             // 司机实时位置 GEO 集合默认 key
+	DriverOnlineKey   = "driver:online"          // 在线司机集合（SADD/SREM 维护）
+	LocationStreamKey = "driver:location:stream" // 司机位置事件流（Redis Stream）
+)
+
+// DriverGeoKeyOf 返回按城市分桶的 GEO key。city 为空时回退到默认 DriverGeoKey，
+// 保证多城市派单互不干扰，同时兼容旧调用。
+func DriverGeoKeyOf(city string) string {
+	if city == "" {
+		return DriverGeoKey
+	}
+	return fmt.Sprintf("driver:geo:%s", city)
+}
 
 // Kafka 消息主题
 const (

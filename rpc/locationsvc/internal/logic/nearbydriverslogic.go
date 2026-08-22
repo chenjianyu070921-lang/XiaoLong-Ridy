@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/svc"
 	"XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 
@@ -42,7 +43,7 @@ func (l *NearbyDriversLogic) NearbyDrivers(in *locationsvc.NearbyDriversReq) (*l
 		limit = 100
 	}
 
-	res, err := l.svcCtx.Redis.GeoRadius(l.ctx, svc.DriverGeoKey, in.Lng, in.Lat, &redis.GeoRadiusQuery{
+	res, err := l.svcCtx.Redis.GeoRadius(l.ctx, constants.DriverGeoKeyOf(in.City), in.Lng, in.Lat, &redis.GeoRadiusQuery{
 		Radius:    in.Radius,
 		Unit:      "m",
 		WithDist:  true,
@@ -72,6 +73,6 @@ func (l *NearbyDriversLogic) NearbyDrivers(in *locationsvc.NearbyDriversReq) (*l
 		})
 	}
 
-	l.Infof("附近司机查询: center(%.6f,%.6f) radius=%.0fm 命中 %d 个", in.Lng, in.Lat, in.Radius, len(resp.Drivers))
+	l.Infof("附近司机查询: city=%s center(%.6f,%.6f) radius=%.0fm 命中 %d 个", in.City, in.Lng, in.Lat, in.Radius, len(resp.Drivers))
 	return resp, nil
 }

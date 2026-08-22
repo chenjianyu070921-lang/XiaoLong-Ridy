@@ -34,21 +34,42 @@ func (l *SendPushLogic) SendPush(in *pushesvc.SendPushReq) (*pushesvc.SendPushRe
 		return nil, fmt.Errorf("推送标题和内容不能都为空")
 	}
 
-	// 记录推送日志；真实推送通道（极光/个推等）由 Push 配置的 Provider 决定，
-	// 当前未配置真实通道时按"已发送"记录，失败会落 result=0
+	// 调用真实推送通道（极光/个推/小米等，由 Push.Provider 决定）；
+	// 失败自动重试一次，结果回写 push_log（result=1 成功 / 0 失败）
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		lastErr = l.svcCtx.PushProvider.Push(l.ctx, in.UserId, in.DeviceType, in.Title, in.Body, in.Extras)
+		if lastErr == nil {
+			break
+		}
+		l.Errorf("App推送通道调用失败(第%d次): userId=%d err=%v", attempt+1, in.UserId, lastErr)
+	}
+	result := int8(1)
+	errMsg := ""
+	if lastErr != nil {
+		result = 0
+		errMsg = lastErr.Error()
+	}
+
 	logEntry := &model.PushLog{
 		UserID:   uint64(in.UserId),
 		PushType: 1, // 1=App推送
 		Title:    in.Title,
 		Content:  in.Body,
 		Target:   in.DeviceType,
-		Result:   1, // 1=成功
+		Extras:   in.Extras,
+		Result:   result,
+		ErrorMsg: errMsg,
 	}
 	if err := l.svcCtx.PushLogModel.Insert(logEntry); err != nil {
 		l.Errorf("写入推送日志失败: %v", err)
 		return nil, err
 	}
 
+	if lastErr != nil {
+		l.Infof("App推送未完成(userId=%d)：%s", in.UserId, errMsg)
+		return &pushesvc.SendPushResp{Success: false}, nil
+	}
 	l.Infof("App推送成功: userId=%d title=%s deviceType=%s", in.UserId, in.Title, in.DeviceType)
 	return &pushesvc.SendPushResp{Success: true}, nil
 }

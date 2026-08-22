@@ -68,6 +68,7 @@ type ServiceContext struct {
 	OrderClient     OrderClient
 	PriceClient     PriceClient
 	TokenSigningKey string
+	PriceCityCode   string
 	grpcConns       []*grpc.ClientConn
 }
 
@@ -142,6 +143,7 @@ func NewServiceContextFromConfigWithSMSLogger(cfg RuntimeConfig, onSMSCode func(
 		WithPriceClient(priceClient),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 	)
+	ctx.PriceCityCode = cfg.PriceCityCode
 	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn)
 	return ctx, nil
 }

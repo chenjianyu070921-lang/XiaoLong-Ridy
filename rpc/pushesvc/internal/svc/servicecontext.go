@@ -3,6 +3,7 @@ package svc
 import (
 	"XiaoLong-Ridy/rpc/pushesvc/internal/config"
 	"XiaoLong-Ridy/rpc/pushesvc/internal/model"
+	"XiaoLong-Ridy/rpc/pushesvc/internal/provider"
 
 	"gorm.io/gorm"
 )
@@ -12,6 +13,8 @@ type ServiceContext struct {
 	Db           *gorm.DB
 	NoticeModel  *model.NoticeModel
 	PushLogModel *model.PushLogModel
+	SMSProvider  provider.SMSProvider
+	PushProvider provider.PushProvider
 }
 
 func NewServiceContext(c config.Config, db *gorm.DB) *ServiceContext {
@@ -25,5 +28,7 @@ func NewServiceContext(c config.Config, db *gorm.DB) *ServiceContext {
 		Db:           db,
 		NoticeModel:  model.NewNoticeModel(db),
 		PushLogModel: model.NewPushLogModel(db),
+		SMSProvider:  provider.NewSMSProvider(c.SMS),
+		PushProvider: provider.NewPushProvider(c.Push),
 	}
 }

@@ -17,6 +17,9 @@ RedisConf:
   Pass: ""
   Db: 0
   PoolSize: 10
+  dialTimeout: 1
+  readTimeout: 1
+  writeTimeout: 1
 
 SMS:
   Provider: ""

@@ -49,6 +49,7 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 		EstimatedDistanceM: int(in.EstimatedDistanceM),
 		EstimatedDurationS: int(in.EstimatedDurationS),
 		EstimatedPrice:     float64(in.EstimatedPriceCents) / 100,
+		CityCode:           in.CityCode,
 		Status:             constants.OrderStatusWaitAccept,
 	}
 	statusLog := &model.OrderStatusLog{
@@ -67,6 +68,7 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 			FromLongitude: in.FromLongitude,
 			FromLatitude:  in.FromLatitude,
 			CarType:       in.CarType,
+			CityCode:      in.CityCode,
 		}); err != nil {
 			// 派单失败不阻塞下单，记录日志由后续任务补偿。
 			l.Logger.Errorf("dispatch order %d failed: %v", order.Id, err)
