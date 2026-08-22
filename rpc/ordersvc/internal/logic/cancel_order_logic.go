@@ -91,6 +91,11 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		return nil, ErrOrderStatusNotCancelable
 	}
 
+	// 已接单订单取消时，司机恢复可接单状态（P1-M4-8）。
+	if order.DriverId > 0 {
+		unmarkDriverBusy(l.ctx, l.svcCtx, order.DriverId)
+	}
+
 	// 取消成功后同步失效该订单的待派单记录，避免残留 Pending 被重派任务重复处理。
 	syncCancelDispatch(l.ctx, l.svcCtx.DispatchClient, order.Id, reason)
 

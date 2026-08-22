@@ -1,0 +1,3 @@
+./expansion_generated.go
+./validatingadmissionpolicy.go
+./validatingadmissionpolicybinding.go

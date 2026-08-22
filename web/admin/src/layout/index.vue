@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { Odometer, User, Avatar, Tickets, Memo, Fold, Expand } from '@element-plus/icons-vue'
+import { Odometer, User, Avatar, Tickets, Memo, Fold, Expand, Discount, List, Setting, Warning, DataAnalysis, Document, Management } from '@element-plus/icons-vue'
 import { logout, getMenus } from '../api/auth'
 import { useUserStore } from '../store/user'
 import { roleText, orDash } from '../utils/enums'
@@ -18,7 +18,7 @@ const pathToRoute = {
   '/driver-certifications': '/driver-certifications',
   '/orders': '/orders',
   '/operation-logs': '/operation-logs',
-  '/admins': '/dashboard', // 后端管理员菜单暂无对应页面，映射到工作台
+  '/admins': '/dashboard',
 }
 
 // 静态兜底菜单（菜单接口失败或为空时使用）
@@ -28,10 +28,19 @@ const fallbackMenus = [
   { name: '司机审核', path: '/driver-certifications', icon: 'Avatar' },
   { name: '订单管理', path: '/orders', icon: 'Tickets' },
   { name: '操作日志', path: '/operation-logs', icon: 'Memo' },
+  { name: '优惠券模板', path: '/coupons', icon: 'Discount' },
+  { name: '发券任务', path: '/coupon-issue-tasks', icon: 'List' },
+  { name: '计价规则', path: '/price-rules', icon: 'Setting' },
+  { name: '活动配置', path: '/promotion-activities', icon: 'Discount' },
+  { name: '投诉与申诉工单', path: '/work-orders', icon: 'Document' },
+  { name: '数据统计', path: '/statistics', icon: 'DataAnalysis' },
+  { name: '导出任务', path: '/export-tasks', icon: 'Document' },
+  { name: '黑名单', path: '/blacklist', icon: 'Warning' },
+  { name: '风控命中记录', path: '/risk-hits', icon: 'Management' },
 ]
 
 const menuItems = ref(fallbackMenus)
-const iconMap = { Odometer, User, Avatar, Tickets, Memo }
+const iconMap = { Odometer, User, Avatar, Tickets, Memo, Discount, List, Setting, Warning, DataAnalysis, Document, Management }
 
 // 登录后尝试用后端 /menus 渲染（工作台固定在最前）
 onMounted(async () => {
@@ -41,7 +50,7 @@ onMounted(async () => {
       .map((i) => ({ name: i.name, path: pathToRoute[i.path] || i.path, icon: '' }))
       .filter((i) => router.resolve(i.path).matched.length > 0)
     if (items.length > 0) {
-      menuItems.value = [{ name: '工作台', path: '/dashboard', icon: 'Odometer' }, ...items]
+      menuItems.value = [{ name: '工作台', path: '/dashboard', icon: 'Odometer' }, ...items, ...fallbackMenus.slice(5)]
     }
   } catch {
     // 菜单接口失败时保留静态兜底菜单
@@ -75,8 +84,7 @@ const handleLogout = async () => {
   <el-container class="layout">
     <el-aside :width="collapsed ? '64px' : '220px'" class="aside">
       <div class="logo">
-        <span v-if="!collapsed">小隆出行 · 运营后台</span>
-        <span v-else>小隆</span>
+        <span class="logo-mark">行</span><span v-if="!collapsed" class="logo-text">小隆出行<br><small>运营管理中心</small></span>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -122,28 +130,30 @@ const handleLogout = async () => {
   height: 100vh;
 }
 .aside {
-  background: #001529;
+  background: #08111d;
   transition: width 0.2s;
   overflow: hidden;
 }
 .logo {
   height: 56px;
   line-height: 56px;
-  color: #fff;
+  color: #f3f7fb;
   font-size: 16px;
   font-weight: 600;
-  text-align: center;
+  display:flex; align-items:center; gap:10px; padding:0 20px; text-align:left;
   white-space: nowrap;
 }
 .aside :deep(.el-menu) {
   border-right: none;
+  background:#08111d;
 }
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #e4e7ed;
-  background: #fff;
+  background: #0c1724;
+  color:#dce7f3;
 }
 .header-left {
   display: flex;
@@ -163,8 +173,9 @@ const handleLogout = async () => {
   font-size: 14px;
 }
 .main {
-  background: #f0f2f5;
+  background: #070e17;
   padding: 16px;
   overflow: auto;
 }
+.logo-mark{width:34px;height:34px;border-radius:10px;background:#ff7625;display:grid;place-items:center;color:#111;font-weight:800}.logo-text{font-weight:700;line-height:1.05}.logo-text small{color:#7d91a5;font-weight:400;font-size:11px}
 </style>

@@ -1,0 +1,3 @@
+./auth.go
+./credential.go
+./vars.go

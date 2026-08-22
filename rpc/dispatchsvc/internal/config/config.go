@@ -17,6 +17,8 @@ type Config struct {
 	// DefaultCityCode 默认城市编码，用于定位 GEO 桶（driver:geo:<cityCode>）。
 	// 为空时回退为 "default"，需与 locationsvc 写入的城市键保持一致，否则按城市派单会查空（P1-M4-5）。
 	DefaultCityCode string `yaml:"defaultCityCode" json:"defaultCityCode"`
+	// OrderRPC 订单服务客户端配置：派单前复核订单状态，防止取消/超时后的竞态派单（P0-M4-1）。
+	OrderRPC zrpc.RpcClientConf `yaml:"orderrpc" json:"orderrpc"`
 }
 
 type MysqlConf struct {

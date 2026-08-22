@@ -80,7 +80,7 @@ func roleAllowed(method string, role int32) bool {
 			"/adminsvc.AdminService/ListOperationLogs", "/adminsvc.AdminService/ListUsers", "/adminsvc.AdminService/GetUser",
 			"/adminsvc.AdminService/ListDriverCertifications", "/adminsvc.AdminService/GetDriverCertification",
 			"/adminsvc.AdminService/ListOrders", "/adminsvc.AdminService/GetOrder", "/adminsvc.AdminService/ListAbnormalOrders",
-			"/adminsvc.AdminService/CancelOrder":
+			"/adminsvc.AdminService/CancelOrder", "/adminsvc.AdminService/ListWorkOrders", "/adminsvc.AdminService/GetWorkOrder", "/adminsvc.AdminService/ActWorkOrder", "/adminsvc.AdminService/AddWorkOrderEvidence", "/adminsvc.AdminService/ListWorkOrderEvidence":
 			return true
 		default:
 			return false
@@ -93,7 +93,7 @@ func roleAllowed(method string, role int32) bool {
 		"/adminsvc.AdminService/CreatePriceRule", "/adminsvc.AdminService/UpdatePriceRule",
 		"/adminsvc.AdminService/EnablePriceRule", "/adminsvc.AdminService/DisablePriceRule",
 		"/adminsvc.AdminService/PublishPromotionActivity", "/adminsvc.AdminService/RollbackPromotionActivity",
-		"/adminsvc.AdminService/AddBlacklist", "/adminsvc.AdminService/ReleaseBlacklist":
+		"/adminsvc.AdminService/AddBlacklist", "/adminsvc.AdminService/ReleaseBlacklist", "/adminsvc.AdminService/ActWorkOrder":
 		return false
 	default:
 		return true

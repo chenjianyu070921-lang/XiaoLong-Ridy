@@ -14,6 +14,9 @@ myredis:
 enableMockDispatch: false
 # 派单超时阈值（秒），超过仍未接单的 Pending 记录视为超时并可重派
 dispatchTimeoutSeconds: 60
+# 派单前复核订单状态的订单服务地址（P0-M4-1）
+orderrpc:
+  Target: 127.0.0.1:50051
 Etcd:
   Hosts:
   - 127.0.0.1:2379
