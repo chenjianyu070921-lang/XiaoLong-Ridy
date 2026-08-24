@@ -18,14 +18,29 @@ const orderSummary = document.querySelector("[data-order-summary]");
 const orderPageLabel = document.querySelector("[data-order-page]");
 const orderPrevious = document.querySelector("[data-order-prev]");
 const orderNext = document.querySelector("[data-order-next]");
+const vehicleForm = document.querySelector("[data-vehicle-form]");
+const vehicleMessage = document.querySelector("[data-vehicle-message]");
+const certificationForm = document.querySelector("[data-certification-form]");
+const certificationMessage = document.querySelector("[data-certification-message]");
+const finishModal = document.querySelector("[data-finish-modal]");
+const finishMessage = document.querySelector("[data-finish-message]");
 const cachedDriver = readJSON("driverProfile") || null;
+const cachedVehicle = readJSON("driverVehicle") || null;
+const cachedCertification = readJSON("driverCertification") || null;
+const cachedCurrentOrder = readJSON("driverCurrentOrder") || null;
 
 const state = {
   token: localStorage.getItem("driverToken") || "",
   driver: cachedDriver,
+  vehicle: cachedVehicle,
+  vehicleId: Number(localStorage.getItem("driverVehicleId") || cachedVehicle?.id || 0),
+  certification: cachedCertification,
   onlineStatus: Number(cachedDriver?.onlineStatus ?? 0),
   tripPhase: localStorage.getItem("driverTripPhase") || "idle",
   currentOrderId: localStorage.getItem("driverCurrentOrderId") || "",
+  finishOrderId: 0,
+  currentOrder: cachedCurrentOrder,
+  orders: [],
   orderPage: 1,
   orderPageSize: 8,
   orderStatus: 0,
@@ -42,6 +57,10 @@ var LOCATION_INTERVAL = 10000;
 var lastLatitude = null;
 var lastLongitude = null;
 
+var tripRefreshTimer = null;
+var TRIP_REFRESH_INTERVAL = 5000;
+var tripRefreshInFlight = false;
+
 buttons.forEach((button) => {
   button.addEventListener("click", () => {
     const target = button.dataset.authTarget;
@@ -51,7 +70,11 @@ buttons.forEach((button) => {
       form.classList.toggle("is-active", form.dataset.authForm === target);
     });
 
-    title.textContent = target === "register" ? "司机注册" : "司机登录";
+    title.textContent = {
+      register: "司机注册",
+      "login-sms": "验证码登录",
+      login: "司机登录",
+    }[target] || "司机登录";
     setAuthMessage("");
   });
 });
@@ -72,7 +95,7 @@ forms.forEach((form) => {
         body: JSON.stringify(compactPayload(payload)),
       });
 
-      if (form.dataset.authForm === "login") {
+      if (form.dataset.authForm === "login" || form.dataset.authForm === "login-sms") {
         state.token = result.data.token;
         state.driver = result.data.driver;
         localStorage.setItem("driverToken", state.token);
@@ -91,6 +114,30 @@ forms.forEach((form) => {
   });
 });
 
+document.querySelector("[data-send-sms-code]").addEventListener("click", async () => {
+  const phone = document.querySelector("[data-sms-phone]").value.trim();
+  if (!phone) {
+    setAuthMessage("请输入手机号", "error");
+    return;
+  }
+  const button = document.querySelector("[data-send-sms-code]");
+  button.disabled = true;
+  setAuthMessage("正在发送验证码...");
+  try {
+    await requestJSON("/driver/sms-code", {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    });
+    setAuthMessage("验证码已发送", "success");
+  } catch (error) {
+    setAuthMessage(error.message || "验证码发送失败", "error");
+  } finally {
+    window.setTimeout(() => {
+      button.disabled = false;
+    }, 3000);
+  }
+});
+
 menuButton.addEventListener("click", () => {
   menuPanel.hidden = !menuPanel.hidden;
 });
@@ -107,8 +154,20 @@ document.querySelector("[data-open-edit]").addEventListener("click", () => {
   menuPanel.hidden = true;
 });
 
+document.querySelector("[data-open-dispatches]").addEventListener("click", () => {
+  orderStatus.value = "1";
+  state.orderStatus = 1;
+  loadOrders(1);
+  document.querySelector("[data-order-panel]").scrollIntoView({ behavior: "smooth", block: "start" });
+  menuPanel.hidden = true;
+});
+
 document.querySelectorAll("[data-close-edit]").forEach((button) => {
   button.addEventListener("click", closeEditModal);
+});
+
+document.querySelectorAll("[data-close-finish]").forEach((button) => {
+  button.addEventListener("click", closeFinishModal);
 });
 
 editModal.addEventListener("click", (event) => {
@@ -117,9 +176,18 @@ editModal.addEventListener("click", (event) => {
   }
 });
 
+finishModal.addEventListener("click", (event) => {
+  if (event.target === finishModal) {
+    closeFinishModal();
+  }
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !editModal.hidden) {
     closeEditModal();
+  }
+  if (event.key === "Escape" && !finishModal.hidden) {
+    closeFinishModal();
   }
 });
 
@@ -132,14 +200,24 @@ function forceLogout() {
   stopHeartbeat();
   state.token = "";
   state.driver = null;
+  state.vehicle = null;
+  state.vehicleId = 0;
+  state.certification = null;
+  state.currentOrder = null;
+  state.orders = [];
   state.onlineStatus = 0;
   state.tripPhase = "idle";
   state.currentOrderId = "";
   localStorage.removeItem("driverToken");
   localStorage.removeItem("driverProfile");
   localStorage.removeItem("driverOnlineStatus");
+  localStorage.removeItem("driverVehicle");
+  localStorage.removeItem("driverVehicleId");
+  localStorage.removeItem("driverCertification");
+  localStorage.removeItem("driverCurrentOrder");
   localStorage.removeItem("driverTripPhase");
   localStorage.removeItem("driverCurrentOrderId");
+  stopTripRealtime();
   dashboardView.hidden = true;
   authView.hidden = false;
   menuPanel.hidden = true;
@@ -147,6 +225,14 @@ function forceLogout() {
 
 document.querySelector("[data-refresh]").addEventListener("click", () => {
   loadDashboardData();
+});
+
+document.querySelector("[data-refresh-vehicle]").addEventListener("click", () => {
+  loadVehicle();
+});
+
+document.querySelector("[data-refresh-certification]").addEventListener("click", () => {
+  loadCertification();
 });
 
 document.querySelector("[data-refresh-orders]").addEventListener("click", () => {
@@ -173,6 +259,10 @@ orderNext.addEventListener("click", () => {
 orderList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-order-action]");
   if (button) {
+    if (button.dataset.orderAction === "finish-trip") {
+      openFinishModal(button.dataset.orderId);
+      return;
+    }
     handleOrderAction(button.dataset.orderAction, button.dataset.orderId);
   }
 });
@@ -215,12 +305,64 @@ document.querySelector("[data-edit-form]").addEventListener("submit", async (eve
   }
 });
 
+vehicleForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = vehicleForm.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  setVehicleMessage("正在提交车辆信息...");
+
+  try {
+    const payload = buildVehiclePayload(Object.fromEntries(new FormData(vehicleForm).entries()));
+    const result = await requestJSON(vehicleForm.action, {
+      method: "POST",
+      token: state.token,
+      body: JSON.stringify(payload),
+    });
+    state.vehicleId = Number(result.data.id || 0);
+    localStorage.setItem("driverVehicleId", String(state.vehicleId));
+    setVehicleMessage("车辆信息提交成功，等待审核", "success");
+    await loadVehicle();
+  } catch (error) {
+    setVehicleMessage(error.message || "车辆信息提交失败", "error");
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+certificationForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = certificationForm.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  setCertificationMessage("正在上传资质...");
+
+  try {
+    const payload = await buildCertificationPayload(certificationForm);
+    await requestJSON(certificationForm.action, {
+      method: "POST",
+      token: state.token,
+      body: JSON.stringify(payload),
+    });
+    setCertificationMessage("资质上传成功，等待后台审核", "success");
+    await loadCertification();
+  } catch (error) {
+    setCertificationMessage(error.message || "资质上传失败", "error");
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+document.querySelector("[data-finish-form]").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitFinishTrip(event.currentTarget);
+});
+
 if (state.token && state.driver?.id) {
   showDashboard();
   loadDashboardData();
   if (state.onlineStatus === 1) {
     startHeartbeat();
     startLocationReporting();
+    startTripRealtime();
   }
   connectPushChannel();
 } else {
@@ -273,8 +415,62 @@ async function loadDashboardData() {
     }
 
     renderStatus();
+    renderVehicle();
+    renderCertification();
+    if (state.onlineStatus > 0 || state.tripPhase !== "idle") {
+      startTripRealtime();
+    }
   } catch (error) {
     setDashboardMessage("主页数据加载失败", "error");
+  }
+}
+
+async function loadVehicle() {
+  if (!state.token) {
+    return;
+  }
+  if (!state.vehicleId) {
+    renderVehicle();
+    setVehicleMessage("请先提交车辆信息", "error");
+    return;
+  }
+
+  setVehicleMessage("正在查询车辆信息...");
+  try {
+    const result = await requestJSON(`/driver/vehicles/get?id=${encodeURIComponent(state.vehicleId)}`, {
+      method: "GET",
+      token: state.token,
+    });
+    state.vehicle = result.data.vehicle;
+    localStorage.setItem("driverVehicle", JSON.stringify(state.vehicle));
+    renderVehicle();
+    setVehicleMessage("车辆信息已刷新", "success");
+  } catch (error) {
+    setVehicleMessage(error.message || "车辆信息查询失败", "error");
+  }
+}
+
+async function loadCertification() {
+  if (!state.token) {
+    return;
+  }
+
+  setCertificationMessage("正在查询资质...");
+  try {
+    const result = await requestJSON("/driver/certification", {
+      method: "GET",
+      token: state.token,
+    });
+    state.certification = result.data.found ? result.data.certification : null;
+    if (state.certification) {
+      localStorage.setItem("driverCertification", JSON.stringify(state.certification));
+    } else {
+      localStorage.removeItem("driverCertification");
+    }
+    renderCertification();
+    setCertificationMessage(state.certification ? "资质信息已刷新" : "暂无资质记录", state.certification ? "success" : "");
+  } catch (error) {
+    setCertificationMessage(error.message || "资质查询失败", "error");
   }
 }
 
@@ -390,13 +586,17 @@ async function setWorkStatus(path, fallbackStatus, successText) {
     if (state.onlineStatus === 0) {
       state.tripPhase = "idle";
       state.currentOrderId = "";
+      state.currentOrder = null;
       localStorage.setItem("driverTripPhase", state.tripPhase);
       localStorage.removeItem("driverCurrentOrderId");
+      localStorage.removeItem("driverCurrentOrder");
       stopHeartbeat();
       stopLocationReporting();
+      stopTripRealtime();
     } else {
       startHeartbeat();
       startLocationReporting();
+      startTripRealtime();
       connectPushChannel();
     }
     renderStatus();
@@ -484,11 +684,47 @@ async function sendLocation() {
   }
 }
 
+// ---- 行程实时更新：优先吃 WebSocket 推送；没有推送时用轻量轮询兜底 ----
+function startTripRealtime() {
+  if (tripRefreshTimer) return;
+  refreshRealtimeTrip();
+  tripRefreshTimer = window.setInterval(refreshRealtimeTrip, TRIP_REFRESH_INTERVAL);
+}
+
+function stopTripRealtime() {
+  if (tripRefreshTimer) {
+    window.clearInterval(tripRefreshTimer);
+    tripRefreshTimer = null;
+  }
+  tripRefreshInFlight = false;
+}
+
+async function refreshRealtimeTrip() {
+  if (!state.token || tripRefreshInFlight) {
+    return;
+  }
+  tripRefreshInFlight = true;
+  try {
+    const result = await requestRealtimeOrders();
+    renderOrders(result.data);
+  } catch (error) {
+    // 实时刷新失败不打断司机操作，下一轮继续尝试。
+  } finally {
+    tripRefreshInFlight = false;
+  }
+}
+
+async function requestRealtimeOrders() {
+  const [dispatches, orders] = await Promise.all([
+    requestDispatches(1),
+    requestOrderList(1, 0),
+  ]);
+  return mergeOrderResults(dispatches.data, orders.data);
+}
+
 // ---- 推送通道（WebSocket）：当前项目未提供司机 WebSocket 端点，仅保留可配置连接骨架 ----
 // 当部署注入了 window.DRIVER_WS_URL 时建立连接，收到派单/订单推送后触发对应刷新；
 // 未配置时不连接，派单与订单仍通过轮询获取（见 requestDispatches / requestOrderList）。
-var pushSocket = null;
-
 var pushSocket = null;
 
 function connectPushChannel() {
@@ -518,7 +754,7 @@ function connectPushChannel() {
     }
     // 收到派单或订单相关推送，刷新对应列表。
     if (payload.type === "dispatch" || payload.type === "order") {
-      loadOrders(state.orderPage);
+      refreshRealtimeTrip();
     }
   };
   pushSocket.onclose = () => {
@@ -562,6 +798,10 @@ async function sendHeartbeat() {
 }
 
 async function handleOrderAction(action, orderId) {
+  if (action === "finish-trip") {
+    openFinishModal(orderId);
+    return;
+  }
   const orderID = Number(orderId || state.currentOrderId);
   if (!orderID || orderID <= 0) {
     setDashboardMessage("订单信息无效，请刷新订单列表", "error");
@@ -593,17 +833,6 @@ async function handleOrderAction(action, orderId) {
       message: "行程已开始",
       payload: { orderId: orderID },
     },
-    "finish-trip": {
-      path: "/driver/orders/finish-trip",
-      phase: "idle",
-      message: "行程已结束，当前空闲",
-      payload: {
-        orderId: orderID,
-        actualDistanceM: 0,
-        actualDurationS: 0,
-        actualPriceCents: 0,
-      },
-    },
   }[action];
 
   if (!config) {
@@ -613,6 +842,7 @@ async function handleOrderAction(action, orderId) {
   setOrderButtonsDisabled(true);
   setDashboardMessage("订单操作提交中...");
   try {
+    const cachedOrder = findOrderById(orderID);
     await requestJSON(config.path, {
       method: "POST",
       token: state.token,
@@ -620,6 +850,7 @@ async function handleOrderAction(action, orderId) {
     });
     state.currentOrderId = config.phase === "idle" ? "" : String(orderID);
     state.tripPhase = config.phase;
+    state.currentOrder = config.phase === "idle" ? null : cachedOrder;
     if (config.phase === "trip") {
       state.onlineStatus = 2;
       localStorage.setItem("driverOnlineStatus", "2");
@@ -633,11 +864,18 @@ async function handleOrderAction(action, orderId) {
     localStorage.setItem("driverTripPhase", state.tripPhase);
     if (state.currentOrderId) {
       localStorage.setItem("driverCurrentOrderId", state.currentOrderId);
+      if (state.currentOrder) {
+        localStorage.setItem("driverCurrentOrder", JSON.stringify(state.currentOrder));
+      }
     } else {
       localStorage.removeItem("driverCurrentOrderId");
+      localStorage.removeItem("driverCurrentOrder");
     }
     renderStatus();
     renderCoreArea();
+    if (config.phase !== "idle") {
+      startTripRealtime();
+    }
     await loadOrders(state.orderPage);
     setDashboardMessage(config.message, "success");
   } catch (error) {
@@ -651,6 +889,8 @@ function showDashboard() {
   authView.hidden = true;
   dashboardView.hidden = false;
   renderDriver();
+  renderVehicle();
+  renderCertification();
   renderStatus();
   renderCoreArea();
 }
@@ -659,6 +899,9 @@ function showPanel(target) {
   panels.forEach((panel) => {
     panel.hidden = panel.dataset.panel !== target;
   });
+  if (target === "certification") {
+    renderCertification();
+  }
 }
 
 function openEditModal() {
@@ -671,6 +914,75 @@ function openEditModal() {
 function closeEditModal() {
   editModal.hidden = true;
   setEditMessage("");
+}
+
+function openFinishModal(orderId) {
+  const orderID = Number(orderId || state.currentOrderId || 0);
+  if (!orderID) {
+    setDashboardMessage("订单信息无效，请刷新订单列表", "error");
+    return;
+  }
+  state.finishOrderId = orderID;
+  setFinishMessage("");
+  finishModal.hidden = false;
+  document.querySelector("[data-finish-form] input[name='actualDistanceM']").focus();
+}
+
+function closeFinishModal() {
+  finishModal.hidden = true;
+  state.finishOrderId = 0;
+  setFinishMessage("");
+  document.querySelector("[data-finish-form]").reset();
+}
+
+async function submitFinishTrip(form) {
+  const orderID = Number(state.finishOrderId || state.currentOrderId || 0);
+  if (!orderID) {
+    setFinishMessage("订单信息无效，请刷新订单列表", "error");
+    return;
+  }
+  const payload = Object.fromEntries(new FormData(form).entries());
+  const body = {
+    orderId: orderID,
+    actualDistanceM: Number(payload.actualDistanceM || 0),
+    actualDurationS: Number(payload.actualDurationS || 0),
+    actualPriceCents: Number(payload.actualPriceCents || 0),
+  };
+  if (body.actualDistanceM < 0 || body.actualDurationS < 0 || body.actualPriceCents < 0) {
+    setFinishMessage("行程数据不能为负数", "error");
+    return;
+  }
+
+  const submitButton = form.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  setFinishMessage("正在结束行程...");
+  try {
+    await requestJSON(form.action, {
+      method: "POST",
+      token: state.token,
+      body: JSON.stringify(body),
+    });
+    state.currentOrderId = "";
+    state.currentOrder = null;
+    state.tripPhase = "idle";
+    if (state.onlineStatus === 2) {
+      state.onlineStatus = 1;
+      localStorage.setItem("driverOnlineStatus", "1");
+      persistOnlineStatus();
+    }
+    localStorage.setItem("driverTripPhase", state.tripPhase);
+    localStorage.removeItem("driverCurrentOrderId");
+    localStorage.removeItem("driverCurrentOrder");
+    closeFinishModal();
+    renderStatus();
+    renderCoreArea();
+    await loadOrders(state.orderPage);
+    setDashboardMessage("行程已结束，当前空闲", "success");
+  } catch (error) {
+    setFinishMessage(error.message || "结束行程失败", "error");
+  } finally {
+    submitButton.disabled = false;
+  }
 }
 
 function renderDriver() {
@@ -699,6 +1011,25 @@ function renderDriver() {
     avatarImg.hidden = true;
     initial.hidden = false;
   }
+}
+
+function renderVehicle() {
+  const vehicle = state.vehicle || {};
+  document.querySelector("[data-vehicle-id]").textContent = vehicle.id || state.vehicleId || "--";
+  document.querySelector("[data-vehicle-plate]").textContent = vehicle.plateNo || "--";
+  document.querySelector("[data-vehicle-model]").textContent = [vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "--";
+  document.querySelector("[data-vehicle-status]").textContent = formatVehicleStatus(vehicle.status);
+  renderCertification();
+}
+
+function renderCertification() {
+  const certification = state.certification || {};
+  const vehicleID = certification.vehicleId || state.vehicleId || "";
+  document.querySelector("[data-certification-id]").textContent = certification.id || "--";
+  document.querySelector("[data-certification-vehicle]").textContent = vehicleID || "--";
+  document.querySelector("[data-certification-status]").textContent = formatCertificationStatus(certification.auditStatus);
+  document.querySelector("[data-certification-remark]").textContent = certification.auditRemark || "--";
+  document.querySelector("[data-certification-vehicle-id]").value = vehicleID || "";
 }
 
 function renderStatus() {
@@ -743,6 +1074,65 @@ function setStatusButtonsDisabled(disabled) {
   document.querySelector("[data-offline]").disabled = disabled;
 }
 
+function syncCurrentTripFromOrders(list) {
+  const orders = Array.isArray(list) ? list : [];
+  const currentID = Number(state.currentOrderId || 0);
+  let activeOrder = currentID ? orders.find((order) => Number(order.orderId || 0) === currentID) : null;
+  if (!activeOrder) {
+    activeOrder = orders.find((order) => [2, 3].includes(Number(order.status || 0))) || null;
+  }
+
+  if (!activeOrder) {
+    if (state.tripPhase !== "idle" && currentID) {
+      renderCoreArea();
+    }
+    return;
+  }
+
+  const phase = phaseFromOrderStatus(activeOrder.status);
+  if (phase === "idle") {
+    state.currentOrder = null;
+    state.currentOrderId = "";
+    state.tripPhase = "idle";
+    if (state.onlineStatus === 2) {
+      state.onlineStatus = 1;
+      localStorage.setItem("driverOnlineStatus", "1");
+      persistOnlineStatus();
+    }
+    localStorage.removeItem("driverCurrentOrder");
+    localStorage.removeItem("driverCurrentOrderId");
+  } else {
+    state.currentOrder = activeOrder;
+    state.currentOrderId = String(activeOrder.orderId || "");
+    state.tripPhase = phase;
+    if (phase === "trip") {
+      state.onlineStatus = 2;
+      localStorage.setItem("driverOnlineStatus", "2");
+      persistOnlineStatus();
+    }
+    localStorage.setItem("driverTripPhase", state.tripPhase);
+    localStorage.setItem("driverCurrentOrderId", state.currentOrderId);
+    localStorage.setItem("driverCurrentOrder", JSON.stringify(state.currentOrder));
+  }
+  renderStatus();
+  renderCoreArea();
+}
+
+function phaseFromOrderStatus(status) {
+  const value = Number(status || 0);
+  if (value === 2) {
+    return "pickup";
+  }
+  if (value === 3) {
+    return "trip";
+  }
+  return "idle";
+}
+
+function findOrderById(orderID) {
+  return state.orders.find((order) => Number(order.orderId || 0) === Number(orderID || 0)) || null;
+}
+
 function renderCoreArea() {
   const corePill = document.querySelector("[data-core-pill]");
   const tripEmpty = document.querySelector("[data-trip-empty]");
@@ -751,8 +1141,12 @@ function renderCoreArea() {
   const idleDesc = document.querySelector("[data-idle-desc]");
   const fromAddress = document.querySelector("[data-from-address]");
   const toAddress = document.querySelector("[data-to-address]");
+  const orderNo = document.querySelector("[data-current-order-no]");
+  const orderStatusText = document.querySelector("[data-current-order-status]");
+  const refreshTime = document.querySelector("[data-trip-refresh-time]");
 
   const hasTrip = state.tripPhase === "pickup" || state.tripPhase === "trip";
+  const currentOrder = state.currentOrder || {};
   corePill.textContent = hasTrip ? (state.tripPhase === "pickup" ? "正在接驾" : "行程进行中") : "空闲";
   corePill.dataset.phase = state.tripPhase;
   tripEmpty.hidden = hasTrip;
@@ -763,8 +1157,15 @@ function renderCoreArea() {
       ? "当前没有接驾或行程任务，系统可继续派发新订单。"
       : "当前没有接驾或行程任务，点击上线接单后进入等待派单。";
   }
-  fromAddress.textContent = hasTrip ? "等待订单详情" : "--";
-  toAddress.textContent = hasTrip ? "等待订单详情" : "--";
+  fromAddress.textContent = hasTrip ? (currentOrder.fromAddress || "等待订单详情") : "--";
+  toAddress.textContent = hasTrip ? (currentOrder.toAddress || "等待订单详情") : "--";
+  orderNo.textContent = hasTrip ? (currentOrder.orderNo || currentOrder.orderId || "--") : "--";
+  orderStatusText.textContent = hasTrip ? formatOrderStatus(currentOrder.status) : "--";
+  refreshTime.textContent = new Date().toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 function setOrderButtonsDisabled(disabled) {
@@ -801,6 +1202,8 @@ function renderOrders(data = {}) {
   state.orderPage = page;
   state.orderPageSize = pageSize;
   state.orderTotal = total;
+  state.orders = list;
+  syncCurrentTripFromOrders(list);
   orderStatus.value = String(state.orderStatus);
   orderList.innerHTML = list.map(renderOrderItem).join("");
   orderListEmpty.hidden = list.length !== 0;
@@ -843,8 +1246,9 @@ function renderOrderActions(order, orderId) {
     return "";
   }
   if (order.source === "dispatch" || order.status === 1) {
+    const acceptLabel = order.source === "dispatch" ? "抢单" : "接单";
     return [
-      orderActionButton("accept", orderId, "接单", "primary-button"),
+      orderActionButton("accept", orderId, acceptLabel, "primary-button"),
       orderActionButton("reject", orderId, "拒单", "secondary-button"),
     ].join("");
   }
@@ -944,6 +1348,53 @@ function compactPayload(payload) {
   );
 }
 
+function buildVehiclePayload(formData) {
+  const payload = compactPayload(formData);
+  payload.vehicleType = Number(payload.vehicleType || 0);
+  if (payload.registrationDate) {
+    payload.registrationDate = dateToUnixSeconds(payload.registrationDate);
+  }
+  if (payload.insuranceExpireAt) {
+    payload.insuranceExpireAt = dateToUnixSeconds(payload.insuranceExpireAt);
+  }
+  return compactPayload(payload);
+}
+
+async function buildCertificationPayload(form) {
+  const formData = new FormData(form);
+  const payload = {
+    vehicleId: Number(formData.get("vehicleId") || 0),
+  };
+  const fileFields = ["idCardFront", "idCardBack", "driverLicense", "vehicleLicense"];
+  for (const field of fileFields) {
+    const file = formData.get(field);
+    if (file && file.size > 0) {
+      payload[field] = await fileToBase64(file);
+    }
+  }
+  if (!payload.vehicleId) {
+    throw new Error("请先填写车辆ID");
+  }
+  if (!fileFields.some((field) => payload[field])) {
+    throw new Error("请至少上传一张资质图片");
+  }
+  return payload;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("图片读取失败"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function dateToUnixSeconds(value) {
+  const time = new Date(`${value}T00:00:00`).getTime();
+  return Number.isFinite(time) ? Math.floor(time / 1000) : 0;
+}
+
 function formatDriverStatus(status) {
   const map = {
     DRIVER_STATUS_PENDING: "待审核",
@@ -952,6 +1403,24 @@ function formatDriverStatus(status) {
     DRIVER_STATUS_CANCELLED: "注销",
   };
   return map[status] || status || "--";
+}
+
+function formatVehicleStatus(status) {
+  const map = {
+    VEHICLE_STATUS_PENDING: "待审核",
+    VEHICLE_STATUS_NORMAL: "正常",
+    VEHICLE_STATUS_DISABLED: "禁用",
+  };
+  return map[status] || status || "--";
+}
+
+function formatCertificationStatus(status) {
+  const map = {
+    1: "待审核",
+    2: "已通过",
+    3: "已驳回",
+  };
+  return map[Number(status || 0)] || "--";
 }
 
 function setAuthMessage(text, type) {
@@ -970,6 +1439,24 @@ function setEditMessage(text, type) {
   editMessage.textContent = text;
   editMessage.classList.toggle("is-success", type === "success");
   editMessage.classList.toggle("is-error", type === "error");
+}
+
+function setVehicleMessage(text, type) {
+  vehicleMessage.textContent = text;
+  vehicleMessage.classList.toggle("is-success", type === "success");
+  vehicleMessage.classList.toggle("is-error", type === "error");
+}
+
+function setCertificationMessage(text, type) {
+  certificationMessage.textContent = text;
+  certificationMessage.classList.toggle("is-success", type === "success");
+  certificationMessage.classList.toggle("is-error", type === "error");
+}
+
+function setFinishMessage(text, type) {
+  finishMessage.textContent = text;
+  finishMessage.classList.toggle("is-success", type === "success");
+  finishMessage.classList.toggle("is-error", type === "error");
 }
 
 function readJSON(key) {

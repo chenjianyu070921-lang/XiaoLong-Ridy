@@ -19,7 +19,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -73,7 +74,7 @@ h2 {
 
 .switch-row {
   display: inline-grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   margin-bottom: 22px;
   padding: 4px;
@@ -97,13 +98,19 @@ h2 {
 }
 
 .auth-form,
-.edit-form {
+.edit-form,
+.vehicle-form,
+.certification-form,
+.finish-trip-form {
   display: none;
   gap: 16px;
 }
 
 .auth-form.is-active,
-.edit-form {
+.edit-form,
+.vehicle-form,
+.certification-form,
+.finish-trip-form {
   display: grid;
 }
 
@@ -125,9 +132,27 @@ input {
   outline: none;
 }
 
-input:focus {
+select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #d7dce3;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #18202c;
+  padding: 0 12px;
+  outline: none;
+}
+
+input:focus,
+select:focus {
   border-color: #5b718a;
   box-shadow: 0 0 0 3px rgba(91, 113, 138, 0.16);
+}
+
+.input-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
 }
 
 .primary-button,
@@ -527,6 +552,27 @@ input:focus {
   color: #1f2937;
 }
 
+.trip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  color: #667085;
+  font-size: 13px;
+}
+
+.trip-meta span {
+  min-height: 28px;
+  border: 1px solid #edf0f3;
+  border-radius: 999px;
+  background: #f8f9fb;
+  padding: 5px 10px;
+}
+
+.trip-meta strong {
+  color: #263241;
+}
+
 .order-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -760,6 +806,25 @@ input:focus {
   font-weight: 600;
 }
 
+.vehicle-summary {
+  margin-bottom: 18px;
+}
+
+.vehicle-form,
+.certification-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vehicle-actions {
+  display: flex;
+  align-items: end;
+}
+
+.vehicle-actions .primary-button {
+  width: 100%;
+  margin-top: 0;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -915,6 +980,11 @@ input:focus {
     grid-template-columns: 1fr;
   }
 
+  .vehicle-form,
+  .certification-form {
+    grid-template-columns: 1fr;
+  }
+
   .modal-actions {
     grid-template-columns: 1fr;
   }
@@ -969,6 +1039,7 @@ body,
 }
 
 input,
+select,
 .inline-field select {
   border-color: #ded9ec;
   border-radius: 14px;
@@ -976,6 +1047,7 @@ input,
 }
 
 input:focus,
+select:focus,
 .inline-field select:focus {
   border-color: var(--driver-purple);
   box-shadow: 0 0 0 3px rgba(109, 74, 255, 0.14);
@@ -1118,6 +1190,7 @@ input:focus,
 
 .route-box div,
 .profile-list div,
+.trip-meta span,
 .order-item {
   border-color: var(--driver-line);
   border-radius: 16px;

@@ -10,6 +10,8 @@
 | 当前状态 | 已实现 |
 | 下游 RPC | `dispatchsvc.ListDispatchRecords`、`ordersvc.GetOrder` |
 
+司机端前端菜单“查看派单”会调用该接口，并默认查询待处理派单；列表中的“抢单”按钮调用 `/api/driver/v1/orders/accept`，“拒单”按钮调用 `/api/driver/v1/orders/reject`。
+
 ## 2. 请求参数
 
 | 参数 | 类型 | 必填 | 说明 |

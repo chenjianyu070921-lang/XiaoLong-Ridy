@@ -16,6 +16,7 @@
 
       <div class="switch-row" aria-label="登录注册切换">
         <button class="switch-button is-active" type="button" data-auth-target="login">登录</button>
+        <button class="switch-button" type="button" data-auth-target="login-sms">验证码登录</button>
         <button class="switch-button" type="button" data-auth-target="register">注册</button>
       </div>
 
@@ -29,6 +30,21 @@
           <input type="password" name="password" autocomplete="current-password" placeholder="请输入密码" required>
         </label>
         <button class="primary-button" type="submit">登录</button>
+      </form>
+
+      <form class="auth-form" data-auth-form="login-sms" action="/driver/login-sms" method="post">
+        <label>
+          <span>手机号</span>
+          <input type="tel" name="phone" autocomplete="tel" placeholder="请输入手机号" data-sms-phone required>
+        </label>
+        <label>
+          <span>验证码</span>
+          <span class="input-action-row">
+            <input type="text" name="code" autocomplete="one-time-code" placeholder="请输入验证码" required>
+            <button class="text-button" type="button" data-send-sms-code>发送验证码</button>
+          </span>
+        </label>
+        <button class="primary-button" type="submit">验证码登录</button>
       </form>
 
       <form class="auth-form" data-auth-form="register" action="/driver/register" method="post">
@@ -76,6 +92,9 @@
         </button>
         <div class="menu-panel" data-menu-panel hidden>
           <button type="button" data-panel-target="profile">个人信息</button>
+          <button type="button" data-panel-target="vehicle">车辆信息</button>
+          <button type="button" data-panel-target="certification">资质认证</button>
+          <button type="button" data-open-dispatches>查看派单</button>
           <button type="button" data-open-edit>修改司机信息</button>
           <button type="button" data-logout>退出登录</button>
         </div>
@@ -170,9 +189,14 @@
             <strong data-to-address>--</strong>
           </div>
         </div>
+        <div class="trip-meta">
+          <span>订单：<strong data-current-order-no>--</strong></span>
+          <span>状态：<strong data-current-order-status>--</strong></span>
+          <span>刷新：<strong data-trip-refresh-time>--</strong></span>
+        </div>
       </article>
 
-      <article class="dispatch-board order-list-panel">
+      <article class="dispatch-board order-list-panel" data-order-panel>
         <div class="panel-title">
           <div>
             <p class="eyebrow">Order List</p>
@@ -220,6 +244,110 @@
           <div><dt>账号状态</dt><dd data-profile-status>--</dd></div>
         </dl>
       </article>
+
+      <article class="info-panel" data-panel="vehicle" hidden>
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">Vehicle Profile</p>
+            <h2>车辆信息</h2>
+          </div>
+          <button class="text-button" type="button" data-refresh-vehicle>查询车辆</button>
+        </div>
+
+        <dl class="profile-list vehicle-summary">
+          <div><dt>车辆ID</dt><dd data-vehicle-id>--</dd></div>
+          <div><dt>车牌号</dt><dd data-vehicle-plate>--</dd></div>
+          <div><dt>车型</dt><dd data-vehicle-model>--</dd></div>
+          <div><dt>车辆状态</dt><dd data-vehicle-status>--</dd></div>
+        </dl>
+
+        <form class="vehicle-form" data-vehicle-form action="/driver/vehicles" method="post">
+          <label>
+            <span>车牌号</span>
+            <input type="text" name="plateNo" placeholder="粤B12345" required>
+          </label>
+          <label>
+            <span>品牌</span>
+            <input type="text" name="brand" placeholder="BYD" required>
+          </label>
+          <label>
+            <span>型号</span>
+            <input type="text" name="model" placeholder="Han" required>
+          </label>
+          <label>
+            <span>颜色</span>
+            <input type="text" name="color" placeholder="黑色">
+          </label>
+          <label>
+            <span>车辆类型</span>
+            <select name="vehicleType" required>
+              <option value="1">快车</option>
+              <option value="2">专车</option>
+              <option value="3">商务车</option>
+            </select>
+          </label>
+          <label>
+            <span>注册日期</span>
+            <input type="date" name="registrationDate">
+          </label>
+          <label>
+            <span>保险单号</span>
+            <input type="text" name="insuranceNo" placeholder="INS-001">
+          </label>
+          <label>
+            <span>保险到期日</span>
+            <input type="date" name="insuranceExpireAt">
+          </label>
+          <div class="vehicle-actions">
+            <button class="primary-button" type="submit">提交车辆信息</button>
+          </div>
+        </form>
+        <p class="modal-message" data-vehicle-message role="status"></p>
+      </article>
+
+      <article class="info-panel" data-panel="certification" hidden>
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">Certification</p>
+            <h2>资质认证</h2>
+          </div>
+          <button class="text-button" type="button" data-refresh-certification>查询资质</button>
+        </div>
+
+        <dl class="profile-list vehicle-summary">
+          <div><dt>认证ID</dt><dd data-certification-id>--</dd></div>
+          <div><dt>绑定车辆</dt><dd data-certification-vehicle>--</dd></div>
+          <div><dt>审核状态</dt><dd data-certification-status>--</dd></div>
+          <div><dt>审核备注</dt><dd data-certification-remark>--</dd></div>
+        </dl>
+
+        <form class="certification-form" data-certification-form action="/driver/certification/upload" method="post">
+          <label>
+            <span>车辆ID</span>
+            <input type="number" name="vehicleId" min="1" step="1" data-certification-vehicle-id required>
+          </label>
+          <label>
+            <span>身份证正面</span>
+            <input type="file" name="idCardFront" accept="image/*">
+          </label>
+          <label>
+            <span>身份证反面</span>
+            <input type="file" name="idCardBack" accept="image/*">
+          </label>
+          <label>
+            <span>驾驶证</span>
+            <input type="file" name="driverLicense" accept="image/*">
+          </label>
+          <label>
+            <span>行驶证</span>
+            <input type="file" name="vehicleLicense" accept="image/*">
+          </label>
+          <div class="vehicle-actions">
+            <button class="primary-button" type="submit">上传资质</button>
+          </div>
+        </form>
+        <p class="modal-message" data-certification-message role="status"></p>
+      </article>
     </section>
 
     <div class="modal-backdrop" data-edit-modal hidden>
@@ -250,6 +378,37 @@
           </div>
         </form>
         <p class="modal-message" data-edit-message role="status"></p>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" data-finish-modal hidden>
+      <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="finish-title">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">Finish Trip</p>
+            <h2 id="finish-title">结束行程</h2>
+          </div>
+          <button class="text-button" type="button" data-close-finish>关闭</button>
+        </div>
+        <form class="finish-trip-form" data-finish-form action="/driver/orders/finish-trip" method="post">
+          <label>
+            <span>实际里程（米）</span>
+            <input type="number" name="actualDistanceM" min="0" step="1" placeholder="例如 12000" required>
+          </label>
+          <label>
+            <span>实际时长（秒）</span>
+            <input type="number" name="actualDurationS" min="0" step="1" placeholder="例如 1800" required>
+          </label>
+          <label>
+            <span>实际金额（分）</span>
+            <input type="number" name="actualPriceCents" min="0" step="1" placeholder="例如 3500" required>
+          </label>
+          <div class="modal-actions">
+            <button class="secondary-button" type="button" data-close-finish>取消</button>
+            <button class="primary-button" type="submit">确认结束</button>
+          </div>
+        </form>
+        <p class="modal-message" data-finish-message role="status"></p>
       </section>
     </div>
 
