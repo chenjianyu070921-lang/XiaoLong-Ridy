@@ -51,6 +51,10 @@ func (c *grpcUserClient) SubmitRealName(ctx context.Context, req *userproto.Subm
 	return c.cli.SubmitRealName(ctx, req)
 }
 
+func (c *grpcUserClient) UpdateProfile(ctx context.Context, req *userproto.UpdateProfileRequest) (*userproto.UpdateProfileResponse, error) {
+	return c.cli.UpdateProfile(ctx, req)
+}
+
 func (c *grpcUserClient) CreateAddress(ctx context.Context, req *userproto.CreateAddressRequest) (*userproto.AddressInfo, error) {
 	return c.cli.CreateAddress(ctx, req)
 }

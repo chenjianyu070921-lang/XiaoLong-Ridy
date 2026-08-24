@@ -20,7 +20,7 @@ sms:
   signName: ""
   templateId: ""
 tokenAuth:
-  signingKey: local-development-signing-key
+  signingKey: "local-development-signing-key"
 tencentCloud:
   secretId: "" # axMeMqAqC7dSjc
   secretKey: ""  # c7yOfdspqwvJLelxUscNXvR3rd0U

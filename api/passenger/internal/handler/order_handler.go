@@ -135,3 +135,19 @@ func PollOrderStatusHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+// EstimateOrderHandler 处理 POST /api/passenger/v1/orders/estimate，用于下单前查询预估价格。
+func EstimateOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.EstimateOrderRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx, bearerToken(r)).EstimateOrder(&req)
+		if err != nil {
+			writeBusinessError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

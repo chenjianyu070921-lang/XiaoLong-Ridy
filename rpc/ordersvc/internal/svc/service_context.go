@@ -67,7 +67,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if payRPC.Target == "" && len(payRPC.Endpoints) == 0 {
 		payRPC.Target = "127.0.0.1:50054"
 	}
-	payClient, err := zrpc.NewClient(payRPC)
+	// 支付服务与订单服务存在相互调用场景，使用非阻塞客户端避免本地启动时形成循环依赖。
+	// 真正执行支付、退款或结算 RPC 时，gRPC 仍会按请求上下文连接支付服务。
+	payRPC.NonBlock = true
+	payClient, err := zrpc.NewClient(payRPC, zrpc.WithNonBlock())
 	if err != nil {
 		panic(err)
 	}

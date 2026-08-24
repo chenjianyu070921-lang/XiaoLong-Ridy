@@ -24,6 +24,18 @@ func ClaimCouponHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// ClaimWelcomeGiftHandler 处理新人礼包领取请求，用户身份从登录令牌中解析。
+func ClaimWelcomeGiftHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		resp, err := logic.NewCouponLogic(r.Context(), svcCtx, bearerToken(r)).ClaimWelcomeGift()
+		if err != nil {
+			writeBusinessError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
 // ListMyCouponsHandler 处理 POST /api/passenger/v1/coupons/my。
 func ListMyCouponsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

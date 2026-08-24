@@ -51,9 +51,9 @@ func main() {
 
 // newServiceContext 创建 usersvc 运行时依赖；正式服务统一使用 MySQL 和 Redis 持久化。
 func newServiceContext(c config.Config) *svc.ServiceContext {
-	signingKey := c.TokenAuth.SigningKey
+	signingKey := firstNonEmpty(os.Getenv("USERSVC_TOKEN_SIGNING_KEY"), os.Getenv("JWT_SIGNING_KEY"), c.TokenAuth.SigningKey)
 	if signingKey == "" {
-		signingKey = "local-development-signing-key"
+		panic("usersvc token signing key is required")
 	}
 
 	mysqlConf := normalizeMysqlConf(c.Mysql)

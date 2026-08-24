@@ -20,9 +20,9 @@ const (
 	CouponCarTypeCarpool int8 = 3
 
 	// CouponStatusEnabled 表示优惠券模板已启用。
-	CouponStatusEnabled int8 = 1
+	CouponStatusEnabled int8 = 2
 	// CouponStatusDisabled 表示优惠券模板已停用。
-	CouponStatusDisabled int8 = 2
+	CouponStatusDisabled int8 = 3
 )
 
 // Coupon 对应 coupon 表，保存优惠券模板、使用门槛和适用范围。

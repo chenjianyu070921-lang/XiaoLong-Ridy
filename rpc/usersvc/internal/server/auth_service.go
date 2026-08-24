@@ -57,6 +57,12 @@ func (s *UserServer) SubmitRealName(ctx context.Context, req *userproto.SubmitRe
 	return l.SubmitRealName(req)
 }
 
+// UpdateProfile 转发个人资料更新请求到对应 logic。
+func (s *UserServer) UpdateProfile(ctx context.Context, req *userproto.UpdateProfileRequest) (*userproto.UpdateProfileResponse, error) {
+	l := logic.NewUpdateProfileLogic(ctx, s.svcCtx)
+	return l.UpdateProfile(req)
+}
+
 // CreateAddress 转发新增常用地址请求到对应 logic。
 func (s *UserServer) CreateAddress(ctx context.Context, req *userproto.CreateAddressRequest) (*userproto.AddressInfo, error) {
 	l := logic.NewCreateAddressLogic(ctx, s.svcCtx)
