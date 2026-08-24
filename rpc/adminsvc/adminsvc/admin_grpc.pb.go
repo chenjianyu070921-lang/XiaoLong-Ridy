@@ -25,9 +25,16 @@ const (
 	AdminService_ValidateSession_FullMethodName            = "/adminsvc.AdminService/ValidateSession"
 	AdminService_Me_FullMethodName                         = "/adminsvc.AdminService/Me"
 	AdminService_Menus_FullMethodName                      = "/adminsvc.AdminService/Menus"
+	AdminService_ListAdmins_FullMethodName                 = "/adminsvc.AdminService/ListAdmins"
+	AdminService_CreateAdmin_FullMethodName                = "/adminsvc.AdminService/CreateAdmin"
+	AdminService_UpdateAdmin_FullMethodName                = "/adminsvc.AdminService/UpdateAdmin"
+	AdminService_SetAdminStatus_FullMethodName             = "/adminsvc.AdminService/SetAdminStatus"
+	AdminService_ResetAdminPassword_FullMethodName         = "/adminsvc.AdminService/ResetAdminPassword"
 	AdminService_ListOperationLogs_FullMethodName          = "/adminsvc.AdminService/ListOperationLogs"
 	AdminService_ListUsers_FullMethodName                  = "/adminsvc.AdminService/ListUsers"
 	AdminService_GetUser_FullMethodName                    = "/adminsvc.AdminService/GetUser"
+	AdminService_ListUserOrders_FullMethodName             = "/adminsvc.AdminService/ListUserOrders"
+	AdminService_ListUserCoupons_FullMethodName            = "/adminsvc.AdminService/ListUserCoupons"
 	AdminService_FreezeUser_FullMethodName                 = "/adminsvc.AdminService/FreezeUser"
 	AdminService_UnfreezeUser_FullMethodName               = "/adminsvc.AdminService/UnfreezeUser"
 	AdminService_ListDriverCertifications_FullMethodName   = "/adminsvc.AdminService/ListDriverCertifications"
@@ -94,12 +101,26 @@ type AdminServiceClient interface {
 	Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
 	// 查询角色菜单。
 	Menus(ctx context.Context, in *MenusRequest, opts ...grpc.CallOption) (*MenusResponse, error)
+	// 查询管理员列表，仅超级管理员可访问。
+	ListAdmins(ctx context.Context, in *AdminListRequest, opts ...grpc.CallOption) (*AdminListResponse, error)
+	// 新增管理员，仅超级管理员可访问。
+	CreateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error)
+	// 编辑管理员资料和角色，仅超级管理员可访问。
+	UpdateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error)
+	// 启用或停用管理员，仅超级管理员可访问。
+	SetAdminStatus(ctx context.Context, in *AdminStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 重置管理员密码，仅超级管理员可访问。
+	ResetAdminPassword(ctx context.Context, in *AdminPasswordResetRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询操作日志。
 	ListOperationLogs(ctx context.Context, in *OperationLogListRequest, opts ...grpc.CallOption) (*OperationLogListResponse, error)
 	// 查询用户列表。
 	ListUsers(ctx context.Context, in *UserListRequest, opts ...grpc.CallOption) (*UserListResponse, error)
 	// 查询用户详情。
 	GetUser(ctx context.Context, in *UserDetailRequest, opts ...grpc.CallOption) (*User, error)
+	// 查询指定用户的订单历史。
+	ListUserOrders(ctx context.Context, in *UserHistoryRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
+	// 查询指定用户的优惠券历史。
+	ListUserCoupons(ctx context.Context, in *UserCouponHistoryRequest, opts ...grpc.CallOption) (*UserCouponHistoryResponse, error)
 	// 冻结用户。
 	FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 解封用户。
@@ -260,6 +281,56 @@ func (c *adminServiceClient) Menus(ctx context.Context, in *MenusRequest, opts .
 	return out, nil
 }
 
+func (c *adminServiceClient) ListAdmins(ctx context.Context, in *AdminListRequest, opts ...grpc.CallOption) (*AdminListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListAdmins_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Admin)
+	err := c.cc.Invoke(ctx, AdminService_CreateAdmin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Admin)
+	err := c.cc.Invoke(ctx, AdminService_UpdateAdmin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) SetAdminStatus(ctx context.Context, in *AdminStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_SetAdminStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ResetAdminPassword(ctx context.Context, in *AdminPasswordResetRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_ResetAdminPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) ListOperationLogs(ctx context.Context, in *OperationLogListRequest, opts ...grpc.CallOption) (*OperationLogListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OperationLogListResponse)
@@ -284,6 +355,26 @@ func (c *adminServiceClient) GetUser(ctx context.Context, in *UserDetailRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(User)
 	err := c.cc.Invoke(ctx, AdminService_GetUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListUserOrders(ctx context.Context, in *UserHistoryRequest, opts ...grpc.CallOption) (*OrderListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OrderListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListUserOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListUserCoupons(ctx context.Context, in *UserCouponHistoryRequest, opts ...grpc.CallOption) (*UserCouponHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserCouponHistoryResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListUserCoupons_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -782,12 +873,26 @@ type AdminServiceServer interface {
 	Me(context.Context, *MeRequest) (*MeResponse, error)
 	// 查询角色菜单。
 	Menus(context.Context, *MenusRequest) (*MenusResponse, error)
+	// 查询管理员列表，仅超级管理员可访问。
+	ListAdmins(context.Context, *AdminListRequest) (*AdminListResponse, error)
+	// 新增管理员，仅超级管理员可访问。
+	CreateAdmin(context.Context, *AdminSaveRequest) (*Admin, error)
+	// 编辑管理员资料和角色，仅超级管理员可访问。
+	UpdateAdmin(context.Context, *AdminSaveRequest) (*Admin, error)
+	// 启用或停用管理员，仅超级管理员可访问。
+	SetAdminStatus(context.Context, *AdminStatusRequest) (*CommonResponse, error)
+	// 重置管理员密码，仅超级管理员可访问。
+	ResetAdminPassword(context.Context, *AdminPasswordResetRequest) (*CommonResponse, error)
 	// 查询操作日志。
 	ListOperationLogs(context.Context, *OperationLogListRequest) (*OperationLogListResponse, error)
 	// 查询用户列表。
 	ListUsers(context.Context, *UserListRequest) (*UserListResponse, error)
 	// 查询用户详情。
 	GetUser(context.Context, *UserDetailRequest) (*User, error)
+	// 查询指定用户的订单历史。
+	ListUserOrders(context.Context, *UserHistoryRequest) (*OrderListResponse, error)
+	// 查询指定用户的优惠券历史。
+	ListUserCoupons(context.Context, *UserCouponHistoryRequest) (*UserCouponHistoryResponse, error)
 	// 冻结用户。
 	FreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error)
 	// 解封用户。
@@ -903,6 +1008,21 @@ func (UnimplementedAdminServiceServer) Me(context.Context, *MeRequest) (*MeRespo
 func (UnimplementedAdminServiceServer) Menus(context.Context, *MenusRequest) (*MenusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Menus not implemented")
 }
+func (UnimplementedAdminServiceServer) ListAdmins(context.Context, *AdminListRequest) (*AdminListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAdmins not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateAdmin(context.Context, *AdminSaveRequest) (*Admin, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateAdmin not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdateAdmin(context.Context, *AdminSaveRequest) (*Admin, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAdmin not implemented")
+}
+func (UnimplementedAdminServiceServer) SetAdminStatus(context.Context, *AdminStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetAdminStatus not implemented")
+}
+func (UnimplementedAdminServiceServer) ResetAdminPassword(context.Context, *AdminPasswordResetRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetAdminPassword not implemented")
+}
 func (UnimplementedAdminServiceServer) ListOperationLogs(context.Context, *OperationLogListRequest) (*OperationLogListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListOperationLogs not implemented")
 }
@@ -911,6 +1031,12 @@ func (UnimplementedAdminServiceServer) ListUsers(context.Context, *UserListReque
 }
 func (UnimplementedAdminServiceServer) GetUser(context.Context, *UserDetailRequest) (*User, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
+}
+func (UnimplementedAdminServiceServer) ListUserOrders(context.Context, *UserHistoryRequest) (*OrderListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListUserOrders not implemented")
+}
+func (UnimplementedAdminServiceServer) ListUserCoupons(context.Context, *UserCouponHistoryRequest) (*UserCouponHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListUserCoupons not implemented")
 }
 func (UnimplementedAdminServiceServer) FreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FreezeUser not implemented")
@@ -1168,6 +1294,96 @@ func _AdminService_Menus_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_ListAdmins_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListAdmins(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListAdmins_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListAdmins(ctx, req.(*AdminListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreateAdmin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminSaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateAdmin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateAdmin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateAdmin(ctx, req.(*AdminSaveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdateAdmin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminSaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdateAdmin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdateAdmin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdateAdmin(ctx, req.(*AdminSaveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_SetAdminStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).SetAdminStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_SetAdminStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).SetAdminStatus(ctx, req.(*AdminStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ResetAdminPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminPasswordResetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ResetAdminPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ResetAdminPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ResetAdminPassword(ctx, req.(*AdminPasswordResetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_ListOperationLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(OperationLogListRequest)
 	if err := dec(in); err != nil {
@@ -1218,6 +1434,42 @@ func _AdminService_GetUser_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AdminServiceServer).GetUser(ctx, req.(*UserDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListUserOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListUserOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListUserOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListUserOrders(ctx, req.(*UserHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListUserCoupons_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserCouponHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListUserCoupons(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListUserCoupons_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListUserCoupons(ctx, req.(*UserCouponHistoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2067,6 +2319,26 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_Menus_Handler,
 		},
 		{
+			MethodName: "ListAdmins",
+			Handler:    _AdminService_ListAdmins_Handler,
+		},
+		{
+			MethodName: "CreateAdmin",
+			Handler:    _AdminService_CreateAdmin_Handler,
+		},
+		{
+			MethodName: "UpdateAdmin",
+			Handler:    _AdminService_UpdateAdmin_Handler,
+		},
+		{
+			MethodName: "SetAdminStatus",
+			Handler:    _AdminService_SetAdminStatus_Handler,
+		},
+		{
+			MethodName: "ResetAdminPassword",
+			Handler:    _AdminService_ResetAdminPassword_Handler,
+		},
+		{
 			MethodName: "ListOperationLogs",
 			Handler:    _AdminService_ListOperationLogs_Handler,
 		},
@@ -2077,6 +2349,14 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUser",
 			Handler:    _AdminService_GetUser_Handler,
+		},
+		{
+			MethodName: "ListUserOrders",
+			Handler:    _AdminService_ListUserOrders_Handler,
+		},
+		{
+			MethodName: "ListUserCoupons",
+			Handler:    _AdminService_ListUserCoupons_Handler,
 		},
 		{
 			MethodName: "FreezeUser",

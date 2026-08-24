@@ -19,12 +19,26 @@ service AdminService {
   rpc Me(MeRequest) returns (MeResponse);
   // 查询角色菜单。
   rpc Menus(MenusRequest) returns (MenusResponse);
+  // 查询管理员列表，仅超级管理员可访问。
+  rpc ListAdmins(AdminListRequest) returns (AdminListResponse);
+  // 新增管理员，仅超级管理员可访问。
+  rpc CreateAdmin(AdminSaveRequest) returns (Admin);
+  // 编辑管理员资料和角色，仅超级管理员可访问。
+  rpc UpdateAdmin(AdminSaveRequest) returns (Admin);
+  // 启用或停用管理员，仅超级管理员可访问。
+  rpc SetAdminStatus(AdminStatusRequest) returns (CommonResponse);
+  // 重置管理员密码，仅超级管理员可访问。
+  rpc ResetAdminPassword(AdminPasswordResetRequest) returns (CommonResponse);
   // 查询操作日志。
   rpc ListOperationLogs(OperationLogListRequest) returns (OperationLogListResponse);
   // 查询用户列表。
   rpc ListUsers(UserListRequest) returns (UserListResponse);
   // 查询用户详情。
   rpc GetUser(UserDetailRequest) returns (User);
+  // 查询指定用户的订单历史。
+  rpc ListUserOrders(UserHistoryRequest) returns (OrderListResponse);
+  // 查询指定用户的优惠券历史。
+  rpc ListUserCoupons(UserCouponHistoryRequest) returns (UserCouponHistoryResponse);
   // 冻结用户。
   rpc FreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
   // 解封用户。
@@ -242,6 +256,91 @@ message UserListRequest {
 
 message UserDetailRequest {
   int64 id = 1;
+}
+
+// AdminListRequest 表示管理员列表查询条件。
+message AdminListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 role = 4;
+  int32 status = 5;
+}
+
+// AdminListResponse 表示管理员列表分页结果。
+message AdminListResponse {
+  repeated Admin list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// AdminSaveRequest 表示新增或编辑管理员资料。
+message AdminSaveRequest {
+  int64 id = 1;
+  string username = 2;
+  string password = 3;
+  string real_name = 4;
+  int32 role = 5;
+  int64 operator_admin_id = 6;
+  string ip = 7;
+}
+
+// AdminStatusRequest 表示管理员启停操作。
+message AdminStatusRequest {
+  int64 id = 1;
+  int32 status = 2;
+  int64 operator_admin_id = 3;
+  string reason = 4;
+  string ip = 5;
+}
+
+// AdminPasswordResetRequest 表示管理员密码重置操作。
+message AdminPasswordResetRequest {
+  int64 id = 1;
+  string password = 2;
+  int64 operator_admin_id = 3;
+  string ip = 4;
+}
+
+// UserHistoryRequest 表示指定用户的只读历史查询条件。
+message UserHistoryRequest {
+  int64 user_id = 1;
+  int32 status = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// UserCouponHistoryRequest 表示指定用户的优惠券历史查询条件。
+message UserCouponHistoryRequest {
+  int64 user_id = 1;
+  int32 status = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// UserCouponHistory 表示管理后台展示的用户优惠券实例。
+message UserCouponHistory {
+  int64 user_coupon_id = 1;
+  int64 coupon_id = 2;
+  string name = 3;
+  int32 type = 4;
+  int64 face_value_cents = 5;
+  int32 discount = 6;
+  int64 threshold_cents = 7;
+  int32 car_type = 8;
+  string city_code = 9;
+  int32 status = 10;
+  int64 received_at = 11;
+  int64 expire_at = 12;
+}
+
+// UserCouponHistoryResponse 返回用户优惠券历史分页结果。
+message UserCouponHistoryResponse {
+  repeated UserCouponHistory list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }
 
 message ChangeUserStatusRequest {

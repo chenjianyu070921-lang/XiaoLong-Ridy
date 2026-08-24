@@ -9,6 +9,7 @@ import (
 	driversvcproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	ordersvcproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	pricesvcproto "XiaoLong-Ridy/rpc/pricesvc/price"
+	usersvcproto "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
@@ -23,6 +24,8 @@ type ServiceContext struct {
 
 	OrdersRPCClient  zrpc.Client
 	OrdersSvc        ordersvcproto.OrderClient
+	UsersRPCClient   zrpc.Client
+	UsersSvc         usersvcproto.UserClient
 	DriversRPCClient zrpc.Client
 	DriversSvc       driversvcproto.DriversvcClient
 	PricesRPCClient  zrpc.Client
@@ -51,13 +54,18 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		c.Session.TokenPrefix = "admin:sess:"
 	}
 
-	var ordersClient, driversClient, pricesClient zrpc.Client
+	var ordersClient, usersClient, driversClient, pricesClient zrpc.Client
 	var ordersSvc ordersvcproto.OrderClient
+	var usersSvc usersvcproto.UserClient
 	var driversSvc driversvcproto.DriversvcClient
 	var pricesSvc pricesvcproto.Price
 	// 本地最小服务集无需预建不可达下游连接；默认配置仍完整初始化全部下游 RPC 客户端。
 	if !c.DisableDownstreamRPC {
 		ordersClient, ordersSvc, err = newOrdersRPCClient(c.OrdersRPC)
+		if err != nil {
+			panic(err)
+		}
+		usersClient, usersSvc, err = newUsersRPCClient(c.UsersRPC)
 		if err != nil {
 			panic(err)
 		}
@@ -77,11 +85,25 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Redis:            redisClient,
 		OrdersRPCClient:  ordersClient,
 		OrdersSvc:        ordersSvc,
+		UsersRPCClient:   usersClient,
+		UsersSvc:         usersSvc,
 		DriversRPCClient: driversClient,
 		DriversSvc:       driversSvc,
 		PricesRPCClient:  pricesClient,
 		PricesSvc:        pricesSvc,
 	}
+}
+
+// newUsersRPCClient 初始化 usersvc 客户端，供后台只读查询用户优惠券历史。
+func newUsersRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, usersvcproto.UserClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50052"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, usersvcproto.NewUserClient(client.Conn()), nil
 }
 
 // Close 关闭 RPC 服务依赖。
