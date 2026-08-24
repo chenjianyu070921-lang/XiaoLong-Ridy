@@ -7,7 +7,20 @@ import (
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/price"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// ensurePriceService 用于本地最小服务集模式下校验 pricesvc 客户端是否已初始化。
+// 入参为管理 RPC 服务上下文，返回 nil 表示可安全调用计价下游；否则返回可识别的 Unavailable 错误，
+// 防止未启动 pricesvc 时对空客户端解引用并导致整个 adminsvc 进程退出。
+func ensurePriceService(svcCtx *svc.ServiceContext) error {
+	if svcCtx == nil || svcCtx.PricesSvc == nil {
+		return status.Error(codes.Unavailable, "计价服务未启动")
+	}
+	return nil
+}
 
 // ListPriceRulesLogic 处理计价规则列表查询。
 type ListPriceRulesLogic struct {
@@ -22,6 +35,9 @@ func NewListPriceRulesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Li
 
 // ListPriceRules 查询计价规则列表。
 func (l *ListPriceRulesLogic) ListPriceRules(in *adminsvc.PriceRuleListRequest) (*adminsvc.PriceRuleListResponse, error) {
+	if err := ensurePriceService(l.svcCtx); err != nil {
+		return nil, err
+	}
 	resp, err := l.svcCtx.PricesSvc.ListPriceRules(l.ctx, &priceclient.PriceRuleListRequest{
 		Page:     in.GetPage(),
 		PageSize: in.GetPageSize(),
@@ -58,6 +74,9 @@ func NewGetPriceRuleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetP
 
 // GetPriceRule 查询计价规则详情。
 func (l *GetPriceRuleLogic) GetPriceRule(in *adminsvc.PriceRuleDetailRequest) (*adminsvc.PriceRule, error) {
+	if err := ensurePriceService(l.svcCtx); err != nil {
+		return nil, err
+	}
 	resp, err := l.svcCtx.PricesSvc.GetPriceRule(l.ctx, &priceclient.PriceRuleDetailRequest{Id: in.GetId()})
 	if err != nil {
 		return nil, err
@@ -78,6 +97,9 @@ func NewCreatePriceRuleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *C
 
 // CreatePriceRule 创建计价规则并写入操作日志。
 func (l *CreatePriceRuleLogic) CreatePriceRule(in *adminsvc.PriceRuleRequest) (*adminsvc.CreatePriceRuleResponse, error) {
+	if err := ensurePriceService(l.svcCtx); err != nil {
+		return nil, err
+	}
 	resp, err := l.svcCtx.PricesSvc.CreatePriceRule(l.ctx, priceRuleRequestToPB(in))
 	if err != nil {
 		return nil, err
@@ -102,6 +124,9 @@ func NewUpdatePriceRuleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *U
 
 // UpdatePriceRule 更新计价规则并写入操作日志。
 func (l *UpdatePriceRuleLogic) UpdatePriceRule(in *adminsvc.PriceRuleRequest) (*adminsvc.CommonResponse, error) {
+	if err := ensurePriceService(l.svcCtx); err != nil {
+		return nil, err
+	}
 	if _, err := l.svcCtx.PricesSvc.UpdatePriceRule(l.ctx, priceRuleRequestToPB(in)); err != nil {
 		return nil, err
 	}
@@ -124,6 +149,9 @@ func NewEnablePriceRuleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *E
 
 // EnablePriceRule 启用计价规则并写入操作日志。
 func (l *EnablePriceRuleLogic) EnablePriceRule(in *adminsvc.PriceRuleStatusRequest) (*adminsvc.CommonResponse, error) {
+	if err := ensurePriceService(l.svcCtx); err != nil {
+		return nil, err
+	}
 	if _, err := l.svcCtx.PricesSvc.SetPriceRuleStatus(l.ctx, &priceclient.PriceRuleStatusRequest{Id: in.GetId(), Status: 1}); err != nil {
 		return nil, err
 	}
@@ -146,6 +174,9 @@ func NewDisablePriceRuleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 
 // DisablePriceRule 停用计价规则并写入操作日志。
 func (l *DisablePriceRuleLogic) DisablePriceRule(in *adminsvc.PriceRuleStatusRequest) (*adminsvc.CommonResponse, error) {
+	if err := ensurePriceService(l.svcCtx); err != nil {
+		return nil, err
+	}
 	if _, err := l.svcCtx.PricesSvc.SetPriceRuleStatus(l.ctx, &priceclient.PriceRuleStatusRequest{Id: in.GetId(), Status: 2}); err != nil {
 		return nil, err
 	}

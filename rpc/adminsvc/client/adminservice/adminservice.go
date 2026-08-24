@@ -17,6 +17,11 @@ type (
 	AbnormalOrderListRequest         = adminsvc.AbnormalOrderListRequest
 	AbnormalOrderListResponse        = adminsvc.AbnormalOrderListResponse
 	Admin                            = adminsvc.Admin
+	AdminListRequest                 = adminsvc.AdminListRequest
+	AdminListResponse                = adminsvc.AdminListResponse
+	AdminSaveRequest                 = adminsvc.AdminSaveRequest
+	AdminStatusRequest               = adminsvc.AdminStatusRequest
+	AdminPasswordResetRequest        = adminsvc.AdminPasswordResetRequest
 	AdminCancelOrderRequest          = adminsvc.AdminCancelOrderRequest
 	AuditDriverCertificationRequest  = adminsvc.AuditDriverCertificationRequest
 	AuthResponse                     = adminsvc.AuthResponse
@@ -118,6 +123,11 @@ type (
 		Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
 		// 查询角色菜单。
 		Menus(ctx context.Context, in *MenusRequest, opts ...grpc.CallOption) (*MenusResponse, error)
+		ListAdmins(ctx context.Context, in *AdminListRequest, opts ...grpc.CallOption) (*AdminListResponse, error)
+		CreateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error)
+		UpdateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error)
+		SetAdminStatus(ctx context.Context, in *AdminStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		ResetAdminPassword(ctx context.Context, in *AdminPasswordResetRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询操作日志。
 		ListOperationLogs(ctx context.Context, in *OperationLogListRequest, opts ...grpc.CallOption) (*OperationLogListResponse, error)
 		// 查询用户列表。
@@ -252,6 +262,31 @@ func (m *defaultAdminService) Me(ctx context.Context, in *MeRequest, opts ...grp
 func (m *defaultAdminService) Menus(ctx context.Context, in *MenusRequest, opts ...grpc.CallOption) (*MenusResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.Menus(ctx, in, opts...)
+}
+
+// ListAdmins 查询管理员列表。
+func (m *defaultAdminService) ListAdmins(ctx context.Context, in *AdminListRequest, opts ...grpc.CallOption) (*AdminListResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListAdmins(ctx, in, opts...)
+}
+
+// CreateAdmin 新增管理员。
+func (m *defaultAdminService) CreateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).CreateAdmin(ctx, in, opts...)
+}
+
+// UpdateAdmin 编辑管理员资料。
+func (m *defaultAdminService) UpdateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).UpdateAdmin(ctx, in, opts...)
+}
+
+// SetAdminStatus 启用或停用管理员。
+func (m *defaultAdminService) SetAdminStatus(ctx context.Context, in *AdminStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).SetAdminStatus(ctx, in, opts...)
+}
+
+// ResetAdminPassword 重置管理员密码。
+func (m *defaultAdminService) ResetAdminPassword(ctx context.Context, in *AdminPasswordResetRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ResetAdminPassword(ctx, in, opts...)
 }
 
 // 查询操作日志。
