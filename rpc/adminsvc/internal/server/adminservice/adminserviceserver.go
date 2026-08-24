@@ -62,6 +62,31 @@ func (s *AdminServiceServer) Menus(ctx context.Context, in *adminsvc.MenusReques
 	return l.Menus(in)
 }
 
+// ListAdmins 查询管理员列表。
+func (s *AdminServiceServer) ListAdmins(ctx context.Context, in *adminsvc.AdminListRequest) (*adminsvc.AdminListResponse, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).ListAdmins(in)
+}
+
+// CreateAdmin 新增管理员。
+func (s *AdminServiceServer) CreateAdmin(ctx context.Context, in *adminsvc.AdminSaveRequest) (*adminsvc.Admin, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).CreateAdmin(in)
+}
+
+// UpdateAdmin 编辑管理员资料。
+func (s *AdminServiceServer) UpdateAdmin(ctx context.Context, in *adminsvc.AdminSaveRequest) (*adminsvc.Admin, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).UpdateAdmin(in)
+}
+
+// SetAdminStatus 启用或停用管理员。
+func (s *AdminServiceServer) SetAdminStatus(ctx context.Context, in *adminsvc.AdminStatusRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).SetAdminStatus(in)
+}
+
+// ResetAdminPassword 重置管理员密码。
+func (s *AdminServiceServer) ResetAdminPassword(ctx context.Context, in *adminsvc.AdminPasswordResetRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).ResetAdminPassword(in)
+}
+
 // 查询操作日志。
 func (s *AdminServiceServer) ListOperationLogs(ctx context.Context, in *adminsvc.OperationLogListRequest) (*adminsvc.OperationLogListResponse, error) {
 	l := adminservicelogic.NewListOperationLogsLogic(ctx, s.svcCtx)
@@ -78,6 +103,16 @@ func (s *AdminServiceServer) ListUsers(ctx context.Context, in *adminsvc.UserLis
 func (s *AdminServiceServer) GetUser(ctx context.Context, in *adminsvc.UserDetailRequest) (*adminsvc.User, error) {
 	l := adminservicelogic.NewGetUserLogic(ctx, s.svcCtx)
 	return l.GetUser(in)
+}
+
+// ListUserOrders 查询指定用户的订单历史。
+func (s *AdminServiceServer) ListUserOrders(ctx context.Context, in *adminsvc.UserHistoryRequest) (*adminsvc.OrderListResponse, error) {
+	return adminservicelogic.NewUserHistoryLogic(ctx, s.svcCtx).ListUserOrders(in)
+}
+
+// ListUserCoupons 查询指定用户的优惠券历史。
+func (s *AdminServiceServer) ListUserCoupons(ctx context.Context, in *adminsvc.UserCouponHistoryRequest) (*adminsvc.UserCouponHistoryResponse, error) {
+	return adminservicelogic.NewUserHistoryLogic(ctx, s.svcCtx).ListUserCoupons(in)
 }
 
 // 冻结用户。

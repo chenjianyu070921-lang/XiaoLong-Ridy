@@ -26,6 +26,8 @@ service Driversvc {
   rpc UpdateDriver(UpdateDriverRequest) returns(UpdateDriverResponse);
   rpc DeleteDriver(DeleteDriverRequest) returns(DeleteDriverResponse);
   rpc GetDriver(GetDriverRequest) returns(GetDriverResponse);
+  // 分页查询司机基础资料，供管理后台只读展示。
+  rpc ListDrivers(ListDriversRequest) returns(ListDriversResponse);
   // 车辆 CRUD（司机绑定车辆增删改查）
   rpc CreateVehicle(CreateVehicleRequest) returns(CreateVehicleResponse);
   rpc UpdateVehicle(UpdateVehicleRequest) returns(UpdateVehicleResponse);
@@ -49,6 +51,21 @@ message Driver {
   DriverStatus status = 8;
   int64 created_at = 9;
   int64 updated_at = 10;
+  int32 online_status = 11;
+}
+
+// ListDriversRequest 表示司机列表的分页与筛选条件。
+message ListDriversRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  optional DriverStatus status = 4;
+}
+
+// ListDriversResponse 返回司机列表和符合条件的总数。
+message ListDriversResponse {
+  repeated Driver drivers = 1;
+  int64 total = 2;
 }
 
 message CreateDriverRequest {

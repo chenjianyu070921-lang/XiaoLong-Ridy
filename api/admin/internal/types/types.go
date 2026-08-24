@@ -34,6 +34,34 @@ type AdminDTO struct {
 	Status   int32  `json:"status"`
 }
 
+// AdminListRequest 表示管理员列表筛选条件。
+type AdminListRequest struct {
+	Page     int
+	PageSize int
+	Keyword  string
+	Role     int32
+	Status   int32
+}
+
+// AdminSaveRequest 表示管理员新增或编辑请求。
+type AdminSaveRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	RealName string `json:"real_name"`
+	Role     int32  `json:"role"`
+}
+
+// AdminStatusRequest 表示管理员启用或停用请求。
+type AdminStatusRequest struct {
+	Status int32  `json:"status"`
+	Reason string `json:"reason"`
+}
+
+// AdminPasswordResetRequest 表示管理员密码重置请求。
+type AdminPasswordResetRequest struct {
+	Password string `json:"password"`
+}
+
 // MeResponse 表示当前登录管理员信息。
 type MeResponse struct {
 	Admin AdminDTO `json:"admin"`

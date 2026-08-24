@@ -11,6 +11,8 @@ type Config struct {
 	Cache              RedisConfig        `json:"Cache"`
 	Session            AuthConfig         `json:"Session"`
 	OrdersRPC          zrpc.RpcClientConf `json:"OrdersRPC,optional"`
+	// UsersRPC 供后台查询用户优惠券历史，数据读取仍由 usersvc 负责。
+	UsersRPC           zrpc.RpcClientConf `json:"UsersRPC,optional"`
 	DriversRPC         zrpc.RpcClientConf `json:"DriversRPC,optional"`
 	PricesRPC          zrpc.RpcClientConf `json:"PricesRPC,optional"`
 	// DisableDownstreamRPC 仅供本地最小服务集使用。启用后不创建未启动下游服务的 gRPC 客户端，

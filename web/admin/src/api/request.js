@@ -33,6 +33,10 @@ service.interceptors.request.use((config) => {
 
 service.interceptors.response.use(
   (response) => {
+    // CSV 下载接口返回二进制流，不遵循 {code,message,data} JSON 包装，直接交给调用方处理。
+    if (response.config.responseType === 'blob') {
+      return response
+    }
     const res = response.data
     if (res && res.code === 0) {
       return res.data
@@ -57,3 +61,6 @@ service.interceptors.response.use(
 )
 
 export default service
+
+// download 复用同一 Axios 实例，确保导出下载请求自动携带当前管理员 Bearer Token。
+export const download = (url) => service.get(url, { responseType: 'blob' })

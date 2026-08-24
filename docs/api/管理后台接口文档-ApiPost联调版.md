@@ -156,7 +156,7 @@ Content-Type: application/json
 
 ---
 
-## 三、接口总览（47 个子用例）
+## 三、接口总览（52 个子用例）
 
 | # | 模块 | 方法 | 路由 | 鉴权 |
 | --- | --- | --- | --- | --- |
@@ -166,8 +166,13 @@ Content-Type: application/json
 | 4 | 鉴权 | POST | `/admin/v1/auth/logout` | 是 |
 | 5 | 鉴权 | GET | `/admin/v1/auth/me` | 是 |
 | 6 | 鉴权 | GET | `/admin/v1/menus` | 是 |
-| 7 | 日志 | GET | `/admin/v1/operation-logs` | 是 |
-| 8 | 用户 | GET | `/admin/v1/users` | 是 |
+| 7 | 管理员 | GET | `/admin/v1/admins` | 仅超管 |
+| 8 | 管理员 | POST | `/admin/v1/admins` | 仅超管 |
+| 9 | 管理员 | PUT | `/admin/v1/admins/{id}` | 仅超管 |
+| 10 | 管理员 | POST | `/admin/v1/admins/{id}/status` | 仅超管 |
+| 11 | 管理员 | POST | `/admin/v1/admins/{id}/reset-password` | 仅超管 |
+| 12 | 日志 | GET | `/admin/v1/operation-logs` | 是 |
+| 13 | 用户 | GET | `/admin/v1/users` | 是 |
 | 9 | 用户 | GET | `/admin/v1/users/{id}` | 是 |
 | 10 | 用户 | POST | `/admin/v1/users/{id}/freeze` | 是 |
 | 11 | 用户 | POST | `/admin/v1/users/{id}/unfreeze` | 是 |
@@ -272,6 +277,18 @@ Body 参数：`username`、`password`（必填）。
 `GET /admin/v1/menus`
 
 响应 `data.items`：`name`、`path`、`icon`、`perm`、`children`。按角色返回。
+
+### 4.6 管理员管理
+
+以下接口仅允许 `role=1` 超级管理员调用：
+
+- `GET /admin/v1/admins`：管理员分页列表，支持 `keyword`、`role`、`status`、`page`、`page_size`。
+- `POST /admin/v1/admins`：创建管理员，必填 `username`、`password`、`real_name`、`role`、`status`。
+- `PUT /admin/v1/admins/{id}`：编辑 `real_name`、`role`、`status`，密码通过单独接口修改。
+- `POST /admin/v1/admins/{id}/status`：请求体 `{ "status": 1 }` 启用或 `{ "status": 2 }` 停用。
+- `POST /admin/v1/admins/{id}/reset-password`：请求体 `{ "password": "654321" }` 重置密码。
+
+管理员用户名必须唯一；当前登录的超级管理员不能被自己编辑、停用或重置密码。接口复用 `admin_user`、`admin_operation_log`，不修改数据库结构。
 
 ---
 
@@ -763,5 +780,7 @@ Query：`admin_id`（int64）、`module`、`action`、`target_type`、`target_id
 
 1. **数据库迁移注意**：`admin_coupon_issue_task`、`risk_blacklist_hit_record`、`admin_export_task` 等表需按数据库发布流程应用迁移脚本，代码不会自动修改线上数据库。
 2. **写操作注意**：`freeze/unfreeze`、审核通过/驳回、发券、发布/回滚、拉黑、计价规则新增/编辑/启停等会真实改动业务库并写操作日志，测试时建议使用测试账号/可回滚数据。
-3. **文档规划但未开放的路由**（返回 404）：`GET /users/{id}/orders`、`GET /users/{id}/coupons`、`GET /drivers`、`POST /drivers/{id}/freeze`、`GET /orders/{id}/track`、`POST /orders/{id}/redispatch`、`POST /orders/{id}/refund`、`GET /user-coupons`、`GET /dashboard/overview`、`GET /statistics/{revenue,drivers,users}`。
+3. **文档规划但未开放的路由**（返回 404）：`GET /users/{id}/orders`、`GET /users/{id}/coupons`、`GET /drivers`、`GET /drivers/{id}`、`POST /drivers/{id}/freeze`、`GET /orders/{id}/track`、`POST /orders/{id}/redispatch`、`POST /orders/{id}/refund`、`GET /user-coupons`、`GET /dashboard/overview`、`GET /statistics/{revenue,drivers,users}`。
+
+补充说明：`rpc/adminsvc` 已提供 `ListUserOrders`、`ListUserCoupons`，但尚未由 `api/admin` 注册对应 HTTP 路由；导出文件下载、后台工单及工单证据接口已开放，不属于未实现接口。
 4. **自动化验证**：当前已通过 `go test ./api/admin/... ./rpc/adminsvc/... ./rpc/pricesvc/... ./rpc/driversvc/...`；`TestRouter_AllImplementedAdminRoutesSmoke` 覆盖 47 个已注册 HTTP 子用例。
