@@ -32,6 +32,10 @@ const state = {
   orderTotal: 0,
 };
 
+// 心跳定时器与间隔：用 var 声明避免 TDZ（防止函数先于 let 初始化被调用时报错）。
+var heartbeatTimer = null;
+var HEARTBEAT_INTERVAL = 15000;
+
 buttons.forEach((button) => {
   button.addEventListener("click", () => {
     const target = button.dataset.authTarget;
@@ -114,6 +118,12 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.querySelector("[data-logout]").addEventListener("click", () => {
+  forceLogout();
+});
+
+// forceLogout 清空本地登录态并回到登录页，供登出按钮与心跳被踢/凭证失效时复用。
+function forceLogout() {
+  stopHeartbeat();
   state.token = "";
   state.driver = null;
   state.onlineStatus = 0;
@@ -127,7 +137,7 @@ document.querySelector("[data-logout]").addEventListener("click", () => {
   dashboardView.hidden = true;
   authView.hidden = false;
   menuPanel.hidden = true;
-});
+}
 
 document.querySelector("[data-refresh]").addEventListener("click", () => {
   loadDashboardData();
@@ -202,6 +212,9 @@ document.querySelector("[data-edit-form]").addEventListener("submit", async (eve
 if (state.token && state.driver?.id) {
   showDashboard();
   loadDashboardData();
+  if (state.onlineStatus === 1) {
+    startHeartbeat();
+  }
 } else {
   authView.hidden = false;
   dashboardView.hidden = true;
@@ -371,6 +384,9 @@ async function setWorkStatus(path, fallbackStatus, successText) {
       state.currentOrderId = "";
       localStorage.setItem("driverTripPhase", state.tripPhase);
       localStorage.removeItem("driverCurrentOrderId");
+      stopHeartbeat();
+    } else {
+      startHeartbeat();
     }
     renderStatus();
     renderCoreArea();
@@ -380,6 +396,58 @@ async function setWorkStatus(path, fallbackStatus, successText) {
   } finally {
     renderStatus();
     renderCoreArea();
+  }
+}
+
+// ---- 心跳保活：上线后定时上报，凭证失效或被踢则退出登录 ----
+// heartbeatTimer / HEARTBEAT_INTERVAL 已在顶部用 var 声明，避免 TDZ。
+
+function getDeviceId() {
+  let deviceId = localStorage.getItem("driverDeviceId");
+  if (!deviceId) {
+    deviceId = "web-" + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem("driverDeviceId", deviceId);
+  }
+  return deviceId;
+}
+
+function startHeartbeat() {
+  if (heartbeatTimer) return;
+  sendHeartbeat();
+  heartbeatTimer = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    window.clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
+async function sendHeartbeat() {
+  if (!state.token) {
+    stopHeartbeat();
+    return;
+  }
+  try {
+    const result = await requestJSON("/driver/heartbeat", {
+      method: "POST",
+      token: state.token,
+      body: JSON.stringify({
+        deviceId: getDeviceId(),
+        longitude: 0,
+        latitude: 0,
+      }),
+    });
+    if (result.data && result.data.kicked) {
+      forceLogout();
+      setDashboardMessage("账号已在其他设备登录，已退出", "error");
+    }
+  } catch (error) {
+    // 凭证过期/未授权（401）统一退出登录
+    if (String(error.message || "").includes("401") || String(error.message || "").includes("登录")) {
+      forceLogout();
+    }
   }
 }
 

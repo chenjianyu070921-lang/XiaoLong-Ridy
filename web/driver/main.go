@@ -43,6 +43,7 @@ func main() {
 	r.GET("/driver/ai-score", proxyDriverAPI(httpClient, apiBase, http.MethodGet, "/api/driver/v1/drivers/ai-score", true))
 	r.POST("/driver/online", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/online", true))
 	r.POST("/driver/offline", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/offline", true))
+	r.POST("/driver/heartbeat", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/heartbeat", true))
 	r.POST("/driver/update", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/update", true))
 	r.POST("/driver/dispatches", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/dispatches", true))
 	r.POST("/driver/orders", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/list", true))
