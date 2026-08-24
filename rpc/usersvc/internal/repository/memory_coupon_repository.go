@@ -152,6 +152,21 @@ func (r *MemoryCouponRepository) Release(_ context.Context, userID, userCouponID
 	return nil
 }
 
+// ReleaseByOrder 释放指定订单锁定的全部用户券，取消订单时保持幂等。
+func (r *MemoryCouponRepository) ReleaseByOrder(_ context.Context, userID, orderID uint64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, userCoupon := range r.userCoupons {
+		if userCoupon.UserID == userID && userCoupon.Status == model.UserCouponStatusLocked && userCoupon.LockedOrderID == orderID {
+			userCoupon.Status = model.UserCouponStatusUnused
+			userCoupon.LockedOrderID = 0
+			userCoupon.LockedAt = nil
+			userCoupon.UpdatedAt = time.Now()
+		}
+	}
+	return nil
+}
+
 // isCouponAvailable 判断优惠券模板是否处于可领取窗口。
 // ConsumeByOrder 将当前订单锁定的用户券核销为已使用状态，支付成功后由订单服务调用。
 func (r *MemoryCouponRepository) ConsumeByOrder(_ context.Context, userID, orderID uint64) error {

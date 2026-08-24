@@ -36,7 +36,7 @@ func (r *gormAddressRepository) Create(ctx context.Context, address *model.UserA
 func (r *gormAddressRepository) ListByUser(ctx context.Context, userID uint64) ([]*model.UserAddress, error) {
 	var list []*model.UserAddress
 	err := r.db.WithContext(ctx).
-		Where("user_id = ? AND deleted_at IS NULL", userID).
+		Where("user_id = ?", userID).
 		Order("is_default DESC, sort DESC, id ASC").
 		Find(&list).Error
 	return list, err
@@ -46,7 +46,7 @@ func (r *gormAddressRepository) ListByUser(ctx context.Context, userID uint64) (
 func (r *gormAddressRepository) FindByID(ctx context.Context, userID, addressID uint64) (*model.UserAddress, error) {
 	var address model.UserAddress
 	err := r.db.WithContext(ctx).
-		Where("id = ? AND user_id = ? AND deleted_at IS NULL", addressID, userID).
+		Where("id = ? AND user_id = ?", addressID, userID).
 		First(&address).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrAddressNotFound
@@ -66,7 +66,7 @@ func (r *gormAddressRepository) Update(ctx context.Context, address *model.UserA
 			}
 		}
 		res := tx.Model(&model.UserAddress{}).
-			Where("id = ? AND user_id = ? AND deleted_at IS NULL", address.ID, address.UserID).
+			Where("id = ? AND user_id = ?", address.ID, address.UserID).
 			Updates(map[string]interface{}{
 				"contact_name":  address.ContactName,
 				"contact_phone": address.ContactPhone,
@@ -84,32 +84,29 @@ func (r *gormAddressRepository) Update(ctx context.Context, address *model.UserA
 		if res.RowsAffected == 0 {
 			return ErrAddressNotFound
 		}
-		return tx.Where("id = ? AND user_id = ? AND deleted_at IS NULL", address.ID, address.UserID).First(address).Error
+		return tx.Where("id = ? AND user_id = ?", address.ID, address.UserID).First(address).Error
 	})
 }
 
 // Delete 软删除乘客自己的常用地址。
 func (r *gormAddressRepository) Delete(ctx context.Context, userID, addressID uint64) error {
 	now := time.Now()
-	res := r.db.WithContext(ctx).Model(&model.UserAddress{}).
-		Where("id = ? AND user_id = ? AND deleted_at IS NULL", addressID, userID).
-		Updates(map[string]interface{}{
-			"deleted_at": now,
-			"updated_at": now,
-		})
+	res := r.db.WithContext(ctx).
+		Where("id = ? AND user_id = ?", addressID, userID).
+		Updates(&model.UserAddress{UpdatedAt: now})
 	if res.Error != nil {
 		return res.Error
 	}
 	if res.RowsAffected == 0 {
 		return ErrAddressNotFound
 	}
-	return nil
+	return r.db.WithContext(ctx).Where("id = ? AND user_id = ?", addressID, userID).Delete(&model.UserAddress{}).Error
 }
 
 // clearDefaultAddress 清除同一用户下除 keepID 外的默认地址标记。
 func clearDefaultAddress(ctx context.Context, tx *gorm.DB, userID, keepID uint64) error {
 	query := tx.WithContext(ctx).Model(&model.UserAddress{}).
-		Where("user_id = ? AND deleted_at IS NULL", userID)
+		Where("user_id = ?", userID)
 	if keepID > 0 {
 		query = query.Where("id <> ?", keepID)
 	}

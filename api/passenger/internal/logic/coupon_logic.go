@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"XiaoLong-Ridy/api/passenger/internal/svc"
 	"XiaoLong-Ridy/api/passenger/internal/types"
@@ -41,6 +42,35 @@ func (l *CouponLogic) ClaimCoupon(req *types.ClaimCouponRequest) (*types.ClaimCo
 		return nil, err
 	}
 	return &types.ClaimCouponResponse{UserCoupon: toPassengerCouponInfo(resp.GetUserCoupon())}, nil
+}
+
+// ClaimWelcomeGift 仅允许没有任何用户券的新用户领取一次新人礼包。
+func (l *CouponLogic) ClaimWelcomeGift() (*types.ClaimWelcomeGiftResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	client, err := l.userClient()
+	if err != nil {
+		return nil, err
+	}
+	existing, err := client.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{UserId: userID, Status: 0})
+	if err != nil {
+		return nil, err
+	}
+	if len(existing.GetList()) > 0 {
+		return nil, errors.New("新人礼包仅限首次登录用户领取")
+	}
+	ids := []uint64{9001, 9002, 9003, 9004}
+	result := make([]types.CouponInfo, 0, len(ids))
+	for _, id := range ids {
+		item, claimErr := client.ClaimCoupon(l.ctx, &userproto.ClaimCouponRequest{UserId: userID, CouponId: id})
+		if claimErr != nil {
+			return nil, claimErr
+		}
+		result = append(result, toPassengerCouponInfo(item.GetUserCoupon()))
+	}
+	return &types.ClaimWelcomeGiftResponse{List: result}, nil
 }
 
 // ListMyCoupons 查询当前乘客自己的优惠券列表。

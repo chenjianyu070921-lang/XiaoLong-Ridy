@@ -23,14 +23,13 @@ import (
 
 const (
 	defaultHTTPAddr        = ":8091"
-	defaultTokenSigningKey = "local-development-signing-key"
 	clientModeGRPC         = "grpc"
 	clientModeLocal        = "local"
 	defaultUserRPCAddr     = "127.0.0.1:50052"
 	defaultOrderRPCAddr    = "127.0.0.1:50051"
 	defaultPriceRPCAddr    = "127.0.0.1:50053"
 	defaultPayRPCAddr      = "127.0.0.1:50054"
-	defaultDispatchRPCAddr = "127.0.0.1:50055"
+	defaultDispatchRPCAddr = "127.0.0.1:8083"
 	defaultPriceCityCode   = "110000"
 )
 
@@ -57,6 +56,7 @@ type UserClient interface {
 	Logout(ctx context.Context, req *userproto.LogoutRequest) (*userproto.LogoutResponse, error)
 	GetProfile(ctx context.Context, req *userproto.GetProfileRequest) (*userproto.GetProfileResponse, error)
 	SubmitRealName(ctx context.Context, req *userproto.SubmitRealNameRequest) (*userproto.SubmitRealNameResponse, error)
+	UpdateProfile(ctx context.Context, req *userproto.UpdateProfileRequest) (*userproto.UpdateProfileResponse, error)
 	CreateAddress(ctx context.Context, req *userproto.CreateAddressRequest) (*userproto.AddressInfo, error)
 	ListAddresses(ctx context.Context, req *userproto.ListAddressesRequest) (*userproto.ListAddressesResponse, error)
 	UpdateAddress(ctx context.Context, req *userproto.UpdateAddressRequest) (*userproto.AddressInfo, error)
@@ -104,14 +104,15 @@ type ServiceContext struct {
 	DispatchClient  DispatchClient
 	Reviews         ReviewRepository
 	TokenSigningKey string
+	PriceCityCode   string
 	grpcConns       []*grpc.ClientConn
 }
 
 // NewServiceContext 创建 passenger API 运行时依赖集合。
 func NewServiceContext(userClient UserClient, opts ...Option) *ServiceContext {
 	ctx := &ServiceContext{
-		UserClient:      userClient,
-		TokenSigningKey: "local-development-signing-key",
+		UserClient:    userClient,
+		PriceCityCode: defaultPriceCityCode,
 	}
 	for _, opt := range opts {
 		opt(ctx)
@@ -141,6 +142,9 @@ func LoadRuntimeConfigFromEnv() RuntimeConfig {
 // 未提供 RPC 地址时使用默认 gRPC 地址，禁止静默回退到本地内存客户端。
 func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 	cfg = applyRuntimeDefaults(cfg)
+	if strings.TrimSpace(cfg.TokenSigningKey) == "" {
+		return nil, fmt.Errorf("passenger token signing key is required")
+	}
 
 	if cfg.ClientMode == clientModeLocal {
 		return newLocalServiceContext(cfg), nil
@@ -181,6 +185,7 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		WithPayClient(payClient),
 		WithDispatchClient(dispatchClient),
 		WithTokenSigningKey(cfg.TokenSigningKey),
+		WithPriceCityCode(cfg.PriceCityCode),
 	)
 	if cfg.MysqlDSN != "" {
 		db, err := datasource.NewMysqlClient(commonconfig.MysqlConf{
@@ -209,6 +214,7 @@ func newLocalServiceContext(cfg RuntimeConfig) *ServiceContext {
 		WithDispatchClient(newMemoryDispatchClient()),
 		WithReviewRepository(NewMemoryReviewRepository()),
 		WithTokenSigningKey(cfg.TokenSigningKey),
+		WithPriceCityCode(cfg.PriceCityCode),
 	)
 }
 
@@ -218,7 +224,7 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 		cfg.HTTPAddr = defaultHTTPAddr
 	}
 	if cfg.TokenSigningKey == "" {
-		cfg.TokenSigningKey = defaultTokenSigningKey
+		cfg.TokenSigningKey = strings.TrimSpace(os.Getenv("JWT_SIGNING_KEY"))
 	}
 	if cfg.UserRPCAddr == "" {
 		cfg.UserRPCAddr = defaultUserRPCAddr
@@ -267,6 +273,16 @@ func WithPriceClient(client PriceClient) Option {
 	}
 }
 
+// WithPriceCityCode 设置乘客端默认城市编码，供下单请求未传城市时使用。
+func WithPriceCityCode(cityCode string) Option {
+	return func(ctx *ServiceContext) {
+		cityCode = strings.TrimSpace(cityCode)
+		if cityCode != "" {
+			ctx.PriceCityCode = cityCode
+		}
+	}
+}
+
 // WithPayClient 注入支付服务客户端。
 func WithPayClient(client PayClient) Option {
 	return func(ctx *ServiceContext) {
@@ -281,13 +297,14 @@ func WithDispatchClient(client DispatchClient) Option {
 	}
 }
 
-// WithTokenSigningKey 设置 JWT 解析签名密钥。
-// WithReviewRepository injects the order review repository.
+// WithReviewRepository 注入订单评价仓储，测试或本地模式可替换为内存实现。
 func WithReviewRepository(repo ReviewRepository) Option {
 	return func(ctx *ServiceContext) {
 		ctx.Reviews = repo
 	}
 }
+
+// WithTokenSigningKey 设置 JWT 解析签名密钥。
 func WithTokenSigningKey(signingKey string) Option {
 	return func(ctx *ServiceContext) {
 		if signingKey != "" {

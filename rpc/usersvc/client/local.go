@@ -2,9 +2,11 @@ package client
 
 import (
 	"context"
+	"time"
 
 	"XiaoLong-Ridy/rpc/usersvc/internal/config"
 	"XiaoLong-Ridy/rpc/usersvc/internal/logic"
+	"XiaoLong-Ridy/rpc/usersvc/internal/model"
 	"XiaoLong-Ridy/rpc/usersvc/internal/repository"
 	"XiaoLong-Ridy/rpc/usersvc/internal/server"
 	"XiaoLong-Ridy/rpc/usersvc/internal/svc"
@@ -23,6 +25,16 @@ func NewLocalClient(signingKey string, onSMSCode func(phone, code string)) *Loca
 	users := repository.NewMemoryUserRepository()
 	addresses := repository.NewMemoryAddressRepository()
 	coupons := repository.NewMemoryCouponRepository()
+	// 本地模式也预置与生产迁移脚本一致的四张新人券，便于完整演示首次登录和预估价扣减。
+	now := time.Now()
+	for _, coupon := range []*model.Coupon{
+		{ID: 9001, Name: "新人首单立减20元", Type: 3, FaceValue: 20, ThresholdAmount: 25, ValidStartAt: now, ValidEndAt: now.Add(90 * 24 * time.Hour), Status: 2, PerUserLimit: 1},
+		{ID: 9002, Name: "新人第二单立减8元", Type: 3, FaceValue: 8, ThresholdAmount: 20, ValidStartAt: now, ValidEndAt: now.Add(90 * 24 * time.Hour), Status: 2, PerUserLimit: 1},
+		{ID: 9003, Name: "新人第三单立减5元", Type: 3, FaceValue: 5, ThresholdAmount: 20, ValidStartAt: now, ValidEndAt: now.Add(90 * 24 * time.Hour), Status: 2, PerUserLimit: 1},
+		{ID: 9004, Name: "夜间出行立减5元", Type: 3, FaceValue: 5, ThresholdAmount: 15, ValidStartAt: now, ValidEndAt: now.Add(90 * 24 * time.Hour), Status: 2, PerUserLimit: 1},
+	} {
+		coupons.AddCouponForTest(coupon)
+	}
 	smsService := logic.NewMemorySMSCodeService(onSMSCode)
 	tokens := logic.NewTokenManager(signingKey)
 	svcCtx := svc.NewServiceContext(config.Config{}, users, addresses, coupons, repository.NewMemoryRiskBlacklistRepository(), smsService, smsService, tokens, nil) // nil = 本地开发环境跳过实名认证
@@ -59,6 +71,11 @@ func (c *LocalClient) GetProfile(ctx context.Context, req *userproto.GetProfileR
 // SubmitRealName 转发实名资料提交 RPC。
 func (c *LocalClient) SubmitRealName(ctx context.Context, req *userproto.SubmitRealNameRequest) (*userproto.SubmitRealNameResponse, error) {
 	return c.service.SubmitRealName(ctx, req)
+}
+
+// UpdateProfile 转发个人资料更新 RPC。
+func (c *LocalClient) UpdateProfile(ctx context.Context, req *userproto.UpdateProfileRequest) (*userproto.UpdateProfileResponse, error) {
+	return c.service.UpdateProfile(ctx, req)
 }
 
 // CreateAddress 转发新增常用地址 RPC。

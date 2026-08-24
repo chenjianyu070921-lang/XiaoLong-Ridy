@@ -44,13 +44,15 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 	}
 
 	price, err := priceClient.EstimatePrice(l.ctx, &priceclient.EstimatePriceRequest{
-		UserID:        int64(userID),
-		CityCode:      orderCityCode(req.CityCode),
-		CarType:       req.CarType,
-		FromLongitude: req.FromLongitude,
-		FromLatitude:  req.FromLatitude,
-		ToLongitude:   req.ToLongitude,
-		ToLatitude:    req.ToLatitude,
+		UserID:          int64(userID),
+		CityCode:        l.orderCityCode(req.CityCode),
+		CarType:         req.CarType,
+		FromLongitude:   req.FromLongitude,
+		FromLatitude:    req.FromLatitude,
+		ToLongitude:     req.ToLongitude,
+		ToLatitude:      req.ToLatitude,
+		EstimatedMeters: req.EstimatedDistanceM,
+		EstimatedSecond: req.EstimatedDurationS,
 	})
 	if err != nil {
 		return nil, err
@@ -70,7 +72,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		}
 		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
 			TotalCents: originalPriceCents,
-			Coupon:     toPriceCoupon(selectedCoupon, req.CouponMaxDiscountCents),
+			Coupon:     toPriceCoupon(selectedCoupon),
 		})
 		if err != nil {
 			return nil, err
@@ -91,7 +93,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		EstimatedDistanceM:  price.EstimatedDistanceM,
 		EstimatedDurationS:  price.EstimatedDurationS,
 		EstimatedPriceCents: payableAmountCents,
-		CityCode:            orderCityCode(req.CityCode),
+		CityCode:            l.orderCityCode(req.CityCode),
 	})
 	if err != nil {
 		return nil, err
@@ -108,7 +110,7 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 			UserCouponId: req.UserCouponID,
 			OrderId:      lockOrderID,
 			CarType:      req.CarType,
-			CityCode:     orderCityCode(req.CityCode),
+			CityCode:     l.orderCityCode(req.CityCode),
 		})
 		if err != nil {
 			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券锁定失败")
@@ -226,6 +228,10 @@ func (l *OrderLogic) CancelOrder(req *types.CancelOrderRequest) (*types.CancelOr
 	})
 	if err != nil {
 		return nil, err
+	}
+	// 取消成功后释放该订单锁定的优惠券；没有使用优惠券时保持幂等。
+	if userClient, userErr := l.userClient(); userErr == nil {
+		_, _ = userClient.ReleaseUserCoupon(l.ctx, &userproto.ReleaseUserCouponRequest{UserId: userID, OrderId: uint64(req.OrderID)})
 	}
 	return &types.CancelOrderResponse{
 		OrderID: resp.GetOrderId(),
@@ -368,18 +374,22 @@ func hasUserCoupon(req *types.CreateOrderRequest) bool {
 }
 
 // toPriceCoupon 将 usersvc 校验后的券信息转换为 pricesvc 抵扣计算参数。
-// 当前 usersvc.CouponInfo 尚未暴露最大抵扣字段，乘客端先透传下单请求中的最大抵扣上限以保持折扣券封顶规则生效。
-func toPriceCoupon(coupon *userproto.CouponInfo, maxDiscountCents int64) priceclient.Coupon {
+// 最大抵扣额只应来自后端券模板；当前 usersvc 尚未暴露该字段，因此这里不采信前端透传值。
+func toPriceCoupon(coupon *userproto.CouponInfo) priceclient.Coupon {
 	if coupon == nil {
 		return priceclient.Coupon{}
 	}
+	couponType := coupon.GetType()
+	if couponType == 3 {
+		// usersvc 中的 3 表示新人立减券，pricesvc 使用 1 表示固定金额立减券。
+		couponType = 1
+	}
 	return priceclient.Coupon{
-		CouponID:         int64(coupon.GetCouponId()),
-		Type:             coupon.GetType(),
-		FaceValueCents:   coupon.GetFaceValueCents(),
-		Discount:         coupon.GetDiscount(),
-		ThresholdCents:   coupon.GetThresholdCents(),
-		MaxDiscountCents: maxDiscountCents,
+		CouponID:       int64(coupon.GetCouponId()),
+		Type:           couponType,
+		FaceValueCents: coupon.GetFaceValueCents(),
+		Discount:       coupon.GetDiscount(),
+		ThresholdCents: coupon.GetThresholdCents(),
 	}
 }
 
@@ -556,13 +566,16 @@ func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.
 	return resp, nil
 }
 
-// orderCityCode returns the request city code or the passenger default city.
-func orderCityCode(cityCode string) string {
+// orderCityCode 返回请求城市编码；请求未传时使用 passenger 运行配置中的默认城市。
+func (l *OrderLogic) orderCityCode(cityCode string) string {
 	cityCode = strings.TrimSpace(cityCode)
-	if cityCode == "" {
-		return "110000"
+	if cityCode != "" {
+		return cityCode
 	}
-	return cityCode
+	if l != nil && l.svcCtx != nil && strings.TrimSpace(l.svcCtx.PriceCityCode) != "" {
+		return strings.TrimSpace(l.svcCtx.PriceCityCode)
+	}
+	return "110000"
 }
 
 // ensureOrderOwner 校验订单归属，防止通过支付单号查询到其他乘客的支付信息。
@@ -687,4 +700,71 @@ func shouldUseDispatchDriver(currentDriverID int64, status int32, driverID int64
 		return true
 	}
 	return currentDriverID <= 0 && status == 1
+}
+
+// EstimateOrder 提供下单前实时行程费用预估，不创建订单或占用优惠券。
+func (l *OrderLogic) EstimateOrder(req *types.EstimateOrderRequest) (*types.EstimateOrderResponse, error) {
+	if req == nil || strings.TrimSpace(req.FromAddress) == "" || strings.TrimSpace(req.ToAddress) == "" {
+		return nil, ErrInvalidRequest
+	}
+	if req.CarType < 1 || req.CarType > 3 {
+		return nil, ErrInvalidRequest
+	}
+	if !isValidLongitudeLatitude(req.FromLongitude, req.FromLatitude) ||
+		!isValidLongitudeLatitude(req.ToLongitude, req.ToLatitude) {
+		return nil, ErrInvalidRequest
+	}
+	priceClient, err := l.priceClient()
+	if err != nil {
+		return nil, err
+	}
+	price, err := priceClient.EstimatePrice(l.ctx, &priceclient.EstimatePriceRequest{
+		CityCode:        l.orderCityCode(req.CityCode),
+		CarType:         req.CarType,
+		FromLongitude:   req.FromLongitude,
+		FromLatitude:    req.FromLatitude,
+		ToLongitude:     req.ToLongitude,
+		ToLatitude:      req.ToLatitude,
+		EstimatedMeters: req.EstimatedDistanceM,
+		EstimatedSecond: req.EstimatedDurationS,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	originalPriceCents := price.EstimatedPriceCents
+	discountAmountCents := int64(0)
+	payableAmountCents := originalPriceCents
+	if req.UserCouponID > 0 {
+		userID, err := currentUserID(l.svcCtx, l.token)
+		if err != nil {
+			return nil, err
+		}
+		userClient, err := l.userClient()
+		if err != nil {
+			return nil, err
+		}
+		selectedCoupon, err := l.findUserCoupon(userClient, userID, req.UserCouponID)
+		if err != nil {
+			return nil, err
+		}
+		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
+			TotalCents: originalPriceCents,
+			Coupon:     toPriceCoupon(selectedCoupon),
+		})
+		if err != nil {
+			return nil, err
+		}
+		discountAmountCents = discount.DiscountAmountCents
+		payableAmountCents = discount.PayableAmountCents
+	}
+
+	return &types.EstimateOrderResponse{
+		CarType:             req.CarType,
+		EstimatedDistanceM:  price.EstimatedDistanceM,
+		EstimatedDurationS:  price.EstimatedDurationS,
+		OriginalPriceCents:  originalPriceCents,
+		DiscountAmountCents: discountAmountCents,
+		PayableAmountCents:  payableAmountCents,
+	}, nil
 }

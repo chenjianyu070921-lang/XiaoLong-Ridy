@@ -37,12 +37,16 @@ func registerProfileRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/profile/me", handler.GetProfileHandler(svcCtx))
 	// 提交实名认证资料接口，保存乘客真实姓名和证件号。
 	mux.HandleFunc("/api/passenger/v1/profile/real-name", handler.SubmitRealNameHandler(svcCtx))
+	// 更新个人资料接口，支持修改昵称与头像，空字段表示不修改。
+	mux.HandleFunc("/api/passenger/v1/profile/update", handler.UpdateProfileHandler(svcCtx))
 }
 
 // registerOrderRoutes 注册乘客订单接口。
 func registerOrderRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	// 创建订单接口，完成价格预估、优惠券锁定和订单创建。
 	mux.HandleFunc("/api/passenger/v1/orders/create", handler.CreateOrderHandler(svcCtx))
+	// 行程费用预估接口，选择起终点和车型后实时返回预估金额，不创建订单。
+	mux.HandleFunc("/api/passenger/v1/orders/estimate", handler.EstimateOrderHandler(svcCtx))
 	// 查询订单列表接口，按当前乘客和订单状态分页查询历史订单。
 	mux.HandleFunc("/api/passenger/v1/orders/list", handler.ListOrdersHandler(svcCtx))
 	// 查询订单详情接口，返回当前乘客指定订单的完整行程信息。
@@ -74,6 +78,7 @@ func registerAddressRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 func registerCouponRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	// 领取优惠券接口，将可领取券模板绑定到当前乘客账户。
 	mux.HandleFunc("/api/passenger/v1/coupons/claim", handler.ClaimCouponHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/coupons/welcome-gift", handler.ClaimWelcomeGiftHandler(svcCtx))
 	// 查询我的优惠券接口，按状态返回当前乘客已领取的优惠券。
 	mux.HandleFunc("/api/passenger/v1/coupons/my", handler.ListMyCouponsHandler(svcCtx))
 }

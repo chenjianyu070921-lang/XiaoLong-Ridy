@@ -51,14 +51,20 @@ func (s *RedisSMSCodeService) SendWithPolicy(ctx context.Context, phone string, 
 	if err != nil {
 		return 0, err
 	}
-	if s.sender != nil {
-		if err := s.sender.Send(ctx, phone, code); err != nil {
-			return 0, err
-		}
-	}
+	// 先把验证码写入 Redis，再调用短信通道，避免用户收到一个服务端无法校验的验证码。
 	pipe := s.client.TxPipeline()
 	pipe.Set(ctx, smsCodeKey(phone), code, smsCodeTTL)
 	pipe.Set(ctx, smsCooldownKey(phone), "1", smsCodeCooldown)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, err
+	}
+	if s.sender != nil {
+		if err := s.sender.Send(ctx, phone, code); err != nil {
+			_ = s.client.Del(ctx, smsCodeKey(phone), smsCooldownKey(phone)).Err()
+			return 0, err
+		}
+	}
+	pipe = s.client.TxPipeline()
 	pipe.Incr(ctx, smsHourCountKey(phone))
 	pipe.Expire(ctx, smsHourCountKey(phone), time.Hour)
 	pipe.Incr(ctx, smsDayCountKey(phone))

@@ -94,7 +94,7 @@ func NewLockUserCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Lo
 
 // LockUserCoupon 校验当前用户券状态、归属和适用范围后锁定优惠券。
 func (l *LockUserCouponLogic) LockUserCoupon(in *userproto.LockUserCouponRequest) (*userproto.LockUserCouponResponse, error) {
-	if in.GetUserId() == 0 || in.GetUserCouponId() == 0 || in.GetOrderId() == 0 {
+	if in.GetUserId() == 0 || in.GetOrderId() == 0 {
 		return nil, ErrInvalidCouponRequest
 	}
 	coupons, err := couponRepository(l.svcCtx)
@@ -122,17 +122,33 @@ func NewReleaseUserCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 
 // ReleaseUserCoupon 将指定订单锁定的用户券释放回未使用状态。
 func (l *ReleaseUserCouponLogic) ReleaseUserCoupon(in *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error) {
-	if in.GetUserId() == 0 || in.GetUserCouponId() == 0 || in.GetOrderId() == 0 {
+	if in.GetUserId() == 0 || in.GetOrderId() == 0 {
 		return nil, ErrInvalidCouponRequest
 	}
 	coupons, err := couponRepository(l.svcCtx)
 	if err != nil {
 		return nil, err
 	}
-	if err := coupons.Release(l.ctx, in.GetUserId(), in.GetUserCouponId(), in.GetOrderId()); err != nil {
-		return nil, mapCouponRepositoryError(err)
+	var releaseErr error
+	if in.GetUserCouponId() > 0 {
+		releaseErr = coupons.Release(l.ctx, in.GetUserId(), in.GetUserCouponId(), in.GetOrderId())
+	} else {
+		releaseErr = coupons.ReleaseByOrder(l.ctx, in.GetUserId(), in.GetOrderId())
+	}
+	if releaseErr != nil {
+		return nil, mapCouponRepositoryError(releaseErr)
 	}
 	return &userproto.ReleaseUserCouponResponse{Success: true}, nil
+}
+
+// ensureWelcomeCoupons 为历史账号补齐缺失的新人券，领取上限保证重复查询不会重复插入。
+func ensureWelcomeCoupons(ctx context.Context, coupons repository.CouponRepository, userID uint64) error {
+	for _, couponID := range []uint64{9001, 9002, 9003, 9004} {
+		if _, err := coupons.Claim(ctx, userID, couponID); err != nil && !errors.Is(err, repository.ErrCouponReceiveLimit) {
+			return err
+		}
+	}
+	return nil
 }
 
 // couponRepository 获取 usersvc 优惠券仓储依赖。
