@@ -15,7 +15,7 @@ alipay:
   sandbox: true
 kafka:
   brokers:
-    - 127.0.0.1:9092
+    - 115.191.16.159:9092
   topic: orderclient.paid
 ordersvc:
   target: 127.0.0.1:50051

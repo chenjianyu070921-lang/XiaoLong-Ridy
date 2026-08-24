@@ -3,7 +3,6 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"sync"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/svc"
@@ -39,40 +38,27 @@ func NewOrderConsumer(svcCtx *svc.ServiceContext) *OrderConsumer {
 }
 
 // Start 阻塞消费订单事件流（P1-M4-11）。
-// 按主题拆分为 3 个并行消费 goroutine（同一消费者组，Redis 消费组保证消息不重复投递；
-// 消费端 Consume 内已按 topics 过滤，非本主题消息直接 ACK 跳过），
-// 避免单个事件慢处理（如派单 RPC 阻塞）拖慢其他主题的消费吞吐。
+// 与支付模块对齐改用 Kafka：单消费者组订阅全部事件 topic，
+// 由 Kafka 消费组机制保证消息不重复投递（partition 级别 exactly-once-in-order），
+// 在 handler 内按 topic 分发到对应处理函数，避免拆多个消费组互相抢分区。
 func (c *OrderConsumer) Start(ctx context.Context) error {
 	const group = "orderclient-event-consumer"
-	var wg sync.WaitGroup
-	errCh := make(chan error, 3)
-	wg.Add(3)
-	go func() {
-		defer wg.Done()
-		errCh <- c.svcCtx.EventBus.Consume(ctx, group, func(ctx context.Context, _ string, payload []byte) error {
-			return c.handleOrderCreated(ctx, payload)
-		}, constants.TopicOrderCreated)
-	}()
-	go func() {
-		defer wg.Done()
-		errCh <- c.svcCtx.EventBus.Consume(ctx, group, func(ctx context.Context, _ string, payload []byte) error {
-			return c.handleDispatchNew(ctx, payload)
-		}, constants.TopicDispatchNew)
-	}()
-	go func() {
-		defer wg.Done()
-		errCh <- c.svcCtx.EventBus.Consume(ctx, group, func(ctx context.Context, _ string, payload []byte) error {
-			return c.handleOrderPaid(ctx, payload)
-		}, constants.TopicOrderPaid)
-	}()
-	wg.Wait()
-	close(errCh)
-	for err := range errCh {
-		if err != nil {
-			return err
-		}
+	return c.svcCtx.EventBus.Consume(ctx, group, c.dispatchHandler,
+		constants.TopicOrderCreated, constants.TopicDispatchNew, constants.TopicOrderPaid)
+}
+
+// dispatchHandler 按 topic 分发到对应事件处理函数；未知 topic 直接忽略（不阻塞消费）。
+func (c *OrderConsumer) dispatchHandler(ctx context.Context, topic string, payload []byte) error {
+	switch topic {
+	case constants.TopicOrderCreated:
+		return c.handleOrderCreated(ctx, payload)
+	case constants.TopicDispatchNew:
+		return c.handleDispatchNew(ctx, payload)
+	case constants.TopicOrderPaid:
+		return c.handleOrderPaid(ctx, payload)
+	default:
+		return nil
 	}
-	return nil
 }
 
 func (c *OrderConsumer) handleOrderCreated(ctx context.Context, payload []byte) error {

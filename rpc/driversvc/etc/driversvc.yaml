@@ -4,6 +4,6 @@ mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 kafka:
   brokers:
-    - 127.0.0.1:9092
+    - 115.191.16.159:9092
   topic: orderclient.created
   group: orderclient-event-consumer

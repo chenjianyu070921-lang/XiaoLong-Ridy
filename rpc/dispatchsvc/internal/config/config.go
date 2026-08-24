@@ -10,6 +10,7 @@ type Config struct {
 	zrpc.RpcServerConf
 	Mysql MysqlConf     `yaml:"mysql" json:"mysql"`
 	Redis cfg.RedisConf `yaml:"myredis" json:"myredis"`
+	Kafka cfg.KafkaConf `yaml:"kafka" json:"kafka"`
 	// EnableMockDispatch 允许在 GEO 查不到司机时回退 mock 候选，仅用于联调演示。
 	EnableMockDispatch bool `yaml:"enableMockDispatch" json:"enableMockDispatch"`
 	// DispatchTimeoutSeconds 派单超时阈值（秒），超过仍未接单的 Pending 记录视为超时并可重派。

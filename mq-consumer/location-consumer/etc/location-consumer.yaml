@@ -2,12 +2,12 @@ Name: location-consumer
 
 Kafka:
   Brokers:
-    - 127.0.0.1:9092
+    - 115.191.16.159:9092
   Topic: location-report
   Group: location-consumer-group
 
 Redis:
-  host: 127.0.0.1:6379
+  host: 115.191.16.159:6379
   pass: ""
   db: 0
   poolSize: 20

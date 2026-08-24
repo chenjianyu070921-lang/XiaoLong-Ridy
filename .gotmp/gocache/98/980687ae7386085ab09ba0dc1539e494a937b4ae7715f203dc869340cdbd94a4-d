@@ -1,6 +1,0 @@
-./bulkexecutor.go
-./chunkexecutor.go
-./delayexecutor.go
-./lessexecutor.go
-./periodicalexecutor.go
-./vars.go

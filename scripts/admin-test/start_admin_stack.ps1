@@ -74,7 +74,7 @@ ListenOn: 0.0.0.0:8084
 MySQL:
   DSN: ""
 Cache:
-  Host: 127.0.0.1:6379
+  Host: 115.191.16.159:6379
   Password: ""
   DB: 0
 Session:
@@ -100,7 +100,7 @@ mysql:
   dsn: $env:ORDERSVC_MYSQL_DSN
 kafka:
   brokers:
-    - 127.0.0.1:9092
+    - 115.191.16.159:9092
   topic: order.created
   group: order-event-consumer
 dispatchrpc:
