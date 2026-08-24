@@ -73,6 +73,15 @@ func (l *HeartbeatLogic) Heartbeat(in *proto.HeartbeatRequest) (*proto.Heartbeat
 		if err := l.svcCtx.DriverRepository.Update(l.ctx, uint64(in.DriverId), map[string]interface{}{"online_status": locationStatusFromOnline(onlineStatus)}); err != nil {
 			return nil, err
 		}
+		if onlineStatus == int32(DriverOnline) {
+			if err := syncDispatchDriverOnline(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude()); err != nil {
+				return nil, err
+			}
+		} else if onlineStatus == int32(DriverOffline) {
+			if err := syncDispatchDriverOffline(l.ctx, l.svcCtx, in.GetDriverId()); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return &proto.HeartbeatResponse{
 		OnlineStatus: onlineStatus,

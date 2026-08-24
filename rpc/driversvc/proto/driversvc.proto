@@ -4,94 +4,69 @@ package driversvc;
 
 option go_package = "./;proto";
 
-// DriverStatus 司机账号状态，对齐 driver.status。
 enum DriverStatus {
   DRIVER_STATUS_UNSPECIFIED = 0;
-  DRIVER_STATUS_PENDING = 1;   // 待审核
-  DRIVER_STATUS_NORMAL = 2;    // 正常
-  DRIVER_STATUS_FROZEN = 3;    // 冻结
-  DRIVER_STATUS_CANCELLED = 4; // 注销
+  DRIVER_STATUS_PENDING = 1;
+  DRIVER_STATUS_NORMAL = 2;
+  DRIVER_STATUS_FROZEN = 3;
+  DRIVER_STATUS_CANCELLED = 4;
 }
 
-// VehicleStatus 车辆状态，对齐 driver_vehicle.status。
 enum VehicleStatus {
   VEHICLE_STATUS_UNSPECIFIED = 0;
-  VEHICLE_STATUS_PENDING = 1;  // 待审核
-  VEHICLE_STATUS_NORMAL = 2;   // 正常
-  VEHICLE_STATUS_DISABLED = 3; // 停用
+  VEHICLE_STATUS_PENDING = 1;
+  VEHICLE_STATUS_NORMAL = 2;
+  VEHICLE_STATUS_DISABLED = 3;
 }
 
 service Driversvc {
-  // 创建司机账号：后台或内部链路创建司机，初始状态为待审核。
   rpc CreateDriver(CreateDriverRequest) returns (CreateDriverResponse);
-  // 司机自注册：公开注册入口使用，与创建司机共享校验和落库逻辑。
   rpc RegisterDriver(CreateDriverRequest) returns (CreateDriverResponse);
-  // 更新司机资料：仅更新 optional 字段中显式传入的内容。
   rpc UpdateDriver(UpdateDriverRequest) returns (UpdateDriverResponse);
-  // 删除司机：按司机 ID 软删除账号。
   rpc DeleteDriver(DeleteDriverRequest) returns (DeleteDriverResponse);
-  // 查询司机详情：按司机 ID 返回司机基础资料。
   rpc GetDriver(GetDriverRequest) returns (GetDriverResponse);
-  // 按手机号查询司机：登录链路使用，返回账号状态与密码哈希。
   rpc GetDriverByPhone(GetDriverByPhoneRequest) returns (GetDriverByPhoneResponse);
 
-  // 司机上线：绑定设备、写入位置并将听单状态置为在线。
   rpc SetDriverOnline(SetDriverOnlineRequest) returns (SetDriverOnlineResponse);
-  // 司机下线：校验设备并将听单状态置为离线。
   rpc SetDriverOffline(SetDriverOfflineRequest) returns (SetDriverOfflineResponse);
-  // 上报位置：刷新司机在线保活并落库最新经纬度。
   rpc ReportLocation(ReportLocationRequest) returns (ReportLocationResponse);
-  // 设置司机服务状态：供行程开始/结束等内部链路同步在线、行程中、离线状态。
   rpc SetDriverServiceStatus(SetDriverServiceStatusRequest) returns (SetDriverServiceStatusResponse);
-  // 心跳：刷新在线 TTL，判定多端互踢并返回服务器时间。
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 
-  // 创建车辆：绑定司机车辆，初始状态为待审核。
   rpc CreateVehicle(CreateVehicleRequest) returns (CreateVehicleResponse);
-  // 更新车辆：仅更新 optional 字段中显式传入的内容。
   rpc UpdateVehicle(UpdateVehicleRequest) returns (UpdateVehicleResponse);
-  // 删除车辆：按车辆 ID 删除车辆记录。
   rpc DeleteVehicle(DeleteVehicleRequest) returns (DeleteVehicleResponse);
-  // 查询车辆详情：按车辆 ID 返回车辆基础资料。
   rpc GetVehicle(GetVehicleRequest) returns (GetVehicleResponse);
 
-  // 查询司机列表：分页返回司机记录，支持状态与关键字筛选。
   rpc ListDrivers(ListDriversRequest) returns (ListDriversResponse);
-  // 密码登录：校验手机号、密码和账号状态，成功返回 JWT。
   rpc Login(LoginRequest) returns (LoginResponse);
-  // 短信登录：验证码由 API 层校验，RPC 负责按手机号签发登录态。
   rpc LoginBySMS(LoginBySMSRequest) returns (LoginResponse);
-  // 查询附近司机：按经纬度、半径和数量限制返回在线司机列表。
   rpc ListNearbyDrivers(ListNearbyDriversRequest) returns (ListNearbyDriversResponse);
-  // 查询司机 AI 推荐分：返回综合分、等级、影响因子和降级状态。
   rpc GetDriverAiScore(GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse);
 
-  // 上传资质：接收身份证、驾驶证、行驶证图片并写入资质记录。
   rpc UploadCertification(UploadCertificationRequest) returns (UploadCertificationResponse);
-  // 查询资质：按司机 ID 查询最近一次资质记录。
   rpc GetCertification(GetCertificationRequest) returns (GetCertificationResponse);
-  // 审核通过资质：将资质、司机和车辆状态推进为正常。
   rpc ApproveCertification(AuditCertificationRequest) returns (CommonResponse);
-  // 审核驳回资质：记录驳回原因并保持司机/车辆非正常状态。
   rpc RejectCertification(AuditCertificationRequest) returns (CommonResponse);
+
+  rpc CreateWithdraw(CreateWithdrawRequest) returns (CreateWithdrawResponse);
+  rpc ListWithdraws(ListWithdrawsRequest) returns (ListWithdrawsResponse);
 }
 
-// Driver 司机详情，对应 driver 表。
 message Driver {
   int64 id = 1;
   string phone = 2;
-  string password_hash = 3; // 密码哈希，仅 RPC 内部登录链路使用
+  string password_hash = 3;
   string real_name = 4;
   string id_card_no = 5;
   string driver_license_no = 6;
   string avatar_url = 7;
   DriverStatus status = 8;
-  int64 created_at = 9;    // Unix 秒
-  int64 updated_at = 10;   // Unix 秒
-  int32 online_status = 11; // 0离线 1在线 2行程中
+  int64 created_at = 9;
+  int64 updated_at = 10;
+  int32 online_status = 11;
 }
 
-// 创建司机账号：手机号、密码哈希和身份字段由 driversvc 做最终校验。
 message CreateDriverRequest {
   string phone = 1;
   string password_hash = 2;
@@ -104,10 +79,9 @@ message CreateDriverRequest {
 message CreateDriverResponse {
   int64 id = 1;
   DriverStatus status = 2;
-  int64 created_at = 3; // Unix 秒
+  int64 created_at = 3;
 }
 
-// 更新司机资料：optional 字段为 nil 时不更新。
 message UpdateDriverRequest {
   int64 id = 1;
   optional string phone = 2;
@@ -122,10 +96,9 @@ message UpdateDriverRequest {
 message UpdateDriverResponse {
   int64 id = 1;
   DriverStatus status = 2;
-  int64 updated_at = 3; // Unix 秒
+  int64 updated_at = 3;
 }
 
-// 删除司机账号：当前实现为软删除。
 message DeleteDriverRequest {
   int64 id = 1;
 }
@@ -143,50 +116,46 @@ message GetDriverResponse {
   Driver driver = 1;
 }
 
-// 司机上线：绑定设备、刷新在线状态并写入当前位置。
 message SetDriverOnlineRequest {
   int64 driver_id = 1;
-  string device_id = 2; // 设备标识，用于多端互踢
-  double longitude = 3; // 经度
-  double latitude = 4;  // 纬度
+  string device_id = 2;
+  double longitude = 3;
+  double latitude = 4;
 }
 
 message SetDriverOnlineResponse {
   int64 driver_id = 1;
-  int32 online_status = 2; // 1在线
-  bool kicked = 3;         // 当前设备是否被顶替
+  int32 online_status = 2;
+  bool kicked = 3;
 }
 
-// 司机下线：校验当前设备后写入离线状态。
 message SetDriverOfflineRequest {
   int64 driver_id = 1;
-  string device_id = 2; // 设备标识
-  double longitude = 3; // 经度
-  double latitude = 4;  // 纬度
+  string device_id = 2;
+  double longitude = 3;
+  double latitude = 4;
 }
 
 message SetDriverOfflineResponse {
   int64 driver_id = 1;
-  int32 online_status = 2; // 0离线
-  bool kicked = 3;         // 当前设备是否被顶替
+  int32 online_status = 2;
+  bool kicked = 3;
 }
 
-// 上报位置：刷新在线保活并落库最新经纬度。
 message ReportLocationRequest {
   int64 driver_id = 1;
-  string device_id = 2; // 设备标识
-  double longitude = 3; // 经度
-  double latitude = 4;  // 纬度
+  string device_id = 2;
+  double longitude = 3;
+  double latitude = 4;
 }
 
 message ReportLocationResponse {
   int64 driver_id = 1;
-  int32 online_status = 2; // 当前在线状态
-  bool kicked = 3;         // 当前设备是否被顶替
-  int64 report_time = 4;   // Unix 秒
+  int32 online_status = 2;
+  bool kicked = 3;
+  int64 report_time = 4;
 }
 
-// 设置司机服务状态：供订单行程链路同步 0离线/1在线/2行程中。
 message SetDriverServiceStatusRequest {
   int64 driver_id = 1;
   int32 online_status = 2;
@@ -195,10 +164,9 @@ message SetDriverServiceStatusRequest {
 message SetDriverServiceStatusResponse {
   int64 driver_id = 1;
   int32 online_status = 2;
-  int64 updated_at = 3; // Unix 秒
+  int64 updated_at = 3;
 }
 
-// 按手机号查询司机：登录链路使用。
 message GetDriverByPhoneRequest {
   string phone = 1;
 }
@@ -207,7 +175,6 @@ message GetDriverByPhoneResponse {
   Driver driver = 1;
 }
 
-// Vehicle 车辆详情，对应 driver_vehicle 表。
 message Vehicle {
   int64 id = 1;
   int64 driver_id = 2;
@@ -216,15 +183,14 @@ message Vehicle {
   string model = 5;
   string color = 6;
   int32 vehicle_type = 7;
-  optional int64 registration_date = 8; // Unix 秒
+  optional int64 registration_date = 8;
   string insurance_no = 9;
-  optional int64 insurance_expire_at = 10; // Unix 秒
+  optional int64 insurance_expire_at = 10;
   VehicleStatus status = 11;
-  int64 created_at = 12; // Unix 秒
-  int64 updated_at = 13; // Unix 秒
+  int64 created_at = 12;
+  int64 updated_at = 13;
 }
 
-// 创建车辆：绑定司机车辆，状态初始为待审核。
 message CreateVehicleRequest {
   int64 driver_id = 1;
   string plate_no = 2;
@@ -240,10 +206,9 @@ message CreateVehicleRequest {
 message CreateVehicleResponse {
   int64 id = 1;
   VehicleStatus status = 2;
-  int64 created_at = 3; // Unix 秒
+  int64 created_at = 3;
 }
 
-// 更新车辆资料：optional 字段为 nil 时不更新。
 message UpdateVehicleRequest {
   int64 id = 1;
   optional int64 driver_id = 2;
@@ -261,10 +226,9 @@ message UpdateVehicleRequest {
 message UpdateVehicleResponse {
   int64 id = 1;
   VehicleStatus status = 2;
-  int64 updated_at = 3; // Unix 秒
+  int64 updated_at = 3;
 }
 
-// 删除车辆记录。
 message DeleteVehicleRequest {
   int64 id = 1;
 }
@@ -282,12 +246,11 @@ message GetVehicleResponse {
   Vehicle vehicle = 1;
 }
 
-// 分页查询司机列表。
 message ListDriversRequest {
-  int32 page = 1;                 // 默认 1
-  int32 page_size = 2;            // 默认 20，上限 100
-  optional DriverStatus status = 3; // 可选状态过滤
-  string keyword = 4;             // 可选关键字
+  int32 page = 1;
+  int32 page_size = 2;
+  optional DriverStatus status = 3;
+  string keyword = 4;
 }
 
 message ListDriversResponse {
@@ -295,67 +258,60 @@ message ListDriversResponse {
   int64 total = 2;
 }
 
-// 密码登录：校验手机号、明文密码和账号状态。
 message LoginRequest {
   string phone = 1;
   string password = 2;
 }
 
 message LoginResponse {
-  string token = 1;    // JWT
-  int64 expire_in = 2; // 秒
-  Driver driver = 3;   // 司机摘要
+  string token = 1;
+  int64 expire_in = 2;
+  Driver driver = 3;
 }
 
-// 短信登录：验证码由 API 层校验，RPC 按手机号签发登录态。
 message LoginBySMSRequest {
   string phone = 1;
 }
 
-// 附近司机摘要。
 message NearbyDriver {
   int64 driver_id = 1;
   double longitude = 2;
   double latitude = 3;
-  int32 distance_meters = 4; // 距中心点距离，单位米
+  int32 distance_meters = 4;
 }
 
-// 查询附近司机：供派单引擎使用。
 message ListNearbyDriversRequest {
-  double longitude = 1;     // 中心经度
-  double latitude = 2;      // 中心纬度
-  double radius_meters = 3; // 半径，单位米
-  int32 limit = 4;          // 返回上限
+  double longitude = 1;
+  double latitude = 2;
+  double radius_meters = 3;
+  int32 limit = 4;
 }
 
 message ListNearbyDriversResponse {
   repeated NearbyDriver drivers = 1;
 }
 
-// 查询司机 AI 推荐分。
 message GetDriverAiScoreRequest {
   int64 driver_id = 1;
 }
 
-// AI 推荐分影响因子。
 message AiScoreFactor {
   string key = 1;
   string label = 2;
   double value = 3;
-  string impact = 4; // positive/negative/neutral
-  string hint = 5;   // 优化建议
+  string impact = 4;
+  string hint = 5;
 }
 
 message GetDriverAiScoreResponse {
   int64 driver_id = 1;
-  double ai_score = 2; // 0~100
-  int32 level = 3;     // 1~5
+  double ai_score = 2;
+  int32 level = 3;
   repeated AiScoreFactor factors = 4;
-  bool degraded = 5;        // 是否降级
+  bool degraded = 5;
   string degrade_reason = 6;
 }
 
-// 上传资质：图片字段为 Base64，可带 data URI 前缀。
 message UploadCertificationRequest {
   int64 driver_id = 1;
   int64 vehicle_id = 2;
@@ -365,7 +321,6 @@ message UploadCertificationRequest {
   string vehicle_license = 6;
 }
 
-// 资质记录详情，对应 driver_certification 表。
 message CertificationInfo {
   int64 id = 1;
   int64 driver_id = 2;
@@ -374,7 +329,7 @@ message CertificationInfo {
   string id_card_back_url = 5;
   string driver_license_url = 6;
   string vehicle_license_url = 7;
-  int32 audit_status = 8; // 1待审核 2通过 3驳回
+  int32 audit_status = 8;
   string audit_remark = 9;
 }
 
@@ -383,7 +338,6 @@ message UploadCertificationResponse {
   CertificationInfo certification = 2;
 }
 
-// 查询资质：按司机 ID 查询最近一次资质记录。
 message GetCertificationRequest {
   int64 driver_id = 1;
 }
@@ -393,21 +347,19 @@ message GetCertificationResponse {
   bool found = 2;
 }
 
-// 心跳：刷新在线 TTL 并判定多端互踢。
 message HeartbeatRequest {
   int64 driver_id = 1;
-  string device_id = 2; // 当前设备标识
-  double longitude = 3; // 经度
-  double latitude = 4;  // 纬度
+  string device_id = 2;
+  double longitude = 3;
+  double latitude = 4;
 }
 
 message HeartbeatResponse {
-  int32 online_status = 1; // 0离线 1在线 2行程中
-  bool kicked = 2;         // 是否被新设备顶替
-  int64 server_time = 3;   // Unix 秒
+  int32 online_status = 1;
+  bool kicked = 2;
+  int64 server_time = 3;
 }
 
-// 资质审核请求：通过/驳回共用。
 message AuditCertificationRequest {
   int64 certification_id = 1;
   string remark = 2;
@@ -417,4 +369,43 @@ message AuditCertificationRequest {
 
 message CommonResponse {
   string message = 1;
+}
+
+message CreateWithdrawRequest {
+  int64 driver_id = 1;
+  double amount = 2;
+  string payee_name = 3;
+  string pay_account = 4;
+}
+
+message CreateWithdrawResponse {
+  int64 id = 1;
+  string withdraw_no = 2;
+  int32 status = 3;
+  int64 created_at = 4;
+}
+
+message ListWithdrawsRequest {
+  int64 driver_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message WithdrawRecord {
+  int64 id = 1;
+  int64 driver_id = 2;
+  string withdraw_no = 3;
+  double amount = 4;
+  string payee_name = 5;
+  string pay_account = 6;
+  int32 status = 7;
+  string remark = 8;
+  int64 applied_at = 9;
+  int64 paid_at = 10;
+  int64 created_at = 11;
+}
+
+message ListWithdrawsResponse {
+  repeated WithdrawRecord records = 1;
+  int64 total = 2;
 }

@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
@@ -14,7 +15,7 @@ func TestCreateVehicleUsesCurrentDriverID(t *testing.T) {
 	logic := NewVehicleLogic(context.Background(), &svc.ServiceContext{DriverClient: driverClient})
 
 	resp, err := logic.CreateVehicle(25, &types.CreateVehicleRequest{
-		PlateNo:           " 粤b12345 ",
+		PlateNo:           " 粤B12345 ",
 		Brand:             " BYD ",
 		Model:             " Han ",
 		Color:             "black",
@@ -47,12 +48,15 @@ func TestCreateVehicleRejectsInvalidInput(t *testing.T) {
 		driverID int64
 		req      *types.CreateVehicleRequest
 	}{
-		{name: "missing driver", driverID: 0, req: &types.CreateVehicleRequest{PlateNo: "A", Brand: "B", Model: "C", VehicleType: 1}},
+		{name: "missing driver", driverID: 0, req: &types.CreateVehicleRequest{PlateNo: "粤B12345", Brand: "B", Model: "C", VehicleType: 1}},
 		{name: "nil request", driverID: 25, req: nil},
 		{name: "missing plate", driverID: 25, req: &types.CreateVehicleRequest{Brand: "B", Model: "C", VehicleType: 1}},
-		{name: "missing brand", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "A", Model: "C", VehicleType: 1}},
-		{name: "missing model", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "A", Brand: "B", VehicleType: 1}},
-		{name: "bad vehicle type", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "A", Brand: "B", Model: "C"}},
+		{name: "bad plate", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "A", Brand: "B", Model: "C", VehicleType: 1}},
+		{name: "missing brand", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "粤B12345", Model: "C", VehicleType: 1}},
+		{name: "missing model", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "粤B12345", Brand: "B", VehicleType: 1}},
+		{name: "bad vehicle type", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "粤B12345", Brand: "B", Model: "C"}},
+		{name: "brand too long", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "粤B12345", Brand: strings.Repeat("B", maxVehicleBrandLen+1), Model: "C", VehicleType: 1}},
+		{name: "model too long", driverID: 25, req: &types.CreateVehicleRequest{PlateNo: "粤B12345", Brand: "B", Model: strings.Repeat("C", maxVehicleModelLen+1), VehicleType: 1}},
 	}
 
 	for _, tc := range cases {

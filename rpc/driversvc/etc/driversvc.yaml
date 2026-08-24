@@ -1,7 +1,7 @@
 Name: driversvc.rpc
 ListenOn: 0.0.0.0:5055
 mysql:
-  dsn: root:root123456@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 # 本地联调 JWT 签名密钥，需与 api/driver 端保持一致以便互相校验。
 signingKey: local-development-signing-key
 # Redis：维护司机在线状态与多端互踢（deviceID 绑定）。

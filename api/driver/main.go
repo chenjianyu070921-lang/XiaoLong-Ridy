@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +11,8 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/handler"
 	"XiaoLong-Ridy/api/driver/internal/middleware"
 	"XiaoLong-Ridy/api/driver/internal/svc"
+
+	"gopkg.in/yaml.v3"
 )
 
 const defaultHTTPAddress = ":8082"
@@ -20,28 +24,31 @@ const defaultOrderGRPCAddr = "127.0.0.1:50051"
 
 const defaultDispatchGRPCAddr = "127.0.0.1:8083"
 
+const defaultRedisAddr = ""
+
+type driverConfig struct {
+	HTTPAddr         string `yaml:"httpAddr"`
+	DriverGRPCAddr   string `yaml:"driverGrpcAddr"`
+	OrderGRPCAddr    string `yaml:"orderGrpcAddr"`
+	DispatchGRPCAddr string `yaml:"dispatchGrpcAddr"`
+	RedisAddr        string `yaml:"redisAddr"`
+}
+
 func main() {
-	address := os.Getenv("DRIVER_HTTP_ADDR")
-	if address == "" {
-		address = defaultHTTPAddress
-	}
+	configPath := flag.String("f", "etc/driver.yaml", "driver api config file")
+	flag.Parse()
 
-	driverGRPCAddr := os.Getenv("DRIVER_GRPC_ADDR")
-	if driverGRPCAddr == "" {
-		driverGRPCAddr = defaultDriverGRPCAddr
+	cfg, err := loadDriverConfig(*configPath)
+	if err != nil {
+		panic(fmt.Errorf("load driver api config: %w", err))
 	}
+	address := envOr("DRIVER_HTTP_ADDR", cfg.HTTPAddr)
+	driverGRPCAddr := envOr("DRIVER_GRPC_ADDR", cfg.DriverGRPCAddr)
+	orderGRPCAddr := envOr("ORDER_GRPC_ADDR", cfg.OrderGRPCAddr)
+	dispatchGRPCAddr := envOr("DISPATCH_GRPC_ADDR", cfg.DispatchGRPCAddr)
+	redisAddr := envOr("DRIVER_REDIS_ADDR", cfg.RedisAddr)
 
-	orderGRPCAddr := os.Getenv("ORDER_GRPC_ADDR")
-	if orderGRPCAddr == "" {
-		orderGRPCAddr = defaultOrderGRPCAddr
-	}
-
-	dispatchGRPCAddr := os.Getenv("DISPATCH_GRPC_ADDR")
-	if dispatchGRPCAddr == "" {
-		dispatchGRPCAddr = defaultDispatchGRPCAddr
-	}
-
-	svcCtx := svc.NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr)
+	svcCtx := svc.NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, redisAddr)
 	if err := svcCtx.ValidateSigningKey(); err != nil {
 		panic(fmt.Errorf("driver api signing key check: %w", err))
 	}
@@ -51,10 +58,50 @@ func main() {
 		Handler: newHTTPHandler(svcCtx),
 	}
 
-	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, dispatchsvc gRPC: %s)", address, driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr)
+	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, dispatchsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, redisAddr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(fmt.Errorf("start driver api: %w", err))
 	}
+}
+
+func loadDriverConfig(path string) (driverConfig, error) {
+	cfg := driverConfig{
+		HTTPAddr:         defaultHTTPAddress,
+		DriverGRPCAddr:   defaultDriverGRPCAddr,
+		OrderGRPCAddr:    defaultOrderGRPCAddr,
+		DispatchGRPCAddr: defaultDispatchGRPCAddr,
+		RedisAddr:        defaultRedisAddr,
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return cfg, nil
+		}
+		return cfg, err
+	}
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	if cfg.HTTPAddr == "" {
+		cfg.HTTPAddr = defaultHTTPAddress
+	}
+	if cfg.DriverGRPCAddr == "" {
+		cfg.DriverGRPCAddr = defaultDriverGRPCAddr
+	}
+	if cfg.OrderGRPCAddr == "" {
+		cfg.OrderGRPCAddr = defaultOrderGRPCAddr
+	}
+	if cfg.DispatchGRPCAddr == "" {
+		cfg.DispatchGRPCAddr = defaultDispatchGRPCAddr
+	}
+	return cfg, nil
+}
+
+func envOr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }
 
 func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
@@ -79,6 +126,8 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/drivers/certification", protected(methodSwitch("GET", handler.GetCertificationHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/vehicles", protected(methodSwitch("POST", handler.CreateVehicleHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/vehicles/get", protected(methodSwitch("GET", handler.GetVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/withdraws", protected(methodSwitch("POST", handler.CreateWithdrawHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/withdraws/list", protected(methodSwitch("POST", handler.ListWithdrawsHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/accept", protected(methodSwitch("POST", handler.AcceptOrderHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/reject", protected(methodSwitch("POST", handler.RejectOrderHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/dispatches", protected(methodSwitch("POST", handler.ListMyDispatchesHandler(svcCtx))))
@@ -86,6 +135,7 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/orders/start-trip", protected(methodSwitch("POST", handler.StartTripHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/confirm-arrive", protected(methodSwitch("POST", handler.ConfirmArriveHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", handler.FinishTripHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/ws", handler.DriverPushWSHandler(svcCtx))
 	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", handler.AgentChatHandler())))
 
 	return mux

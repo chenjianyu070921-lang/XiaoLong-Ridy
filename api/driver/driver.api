@@ -1,4 +1,4 @@
-﻿syntax = "v1"
+syntax = "v1"
 
 info (
 	title:  "driver api"
@@ -7,11 +7,11 @@ info (
 )
 
 type Response {
-	Code      int    `json:"code"`
-	Message   string `json:"message"`
-	Data      any    `json:"data"`
-	Timestamp int64  `json:"timestamp"`
-	TraceID   string `json:"traceId"`
+	Code      int         `json:"code"`
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data"`
+	Timestamp int64       `json:"timestamp"`
+	TraceID   string      `json:"traceId"`
 }
 
 type RegisterDriverRequest {
@@ -263,6 +263,42 @@ type GetVehicleResponse {
 	Vehicle VehicleInfo `json:"vehicle"`
 }
 
+type CreateWithdrawRequest {
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+}
+
+type CreateWithdrawResponse {
+	ID         int64  `json:"id"`
+	WithdrawNo string `json:"withdrawNo"`
+	Status     int32  `json:"status"`
+	CreatedAt  int64  `json:"createdAt"`
+}
+
+type ListWithdrawsRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type WithdrawRecord {
+	ID         int64   `json:"id"`
+	WithdrawNo string  `json:"withdrawNo"`
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+	Status     int32   `json:"status"`
+	Remark     string  `json:"remark"`
+	AppliedAt  int64   `json:"appliedAt"`
+	PaidAt     int64   `json:"paidAt"`
+	CreatedAt  int64   `json:"createdAt"`
+}
+
+type ListWithdrawsResponse {
+	Records []WithdrawRecord `json:"records"`
+	Total   int64            `json:"total"`
+}
+
 type AcceptOrderRequest {
 	OrderID int64 `json:"orderId"`
 }
@@ -371,6 +407,10 @@ type AgentChatRequest {
 	Question string `json:"question"`
 }
 
+type DriverPushWSRequest {
+	Token string `form:"token,optional"`
+}
+
 type AgentObservation {
 	ToolName string `json:"toolName"`
 	Result   string `json:"result"`
@@ -435,6 +475,12 @@ service driver-api {
 	@handler GetVehicleHandler
 	get /api/driver/v1/vehicles/get (GetVehicleRequest) returns (GetVehicleResponse)
 
+	@handler CreateWithdrawHandler
+	post /api/driver/v1/withdraws (CreateWithdrawRequest) returns (CreateWithdrawResponse)
+
+	@handler ListWithdrawsHandler
+	post /api/driver/v1/withdraws/list (ListWithdrawsRequest) returns (ListWithdrawsResponse)
+
 	@handler AcceptOrderHandler
 	post /api/driver/v1/orders/accept (AcceptOrderRequest) returns (AcceptOrderResponse)
 
@@ -456,6 +502,10 @@ service driver-api {
 	@handler FinishTripHandler
 	post /api/driver/v1/orders/finish-trip (FinishTripRequest) returns (FinishTripResponse)
 
+	@handler DriverPushWSHandler
+	get /api/driver/v1/ws (DriverPushWSRequest)
+
 	@handler AgentChatHandler
 	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 }
+

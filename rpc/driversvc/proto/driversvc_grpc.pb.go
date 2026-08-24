@@ -43,6 +43,8 @@ const (
 	Driversvc_GetCertification_FullMethodName       = "/driversvc.Driversvc/GetCertification"
 	Driversvc_ApproveCertification_FullMethodName   = "/driversvc.Driversvc/ApproveCertification"
 	Driversvc_RejectCertification_FullMethodName    = "/driversvc.Driversvc/RejectCertification"
+	Driversvc_CreateWithdraw_FullMethodName         = "/driversvc.Driversvc/CreateWithdraw"
+	Driversvc_ListWithdraws_FullMethodName          = "/driversvc.Driversvc/ListWithdraws"
 )
 
 // DriversvcClient is the client API for Driversvc service.
@@ -97,6 +99,10 @@ type DriversvcClient interface {
 	ApproveCertification(ctx context.Context, in *AuditCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 审核驳回资质：记录驳回原因并保持司机/车辆非正常状态。
 	RejectCertification(ctx context.Context, in *AuditCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 发起提现申请：司机提交提现金额与收款账户，初始状态为申请中。
+	CreateWithdraw(ctx context.Context, in *CreateWithdrawRequest, opts ...grpc.CallOption) (*CreateWithdrawResponse, error)
+	// 查询我的提现记录：按司机 ID 分页返回提现申请与打款状态。
+	ListWithdraws(ctx context.Context, in *ListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error)
 }
 
 type driversvcClient struct {
@@ -347,6 +353,26 @@ func (c *driversvcClient) RejectCertification(ctx context.Context, in *AuditCert
 	return out, nil
 }
 
+func (c *driversvcClient) CreateWithdraw(ctx context.Context, in *CreateWithdrawRequest, opts ...grpc.CallOption) (*CreateWithdrawResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateWithdrawResponse)
+	err := c.cc.Invoke(ctx, Driversvc_CreateWithdraw_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driversvcClient) ListWithdraws(ctx context.Context, in *ListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWithdrawsResponse)
+	err := c.cc.Invoke(ctx, Driversvc_ListWithdraws_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DriversvcServer is the server API for Driversvc service.
 // All implementations must embed UnimplementedDriversvcServer
 // for forward compatibility.
@@ -399,6 +425,10 @@ type DriversvcServer interface {
 	ApproveCertification(context.Context, *AuditCertificationRequest) (*CommonResponse, error)
 	// 审核驳回资质：记录驳回原因并保持司机/车辆非正常状态。
 	RejectCertification(context.Context, *AuditCertificationRequest) (*CommonResponse, error)
+	// 发起提现申请：司机提交提现金额与收款账户，初始状态为申请中。
+	CreateWithdraw(context.Context, *CreateWithdrawRequest) (*CreateWithdrawResponse, error)
+	// 查询我的提现记录：按司机 ID 分页返回提现申请与打款状态。
+	ListWithdraws(context.Context, *ListWithdrawsRequest) (*ListWithdrawsResponse, error)
 	mustEmbedUnimplementedDriversvcServer()
 }
 
@@ -480,6 +510,12 @@ func (UnimplementedDriversvcServer) ApproveCertification(context.Context, *Audit
 }
 func (UnimplementedDriversvcServer) RejectCertification(context.Context, *AuditCertificationRequest) (*CommonResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RejectCertification not implemented")
+}
+func (UnimplementedDriversvcServer) CreateWithdraw(context.Context, *CreateWithdrawRequest) (*CreateWithdrawResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateWithdraw not implemented")
+}
+func (UnimplementedDriversvcServer) ListWithdraws(context.Context, *ListWithdrawsRequest) (*ListWithdrawsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWithdraws not implemented")
 }
 func (UnimplementedDriversvcServer) mustEmbedUnimplementedDriversvcServer() {}
 func (UnimplementedDriversvcServer) testEmbeddedByValue()                   {}
@@ -934,6 +970,42 @@ func _Driversvc_RejectCertification_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Driversvc_CreateWithdraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateWithdrawRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).CreateWithdraw(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_CreateWithdraw_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).CreateWithdraw(ctx, req.(*CreateWithdrawRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Driversvc_ListWithdraws_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWithdrawsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriversvcServer).ListWithdraws(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Driversvc_ListWithdraws_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriversvcServer).ListWithdraws(ctx, req.(*ListWithdrawsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Driversvc_ServiceDesc is the grpc.ServiceDesc for Driversvc service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1036,6 +1108,14 @@ var Driversvc_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RejectCertification",
 			Handler:    _Driversvc_RejectCertification_Handler,
+		},
+		{
+			MethodName: "CreateWithdraw",
+			Handler:    _Driversvc_CreateWithdraw_Handler,
+		},
+		{
+			MethodName: "ListWithdraws",
+			Handler:    _Driversvc_ListWithdraws_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

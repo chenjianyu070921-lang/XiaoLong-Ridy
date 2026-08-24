@@ -11,6 +11,7 @@ import (
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -34,6 +35,8 @@ type DriverClient interface {
 	GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
 	UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error)
 	GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error)
+	CreateWithdraw(ctx context.Context, req *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error)
+	ListWithdraws(ctx context.Context, req *driversproto.ListWithdrawsRequest) (*driversproto.ListWithdrawsResponse, error)
 }
 
 type grpcClient struct {
@@ -112,6 +115,14 @@ func (g *grpcClient) GetCertification(ctx context.Context, req *driversproto.Get
 	return g.cli.GetCertification(ctx, req)
 }
 
+func (g *grpcClient) CreateWithdraw(ctx context.Context, req *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error) {
+	return g.cli.CreateWithdraw(ctx, req)
+}
+
+func (g *grpcClient) ListWithdraws(ctx context.Context, req *driversproto.ListWithdrawsRequest) (*driversproto.ListWithdrawsResponse, error) {
+	return g.cli.ListWithdraws(ctx, req)
+}
+
 type OrderClient interface {
 	GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error)
 	ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error)
@@ -171,21 +182,33 @@ type ServiceContext struct {
 	OrderClient    OrderClient
 	DispatchClient DispatchClient
 	SigningKey     string
-	CodeCache      *CodeCache
+	CodeCache      CodeCache
+	RedisClient    *redis.Client
 }
 
 const defaultSigningKey = "local-development-signing-key"
 
 const defaultCodeTTL = 5 * time.Minute
 
-func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr string) *ServiceContext {
+func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, redisAddr string) *ServiceContext {
 	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
+	// 验证码缓存：配置了 Redis 地址则使用 Redis（多实例共享），否则回退本地内存（单实例联调）。
+	var codeCache CodeCache
+	var rdb *redis.Client
+	if redisAddr != "" {
+		rdb = redis.NewClient(&redis.Options{Addr: redisAddr})
+		codeCache = NewRedisCodeCache(rdb, defaultCodeTTL)
+	} else {
+		codeCache = NewLocalCodeCache(defaultCodeTTL)
+	}
+
 	svcCtx := &ServiceContext{
-		SigningKey: resolveSigningKey(),
-		CodeCache:  NewCodeCache(defaultCodeTTL),
+		SigningKey:  resolveSigningKey(),
+		CodeCache:   codeCache,
+		RedisClient: rdb,
 	}
 	if driverErr == nil {
 		svcCtx.DriverClient = &grpcClient{cli: driversproto.NewDriversvcClient(driverConn)}

@@ -13,7 +13,7 @@ func TestLoginByPasswordDelegatesToDriverService(t *testing.T) {
 	driverClient := &fakeDriverClient{}
 	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{
 		DriverClient: driverClient,
-		CodeCache:    svc.NewCodeCache(time.Minute),
+		CodeCache:    svc.NewLocalCodeCache(time.Minute),
 	})
 
 	resp, err := logic.LoginByPassword(&types.LoginByPasswordRequest{
@@ -34,7 +34,7 @@ func TestLoginByPasswordDelegatesToDriverService(t *testing.T) {
 
 func TestLoginBySMSVerifiesCodeThenDelegatesToDriverService(t *testing.T) {
 	driverClient := &fakeDriverClient{}
-	codeCache := svc.NewCodeCache(time.Minute)
+	codeCache := svc.NewLocalCodeCache(time.Minute)
 	codeCache.Set("13800000001", "123456")
 	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{
 		DriverClient: driverClient,
@@ -61,7 +61,7 @@ func TestLoginBySMSRejectsInvalidCodeBeforeDriverService(t *testing.T) {
 	driverClient := &fakeDriverClient{}
 	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{
 		DriverClient: driverClient,
-		CodeCache:    svc.NewCodeCache(time.Minute),
+		CodeCache:    svc.NewLocalCodeCache(time.Minute),
 	})
 
 	if _, err := logic.LoginBySMS(&types.LoginBySMSRequest{Phone: "13800000001", Code: "000000"}); err != ErrCodeInvalid {

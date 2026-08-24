@@ -166,3 +166,15 @@ func (s *DriversvcServer) RejectCertification(ctx context.Context, in *__proto.A
 	l := logic.NewRejectCertificationLogic(ctx, s.svcCtx)
 	return l.RejectCertification(in)
 }
+
+// 发起提现申请：司机提交提现金额与收款账户，初始状态为申请中。
+func (s *DriversvcServer) CreateWithdraw(ctx context.Context, in *__proto.CreateWithdrawRequest) (*__proto.CreateWithdrawResponse, error) {
+	l := logic.NewCreateWithdrawLogic(ctx, s.svcCtx)
+	return l.CreateWithdraw(in)
+}
+
+// 查询我的提现记录：按司机 ID 分页返回提现申请与打款状态。
+func (s *DriversvcServer) ListWithdraws(ctx context.Context, in *__proto.ListWithdrawsRequest) (*__proto.ListWithdrawsResponse, error) {
+	l := logic.NewListWithdrawsLogic(ctx, s.svcCtx)
+	return l.ListWithdraws(in)
+}

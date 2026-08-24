@@ -7,7 +7,7 @@ Etcd:
   Key: locationsvc.rpc
 
 Mysql:
-  Dsn: "root:root123456@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=true&loc=Local"
+  Dsn: "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
   MaxOpenConn: 100
   MaxIdleConn: 10
   MaxLifeTime: 3600

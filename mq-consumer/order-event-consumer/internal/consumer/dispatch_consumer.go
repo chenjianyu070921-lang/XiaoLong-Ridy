@@ -22,6 +22,14 @@ type DispatchNewEvent struct {
 	DispatchedAt  int64   `json:"dispatched_at"`
 }
 
+type DriverPushDispatchMessage struct {
+	Type         string `json:"type"`
+	OrderId      int64  `json:"order_id"`
+	DriverId     int64  `json:"driver_id"`
+	DispatchedAt int64  `json:"dispatched_at"`
+	ServerTime   int64  `json:"server_time"`
+}
+
 // availableListKey 返回派给指定司机的待接单集合 key。
 // 约定：司机端 B 的 /orders/available 接口读取该 key 返回派给自己的单。
 // key 统一由 common/constants.RedisDriverAvailable 定义，避免多端硬编码不一致（P2-M4-9）。
@@ -50,6 +58,21 @@ func (c *OrderConsumer) handleDispatchNew(ctx context.Context, payload []byte) e
 		}
 		// 待接单列表保留 90s，避免司机端长期堆积过期派单。
 		c.svcCtx.Redis.Expire(ctx, key, 90*time.Second)
+		pushPayload, err := json.Marshal(DriverPushDispatchMessage{
+			Type:         constants.TopicDispatchNew,
+			OrderId:      evt.OrderId,
+			DriverId:     driverID,
+			DispatchedAt: evt.DispatchedAt,
+			ServerTime:   time.Now().Unix(),
+		})
+		if err != nil {
+			logx.WithContext(ctx).Errorf("marshal dispatch push for order %d driver %d failed: %v", evt.OrderId, driverID, err)
+			continue
+		}
+		if err := c.svcCtx.Redis.Publish(ctx, fmt.Sprintf(constants.RedisDriverPush, driverID), pushPayload).Err(); err != nil {
+			logx.WithContext(ctx).Errorf("publish dispatch push for order %d driver %d failed: %v", evt.OrderId, driverID, err)
+			continue
+		}
 	}
 	return nil
 }

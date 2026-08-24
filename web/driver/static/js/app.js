@@ -36,6 +36,12 @@ const state = {
 var heartbeatTimer = null;
 var HEARTBEAT_INTERVAL = 15000;
 
+// 位置上报定时器与间隔：上线后定时上报经纬度，用 var 声明避免 TDZ。
+var locationTimer = null;
+var LOCATION_INTERVAL = 10000;
+var lastLatitude = null;
+var lastLongitude = null;
+
 buttons.forEach((button) => {
   button.addEventListener("click", () => {
     const target = button.dataset.authTarget;
@@ -214,7 +220,9 @@ if (state.token && state.driver?.id) {
   loadDashboardData();
   if (state.onlineStatus === 1) {
     startHeartbeat();
+    startLocationReporting();
   }
+  connectPushChannel();
 } else {
   authView.hidden = false;
   dashboardView.hidden = true;
@@ -385,8 +393,11 @@ async function setWorkStatus(path, fallbackStatus, successText) {
       localStorage.setItem("driverTripPhase", state.tripPhase);
       localStorage.removeItem("driverCurrentOrderId");
       stopHeartbeat();
+      stopLocationReporting();
     } else {
       startHeartbeat();
+      startLocationReporting();
+      connectPushChannel();
     }
     renderStatus();
     renderCoreArea();
@@ -422,6 +433,105 @@ function stopHeartbeat() {
     window.clearInterval(heartbeatTimer);
     heartbeatTimer = null;
   }
+}
+
+// ---- 位置上报：上线后定时上报经纬度，供派单引擎就近匹配 ----
+function startLocationReporting() {
+  if (locationTimer) return;
+  // 浏览器定位（若用户授权）作为默认坐标来源；上报前至少填充一次有效坐标。
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      (position) => {
+        lastLatitude = position.coords.latitude;
+        lastLongitude = position.coords.longitude;
+        sendLocation();
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
+  }
+  sendLocation();
+  locationTimer = window.setInterval(sendLocation, LOCATION_INTERVAL);
+}
+
+function stopLocationReporting() {
+  if (locationTimer) {
+    window.clearInterval(locationTimer);
+    locationTimer = null;
+  }
+}
+
+async function sendLocation() {
+  if (!state.token || !state.driver?.id) {
+    stopLocationReporting();
+    return;
+  }
+  if (lastLatitude === null || lastLongitude === null) {
+    return;
+  }
+  try {
+    await requestJSON("/driver/location/report", {
+      method: "POST",
+      token: state.token,
+      body: JSON.stringify({
+        deviceId: getDeviceId(),
+        longitude: lastLongitude,
+        latitude: lastLatitude,
+      }),
+    });
+  } catch (error) {
+    // 位置上报失败不影响主流程，仅静默重试。
+  }
+}
+
+// ---- 推送通道（WebSocket）：当前项目未提供司机 WebSocket 端点，仅保留可配置连接骨架 ----
+// 当部署注入了 window.DRIVER_WS_URL 时建立连接，收到派单/订单推送后触发对应刷新；
+// 未配置时不连接，派单与订单仍通过轮询获取（见 requestDispatches / requestOrderList）。
+var pushSocket = null;
+
+var pushSocket = null;
+
+function connectPushChannel() {
+  const wsURL = window.DRIVER_WS_URL || "";
+  if (!wsURL || !state.token) {
+    return;
+  }
+  if (pushSocket && pushSocket.readyState <= 1) {
+    return;
+  }
+  try {
+    pushSocket = new WebSocket(wsURL);
+  } catch (error) {
+    return;
+  }
+  pushSocket.onopen = () => {
+    try {
+      pushSocket.send(JSON.stringify({ type: "auth", token: state.token }));
+    } catch (error) {}
+  };
+  pushSocket.onmessage = (event) => {
+    let payload = {};
+    try {
+      payload = JSON.parse(event.data || "{}");
+    } catch (error) {
+      return;
+    }
+    // 收到派单或订单相关推送，刷新对应列表。
+    if (payload.type === "dispatch" || payload.type === "order") {
+      loadOrders(state.orderPage);
+    }
+  };
+  pushSocket.onclose = () => {
+    // 登录态仍在则延迟重连，最多避免风暴。
+    if (state.token) {
+      window.setTimeout(connectPushChannel, 5000);
+    }
+  };
+  pushSocket.onerror = () => {
+    if (pushSocket) {
+      pushSocket.close();
+    }
+  };
 }
 
 async function sendHeartbeat() {

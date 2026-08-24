@@ -1,14 +1,13 @@
-// driversvc 服务入口：加载配置、初始化依赖、启动 gRPC 服务。
 package main
 
 import (
-	"XiaoLong-Ridy/rpc/driversvc/proto"
 	"flag"
 	"fmt"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/config"
 	"XiaoLong-Ridy/rpc/driversvc/internal/server"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
+	"XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"

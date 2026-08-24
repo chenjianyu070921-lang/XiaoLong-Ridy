@@ -19,6 +19,7 @@ type ServiceContext struct {
 	DriverRepository        repository.DriverRepository            // 司机主表仓储
 	DriverVehicleRepository repository.DriverVehicleRepository     // 司机车辆仓储
 	CertificationRepository repository.CertificationRepository     // 司机资质仓储
+	DriverWithdrawRepository repository.DriverWithdrawRepository   // 司机提现仓储
 	RedisClient             *redis.Client                          // Redis 客户端：维护在线状态与多端互踢
 	OnlineStore             *onlinestore.Store                     // 在线状态存储：封装在线/心跳/互踢判定
 	MinioClient             *minio.Client                          // MinIO 客户端：司机资质图片对象存储
@@ -55,6 +56,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		DriverRepository:        repository.NewGormDriverRepository(db),
 		DriverVehicleRepository: repository.NewGormVehicleRepository(db),
 		CertificationRepository: repository.NewGormCertificationRepository(db),
+		DriverWithdrawRepository: repository.NewGormDriverWithdrawRepository(db),
 		RedisClient:             rdb,
 		OnlineStore:             onlinestore.NewStore(rdb, 0),
 		MinioClient:             mc,

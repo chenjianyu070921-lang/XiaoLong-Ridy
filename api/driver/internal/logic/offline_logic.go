@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
@@ -20,18 +21,28 @@ func NewOfflineLogic(ctx context.Context, svcCtx *svc.ServiceContext) *OfflineLo
 }
 
 // SetOffline 将当前登录司机置为离线。driverID 由鉴权中间件从 JWT 解析得到。
-func (l *OfflineLogic) SetOffline(driverID int64) (*types.SetOfflineResponse, error) {
+func (l *OfflineLogic) SetOffline(driverID int64, req *types.SetOfflineRequest) (*types.SetOfflineResponse, error) {
+	if driverID <= 0 || req == nil || strings.TrimSpace(req.DeviceID) == "" ||
+		!validLocation(req.Longitude, req.Latitude) {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.driverClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.SetDriverOffline(l.ctx, &driversproto.SetDriverOfflineRequest{DriverId: driverID})
+	resp, err := client.SetDriverOffline(l.ctx, &driversproto.SetDriverOfflineRequest{
+		DriverId:  driverID,
+		DeviceId:  strings.TrimSpace(req.DeviceID),
+		Longitude: req.Longitude,
+		Latitude:  req.Latitude,
+	})
 	if err != nil {
 		return nil, err
 	}
 	return &types.SetOfflineResponse{
 		DriverID:     resp.GetDriverId(),
 		OnlineStatus: int(resp.GetOnlineStatus()),
+		Kicked:       resp.GetKicked(),
 	}, nil
 }
 

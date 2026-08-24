@@ -15,7 +15,15 @@ var (
 	ErrForbiddenDriverResource   = errors.New("forbidden driver resource")
 )
 
+const (
+	maxVehicleBrandLen     = 64
+	maxVehicleModelLen     = 64
+	maxVehicleColorLen     = 32
+	maxVehicleInsuranceLen = 64
+)
+
 var phoneRegexp = regexp.MustCompile(`^1[3-9]\d{9}$`)
+var vehiclePlateRegexp = regexp.MustCompile(`^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9挂学警港澳]$`)
 
 func validPhone(phone string) bool {
 	return phoneRegexp.MatchString(phone)
@@ -38,6 +46,33 @@ func validDriverStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+func validVehiclePlate(plateNo string) bool {
+	return vehiclePlateRegexp.MatchString(strings.ToUpper(strings.TrimSpace(plateNo)))
+}
+
+func validVehicleType(vehicleType int32) bool {
+	return vehicleType >= 1 && vehicleType <= 5
+}
+
+func validCreateVehicle(plateNo, brand, model, color string, vehicleType int32, insuranceNo string) bool {
+	if !validVehiclePlate(plateNo) || !validVehicleType(vehicleType) {
+		return false
+	}
+	return validRequiredLength(brand, maxVehicleBrandLen) &&
+		validRequiredLength(model, maxVehicleModelLen) &&
+		validOptionalLength(color, maxVehicleColorLen) &&
+		validOptionalLength(insuranceNo, maxVehicleInsuranceLen)
+}
+
+func validRequiredLength(value string, max int) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && len([]rune(value)) <= max
+}
+
+func validOptionalLength(value string, max int) bool {
+	return len([]rune(strings.TrimSpace(value))) <= max
 }
 
 func normalizeCreateDriverRequest(req *types.CreateDriverRequest) {

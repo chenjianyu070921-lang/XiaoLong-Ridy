@@ -2,14 +2,24 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/jwtx"
+
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/net/websocket"
 )
 
 func TestAgentChatEndpointRequiresDriverTokenAndRunsAgent(t *testing.T) {
@@ -70,6 +80,35 @@ func TestAgentChatEndpointRequiresDriverTokenAndRunsAgent(t *testing.T) {
 	}
 }
 
+func TestLoadDriverConfigReadsYamlAndEnvCanOverride(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "driver.yaml")
+	if err := os.WriteFile(path, []byte(`
+httpAddr: ":18082"
+driverGrpcAddr: "driversvc:5055"
+orderGrpcAddr: "ordersvc:50051"
+dispatchGrpcAddr: "dispatchsvc:8083"
+redisAddr: "redis:6379"
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := loadDriverConfig(path)
+	if err != nil {
+		t.Fatalf("loadDriverConfig() error = %v", err)
+	}
+	if cfg.HTTPAddr != ":18082" || cfg.DriverGRPCAddr != "driversvc:5055" ||
+		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.DispatchGRPCAddr != "dispatchsvc:8083" ||
+		cfg.RedisAddr != "redis:6379" {
+		t.Fatalf("unexpected config: %+v", cfg)
+	}
+
+	t.Setenv("ORDER_GRPC_ADDR", "ordersvc-prod:50051")
+	if got := envOr("ORDER_GRPC_ADDR", cfg.OrderGRPCAddr); got != "ordersvc-prod:50051" {
+		t.Fatalf("env override = %q", got)
+	}
+}
+
 func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "order-route-test-key"})
 	paths := []string{
@@ -89,5 +128,101 @@ func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 				t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusUnauthorized, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestDriverPushWebSocketAuth(t *testing.T) {
+	const signingKey = "driver-ws-test-key"
+	server := httptest.NewServer(newHTTPHandler(&svc.ServiceContext{SigningKey: signingKey}))
+	defer server.Close()
+
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/driver/v1/ws"
+	conn, err := websocket.Dial(wsURL, "", server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	if err := websocket.JSON.Send(conn, map[string]string{"type": "auth", "token": token}); err != nil {
+		t.Fatal(err)
+	}
+	var ack struct {
+		Type     string `json:"type"`
+		DriverID int64  `json:"driverId"`
+		Degraded bool   `json:"degraded"`
+	}
+	if err := websocket.JSON.Receive(conn, &ack); err != nil {
+		t.Fatal(err)
+	}
+	if ack.Type != "connected" || ack.DriverID != 25 || !ack.Degraded {
+		t.Fatalf("unexpected ws ack: %+v", ack)
+	}
+}
+
+func TestDriverPushWebSocketForwardsRedisMessages(t *testing.T) {
+	const signingKey = "driver-ws-redis-test-key"
+	redisServer := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	defer rdb.Close()
+
+	server := httptest.NewServer(newHTTPHandler(&svc.ServiceContext{SigningKey: signingKey, RedisClient: rdb}))
+	defer server.Close()
+
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/driver/v1/ws"
+	conn, err := websocket.Dial(wsURL, "", server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	if err := websocket.JSON.Send(conn, map[string]string{"type": "auth", "token": token}); err != nil {
+		t.Fatal(err)
+	}
+	var ack struct {
+		Type     string `json:"type"`
+		Degraded bool   `json:"degraded"`
+	}
+	if err := websocket.JSON.Receive(conn, &ack); err != nil {
+		t.Fatal(err)
+	}
+	if ack.Type != "connected" || ack.Degraded {
+		t.Fatalf("unexpected ws ack: %+v", ack)
+	}
+
+	payload := `{"type":"dispatch","orderId":1001}`
+	if err := rdb.Publish(
+		context.Background(),
+		fmt.Sprintf(constants.RedisDriverPush, 25),
+		payload,
+	).Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	var got string
+	if err := websocket.Message.Receive(conn, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got != payload {
+		t.Fatalf("ws payload = %s, want %s", got, payload)
 	}
 }

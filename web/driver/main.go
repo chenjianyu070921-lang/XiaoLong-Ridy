@@ -34,7 +34,10 @@ func main() {
 	r.StaticFS("/static", http.FS(staticFS))
 
 	r.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{"title": "Driver Console"})
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"title":       "Driver Console",
+			"driverWSURL": driverWSURL(apiBase),
+		})
 	})
 
 	r.POST("/driver/login", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/auth/login-by-password", false))
@@ -44,6 +47,7 @@ func main() {
 	r.POST("/driver/online", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/online", true))
 	r.POST("/driver/offline", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/offline", true))
 	r.POST("/driver/heartbeat", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/heartbeat", true))
+	r.POST("/driver/location/report", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/location/report", true))
 	r.POST("/driver/update", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/drivers/update", true))
 	r.POST("/driver/dispatches", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/dispatches", true))
 	r.POST("/driver/orders", proxyDriverAPI(httpClient, apiBase, http.MethodPost, "/api/driver/v1/orders/list", true))
@@ -71,6 +75,23 @@ func driverAPIBase() string {
 		return strings.TrimRight(value, "/")
 	}
 	return "http://127.0.0.1:8082"
+}
+
+func driverWSURL(apiBase string) string {
+	if value := strings.TrimSpace(os.Getenv("DRIVER_WS_URL")); value != "" {
+		return value
+	}
+	target, err := url.Parse(strings.TrimRight(apiBase, "/") + "/api/driver/v1/ws")
+	if err != nil {
+		return ""
+	}
+	switch target.Scheme {
+	case "https":
+		target.Scheme = "wss"
+	default:
+		target.Scheme = "ws"
+	}
+	return target.String()
 }
 
 func proxyDriverAPI(client *http.Client, apiBase, method, path string, requireAuth bool) gin.HandlerFunc {

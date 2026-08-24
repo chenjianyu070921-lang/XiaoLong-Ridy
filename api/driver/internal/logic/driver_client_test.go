@@ -7,6 +7,8 @@ import (
 )
 
 type fakeDriverClient struct {
+	setOnlineRequest         *driversproto.SetDriverOnlineRequest
+	setOfflineRequest        *driversproto.SetDriverOfflineRequest
 	reportLocationRequest    *driversproto.ReportLocationRequest
 	serviceStatusRequests    []*driversproto.SetDriverServiceStatusRequest
 	loginRequest             *driversproto.LoginRequest
@@ -41,12 +43,20 @@ func (f *fakeDriverClient) GetDriverByPhone(context.Context, *driversproto.GetDr
 	return nil, nil
 }
 
-func (f *fakeDriverClient) SetDriverOnline(context.Context, *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error) {
-	return nil, nil
+func (f *fakeDriverClient) SetDriverOnline(_ context.Context, req *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error) {
+	f.setOnlineRequest = req
+	return &driversproto.SetDriverOnlineResponse{
+		DriverId:     req.GetDriverId(),
+		OnlineStatus: 1,
+	}, nil
 }
 
-func (f *fakeDriverClient) SetDriverOffline(context.Context, *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error) {
-	return nil, nil
+func (f *fakeDriverClient) SetDriverOffline(_ context.Context, req *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error) {
+	f.setOfflineRequest = req
+	return &driversproto.SetDriverOfflineResponse{
+		DriverId:     req.GetDriverId(),
+		OnlineStatus: 0,
+	}, nil
 }
 
 func (f *fakeDriverClient) Login(_ context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error) {
@@ -94,6 +104,14 @@ func (f *fakeDriverClient) UploadCertification(context.Context, *driversproto.Up
 }
 
 func (f *fakeDriverClient) GetCertification(context.Context, *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error) {
+	return nil, nil
+}
+
+func (f *fakeDriverClient) CreateWithdraw(context.Context, *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error) {
+	return nil, nil
+}
+
+func (f *fakeDriverClient) ListWithdraws(context.Context, *driversproto.ListWithdrawsRequest) (*driversproto.ListWithdrawsResponse, error) {
 	return nil, nil
 }
 

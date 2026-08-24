@@ -23,7 +23,7 @@ func (l *VehicleLogic) CreateVehicle(driverID int64, req *types.CreateVehicleReq
 		return nil, ErrInvalidParam
 	}
 	normalizeCreateVehicleRequest(req)
-	if req.PlateNo == "" || req.Brand == "" || req.Model == "" || req.VehicleType <= 0 {
+	if !validCreateVehicle(req.PlateNo, req.Brand, req.Model, req.Color, req.VehicleType, req.InsuranceNo) {
 		return nil, ErrInvalidParam
 	}
 	client, err := l.driverClient()

@@ -15,7 +15,7 @@ orderrpc:
 dispatchrpc:
   Target: 127.0.0.1:8083
 mysql:
-  dsn: root:root123456@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
   maxOpenConn: 200
   maxIdleConn: 30
   maxLifeTime: 3600

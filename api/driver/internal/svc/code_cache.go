@@ -1,46 +1,50 @@
 package svc
 
 import (
+	"context"
 	"sync"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
-// codeEntry 是验证码缓存中的单条记录，保存验证码与过期时间。
+// CodeCache 验证码存储抽象：本地联调用本地内存，多实例/生产用 Redis 共享。
+type CodeCache interface {
+	TTL() time.Duration
+	Set(phone, code string)
+	Verify(phone, code string) bool
+}
+
+// ---------- 本地内存实现（单实例联调） ----------
+
 type codeEntry struct {
 	code      string
 	expiresAt time.Time
 }
 
-// CodeCache 是本地内存验证码存储，用于联调阶段临时顶替短信/缓存服务。
-// 注意：仅适用于单实例本地联调；多实例或生产环境应替换为 Redis 等共享存储。
-type CodeCache struct {
+// LocalCodeCache 本地内存验证码存储。仅适用于单实例本地联调。
+type LocalCodeCache struct {
 	mu      sync.RWMutex
 	entries map[string]codeEntry
 	ttl     time.Duration
 }
 
-// NewCodeCache 创建验证码缓存，ttl 为验证码有效期。
-func NewCodeCache(ttl time.Duration) *CodeCache {
-	return &CodeCache{
+func NewLocalCodeCache(ttl time.Duration) *LocalCodeCache {
+	return &LocalCodeCache{
 		entries: make(map[string]codeEntry),
 		ttl:     ttl,
 	}
 }
 
-// TTL 返回验证码有效期。
-func (c *CodeCache) TTL() time.Duration {
-	return c.ttl
-}
+func (c *LocalCodeCache) TTL() time.Duration { return c.ttl }
 
-// Set 保存指定手机号的验证码。
-func (c *CodeCache) Set(phone, code string) {
+func (c *LocalCodeCache) Set(phone, code string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries[phone] = codeEntry{code: code, expiresAt: time.Now().Add(c.ttl)}
 }
 
-// Verify 校验手机号验证码，匹配且未过期返回 true，并立即作废（防止重放）。
-func (c *CodeCache) Verify(phone, code string) bool {
+func (c *LocalCodeCache) Verify(phone, code string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	entry, ok := c.entries[phone]
@@ -49,4 +53,43 @@ func (c *CodeCache) Verify(phone, code string) bool {
 	}
 	delete(c.entries, phone)
 	return entry.code == code && time.Now().Before(entry.expiresAt)
+}
+
+// ---------- Redis 实现（多实例/生产） ----------
+
+// RedisCodeCache 基于 Redis 的验证码存储，支持多实例共享、自动过期。
+type RedisCodeCache struct {
+	rdb *redis.Client
+	ttl time.Duration
+}
+
+func NewRedisCodeCache(rdb *redis.Client, ttl time.Duration) *RedisCodeCache {
+	return &RedisCodeCache{rdb: rdb, ttl: ttl}
+}
+
+func (c *RedisCodeCache) TTL() time.Duration { return c.ttl }
+
+func (c *RedisCodeCache) key(phone string) string {
+	return "driver:sms:code:" + phone
+}
+
+func (c *RedisCodeCache) Set(phone, code string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	// NX 避免覆盖已存在的有效验证码；EX 保证自动过期。
+	c.rdb.SetNX(ctx, c.key(phone), code, c.ttl)
+}
+
+func (c *RedisCodeCache) Verify(phone, code string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	k := c.key(phone)
+	stored, err := c.rdb.Get(ctx, k).Result()
+	if err != nil {
+		// 不存在或已过期。
+		return false
+	}
+	// 校验后立即删除，防止重放。
+	c.rdb.Del(ctx, k)
+	return stored == code
 }

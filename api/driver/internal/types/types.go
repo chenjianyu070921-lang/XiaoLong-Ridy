@@ -3,11 +3,11 @@ package types
 import "encoding/json"
 
 type Response struct {
-	Code      int    `json:"code"`
-	Message   string `json:"message"`
-	Data      any    `json:"data"`
-	Timestamp int64  `json:"timestamp"`
-	TraceID   string `json:"traceId"`
+	Code      int         `json:"code"`
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data"`
+	Timestamp int64       `json:"timestamp"`
+	TraceID   string      `json:"traceId"`
 }
 
 type RegisterDriverRequest struct {
@@ -289,6 +289,44 @@ type VehicleInfo struct {
 
 type GetVehicleResponse struct {
 	Vehicle VehicleInfo `json:"vehicle"`
+}
+
+// ---- 提现相关 ----
+
+type CreateWithdrawRequest struct {
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+}
+
+type CreateWithdrawResponse struct {
+	ID         int64  `json:"id"`
+	WithdrawNo string `json:"withdrawNo"`
+	Status     int32  `json:"status"`
+	CreatedAt  int64  `json:"createdAt"`
+}
+
+type ListWithdrawsRequest struct {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type WithdrawRecord struct {
+	ID         int64   `json:"id"`
+	WithdrawNo string  `json:"withdrawNo"`
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+	Status     int32   `json:"status"`
+	Remark     string  `json:"remark"`
+	AppliedAt  int64   `json:"appliedAt"`
+	PaidAt     int64   `json:"paidAt"`
+	CreatedAt  int64   `json:"createdAt"`
+}
+
+type ListWithdrawsResponse struct {
+	Records []WithdrawRecord `json:"records"`
+	Total   int64            `json:"total"`
 }
 
 type AcceptOrderRequest struct {

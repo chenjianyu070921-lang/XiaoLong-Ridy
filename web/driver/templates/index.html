@@ -256,6 +256,11 @@
     <p class="dashboard-message" data-dashboard-message role="status"></p>
   </main>
 
+  <script>
+    // 司机推送通道地址（可选）。由网关/部署注入；为空时前端不主动建立 WebSocket，
+    // 派单与订单状态仍通过轮询 /driver/dispatches 与 /driver/orders 获取。
+    window.DRIVER_WS_URL = "{{ .driverWSURL }}";
+  </script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>

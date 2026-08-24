@@ -6,7 +6,7 @@ Mode: dev
 
 # MySQL 数据库
 mysql:
-  dsn: "root:password@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
   maxOpenConn: 200
   maxIdleConn: 30
   maxLifeTime: 3600
