@@ -36,7 +36,7 @@ func RequireAuth(svcCtx *svc.ServiceContext) func(http.Handler) http.Handler {
 				writeUnauthorized(w, "登录凭证无效")
 				return
 			}
-			if claims.AccountStatus != int(driversproto.DriverStatus_DRIVER_STATUS_NORMAL) {
+			if claims.AccountStatus != int(driversproto.DriverStatus_DRIVER_STATUS_NORMAL) && !allowPendingDriverPath(r.URL.Path) {
 				writeForbidden(w, "账号未通过审核或已被冻结/注销")
 				return
 			}
@@ -44,6 +44,20 @@ func RequireAuth(svcCtx *svc.ServiceContext) func(http.Handler) http.Handler {
 			ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
+	}
+}
+
+func allowPendingDriverPath(path string) bool {
+	switch path {
+	case "/api/driver/v1/drivers/update",
+		"/api/driver/v1/drivers/get",
+		"/api/driver/v1/drivers/certification/upload",
+		"/api/driver/v1/drivers/certification",
+		"/api/driver/v1/vehicles",
+		"/api/driver/v1/vehicles/get":
+		return true
+	default:
+		return false
 	}
 }
 

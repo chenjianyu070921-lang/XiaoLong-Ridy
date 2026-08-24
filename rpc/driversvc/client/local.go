@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // LocalClient 是本地开发和测试使用的 driversvc 内存实现。
@@ -755,24 +756,21 @@ func cloneDriver(driver *driversproto.Driver) *driversproto.Driver {
 	if driver == nil {
 		return nil
 	}
-	cp := *driver
-	return &cp
+	return proto.Clone(driver).(*driversproto.Driver)
 }
 
 func cloneVehicle(vehicle *driversproto.Vehicle) *driversproto.Vehicle {
 	if vehicle == nil {
 		return nil
 	}
-	cp := *vehicle
-	return &cp
+	return proto.Clone(vehicle).(*driversproto.Vehicle)
 }
 
 func cloneCertification(cert *driversproto.CertificationInfo) *driversproto.CertificationInfo {
 	if cert == nil {
 		return nil
 	}
-	cp := *cert
-	return &cp
+	return proto.Clone(cert).(*driversproto.CertificationInfo)
 }
 
 func localCertURL(driverID int64, kind, payload string) string {
