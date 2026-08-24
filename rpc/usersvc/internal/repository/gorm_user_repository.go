@@ -24,7 +24,7 @@ func NewGormUserRepository(db *gorm.DB) UserRepository {
 // FindByPhone 根据手机号查询未软删除的用户。
 func (r *gormUserRepository) FindByPhone(ctx context.Context, phone string) (*model.User, error) {
 	var user model.User
-	err := r.db.WithContext(ctx).Where("phone = ? AND deleted_at IS NULL", phone).First(&user).Error
+	err := r.db.WithContext(ctx).Where("phone = ?", phone).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrUserNotFound
 	}
@@ -37,7 +37,7 @@ func (r *gormUserRepository) FindByPhone(ctx context.Context, phone string) (*mo
 // FindByID 根据用户 ID 查询未软删除的用户资料。
 func (r *gormUserRepository) FindByID(ctx context.Context, id uint64) (*model.User, error) {
 	var user model.User
-	err := r.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&user).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrUserNotFound
 	}
@@ -73,7 +73,7 @@ func (r *gormUserRepository) Update(ctx context.Context, user *model.User) error
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&model.User{}).
-			Where("id = ? AND deleted_at IS NULL", user.ID).
+			Where("id = ?", user.ID).
 			Updates(updates)
 		if res.Error != nil {
 			return res.Error
@@ -81,7 +81,7 @@ func (r *gormUserRepository) Update(ctx context.Context, user *model.User) error
 		if res.RowsAffected == 0 {
 			return ErrUserNotFound
 		}
-		return tx.Where("id = ? AND deleted_at IS NULL", user.ID).First(user).Error
+		return tx.Where("id = ?", user.ID).First(user).Error
 	})
 	if isDuplicateUserKey(err) {
 		return ErrPhoneExists

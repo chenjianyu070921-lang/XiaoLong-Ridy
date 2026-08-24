@@ -9,6 +9,8 @@ type CreateOrderRequest struct {
 	ToAddress              string  `json:"toAddress"`
 	ToLongitude            float64 `json:"toLongitude"`
 	ToLatitude             float64 `json:"toLatitude"`
+	EstimatedDistanceM     int64   `json:"estimatedDistanceM"`
+	EstimatedDurationS     int64   `json:"estimatedDurationS"`
 	CityCode               string  `json:"cityCode"`
 	UserCouponID           uint64  `json:"userCouponId"`
 	CouponID               int64   `json:"couponId"`
@@ -173,4 +175,29 @@ type OrderStatusPollResponse struct {
 	DriverID  int64                   `json:"driverId"`
 	Payment   *PaymentStatusResponse  `json:"payment,omitempty"`
 	Dispatch  *DispatchStatusResponse `json:"dispatch,omitempty"`
+}
+
+// EstimateOrderRequest 表示下单前的行程费用预估参数，不会创建订单。
+type EstimateOrderRequest struct {
+	CarType            int32   `json:"carType"`
+	FromAddress        string  `json:"fromAddress"`
+	FromLongitude      float64 `json:"fromLongitude"`
+	FromLatitude       float64 `json:"fromLatitude"`
+	ToAddress          string  `json:"toAddress"`
+	ToLongitude        float64 `json:"toLongitude"`
+	ToLatitude         float64 `json:"toLatitude"`
+	EstimatedDistanceM int64   `json:"estimatedDistanceM"`
+	EstimatedDurationS int64   `json:"estimatedDurationS"`
+	CityCode           string  `json:"cityCode"`
+	UserCouponID       uint64  `json:"userCouponId"`
+}
+
+// EstimateOrderResponse 表示行程费用预估结果，所有金额字段的单位均为分。
+type EstimateOrderResponse struct {
+	CarType             int32 `json:"carType"`
+	EstimatedDistanceM  int64 `json:"estimatedDistanceM"`
+	EstimatedDurationS  int64 `json:"estimatedDurationS"`
+	OriginalPriceCents  int64 `json:"originalPriceCents"`
+	DiscountAmountCents int64 `json:"discountAmountCents"`
+	PayableAmountCents  int64 `json:"payableAmountCents"`
 }

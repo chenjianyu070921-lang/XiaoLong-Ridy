@@ -10,6 +10,11 @@ type ClaimCouponResponse struct {
 	UserCoupon CouponInfo `json:"userCoupon"`
 }
 
+// ClaimWelcomeGiftResponse 表示新人礼包中实际发放到当前用户账户的优惠券。
+type ClaimWelcomeGiftResponse struct {
+	List []CouponInfo `json:"list"`
+}
+
 // ListMyCouponsRequest 表示我的优惠券列表查询请求参数。
 type ListMyCouponsRequest struct {
 	Status int32 `json:"status"`

@@ -18,3 +18,14 @@ type SubmitRealNameRequest struct {
 type SubmitRealNameResponse struct {
 	User UserInfo `json:"user"`
 }
+
+// UpdateProfileRequest 对应个人资料更新接口的请求参数。
+type UpdateProfileRequest struct {
+	Nickname  string `json:"nickname,optional"`
+	AvatarURL string `json:"avatarUrl,optional"`
+}
+
+// UpdateProfileResponse 对应个人资料更新接口的响应数据。
+type UpdateProfileResponse struct {
+	User UserInfo `json:"user"`
+}

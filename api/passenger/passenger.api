@@ -65,6 +65,15 @@ type SubmitRealNameResponse {
 	User UserInfo `json:"user"`
 }
 
+type UpdateProfileRequest {
+	Nickname string `json:"nickname,optional"`
+	AvatarURL string `json:"avatarUrl,optional"`
+}
+
+type UpdateProfileResponse {
+	User UserInfo `json:"user"`
+}
+
 type CreateOrderRequest {
 	CarType int32 `json:"carType"`
 	FromAddress string `json:"fromAddress"`
@@ -73,6 +82,8 @@ type CreateOrderRequest {
 	ToAddress string `json:"toAddress"`
 	ToLongitude float64 `json:"toLongitude"`
 	ToLatitude float64 `json:"toLatitude"`
+EstimatedDistanceM int64 `json:"estimatedDistanceM"`
+EstimatedDurationS int64 `json:"estimatedDurationS"`
 	CityCode string `json:"cityCode"`
 	UserCouponID uint64 `json:"userCouponId"`
 	CouponID int64 `json:"couponId"`
@@ -83,6 +94,28 @@ type CreateOrderRequest {
 	CouponMaxDiscountCents int64 `json:"couponMaxDiscountCents"`
 }
 
+type EstimateOrderRequest {
+	CarType int32 `json:"carType"`
+	FromAddress string `json:"fromAddress"`
+	FromLongitude float64 `json:"fromLongitude"`
+	FromLatitude float64 `json:"fromLatitude"`
+	ToAddress string `json:"toAddress"`
+	ToLongitude float64 `json:"toLongitude"`
+	ToLatitude float64 `json:"toLatitude"`
+EstimatedDistanceM int64 `json:"estimatedDistanceM,optional"`
+EstimatedDurationS int64 `json:"estimatedDurationS,optional"`
+	CityCode string `json:"cityCode,optional"`
+	UserCouponID uint64 `json:"userCouponId,optional"`
+}
+
+type EstimateOrderResponse {
+	CarType int32 `json:"carType"`
+	EstimatedDistanceM int64 `json:"estimatedDistanceM"`
+	EstimatedDurationS int64 `json:"estimatedDurationS"`
+	OriginalPriceCents int64 `json:"originalPriceCents"`
+	DiscountAmountCents int64 `json:"discountAmountCents"`
+	PayableAmountCents int64 `json:"payableAmountCents"`
+}
 type CreateOrderResponse {
 	OrderID int64 `json:"orderId"`
 	OrderNo string `json:"orderNo"`
@@ -336,8 +369,14 @@ service passenger-api {
 	@handler SubmitRealNameHandler
 	post /api/passenger/v1/profile/real-name (SubmitRealNameRequest) returns (SubmitRealNameResponse)
 
+	@handler UpdateProfileHandler
+	post /api/passenger/v1/profile/update (UpdateProfileRequest) returns (UpdateProfileResponse)
+
 	@handler CreateOrderHandler
 	post /api/passenger/v1/orders/create (CreateOrderRequest) returns (CreateOrderResponse)
+
+	@handler EstimateOrderHandler
+	post /api/passenger/v1/orders/estimate (EstimateOrderRequest) returns (EstimateOrderResponse)
 
 	@handler ListOrdersHandler
 	post /api/passenger/v1/orders/list (ListOrdersRequest) returns (ListOrdersResponse)
