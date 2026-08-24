@@ -1,9 +1,9 @@
 syntax = "proto3";
 
 package driversvc;
+option go_package="./;proto";
 
-option go_package = "./;proto";
-
+// DriverStatus 司机账号状态枚举。
 enum DriverStatus {
   DRIVER_STATUS_UNSPECIFIED = 0;
   DRIVER_STATUS_PENDING = 1;
@@ -12,6 +12,7 @@ enum DriverStatus {
   DRIVER_STATUS_CANCELLED = 4;
 }
 
+// VehicleStatus 车辆状态枚举，对齐 driver_vehicle.status 字段。
 enum VehicleStatus {
   VEHICLE_STATUS_UNSPECIFIED = 0;
   VEHICLE_STATUS_PENDING = 1;
@@ -20,39 +21,25 @@ enum VehicleStatus {
 }
 
 service Driversvc {
-  rpc CreateDriver(CreateDriverRequest) returns (CreateDriverResponse);
-  rpc RegisterDriver(CreateDriverRequest) returns (CreateDriverResponse);
-  rpc UpdateDriver(UpdateDriverRequest) returns (UpdateDriverResponse);
-  rpc DeleteDriver(DeleteDriverRequest) returns (DeleteDriverResponse);
-  rpc GetDriver(GetDriverRequest) returns (GetDriverResponse);
-  rpc GetDriverByPhone(GetDriverByPhoneRequest) returns (GetDriverByPhoneResponse);
-
-  rpc SetDriverOnline(SetDriverOnlineRequest) returns (SetDriverOnlineResponse);
-  rpc SetDriverOffline(SetDriverOfflineRequest) returns (SetDriverOfflineResponse);
-  rpc ReportLocation(ReportLocationRequest) returns (ReportLocationResponse);
-  rpc SetDriverServiceStatus(SetDriverServiceStatusRequest) returns (SetDriverServiceStatusResponse);
-  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
-
-  rpc CreateVehicle(CreateVehicleRequest) returns (CreateVehicleResponse);
-  rpc UpdateVehicle(UpdateVehicleRequest) returns (UpdateVehicleResponse);
-  rpc DeleteVehicle(DeleteVehicleRequest) returns (DeleteVehicleResponse);
-  rpc GetVehicle(GetVehicleRequest) returns (GetVehicleResponse);
-
-  rpc ListDrivers(ListDriversRequest) returns (ListDriversResponse);
-  rpc Login(LoginRequest) returns (LoginResponse);
-  rpc LoginBySMS(LoginBySMSRequest) returns (LoginResponse);
-  rpc ListNearbyDrivers(ListNearbyDriversRequest) returns (ListNearbyDriversResponse);
-  rpc GetDriverAiScore(GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse);
-
-  rpc UploadCertification(UploadCertificationRequest) returns (UploadCertificationResponse);
-  rpc GetCertification(GetCertificationRequest) returns (GetCertificationResponse);
-  rpc ApproveCertification(AuditCertificationRequest) returns (CommonResponse);
-  rpc RejectCertification(AuditCertificationRequest) returns (CommonResponse);
-
-  rpc CreateWithdraw(CreateWithdrawRequest) returns (CreateWithdrawResponse);
-  rpc ListWithdraws(ListWithdrawsRequest) returns (ListWithdrawsResponse);
+  // 司机主表 CRUD（仅司机增删改查）
+  rpc CreateDriver(CreateDriverRequest) returns(CreateDriverResponse);
+  rpc UpdateDriver(UpdateDriverRequest) returns(UpdateDriverResponse);
+  rpc DeleteDriver(DeleteDriverRequest) returns(DeleteDriverResponse);
+  rpc GetDriver(GetDriverRequest) returns(GetDriverResponse);
+  // 分页查询司机基础资料，供管理后台只读展示。
+  rpc ListDrivers(ListDriversRequest) returns(ListDriversResponse);
+  // 车辆 CRUD（司机绑定车辆增删改查）
+  rpc CreateVehicle(CreateVehicleRequest) returns(CreateVehicleResponse);
+  rpc UpdateVehicle(UpdateVehicleRequest) returns(UpdateVehicleResponse);
+  rpc DeleteVehicle(DeleteVehicleRequest) returns(DeleteVehicleResponse);
+  rpc GetVehicle(GetVehicleRequest) returns(GetVehicleResponse);
+  // 审核通过司机资质。
+  rpc ApproveCertification(AuditCertificationRequest) returns(CommonResponse);
+  // 审核驳回司机资质。
+  rpc RejectCertification(AuditCertificationRequest) returns(CommonResponse);
 }
 
+// Driver 司机信息，对应 driver 表的完整记录。
 message Driver {
   int64 id = 1;
   string phone = 2;
@@ -65,6 +52,20 @@ message Driver {
   int64 created_at = 9;
   int64 updated_at = 10;
   int32 online_status = 11;
+}
+
+// ListDriversRequest 表示司机列表的分页与筛选条件。
+message ListDriversRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  optional DriverStatus status = 4;
+}
+
+// ListDriversResponse 返回司机列表和符合条件的总数。
+message ListDriversResponse {
+  repeated Driver drivers = 1;
+  int64 total = 2;
 }
 
 message CreateDriverRequest {
@@ -116,65 +117,7 @@ message GetDriverResponse {
   Driver driver = 1;
 }
 
-message SetDriverOnlineRequest {
-  int64 driver_id = 1;
-  string device_id = 2;
-  double longitude = 3;
-  double latitude = 4;
-}
-
-message SetDriverOnlineResponse {
-  int64 driver_id = 1;
-  int32 online_status = 2;
-  bool kicked = 3;
-}
-
-message SetDriverOfflineRequest {
-  int64 driver_id = 1;
-  string device_id = 2;
-  double longitude = 3;
-  double latitude = 4;
-}
-
-message SetDriverOfflineResponse {
-  int64 driver_id = 1;
-  int32 online_status = 2;
-  bool kicked = 3;
-}
-
-message ReportLocationRequest {
-  int64 driver_id = 1;
-  string device_id = 2;
-  double longitude = 3;
-  double latitude = 4;
-}
-
-message ReportLocationResponse {
-  int64 driver_id = 1;
-  int32 online_status = 2;
-  bool kicked = 3;
-  int64 report_time = 4;
-}
-
-message SetDriverServiceStatusRequest {
-  int64 driver_id = 1;
-  int32 online_status = 2;
-}
-
-message SetDriverServiceStatusResponse {
-  int64 driver_id = 1;
-  int32 online_status = 2;
-  int64 updated_at = 3;
-}
-
-message GetDriverByPhoneRequest {
-  string phone = 1;
-}
-
-message GetDriverByPhoneResponse {
-  Driver driver = 1;
-}
-
+// Vehicle 车辆信息，对应 driver_vehicle 表的完整记录。
 message Vehicle {
   int64 id = 1;
   int64 driver_id = 2;
@@ -246,120 +189,6 @@ message GetVehicleResponse {
   Vehicle vehicle = 1;
 }
 
-message ListDriversRequest {
-  int32 page = 1;
-  int32 page_size = 2;
-  optional DriverStatus status = 3;
-  string keyword = 4;
-}
-
-message ListDriversResponse {
-  repeated Driver drivers = 1;
-  int64 total = 2;
-}
-
-message LoginRequest {
-  string phone = 1;
-  string password = 2;
-}
-
-message LoginResponse {
-  string token = 1;
-  int64 expire_in = 2;
-  Driver driver = 3;
-}
-
-message LoginBySMSRequest {
-  string phone = 1;
-}
-
-message NearbyDriver {
-  int64 driver_id = 1;
-  double longitude = 2;
-  double latitude = 3;
-  int32 distance_meters = 4;
-}
-
-message ListNearbyDriversRequest {
-  double longitude = 1;
-  double latitude = 2;
-  double radius_meters = 3;
-  int32 limit = 4;
-}
-
-message ListNearbyDriversResponse {
-  repeated NearbyDriver drivers = 1;
-}
-
-message GetDriverAiScoreRequest {
-  int64 driver_id = 1;
-}
-
-message AiScoreFactor {
-  string key = 1;
-  string label = 2;
-  double value = 3;
-  string impact = 4;
-  string hint = 5;
-}
-
-message GetDriverAiScoreResponse {
-  int64 driver_id = 1;
-  double ai_score = 2;
-  int32 level = 3;
-  repeated AiScoreFactor factors = 4;
-  bool degraded = 5;
-  string degrade_reason = 6;
-}
-
-message UploadCertificationRequest {
-  int64 driver_id = 1;
-  int64 vehicle_id = 2;
-  string id_card_front = 3;
-  string id_card_back = 4;
-  string driver_license = 5;
-  string vehicle_license = 6;
-}
-
-message CertificationInfo {
-  int64 id = 1;
-  int64 driver_id = 2;
-  int64 vehicle_id = 3;
-  string id_card_front_url = 4;
-  string id_card_back_url = 5;
-  string driver_license_url = 6;
-  string vehicle_license_url = 7;
-  int32 audit_status = 8;
-  string audit_remark = 9;
-}
-
-message UploadCertificationResponse {
-  int64 id = 1;
-  CertificationInfo certification = 2;
-}
-
-message GetCertificationRequest {
-  int64 driver_id = 1;
-}
-
-message GetCertificationResponse {
-  CertificationInfo certification = 1;
-  bool found = 2;
-}
-
-message HeartbeatRequest {
-  int64 driver_id = 1;
-  string device_id = 2;
-  double longitude = 3;
-  double latitude = 4;
-}
-
-message HeartbeatResponse {
-  int32 online_status = 1;
-  bool kicked = 2;
-  int64 server_time = 3;
-}
-
 message AuditCertificationRequest {
   int64 certification_id = 1;
   string remark = 2;
@@ -369,43 +198,4 @@ message AuditCertificationRequest {
 
 message CommonResponse {
   string message = 1;
-}
-
-message CreateWithdrawRequest {
-  int64 driver_id = 1;
-  double amount = 2;
-  string payee_name = 3;
-  string pay_account = 4;
-}
-
-message CreateWithdrawResponse {
-  int64 id = 1;
-  string withdraw_no = 2;
-  int32 status = 3;
-  int64 created_at = 4;
-}
-
-message ListWithdrawsRequest {
-  int64 driver_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
-}
-
-message WithdrawRecord {
-  int64 id = 1;
-  int64 driver_id = 2;
-  string withdraw_no = 3;
-  double amount = 4;
-  string payee_name = 5;
-  string pay_account = 6;
-  int32 status = 7;
-  string remark = 8;
-  int64 applied_at = 9;
-  int64 paid_at = 10;
-  int64 created_at = 11;
-}
-
-message ListWithdrawsResponse {
-  repeated WithdrawRecord records = 1;
-  int64 total = 2;
 }

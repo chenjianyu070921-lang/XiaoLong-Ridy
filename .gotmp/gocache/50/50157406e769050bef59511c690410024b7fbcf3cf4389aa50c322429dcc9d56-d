@@ -1,9 +1,0 @@
-./agent.go
-./attributes.go
-./config.go
-./message.go
-./propagation.go
-./resource.go
-./tracer.go
-./utils.go
-./vars.go

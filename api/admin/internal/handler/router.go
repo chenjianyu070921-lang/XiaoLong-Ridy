@@ -72,6 +72,8 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/auth/logout", r.authRequired(r.handleLogout))
 	r.mux.HandleFunc("/admin/v1/auth/me", r.authRequired(r.handleMe))
 	r.mux.HandleFunc("/admin/v1/menus", r.authRequired(r.handleMenus))
+	r.mux.HandleFunc("/admin/v1/admins", r.authRequired(r.handleAdmins))
+	r.mux.HandleFunc("/admin/v1/admins/", r.authRequired(r.handleAdminByID))
 
 	r.mux.HandleFunc("/admin/v1/operation-logs", r.authRequired(r.handleOperationLogs))
 
@@ -205,6 +207,99 @@ func (r *Router) handleMenus(w http.ResponseWriter, req *http.Request) {
 	writeSuccess(w, map[string]any{"items": items})
 }
 
+// handleAdmins 处理超级管理员列表和新增接口。
+func (r *Router) handleAdmins(w http.ResponseWriter, req *http.Request) {
+	adminLogic := logic.NewAdminLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		query := req.URL.Query()
+		resp, err := adminLogic.List(req.Context(), types.AdminListRequest{
+			Page: intQuery(req, "page", 1), PageSize: intQuery(req, "page_size", 20),
+			Keyword: query.Get("keyword"), Role: int32Query(req, "role", 0), Status: int32Query(req, "status", 0),
+		})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body types.AdminSaveRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		admin, err := adminLogic.Create(req.Context(), body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, admin)
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handleAdminByID 处理管理员编辑、启停和重置密码。
+func (r *Router) handleAdminByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/admins/")
+	if !ok {
+		writeError(w, http.StatusBadRequest, 40001, "invalid admin id")
+		return
+	}
+	adminLogic := logic.NewAdminLogic(r.ctx)
+	session := sessionFromContext(req.Context())
+	switch action {
+	case "":
+		if req.Method != http.MethodPut {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.AdminSaveRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		admin, err := adminLogic.Update(req.Context(), id, body, session, clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, admin)
+	case "status":
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.AdminStatusRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		if err := adminLogic.SetStatus(req.Context(), id, body, session, clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
+	case "reset-password":
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.AdminPasswordResetRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		if err := adminLogic.ResetPassword(req.Context(), id, body, session, clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
+	default:
+		http.NotFound(w, req)
+	}
+}
+
 // handleOperationLogs 查询后台操作日志。
 func (r *Router) handleOperationLogs(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
@@ -260,6 +355,24 @@ func (r *Router) handleUserByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	userLogic := logic.NewUserLogic(r.ctx)
+	if req.Method == http.MethodGet && action == "orders" {
+		resp, err := userLogic.OrderHistory(req.Context(), id, intQuery(req, "page", 1), intQuery(req, "page_size", 20), int32Query(req, "status", 0))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
+	if req.Method == http.MethodGet && action == "coupons" {
+		resp, err := userLogic.CouponHistory(req.Context(), id, intQuery(req, "page", 1), intQuery(req, "page_size", 20), int32Query(req, "status", 0))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
 	if action == "" {
 		if req.Method != http.MethodGet {
 			writeMethodNotAllowed(w)

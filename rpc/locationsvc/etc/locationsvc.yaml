@@ -13,7 +13,7 @@ Mysql:
   MaxLifeTime: 3600
 
 myredis:
-  host: 127.0.0.1:6379
+  host: 115.191.16.159:6379
   pass: ""
   db: 0
   poolSize: 20

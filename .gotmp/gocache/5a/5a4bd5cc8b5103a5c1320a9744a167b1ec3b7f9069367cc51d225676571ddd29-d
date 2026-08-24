@@ -1,7 +1,0 @@
-./annotation.go
-./doc.go
-./endpoint.go
-./kind.go
-./span.go
-./span_id.go
-./traceid.go

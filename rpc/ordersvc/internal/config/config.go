@@ -11,6 +11,7 @@ type Config struct {
 
 	Mysql       MysqlConf          `yaml:"mysql" json:"mysql"`
 	Redis       cfg.RedisConf      `yaml:"myredis" json:"myredis"`
+	Kafka       cfg.KafkaConf      `yaml:"kafka" json:"kafka"`
 	DispatchRPC zrpc.RpcClientConf `yaml:"dispatchrpc" json:"dispatchrpc"`
 	PriceRPC    zrpc.RpcClientConf `yaml:"pricerpc" json:"pricerpc"`
 	PayRPC      zrpc.RpcClientConf `yaml:"payrpc" json:"payrpc"`

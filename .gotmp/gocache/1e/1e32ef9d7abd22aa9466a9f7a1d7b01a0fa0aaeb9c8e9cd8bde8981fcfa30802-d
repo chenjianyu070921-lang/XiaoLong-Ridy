@@ -1,5 +1,0 @@
-./atomicerror.go
-./batcherror.go
-./callchain.go
-./check.go
-./wrap.go

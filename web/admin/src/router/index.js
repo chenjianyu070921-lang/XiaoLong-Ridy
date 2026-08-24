@@ -11,11 +11,18 @@ const routes = [
     meta: { title: '登录' },
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/register/index.vue'),
+    meta: { title: '注册管理员' },
+  },
+  {
     path: '/',
     component: () => import('../layout/index.vue'),
     redirect: '/dashboard',
     children: [
       { path: 'dashboard', name: 'Dashboard', component: () => import('../views/console/index.vue'), meta: { title: '工作台', requiresAuth: true } },
+      { path: 'admins', name: 'AdminList', component: () => import('../views/admins/index.vue'), meta: { title: '管理员管理', requiresAuth: true, superAdminOnly: true } },
       {
         path: 'users',
         name: 'UserList',
@@ -34,6 +41,7 @@ const routes = [
         component: () => import('../views/console/index.vue'),
         meta: { title: '司机审核', requiresAuth: true },
       },
+      { path: 'drivers', name: 'DriverList', component: () => import('../views/console/index.vue'), meta: { title: '司机列表', requiresAuth: true } },
       {
         path: 'driver-certifications/:id',
         name: 'DriverCertDetail',
@@ -85,10 +93,13 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth && !store.isLoggedIn) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
+  if (to.meta.superAdminOnly && store.admin?.role !== 1) {
+    return { path: '/dashboard' }
+  }
   if (to.path === '/login' && store.isLoggedIn) {
     return { path: '/dashboard' }
   }
-  document.title = to.meta.title ? `${to.meta.title} - 小隆出行运营后台` : '小隆出行运营后台'
+  document.title = to.meta.title ? `${to.meta.title} - 花小龙出行运营后台` : '花小龙出行运营后台'
   return true
 })
 

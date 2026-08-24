@@ -1,8 +1,0 @@
-./fieldoptions.go
-./jsonunmarshaler.go
-./marshaler.go
-./tomlunmarshaler.go
-./unmarshaler.go
-./utils.go
-./valuer.go
-./yamlunmarshaler.go
