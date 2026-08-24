@@ -1,7 +1,0 @@
-./directbuilder.go
-./discovbuilder.go
-./etcdbuilder.go
-./kubebuilder.go
-./register_k8s.go
-./resolver.go
-./subset.go

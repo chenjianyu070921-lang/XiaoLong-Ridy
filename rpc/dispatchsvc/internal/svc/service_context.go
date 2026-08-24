@@ -9,6 +9,7 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/common/events"
+	"XiaoLong-Ridy/common/mq"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/config"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/engine"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/repository"
@@ -108,9 +109,16 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		dispatchEngine = engine.NewMockDispatchEngine()
 	}
 
+	// 事件总线：优先 Kafka（与支付模块 paysvc 对齐），brokers 未配置或生产者初始化失败时
+	// EventBus 保持 nil，发布失败仅告警日志（dispatch_order_logic 已做重试与可补偿日志）。
 	var eventBus events.Bus
-	if c.Redis.Host != "" {
-		eventBus = events.NewRedisStreamBus(redisClient, constants.OrderEventStream)
+	if len(c.Kafka.Brokers) > 0 {
+		p, err := mq.NewKafkaProducer(c.Kafka.Brokers)
+		if err != nil {
+			logx.Errorf("init kafka producer failed: %v", err)
+		} else {
+			eventBus = events.NewKafkaBus(p, nil)
+		}
 	}
 
 	return &ServiceContext{

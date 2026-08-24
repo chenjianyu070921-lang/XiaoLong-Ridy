@@ -1,6 +1,0 @@
-./alert+polyfill.go
-./metrics.go
-./remotewriter.go
-./task.go
-./topk.go
-./usage.go
