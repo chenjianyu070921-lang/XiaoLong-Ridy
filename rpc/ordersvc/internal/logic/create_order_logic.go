@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"strings"
+	"time"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/keyutil"
@@ -15,6 +17,7 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc/metadata"
 )
@@ -28,6 +31,38 @@ type CreateOrderLogic struct {
 // maxCreateOrderNoRetry 是订单号唯一索引冲突时的最大重试次数。
 // 每次重试均重新生成订单号，限制重试次数避免异常情况下无限循环。
 const maxCreateOrderNoRetry = 3
+
+// dispatchRetryTask 描述一次待重试的派单请求，与 DispatchOrderRequest 所需参数一一对应。
+// 序列化后作为 DispatchRetryQueueKey（Redis ZSet）的 member，由 job 服务扫描消费（P1-M4-2）。
+type dispatchRetryTask struct {
+	OrderId       int64   `json:"order_id"`
+	FromLongitude float64 `json:"from_longitude"`
+	FromLatitude  float64 `json:"from_latitude"`
+	CarType       int32   `json:"car_type"`
+	CityCode      string  `json:"city_code"`
+	Attempt       int     `json:"attempt"`
+}
+
+// enqueueDispatchRetry 将派单失败的订单写入延迟重试队列，退避间隔随尝试次数递增（5s/15s/45s）。
+// Redis 不可用或写入失败时仅记录错误，不阻塞下单主流程。
+func (l *CreateOrderLogic) enqueueDispatchRetry(task *dispatchRetryTask) {
+	if l.svcCtx.Redis == nil {
+		l.Logger.Errorf("dispatch retry queue disabled: redis not configured, order_id=%d", task.OrderId)
+		return
+	}
+	if task.Attempt > constants.MaxDispatchRetryAttempt {
+		l.Logger.Errorf("dispatch order %d retry exhausted (attempt=%d), keep in queue for manual intervention", task.OrderId, task.Attempt)
+		return
+	}
+	payload, _ := json.Marshal(task)
+	delay := time.Duration(5*int(math.Pow(3, float64(task.Attempt-1)))) * time.Second
+	score := float64(time.Now().Add(delay).Unix())
+	if err := l.svcCtx.Redis.ZAdd(l.ctx, constants.DispatchRetryQueueKey, redis.Z{Score: score, Member: string(payload)}).Err(); err != nil {
+		l.Logger.Errorf("enqueue dispatch retry failed, order_id=%d: %v", task.OrderId, err)
+		return
+	}
+	l.Logger.Errorf("dispatch order %d failed (attempt=%d), enqueued retry, next in %v", task.OrderId, task.Attempt, delay)
+}
 
 // NewCreateOrderLogic 创建订单逻辑对象。
 func NewCreateOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateOrderLogic {
@@ -104,6 +139,15 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 				CityCode:      in.CityCode,
 			}); err != nil {
 				l.Logger.Errorf("dispatch order %d failed: %v", order.Id, err)
+				// 派单失败补偿：写入延迟重试队列，由 job 扫描重试，避免订单永久卡在待接单（P1-M4-2）。
+				l.enqueueDispatchRetry(&dispatchRetryTask{
+					OrderId:       int64(order.Id),
+					FromLongitude: in.FromLongitude,
+					FromLatitude:  in.FromLatitude,
+					CarType:       in.CarType,
+					CityCode:      in.CityCode,
+					Attempt:       1,
+				})
 			}
 		}
 
@@ -190,9 +234,15 @@ func buildRideOrder(in *proto.CreateOrderRequest, estimatedPriceCents int64) *mo
 // defaultCityCode 兜底城市编码，与 api 网关默认值保持一致。
 const defaultCityCode = "110000"
 
-// estimatePriceSnapshot 调 pricesvc 落计价快照；客户端缺失或计价失败时降级为入参预估价格。
+// estimatePriceSnapshot 确定订单要保存的金额快照。
+// 乘客端已经根据用户优惠券计算并传入最终应付金额，订单服务必须优先保存该金额，
+// 不能再次用未携带优惠券信息的 pricesvc 结果覆盖，否则会导致下单和支付恢复为原价。
+// 只有调用方没有传入金额时，才使用 pricesvc 计算原始预估价作为兜底。
 func (l *CreateOrderLogic) estimatePriceSnapshot(in *proto.CreateOrderRequest) int64 {
-	if l.svcCtx.PriceClient == nil {
+	if in.EstimatedPriceCents > 0 {
+		return in.EstimatedPriceCents
+	}
+	if l.svcCtx == nil || l.svcCtx.PriceClient == nil {
 		return in.EstimatedPriceCents
 	}
 	cityCode := strings.TrimSpace(in.CityCode)

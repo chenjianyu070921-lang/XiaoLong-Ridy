@@ -115,6 +115,12 @@ func (h *CleanupHandler) RescheduleExpiredDispatches() error {
 	return nil
 }
 
+// RetryPendingDispatches 扫描派单失败延迟重试队列（dispatch:retry:orders）并重新派单（P1-M4-2）。
+// 下单时同步直派失败会入队，本任务负责补偿消费；成功移除、失败按指数退避重排。
+func (h *CleanupHandler) RetryPendingDispatches() error {
+	return task.NewTask(h.svcCtx).RetryPendingDispatches(50)
+}
+
 // redispatchOrder 拉取订单详情并触发派单（幂等重派）。
 func (h *CleanupHandler) redispatchOrder(orderID int64) error {
 	orderInfo, err := h.svcCtx.OrderClient.GetOrder(context.Background(), &order.GetOrderRequest{

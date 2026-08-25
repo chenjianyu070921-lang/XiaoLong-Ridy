@@ -121,7 +121,11 @@ MySQL:
   DSN: ""
 Cache:
   Host: 115.191.16.159:6379
+<<<<<<< HEAD
   Password: "4ay1nkal3u8ed77y"
+=======
+  Password: ""
+>>>>>>> origin/develop
   DB: 0
 Session:
   SessionTTLHours: 24

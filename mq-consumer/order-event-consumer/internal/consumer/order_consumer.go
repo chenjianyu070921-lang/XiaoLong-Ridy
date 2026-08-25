@@ -7,7 +7,7 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/svc"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
-	order 	"XiaoLong-Ridy/rpc/ordersvc/orderclient"
+	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 )
 
 // OrderCreatedEvent 与 ordersvc 发布的事件字段保持一致。
@@ -37,12 +37,18 @@ func NewOrderConsumer(svcCtx *svc.ServiceContext) *OrderConsumer {
 	return &OrderConsumer{svcCtx: svcCtx}
 }
 
-// Start 阻塞消费订单事件流。
+// Start 阻塞消费订单事件流（P1-M4-11）。
+// 与支付模块对齐改用 Kafka：单消费者组订阅全部事件 topic，
+// 由 Kafka 消费组机制保证消息不重复投递（partition 级别 exactly-once-in-order），
+// 在 handler 内按 topic 分发到对应处理函数，避免拆多个消费组互相抢分区。
 func (c *OrderConsumer) Start(ctx context.Context) error {
-	return c.svcCtx.EventBus.Consume(ctx, "orderclient-event-consumer", c.handle)
+	const group = "orderclient-event-consumer"
+	return c.svcCtx.EventBus.Consume(ctx, group, c.dispatchHandler,
+		constants.TopicOrderCreated, constants.TopicDispatchNew, constants.TopicOrderPaid)
 }
 
-func (c *OrderConsumer) handle(ctx context.Context, topic string, payload []byte) error {
+// dispatchHandler 按 topic 分发到对应事件处理函数；未知 topic 直接忽略（不阻塞消费）。
+func (c *OrderConsumer) dispatchHandler(ctx context.Context, topic string, payload []byte) error {
 	switch topic {
 	case constants.TopicOrderCreated:
 		return c.handleOrderCreated(ctx, payload)

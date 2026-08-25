@@ -3,6 +3,8 @@ package engine
 import (
 	"context"
 	"testing"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // TestGeoDispatchEngineMockFallbackDisabled 验证默认（EnableMockDispatch=false）
@@ -40,5 +42,41 @@ func TestGeoDispatchEngineMockFallbackEnabled(t *testing.T) {
 	}
 	if len(candidates) == 0 {
 		t.Fatal("FindCandidates() should fallback to mock candidates when enableMock=true")
+	}
+}
+
+// TestGeoDispatchEngineAvailabilityFilter 验证可用性过滤：
+// 只保留"在线且未忙碌"的司机（P1-M4-8）。
+func TestGeoDispatchEngineAvailabilityFilter(t *testing.T) {
+	eng := &geoDispatchEngine{
+		availability: func(_ context.Context, driverID uint64) (online, busy bool) {
+			switch driverID {
+			case 1: // 在线且空闲 → 保留
+				return true, false
+			case 2: // 在线但忙碌 → 剔除
+				return true, true
+			case 3: // 离线 → 剔除
+				return false, false
+			default:
+				return true, false
+			}
+		},
+	}
+	locs := []redis.GeoLocation{
+		{Name: "1"}, {Name: "2"}, {Name: "3"},
+	}
+	filtered := eng.filterAvailable(context.Background(), locs)
+	if len(filtered) != 1 || filtered[0].Name != "1" {
+		t.Fatalf("filterAvailable() = %+v, want only driver 1", filtered)
+	}
+}
+
+// TestGeoDispatchEngineAvailabilityNil 验证未注入 availability 时原样返回（兼容旧行为）。
+func TestGeoDispatchEngineAvailabilityNil(t *testing.T) {
+	eng := &geoDispatchEngine{}
+	locs := []redis.GeoLocation{{Name: "1"}, {Name: "2"}}
+	filtered := eng.filterAvailable(context.Background(), locs)
+	if len(filtered) != 2 {
+		t.Fatalf("filterAvailable() with nil availability len = %d, want 2", len(filtered))
 	}
 }

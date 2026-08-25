@@ -3,17 +3,23 @@ ListenOn: 0.0.0.0:8083
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 myredis:
-  host: 127.0.0.1:6379
+  host: 115.191.16.159:6379
   pass: ""
   db: 0
   poolSize: 20
   dialTimeout: 0
   readTimeout: 0
   writeTimeout: 0
+kafka:
+  brokers:
+    - 115.191.16.159:9092
 # 是否允许 GEO 查不到司机时回退 mock 候选（仅联调演示用，默认关闭）
 enableMockDispatch: false
 # 派单超时阈值（秒），超过仍未接单的 Pending 记录视为超时并可重派
 dispatchTimeoutSeconds: 60
+# 派单前复核订单状态的订单服务地址（P0-M4-1）
+orderrpc:
+  Target: 127.0.0.1:50051
 Etcd:
   Hosts:
   - 127.0.0.1:2379

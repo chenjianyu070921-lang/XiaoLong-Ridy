@@ -50,6 +50,7 @@ Thumbs.db
 desktop.ini
 .tmp-gocache/
 .gotmp/
+<<<<<<< HEAD
 gocache/
 
 # Admin 前端与后台本地运行生成物
@@ -57,3 +58,6 @@ web/admin/node_modules/
 web/admin/.vite/
 web/admin/dist-admin-preview/
 rpc/adminsvc/.tmp-admin-exports/
+=======
+gocache/gotmp/
+>>>>>>> origin/develop

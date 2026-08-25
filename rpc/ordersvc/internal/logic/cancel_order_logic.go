@@ -91,6 +91,11 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		return nil, ErrOrderStatusNotCancelable
 	}
 
+	// 已接单订单取消时，司机恢复可接单状态（P1-M4-8）。
+	if order.DriverId > 0 {
+		unmarkDriverBusy(l.ctx, l.svcCtx, order.DriverId)
+	}
+
 	// 取消成功后同步失效该订单的待派单记录，避免残留 Pending 被重派任务重复处理。
 	syncCancelDispatch(l.ctx, l.svcCtx.DispatchClient, order.Id, reason)
 
@@ -116,11 +121,11 @@ func canCancelStatus(status int8) bool {
 }
 
 // canCancelByOperator 校验取消方是否有权取消该订单。
-// 已接单（ACCEPTED）后，普通用户取消先拒绝（违约金/客服取消策略后续版本补充）。
+// 未进入行程前允许乘客取消；进入行程后需由客服或系统处理。
 func canCancelByOperator(order *model.RideOrder, operatorType string, operatorID int64) bool {
 	switch operatorType {
 	case constants.OperatorUser:
-		return order.UserId == uint64(operatorID) && order.Status == constants.OrderStatusWaitAccept
+		return order.UserId == uint64(operatorID) && (order.Status == constants.OrderStatusWaitAccept || order.Status == constants.OrderStatusAccepted)
 	case constants.OperatorDriver:
 		return order.Status == constants.OrderStatusAccepted && order.DriverId == uint64(operatorID)
 	case constants.OperatorSystem, constants.OperatorAdmin:

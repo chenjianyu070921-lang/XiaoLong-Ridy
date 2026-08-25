@@ -1,5 +1,0 @@
-./interface.go
-./podschedulingcontext.go
-./resourceclaim.go
-./resourceclaimtemplate.go
-./resourceclass.go

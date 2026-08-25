@@ -2,12 +2,18 @@ package task
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math"
+	"strconv"
 	"time"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/job/internal/svc"
+	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -117,6 +123,83 @@ func (t *Task) DailyReport() error {
 
 	logx.Infof("每日报表(%s): 订单总数=%d 已完成=%d 已取消=%d 其他=%d",
 		report.ReportDate, total, completed, cancelled, other)
+	return nil
+}
+
+// dispatchRetryTask 与 ordersvc 入队结构保持一致（JSON tag 相同）。
+// 序列化格式变更时需同步 rpc/ordersvc/internal/logic/create_order_logic.go（P1-M4-2）。
+type dispatchRetryTask struct {
+	OrderId       int64   `json:"order_id"`
+	FromLongitude float64 `json:"from_longitude"`
+	FromLatitude  float64 `json:"from_latitude"`
+	CarType       int32   `json:"car_type"`
+	CityCode      string  `json:"city_code"`
+	Attempt       int     `json:"attempt"`
+}
+
+// RetryPendingDispatches 扫描派单失败延迟重试队列（dispatch:retry:orders），
+// 对已到期任务重新调用派单服务：成功移除、失败按指数退避（5s/15s/45s）重排（P1-M4-2）。
+// 超过最大尝试次数后保留在队列（score 延后 1h），由告警/人工介入，避免死循环。
+// max 限制单轮处理条数，防止积压时一次性拉取过多。
+func (t *Task) RetryPendingDispatches(max int) error {
+	if t.svcCtx.Redis == nil {
+		return fmt.Errorf("redis not configured")
+	}
+	if max <= 0 {
+		max = 50
+	}
+	ctx := context.Background()
+	items, err := t.svcCtx.Redis.ZRangeByScore(ctx, constants.DispatchRetryQueueKey, &redis.ZRangeBy{
+		Min:   "-inf",
+		Max:   strconv.FormatInt(time.Now().Unix(), 10),
+		Count: int64(max),
+	}).Result()
+	if err != nil {
+		return fmt.Errorf("读取派单重试队列失败: %w", err)
+	}
+
+	done := 0
+	for _, member := range items {
+		var item dispatchRetryTask
+		if err := json.Unmarshal([]byte(member), &item); err != nil {
+			// 脏数据直接移除并告警，避免阻塞队列。
+			_ = t.svcCtx.Redis.ZRem(ctx, constants.DispatchRetryQueueKey, member).Err()
+			logx.Errorf("解析派单重试任务失败，已丢弃: %s err=%v", member, err)
+			continue
+		}
+		if _, err := t.svcCtx.DispatchClient.DispatchOrder(ctx, &dispatch.DispatchOrderRequest{
+			OrderId:       item.OrderId,
+			FromLongitude: item.FromLongitude,
+			FromLatitude:  item.FromLatitude,
+			CarType:       item.CarType,
+			CityCode:      item.CityCode,
+		}); err != nil {
+			next := &dispatchRetryTask{
+				OrderId: item.OrderId, FromLongitude: item.FromLongitude,
+				FromLatitude: item.FromLatitude, CarType: item.CarType,
+				CityCode: item.CityCode, Attempt: item.Attempt + 1,
+			}
+			payload, _ := json.Marshal(next)
+			if next.Attempt > constants.MaxDispatchRetryAttempt {
+				// 重试次数耗尽：延后 1h 再暴露，避免每轮都触发，供告警/人工介入。
+				_ = t.svcCtx.Redis.ZAdd(ctx, constants.DispatchRetryQueueKey, redis.Z{
+					Score: float64(time.Now().Add(time.Hour).Unix()), Member: string(payload),
+				}).Err()
+				logx.Errorf("派单补偿重试次数耗尽, order_id=%d attempt=%d, 保留队列待人工介入: %v", item.OrderId, next.Attempt, err)
+				continue
+			}
+			delay := time.Duration(5*int(math.Pow(3, float64(next.Attempt-1)))) * time.Second
+			_ = t.svcCtx.Redis.ZAdd(ctx, constants.DispatchRetryQueueKey, redis.Z{
+				Score: float64(time.Now().Add(delay).Unix()), Member: string(payload),
+			}).Err()
+			logx.Errorf("派单补偿重试失败, order_id=%d attempt=%d, 下次 %v 后重试: %v", item.OrderId, next.Attempt, delay, err)
+			continue
+		}
+		_ = t.svcCtx.Redis.ZRem(ctx, constants.DispatchRetryQueueKey, member).Err()
+		done++
+		logx.Infof("派单补偿成功, order_id=%d", item.OrderId)
+	}
+	logx.Infof("派单补偿扫描完成: 拉取 %d 条, 成功 %d 条", len(items), done)
 	return nil
 }
 

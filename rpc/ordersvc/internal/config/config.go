@@ -11,7 +11,7 @@ type Config struct {
 
 	Mysql       MysqlConf          `yaml:"mysql" json:"mysql"`
 	Redis       cfg.RedisConf      `yaml:"myredis" json:"myredis"`
-	Kafka       KafkaConf          `yaml:"kafka" json:"kafka"`
+	Kafka       cfg.KafkaConf      `yaml:"kafka" json:"kafka"`
 	DispatchRPC zrpc.RpcClientConf `yaml:"dispatchrpc" json:"dispatchrpc"`
 	PriceRPC    zrpc.RpcClientConf `yaml:"pricerpc" json:"pricerpc"`
 	PayRPC      zrpc.RpcClientConf `yaml:"payrpc" json:"payrpc"`
@@ -22,10 +22,4 @@ type Config struct {
 
 type MysqlConf struct {
 	DSN string `yaml:"dsn" json:"dsn"`
-}
-
-type KafkaConf struct {
-	Brokers []string `yaml:"brokers" json:"brokers"`
-	Topic   string   `yaml:"topic" json:"topic"`
-	Group   string   `yaml:"group" json:"group"`
 }

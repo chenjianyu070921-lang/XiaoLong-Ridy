@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,8 +37,8 @@ func main() {
 		}
 	}()
 
-	fmt.Println("Starting orderclient-event-consumer...")
-	fmt.Println("消费订单事件流: orderclient:event:stream")
+	logx.Info("Starting orderclient-event-consumer...")
+	logx.Info("消费订单事件流: orderclient:event:stream")
 	<-ctx.Done()
-	fmt.Println("orderclient-event-consumer stopped")
+	logx.Info("orderclient-event-consumer stopped")
 }

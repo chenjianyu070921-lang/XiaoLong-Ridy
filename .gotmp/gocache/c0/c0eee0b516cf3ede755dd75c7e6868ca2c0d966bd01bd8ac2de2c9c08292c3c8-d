@@ -1,5 +1,0 @@
-./counter.go
-./gauge.go
-./histogram.go
-./metric.go
-./summary.go

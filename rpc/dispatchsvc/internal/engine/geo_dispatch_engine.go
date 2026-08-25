@@ -16,6 +16,10 @@ import (
 // 返回评分(rating, 0~5)与完单率(completion, 0~1)。查询失败或缺失时返回零值，引擎降级为默认权重。
 type DriverScoreProvider func(ctx context.Context, driverID uint64) (rating float64, completion float64)
 
+// DriverAvailability 返回司机的在线与忙碌状态，用于派单候选过滤（P1-M4-8）。
+// 在线集合由 location-consumer 位置上报写入；忙碌集合由订单状态机维护。
+type DriverAvailability func(ctx context.Context, driverID uint64) (online, busy bool)
+
 // geoDispatchEngine 基于 Redis GEO 的派单引擎：查附近司机并按距离/评分加权。
 type geoDispatchEngine struct {
 	rdb  *redis.Client
@@ -24,6 +28,8 @@ type geoDispatchEngine struct {
 	enableMock bool
 	// scoreProvider 真实司机评分查询，nil 时评分权重使用默认值。
 	scoreProvider DriverScoreProvider
+	// availability 司机可用性过滤，nil 时不过滤（兼容旧行为/单测）。
+	availability DriverAvailability
 }
 
 // NewGeoDispatchEngine 创建 Redis GEO 派单引擎。
@@ -44,6 +50,14 @@ func NewGeoDispatchEngineWithMock(rdb *redis.Client, city string, enableMock boo
 func NewGeoDispatchEngineWithScore(rdb *redis.Client, city string, enableMock bool, p DriverScoreProvider) DispatchEngine {
 	e := NewGeoDispatchEngineWithMock(rdb, city, enableMock).(*geoDispatchEngine)
 	e.scoreProvider = p
+	return e
+}
+
+// NewGeoDispatchEngineWithScoreAndAvailability 创建 Redis GEO 派单引擎，同时注入真实司机评分与可用性过滤。
+// availability 为 nil 时仅做评分注入，行为与 NewGeoDispatchEngineWithScore 一致。
+func NewGeoDispatchEngineWithScoreAndAvailability(rdb *redis.Client, city string, enableMock bool, p DriverScoreProvider, a DriverAvailability) DispatchEngine {
+	e := NewGeoDispatchEngineWithScore(rdb, city, enableMock, p).(*geoDispatchEngine)
+	e.availability = a
 	return e
 }
 
@@ -101,6 +115,11 @@ func (e *geoDispatchEngine) FindCandidates(ctx context.Context, _ uint64, fromLo
 	for _, loc := range byID {
 		locs = append(locs, loc)
 	}
+	locs = e.filterAvailable(ctx, locs)
+	if len(locs) == 0 {
+		// 附近司机均不可用：真实派单返回空候选，不触发 mock 回退（mock 会绕过可用性校验）。
+		return nil, nil
+	}
 	sort.Slice(locs, func(i, j int) bool { return locs[i].Dist < locs[j].Dist })
 
 	candidates := make([]Candidate, 0, len(locs))
@@ -116,6 +135,24 @@ func (e *geoDispatchEngine) FindCandidates(ctx context.Context, _ uint64, fromLo
 		candidates = append(candidates, Candidate{DriverID: mustParseID(loc.Name), MatchScore: score})
 	}
 	return candidates, nil
+}
+
+// filterAvailable 剔除不在线/已忙碌的司机，避免把单派给不可接单的司机（P1-M4-8）。
+// availability 为 nil 时原样返回（兼容旧行为）。单个司机状态查询异常时该司机被过滤，
+// 由于 availability 内部已降级为默认值（fail-open），此处仅依赖注入函数的结果。
+func (e *geoDispatchEngine) filterAvailable(ctx context.Context, locs []redis.GeoLocation) []redis.GeoLocation {
+	if e.availability == nil {
+		return locs
+	}
+	filtered := locs[:0]
+	for _, loc := range locs {
+		online, busy := e.availability(ctx, mustParseID(loc.Name))
+		if !online || busy {
+			continue
+		}
+		filtered = append(filtered, loc)
+	}
+	return filtered
 }
 
 func mustParseID(name string) uint64 {

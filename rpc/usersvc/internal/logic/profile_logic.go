@@ -153,3 +153,55 @@ func realNameVerifier(svcCtx *svc.ServiceContext) (realname.Verifier, error) {
 	}
 	return svcCtx.RealNameVer, nil
 }
+
+// UpdateProfileLogic 处理乘客个人资料更新 RPC。
+type UpdateProfileLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+	logx.Logger
+}
+
+// NewUpdateProfileLogic 创建个人资料更新逻辑实例。
+func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdateProfileLogic {
+	return &UpdateProfileLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+}
+
+// UpdateProfile 更新乘客昵称与头像，空字段表示不修改。
+//
+// # 处理流程：
+// #  1. 参数校验（user_id 非空、昵称 <=20 字且允许特殊符号）
+// #  2. 查询现有用户并应用非空字段的更新
+// #  3. 持久化后返回更新后的用户基础资料
+func (l *UpdateProfileLogic) UpdateProfile(in *userproto.UpdateProfileRequest) (*userproto.UpdateProfileResponse, error) {
+	if in.GetUserId() == 0 {
+		return nil, userproto.ErrUserNotFound
+	}
+
+	if in.GetNickname() != "" {
+		nickname := strings.TrimSpace(in.GetNickname())
+		// 按字符（rune）计长，支持中文与特殊符号，限制 20 字以内。
+		if len([]rune(nickname)) > 20 {
+			return nil, userproto.ErrNicknameTooLong
+		}
+		in.Nickname = nickname
+	}
+
+	users, err := userRepository(l.svcCtx)
+	if err != nil {
+		return nil, err
+	}
+	user, err := users.FindByID(l.ctx, in.GetUserId())
+	if err != nil {
+		return nil, mapUserRepositoryError(err)
+	}
+	if in.GetNickname() != "" {
+		user.Nickname = in.GetNickname()
+	}
+	if in.GetAvatarUrl() != "" {
+		user.AvatarURL = in.GetAvatarUrl()
+	}
+	if err := users.Update(l.ctx, user); err != nil {
+		return nil, mapUserRepositoryError(err)
+	}
+	return &userproto.UpdateProfileResponse{User: toUserInfo(user)}, nil
+}
