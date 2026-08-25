@@ -16,6 +16,7 @@ type Poi struct {
 	Category  string    `gorm:"column:category;size:100"`
 	Distance  int       `gorm:"column:distance"`
 	Source    string    `gorm:"column:source;size:20;default:amap"`
+	City      string    `gorm:"column:city;size:20;index"` // 当前 POI 所属城市编码，用于隔离不同城市缓存。
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
 }
 
@@ -33,12 +34,16 @@ func NewPoiModel(db *gorm.DB) *PoiModel {
 }
 
 // SearchByName 按关键词模糊查缓存，按距离排序，取前 limit 条
-func (m *PoiModel) SearchByName(keyword string, limit int) ([]Poi, error) {
+func (m *PoiModel) SearchByName(keyword, city string, limit int) ([]Poi, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 	var list []Poi
-	err := m.db.Where("name LIKE ?", "%"+keyword+"%").
+	query := m.db.Where("name LIKE ?", "%"+keyword+"%")
+	if city != "" {
+		query = query.Where("city = ?", city)
+	}
+	err := query.
 		Order("distance ASC").
 		Limit(limit).
 		Find(&list).Error

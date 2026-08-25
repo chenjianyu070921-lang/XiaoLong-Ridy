@@ -37,6 +37,13 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/city/select',
+    name: 'CitySelect',
+    component: () => import('@/views/CitySelect.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  {
     path: '/home',
     name: 'Home',
     component: () => import('@/views/home/Home.vue'),

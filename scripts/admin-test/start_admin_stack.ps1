@@ -1,5 +1,5 @@
 # Starts the admin HTTP/RPC test stack for the admin module:
-#   driversvc (8080) -> adminsvc (8084) -> api/admin (8083)
+#   driversvc (8080) -> adminsvc (8084) -> api/admin (8717)
 #   dummy ordersvc placeholder (15051) keeps adminsvc startup dial happy
 #
 # NOTE: rpc/ordersvc is intentionally NOT started. Its Config struct has a
@@ -197,12 +197,12 @@ if (-not (Wait-TcpPort -Port 8084)) { Write-Host "ERROR: adminsvc did not start.
 $adminApi = Start-ServiceProcess -Name "admin-api" -Exe (Join-Path $binDir "admin-api.exe") `
     -ArgList @() -WorkingDir (Join-Path $RepoRoot "api\admin")
 
-Write-Host "Waiting for api/admin:8083 ..."
-if (-not (Wait-TcpPort -Port 8083)) { Write-Host "ERROR: api/admin did not start. See $logDir\admin-api.err.log" }
+Write-Host "Waiting for api/admin:8717 ..."
+if (-not (Wait-TcpPort -Port 8717)) { Write-Host "ERROR: api/admin did not start. See $logDir\admin-api.err.log" }
 
 Write-Host ""
 Write-Host "Admin test stack is up:"
-Write-Host "  api/admin   http://127.0.0.1:8083"
+Write-Host "  api/admin   http://127.0.0.1:8717"
 Write-Host "  adminsvc    grpc 127.0.0.1:8084"
 Write-Host "  driversvc   grpc 127.0.0.1:8080"
 Write-Host "  dummygrpc   grpc 127.0.0.1:15051 (ordersvc placeholder)"

@@ -280,6 +280,18 @@ func (s *AdminServiceServer) GetOrderStatistics(ctx context.Context, in *adminsv
 	return l.GetOrderStatistics(in)
 }
 
+// GetDriverStatistics 查询司机入驻、审核、完单、收入、提现和服务质量统计。
+func (s *AdminServiceServer) GetDriverStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.DriverStatisticsResponse, error) {
+	l := adminservicelogic.NewGetDriverStatisticsLogic(ctx, s.svcCtx)
+	return l.GetDriverStatistics(in)
+}
+
+// GetFinanceStatistics 查询支付、退款、结算、抽佣、司机收入和平台补贴统计。
+func (s *AdminServiceServer) GetFinanceStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.FinanceStatisticsResponse, error) {
+	l := adminservicelogic.NewGetFinanceStatisticsLogic(ctx, s.svcCtx)
+	return l.GetFinanceStatistics(in)
+}
+
 func (s *AdminServiceServer) GetCouponStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.CouponStatisticsResponse, error) {
 	l := adminservicelogic.NewGetCouponStatisticsLogic(ctx, s.svcCtx)
 	return l.GetCouponStatistics(in)
@@ -356,6 +368,11 @@ func (s *AdminServiceServer) ActWorkOrder(ctx context.Context, in *adminsvc.Work
 	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).ActWorkOrder(in)
 }
 
+// BatchActWorkOrders 批量执行后台工单状态流转。
+func (s *AdminServiceServer) BatchActWorkOrders(ctx context.Context, in *adminsvc.WorkOrderBatchActionRequest) (*adminsvc.WorkOrderBatchActionResponse, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).BatchActWorkOrders(in)
+}
+
 // AddWorkOrderEvidence 保存后台工单证据索引。
 func (s *AdminServiceServer) AddWorkOrderEvidence(ctx context.Context, in *adminsvc.WorkOrderEvidenceRequest) (*adminsvc.WorkOrderEvidence, error) {
 	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).AddWorkOrderEvidence(in)
@@ -384,4 +401,9 @@ func (s *AdminServiceServer) ReleaseBlacklist(ctx context.Context, in *adminsvc.
 func (s *AdminServiceServer) ListRiskHitRecords(ctx context.Context, in *adminsvc.RiskHitRecordListRequest) (*adminsvc.RiskHitRecordListResponse, error) {
 	l := adminservicelogic.NewListRiskHitRecordsLogic(ctx, s.svcCtx)
 	return l.ListRiskHitRecords(in)
+}
+
+func (s *AdminServiceServer) HandleRiskHitRecords(ctx context.Context, in *adminsvc.RiskHitActionRequest) (*adminsvc.RiskHitActionResponse, error) {
+	l := adminservicelogic.NewHandleRiskHitRecordsLogic(ctx, s.svcCtx)
+	return l.HandleRiskHitRecords(in)
 }

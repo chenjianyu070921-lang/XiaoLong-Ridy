@@ -49,7 +49,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	// 注入订单状态复核器：派单前确认订单仍为待接单，防止取消/超时订单被竞态派单（P0-M4-1）。
 	var orderStatusVerifier func(ctx context.Context, orderID int64) (int32, error)
 	if c.OrderRPC.Target != "" || len(c.OrderRPC.Endpoints) > 0 {
-		conn, err := zrpc.NewClient(c.OrderRPC)
+		c.OrderRPC.NonBlock = true
+		conn, err := zrpc.NewClient(c.OrderRPC, zrpc.WithNonBlock())
 		if err != nil {
 			panic(err)
 		}

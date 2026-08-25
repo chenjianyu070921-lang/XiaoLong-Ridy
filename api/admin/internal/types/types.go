@@ -518,6 +518,15 @@ type WorkOrderActionRequest struct {
 	Version           int32  `json:"version"`
 }
 
+// WorkOrderBatchActionRequest 表示后台工单批量流转请求体。
+type WorkOrderBatchActionRequest struct {
+	IDs               []int64 `json:"ids"`
+	Action            string  `json:"action"`
+	AssigneeID        int64   `json:"assignee_id"`
+	Content           string  `json:"content"`
+	ArbitrationResult string  `json:"arbitration_result"`
+}
+
 // WorkOrderEvidenceRequest 表示后台工单证据索引请求体。
 type WorkOrderEvidenceRequest struct {
 	EvidenceType string `json:"evidence_type"`
@@ -555,6 +564,15 @@ type RiskHitRecordDTO struct {
 	HitReason   string `json:"hit_reason"`
 	RequestID   string `json:"request_id"`
 	CreatedAt   string `json:"created_at"`
+}
+
+// RiskHitActionRequest 表示风控命中记录人工处置请求体。
+type RiskHitActionRequest struct {
+	IDs            []int64 `json:"ids"`
+	Action         string  `json:"action"`
+	Reason         string  `json:"reason"`
+	WorkOrderTitle string  `json:"work_order_title"`
+	Priority       int32   `json:"priority"`
 }
 
 // OperationLogListRequest 表示操作日志列表查询条件。
