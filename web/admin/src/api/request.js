@@ -2,7 +2,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 // 统一的后台 API 客户端：
-// - baseURL 走相对路径，由 Vite dev proxy 转发到 api/admin(8083)，规避 CORS
+// - baseURL 走相对路径，由 Vite dev proxy 转发到 api/admin(8717)，规避 CORS
 // - 请求拦截器注入 Bearer Token
 // - 响应拦截器解包 {code, message, data}，code!==0 统一报错，401/40004 跳登录
 const service = axios.create({

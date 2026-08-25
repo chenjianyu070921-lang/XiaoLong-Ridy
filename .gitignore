@@ -56,6 +56,7 @@ gocache/
 web/admin/node_modules/
 web/admin/.vite/
 web/admin/dist-admin-preview/
+.pnpm-store/
 rpc/adminsvc/.tmp-admin-exports/
 .gotmp-restore.zip
 .tmp-gocache-review/

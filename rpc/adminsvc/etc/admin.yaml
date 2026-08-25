@@ -5,10 +5,12 @@ Etcd:
   - 127.0.0.1:2379
   Key: admin.rpc
 MySQL:
-  DSN: "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
+  # 真实数据库连接串由环境变量 ADMINSVC_MYSQL_DSN 注入，禁止在此提交明文凭据。
+  DSN: ""
 Cache:
   Host: 115.191.16.159:6379
-  Password: "4ay1nkal3u8ed77y"
+  # 真实 Redis 密码由环境变量 ADMINSVC_REDIS_PASSWORD 注入，禁止在此提交明文凭据。
+  Password: ""
   DB: 0
 Session:
   SessionTTLHours: 24
@@ -52,6 +54,27 @@ MenuRoles:
     Path: /operation-logs
     Icon: ScrollText
     Perm: log:list
+  3:
+  - Name: 用户管理
+    Path: /users
+    Icon: User
+    Perm: user:list
+  - Name: 司机审核
+    Path: /driver-certifications
+    Icon: BadgeCheck
+    Perm: driver:audit
+  - Name: 订单监控
+    Path: /orders
+    Icon: ClipboardList
+    Perm: order:list
+  - Name: 操作日志
+    Path: /operation-logs
+    Icon: ScrollText
+    Perm: log:list
+  - Name: 投诉与申诉工单
+    Path: /work-orders
+    Icon: Document
+    Perm: work-order:list
 OrdersRPC:
   Target: 127.0.0.1:50051
   NonBlock: true

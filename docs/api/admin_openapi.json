@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:8083",
+      "url": "http://127.0.0.1:8717",
       "description": "本地 api/admin 网关"
     }
   ],

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -475,6 +476,20 @@ func TestRouter_AuthRoutesUseAdminSvc(t *testing.T) {
 			}
 			tc.assert(t)
 		})
+	}
+}
+
+// TestPermissionDeniedMessage 验证 403 响应能透出服务端具体原因，
+// 非 gRPC 错误或空消息时回退到通用文案。
+func TestPermissionDeniedMessage(t *testing.T) {
+	if got := permissionDeniedMessage(status.Error(codes.PermissionDenied, "登录失败次数过多，请稍后重试")); got != "登录失败次数过多，请稍后重试" {
+		t.Fatalf("want specific message, got %q", got)
+	}
+	if got := permissionDeniedMessage(errors.New("plain error")); got != "forbidden" {
+		t.Fatalf("want fallback message, got %q", got)
+	}
+	if got := permissionDeniedMessage(nil); got != "forbidden" {
+		t.Fatalf("want fallback message for nil, got %q", got)
 	}
 }
 

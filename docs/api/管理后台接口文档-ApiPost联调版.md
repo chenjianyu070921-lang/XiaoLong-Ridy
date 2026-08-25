@@ -2,7 +2,7 @@
 
 > 适用范围：`api/admin`（模块三：管理后台）
 >
-> 基础路径：`/admin/v1`，服务地址：`http://127.0.0.1:8083`
+> 基础路径：`/admin/v1`，服务地址：`http://127.0.0.1:8717`
 >
 > 生成日期：2026-08-20（对齐当前 `api/admin/internal/handler/router.go`、`rpc/adminsvc/admin.proto` 与全量路由冒烟测试）
 >
@@ -36,15 +36,15 @@
 
 | 服务 | 地址 | 说明 |
 | --- | --- | --- |
-| `api/admin` | `127.0.0.1:8083` | HTTP 网关（ApiPost 只调这个） |
+| `api/admin` | `127.0.0.1:8717` | HTTP 网关（ApiPost 只调这个） |
 | `rpc/adminsvc` | `127.0.0.1:8084` | 后台业务 RPC |
 | `rpc/driversvc` | `127.0.0.1:8080` | 司机认证审核 RPC |
-| `rpc/ordersvc` | `127.0.0.1:8082` | 后台取消订单下游 RPC |
+| `rpc/ordersvc` | `127.0.0.1:50051` | 后台取消订单下游 RPC |
 
 验证服务可用：
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8083/healthz
+Invoke-RestMethod http://127.0.0.1:8717/healthz
 # 期望 {"code":0,"message":"ok"}
 ```
 
@@ -85,7 +85,7 @@ Start-Process ..\..\.gotmp\bin\admin-api.exe -WorkingDirectory "C:\Users\21848\D
 
 1. ApiPost 左侧“接口管理” → 导入 → 选择 **OpenAPI**，导入 `docs/api/admin_openapi.json`，自动生成全部接口目录。
 2. 新建环境变量：
-   - `baseUrl = http://127.0.0.1:8083`
+   - `baseUrl = http://127.0.0.1:8717`
    - `token = <登录接口返回的 token>`
 3. 全局 Header：`Authorization: Bearer {{token}}`、`Content-Type: application/json`（登录/注册接口不需要 Authorization）。
 4. 先调 `POST /admin/v1/auth/login`（body `{"username":"admin","password":"123456"}`），把返回的 `data.token` 填入环境变量 `token`，然后按模块逐个测试。

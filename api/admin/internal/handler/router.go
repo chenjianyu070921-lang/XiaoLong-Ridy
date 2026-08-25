@@ -1241,6 +1241,10 @@ func (r *Router) handleRiskHitRecordActions(w http.ResponseWriter, req *http.Req
 // 它只从 Authorization 头中读取 token，并调用 adminsvc 校验会话，Redis 访问统一收敛在 adminsvc。
 func (r *Router) authRequired(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		if err := validateNumericQueryParams(req); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, err.Error())
+			return
+		}
 		token := bearerToken(req.Header.Get("Authorization"))
 		if token == "" {
 			writeError(w, http.StatusUnauthorized, 40004, "token missing")
@@ -1276,7 +1280,7 @@ func (r *Router) writeAuthError(w http.ResponseWriter, err error) {
 	case status.Code(err) == codes.NotFound:
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case status.Code(err) == codes.PermissionDenied:
-		writeError(w, http.StatusForbidden, 40003, "forbidden")
+		writeError(w, http.StatusForbidden, 40003, permissionDeniedMessage(err))
 	case status.Code(err) == codes.Unauthenticated:
 		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
 	default:
@@ -1298,12 +1302,24 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 	case status.Code(err) == codes.NotFound:
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case status.Code(err) == codes.PermissionDenied:
-		writeError(w, http.StatusForbidden, 40003, "forbidden")
+		writeError(w, http.StatusForbidden, 40003, permissionDeniedMessage(err))
 	case status.Code(err) == codes.Unauthenticated:
 		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
 	default:
 		writeError(w, http.StatusInternalServerError, 50000, "system error")
 	}
+}
+
+// permissionDeniedMessage 提取 gRPC PermissionDenied 的服务端原因。
+// 返回空或非 gRPC 错误时使用通用文案，保证 403 响应始终给出可读原因。
+func permissionDeniedMessage(err error) string {
+	if err != nil {
+		s := status.Convert(err)
+		if s.Code() == codes.PermissionDenied && s.Message() != "" {
+			return s.Message()
+		}
+	}
+	return "forbidden"
 }
 
 // sessionContextKey 用于在 request context 中保存管理员会话。
@@ -1342,6 +1358,46 @@ func intQuery(req *http.Request, key string, defaultValue int) int {
 		return defaultValue
 	}
 	return parsed
+}
+
+// validateNumericQueryParams 统一校验后台接口中的数字查询参数。
+// 缺省值仍由各业务 handler 处理；一旦调用方显式传入非法数字或越界分页参数，直接返回参数错误，
+// 避免把拼写错误静默转换成无筛选查询。
+func validateNumericQueryParams(req *http.Request) error {
+	query := req.URL.Query()
+	for _, key := range []string{"page", "page_size", "role", "status", "admin_id", "target_id", "user_id", "driver_id", "audit_status", "type", "coupon_id", "car_type", "assignee_id", "work_order_type", "risk_level"} {
+		value, exists := query[key]
+		if !exists || len(value) == 0 || strings.TrimSpace(value[0]) == "" {
+			continue
+		}
+		// 发券任务状态使用 pending/processing/success/failed 字符串枚举，
+		// 不能套用其他列表接口的数字状态校验。
+		if key == "status" && strings.HasPrefix(req.URL.Path, "/admin/v1/coupon-issue-tasks") {
+			switch value[0] {
+			case "pending", "processing", "success", "failed":
+				continue
+			}
+		}
+		parsed, err := strconv.ParseInt(strings.TrimSpace(value[0]), 10, 64)
+		if err != nil {
+			return errors.New("invalid numeric query parameter: " + key)
+		}
+		switch key {
+		case "page":
+			if parsed < 1 {
+				return errors.New("page must be greater than zero")
+			}
+		case "page_size":
+			if parsed < 1 || parsed > 100 {
+				return errors.New("page_size must be between 1 and 100")
+			}
+		default:
+			if parsed < 0 {
+				return errors.New(key + " must not be negative")
+			}
+		}
+	}
+	return nil
 }
 
 // int32Query 读取 int32 查询参数。
@@ -1402,14 +1458,10 @@ func idAndActionFromPath(path, prefix string) (int64, string, bool) {
 	return 0, "", false
 }
 
-// clientIP 获取客户端 IP。
+// clientIP 获取客户端直连地址。
+// 当前服务未配置可信反向代理列表，因此不信任客户端可直接伪造的转发请求头，
+// 避免后台操作审计记录被伪造。部署层如接入可信代理，应在代理层完成地址标准化。
 func clientIP(req *http.Request) string {
-	if ip := req.Header.Get("X-Forwarded-For"); ip != "" {
-		return strings.TrimSpace(strings.Split(ip, ",")[0])
-	}
-	if ip := req.Header.Get("X-Real-IP"); ip != "" {
-		return strings.TrimSpace(ip)
-	}
 	host := req.RemoteAddr
 	if idx := strings.LastIndex(host, ":"); idx > 0 {
 		return host[:idx]
