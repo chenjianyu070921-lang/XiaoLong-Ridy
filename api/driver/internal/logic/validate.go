@@ -6,13 +6,16 @@ import (
 	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/types"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 )
 
 var (
-	ErrDriverClientNotConfigured = errors.New("driver client not configured")
-	ErrOrderClientNotConfigured  = errors.New("order client not configured")
-	ErrInvalidParam              = errors.New("invalid param")
-	ErrForbiddenDriverResource   = errors.New("forbidden driver resource")
+	ErrDriverClientNotConfigured      = errors.New("driver client not configured")
+	ErrOrderClientNotConfigured       = errors.New("order client not configured")
+	ErrReviewStorageNotConfigured     = errors.New("passenger review storage not configured")
+	ErrTrajectoryStorageNotConfigured = errors.New("trip trajectory storage not configured")
+	ErrInvalidParam                   = errors.New("invalid param")
+	ErrForbiddenDriverResource        = errors.New("forbidden driver resource")
 )
 
 const (
@@ -23,7 +26,7 @@ const (
 )
 
 var phoneRegexp = regexp.MustCompile(`^1[3-9]\d{9}$`)
-var vehiclePlateRegexp = regexp.MustCompile(`^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9挂学警港澳]$`)
+var vehiclePlateRegexp = regexp.MustCompile(`^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9挂学警港澳]$`)
 
 func validPhone(phone string) bool {
 	return phoneRegexp.MatchString(phone)
@@ -45,6 +48,28 @@ func validDriverStatus(status string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func enumVehicleStatus(status *string) *driversproto.VehicleStatus {
+	if status == nil || *status == "" {
+		return nil
+	}
+	value := strings.ToUpper(strings.TrimSpace(*status))
+	var mapped driversproto.VehicleStatus
+	switch value {
+	case "VEHICLE_STATUS_PENDING", "VEHICLE_STATUS_NORMAL", "VEHICLE_STATUS_DISABLED":
+		switch value {
+		case "VEHICLE_STATUS_PENDING":
+			mapped = driversproto.VehicleStatus_VEHICLE_STATUS_PENDING
+		case "VEHICLE_STATUS_NORMAL":
+			mapped = driversproto.VehicleStatus_VEHICLE_STATUS_NORMAL
+		case "VEHICLE_STATUS_DISABLED":
+			mapped = driversproto.VehicleStatus_VEHICLE_STATUS_DISABLED
+		}
+		return &mapped
+	default:
+		return nil
 	}
 }
 
@@ -73,6 +98,13 @@ func validRequiredLength(value string, max int) bool {
 
 func validOptionalLength(value string, max int) bool {
 	return len([]rune(strings.TrimSpace(value))) <= max
+}
+
+func validNearbyDriversQuery(longitude, latitude, radiusMeters float64, limit int32) bool {
+	return longitude >= -180 && longitude <= 180 &&
+		latitude >= -90 && latitude <= 90 &&
+		radiusMeters > 0 &&
+		limit > 0
 }
 
 func normalizeCreateDriverRequest(req *types.CreateDriverRequest) {

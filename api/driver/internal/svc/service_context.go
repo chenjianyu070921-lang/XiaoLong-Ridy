@@ -7,8 +7,11 @@ import (
 	"strings"
 	"time"
 
+	commonconfig "XiaoLong-Ridy/common/config"
+	"XiaoLong-Ridy/common/datasource"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
 	"github.com/redis/go-redis/v9"
@@ -31,7 +34,10 @@ type DriverClient interface {
 	Login(ctx context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error)
 	LoginBySMS(ctx context.Context, req *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error)
 	CreateVehicle(ctx context.Context, req *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error)
+	UpdateVehicle(ctx context.Context, req *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error)
+	DeleteVehicle(ctx context.Context, req *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error)
 	GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error)
+	ListNearbyDrivers(ctx context.Context, req *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error)
 	GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
 	UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error)
 	GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error)
@@ -99,8 +105,20 @@ func (g *grpcClient) CreateVehicle(ctx context.Context, req *driversproto.Create
 	return g.cli.CreateVehicle(ctx, req)
 }
 
+func (g *grpcClient) UpdateVehicle(ctx context.Context, req *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error) {
+	return g.cli.UpdateVehicle(ctx, req)
+}
+
+func (g *grpcClient) DeleteVehicle(ctx context.Context, req *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error) {
+	return g.cli.DeleteVehicle(ctx, req)
+}
+
 func (g *grpcClient) GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error) {
 	return g.cli.GetVehicle(ctx, req)
+}
+
+func (g *grpcClient) ListNearbyDrivers(ctx context.Context, req *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error) {
+	return g.cli.ListNearbyDrivers(ctx, req)
 }
 
 func (g *grpcClient) GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
@@ -127,6 +145,7 @@ type OrderClient interface {
 	GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error)
 	ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error)
 	AcceptOrder(ctx context.Context, req *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error)
+	CancelOrder(ctx context.Context, req *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error)
 	StartTrip(ctx context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error)
 	ConfirmArrive(ctx context.Context, req *orderproto.ConfirmArriveRequest) (*orderproto.ConfirmArriveResponse, error)
 	FinishTrip(ctx context.Context, req *orderproto.FinishTripRequest) (*orderproto.FinishTripResponse, error)
@@ -146,6 +165,10 @@ func (g *orderGRPCClient) ListOrders(ctx context.Context, req *orderproto.ListOr
 
 func (g *orderGRPCClient) AcceptOrder(ctx context.Context, req *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error) {
 	return g.cli.AcceptOrder(ctx, req)
+}
+
+func (g *orderGRPCClient) CancelOrder(ctx context.Context, req *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error) {
+	return g.cli.CancelOrder(ctx, req)
 }
 
 func (g *orderGRPCClient) StartTrip(ctx context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error) {
@@ -177,23 +200,45 @@ func (g *dispatchGRPCClient) ListDispatchRecords(ctx context.Context, req *dispa
 	return g.cli.ListDispatchRecords(ctx, req)
 }
 
+type LocationClient interface {
+	ReportLocation(ctx context.Context, req *locationproto.ReportLocationReq) (*locationproto.ReportLocationResp, error)
+}
+
+type locationGRPCClient struct {
+	cli locationproto.LocationServiceClient
+}
+
+func (g *locationGRPCClient) ReportLocation(ctx context.Context, req *locationproto.ReportLocationReq) (*locationproto.ReportLocationResp, error) {
+	return g.cli.ReportLocation(ctx, req)
+}
+
 type ServiceContext struct {
-	DriverClient   DriverClient
-	OrderClient    OrderClient
-	DispatchClient DispatchClient
-	SigningKey     string
-	CodeCache      CodeCache
-	RedisClient    *redis.Client
+	DriverClient         DriverClient
+	OrderClient          OrderClient
+	DispatchClient       DispatchClient
+	LocationClient       LocationClient
+	ReviewRepository     ReviewRepository
+	TrajectoryRepository TrajectoryRepository
+	SigningKey           string
+	CodeCache            CodeCache
+	RedisClient          *redis.Client
+	PushPollInterval     time.Duration
+	PushPollPageSize     int32
 }
 
 const defaultSigningKey = "local-development-signing-key"
 
 const defaultCodeTTL = 5 * time.Minute
 
-func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, redisAddr string) *ServiceContext {
+func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr string) *ServiceContext {
+	return NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, commonconfig.MysqlConf{})
+}
+
+func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr string, mysqlConf commonconfig.MysqlConf) *ServiceContext {
 	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	locationConn, locationErr := grpc.NewClient(locationGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	// 验证码缓存：配置了 Redis 地址则使用 Redis（多实例共享），否则回退本地内存（单实例联调）。
 	var codeCache CodeCache
@@ -218,6 +263,17 @@ func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, redisAdd
 	}
 	if dispatchErr == nil {
 		svcCtx.DispatchClient = &dispatchGRPCClient{cli: dispatchproto.NewDispatchClient(dispatchConn)}
+	}
+	if locationErr == nil {
+		svcCtx.LocationClient = &locationGRPCClient{cli: locationproto.NewLocationServiceClient(locationConn)}
+	}
+	if strings.TrimSpace(mysqlConf.Dsn) != "" {
+		db, err := datasource.NewMysqlClient(mysqlConf)
+		if err != nil {
+			panic("driver api mysql init failed: " + err.Error())
+		}
+		svcCtx.ReviewRepository = NewGormReviewRepository(db)
+		svcCtx.TrajectoryRepository = NewGormTrajectoryRepository(db)
 	}
 	return svcCtx
 }

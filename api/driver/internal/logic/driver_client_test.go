@@ -7,20 +7,28 @@ import (
 )
 
 type fakeDriverClient struct {
-	setOnlineRequest         *driversproto.SetDriverOnlineRequest
-	setOfflineRequest        *driversproto.SetDriverOfflineRequest
-	reportLocationRequest    *driversproto.ReportLocationRequest
-	serviceStatusRequests    []*driversproto.SetDriverServiceStatusRequest
-	loginRequest             *driversproto.LoginRequest
-	loginBySMSRequest        *driversproto.LoginBySMSRequest
-	createVehicleRequest     *driversproto.CreateVehicleRequest
-	getVehicleRequest        *driversproto.GetVehicleRequest
-	reportLocationResponse   *driversproto.ReportLocationResponse
-	setServiceStatusResponse *driversproto.SetDriverServiceStatusResponse
-	loginResponse            *driversproto.LoginResponse
-	loginBySMSResponse       *driversproto.LoginResponse
-	createVehicleResponse    *driversproto.CreateVehicleResponse
-	getVehicleResponse       *driversproto.GetVehicleResponse
+	setOnlineRequest            *driversproto.SetDriverOnlineRequest
+	setOfflineRequest           *driversproto.SetDriverOfflineRequest
+	reportLocationRequest       *driversproto.ReportLocationRequest
+	serviceStatusRequests       []*driversproto.SetDriverServiceStatusRequest
+	loginRequest                *driversproto.LoginRequest
+	loginBySMSRequest           *driversproto.LoginBySMSRequest
+	createVehicleRequest        *driversproto.CreateVehicleRequest
+	updateVehicleRequest        *driversproto.UpdateVehicleRequest
+	deleteVehicleRequest        *driversproto.DeleteVehicleRequest
+	getVehicleRequest           *driversproto.GetVehicleRequest
+	getDriverByPhoneRequest     *driversproto.GetDriverByPhoneRequest
+	nearbyDriversRequest        *driversproto.ListNearbyDriversRequest
+	reportLocationResponse      *driversproto.ReportLocationResponse
+	setServiceStatusResponse    *driversproto.SetDriverServiceStatusResponse
+	loginResponse               *driversproto.LoginResponse
+	loginBySMSResponse          *driversproto.LoginResponse
+	createVehicleResponse       *driversproto.CreateVehicleResponse
+	updateVehicleResponse       *driversproto.UpdateVehicleResponse
+	deleteVehicleResponse       *driversproto.DeleteVehicleResponse
+	getVehicleResponse          *driversproto.GetVehicleResponse
+	getDriverByPhoneResponse    *driversproto.GetDriverByPhoneResponse
+	nearbyDriversResponse       *driversproto.ListNearbyDriversResponse
 }
 
 func (f *fakeDriverClient) CreateDriver(context.Context, *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
@@ -36,10 +44,6 @@ func (f *fakeDriverClient) UpdateDriver(context.Context, *driversproto.UpdateDri
 }
 
 func (f *fakeDriverClient) GetDriver(context.Context, *driversproto.GetDriverRequest) (*driversproto.GetDriverResponse, error) {
-	return nil, nil
-}
-
-func (f *fakeDriverClient) GetDriverByPhone(context.Context, *driversproto.GetDriverByPhoneRequest) (*driversproto.GetDriverByPhoneResponse, error) {
 	return nil, nil
 }
 
@@ -127,6 +131,26 @@ func (f *fakeDriverClient) CreateVehicle(_ context.Context, req *driversproto.Cr
 	}, nil
 }
 
+func (f *fakeDriverClient) UpdateVehicle(_ context.Context, req *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error) {
+	f.updateVehicleRequest = req
+	if f.updateVehicleResponse != nil {
+		return f.updateVehicleResponse, nil
+	}
+	return &driversproto.UpdateVehicleResponse{
+		Id:        req.GetId(),
+		Status:    driversproto.VehicleStatus_VEHICLE_STATUS_NORMAL,
+		UpdatedAt: 456,
+	}, nil
+}
+
+func (f *fakeDriverClient) DeleteVehicle(_ context.Context, req *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error) {
+	f.deleteVehicleRequest = req
+	if f.deleteVehicleResponse != nil {
+		return f.deleteVehicleResponse, nil
+	}
+	return &driversproto.DeleteVehicleResponse{Id: req.GetId(), Success: true}, nil
+}
+
 func (f *fakeDriverClient) GetVehicle(_ context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error) {
 	f.getVehicleRequest = req
 	if f.getVehicleResponse != nil {
@@ -141,6 +165,35 @@ func (f *fakeDriverClient) GetVehicle(_ context.Context, req *driversproto.GetVe
 			Model:    "Han",
 			Status:   driversproto.VehicleStatus_VEHICLE_STATUS_PENDING,
 		},
+	}, nil
+}
+
+func (f *fakeDriverClient) GetDriverByPhone(_ context.Context, req *driversproto.GetDriverByPhoneRequest) (*driversproto.GetDriverByPhoneResponse, error) {
+	f.getDriverByPhoneRequest = req
+	if f.getDriverByPhoneResponse != nil {
+		return f.getDriverByPhoneResponse, nil
+	}
+	return &driversproto.GetDriverByPhoneResponse{
+		Driver: &driversproto.Driver{
+			Id:     25,
+			Phone:  req.GetPhone(),
+			Status: driversproto.DriverStatus_DRIVER_STATUS_NORMAL,
+		},
+	}, nil
+}
+
+func (f *fakeDriverClient) ListNearbyDrivers(_ context.Context, req *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error) {
+	f.nearbyDriversRequest = req
+	if f.nearbyDriversResponse != nil {
+		return f.nearbyDriversResponse, nil
+	}
+	return &driversproto.ListNearbyDriversResponse{
+		Drivers: []*driversproto.NearbyDriver{{
+			DriverId:       25,
+			Longitude:      req.GetLongitude(),
+			Latitude:       req.GetLatitude(),
+			DistanceMeters: 1200,
+		}},
 	}, nil
 }
 

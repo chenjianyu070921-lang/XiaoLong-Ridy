@@ -19,8 +19,8 @@ import (
 var (
 	// ErrDriverAuthFailed 表示账号或密码错误、账号不可用等登录失败。
 	ErrDriverAuthFailed = errors.New("账号或密码错误")
-	// ErrDriverFrozen 表示司机账号已被冻结或注销，不允许登录。
-	ErrDriverFrozen = errors.New("账号已被冻结或注销")
+	// ErrDriverFrozen 表示司机账号未审核通过、已冻结或注销，不允许登录。
+	ErrDriverFrozen = errors.New("账号未审核通过或已被冻结/注销")
 	// ErrCodeInvalid 表示验证码错误。
 	ErrCodeInvalid = errors.New("验证码错误")
 	// ErrCodeSendFailed 表示验证码生成失败。
@@ -113,7 +113,7 @@ func toLoginResponse(resp *driversproto.LoginResponse) *types.LoginResponse {
 func normalizeLoginError(err error) error {
 	st, ok := status.FromError(err)
 	if !ok {
-		if strings.Contains(err.Error(), "冻结") || strings.Contains(err.Error(), "注销") || strings.Contains(err.Error(), "blocked") {
+		if isDriverForbiddenLoginMessage(err.Error()) {
 			return ErrDriverFrozen
 		}
 		return ErrDriverAuthFailed
@@ -124,11 +124,19 @@ func normalizeLoginError(err error) error {
 	case codes.Unavailable:
 		return err
 	default:
-		if strings.Contains(st.Message(), "冻结") || strings.Contains(st.Message(), "注销") || strings.Contains(st.Message(), "blocked") {
+		if isDriverForbiddenLoginMessage(st.Message()) {
 			return ErrDriverFrozen
 		}
 		return ErrDriverAuthFailed
 	}
+}
+
+func isDriverForbiddenLoginMessage(message string) bool {
+	return strings.Contains(message, "未审核") ||
+		strings.Contains(message, "冻结") ||
+		strings.Contains(message, "注销") ||
+		strings.Contains(message, "blocked") ||
+		strings.Contains(message, "unavailable")
 }
 
 // driverClient 从服务上下文中安全取出 driversvc 客户端。

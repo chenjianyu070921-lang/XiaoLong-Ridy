@@ -11,6 +11,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/handler"
 	"XiaoLong-Ridy/api/driver/internal/middleware"
 	"XiaoLong-Ridy/api/driver/internal/svc"
+	commonconfig "XiaoLong-Ridy/common/config"
 
 	"gopkg.in/yaml.v3"
 )
@@ -24,14 +25,18 @@ const defaultOrderGRPCAddr = "127.0.0.1:50051"
 
 const defaultDispatchGRPCAddr = "127.0.0.1:8083"
 
+const defaultLocationGRPCAddr = "127.0.0.1:5056"
+
 const defaultRedisAddr = ""
 
 type driverConfig struct {
-	HTTPAddr         string `yaml:"httpAddr"`
-	DriverGRPCAddr   string `yaml:"driverGrpcAddr"`
-	OrderGRPCAddr    string `yaml:"orderGrpcAddr"`
-	DispatchGRPCAddr string `yaml:"dispatchGrpcAddr"`
-	RedisAddr        string `yaml:"redisAddr"`
+	HTTPAddr         string                 `yaml:"httpAddr"`
+	DriverGRPCAddr   string                 `yaml:"driverGrpcAddr"`
+	OrderGRPCAddr    string                 `yaml:"orderGrpcAddr"`
+	DispatchGRPCAddr string                 `yaml:"dispatchGrpcAddr"`
+	LocationGRPCAddr string                 `yaml:"locationGrpcAddr"`
+	RedisAddr        string                 `yaml:"redisAddr"`
+	Mysql            commonconfig.MysqlConf `yaml:"mysql"`
 }
 
 func main() {
@@ -46,9 +51,13 @@ func main() {
 	driverGRPCAddr := envOr("DRIVER_GRPC_ADDR", cfg.DriverGRPCAddr)
 	orderGRPCAddr := envOr("ORDER_GRPC_ADDR", cfg.OrderGRPCAddr)
 	dispatchGRPCAddr := envOr("DISPATCH_GRPC_ADDR", cfg.DispatchGRPCAddr)
+	locationGRPCAddr := envOr("LOCATION_GRPC_ADDR", cfg.LocationGRPCAddr)
 	redisAddr := envOr("DRIVER_REDIS_ADDR", cfg.RedisAddr)
+	if mysqlDSN := envOr("DRIVER_MYSQL_DSN", ""); mysqlDSN != "" {
+		cfg.Mysql.Dsn = mysqlDSN
+	}
 
-	svcCtx := svc.NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, redisAddr)
+	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, cfg.Mysql)
 	if err := svcCtx.ValidateSigningKey(); err != nil {
 		panic(fmt.Errorf("driver api signing key check: %w", err))
 	}
@@ -58,7 +67,7 @@ func main() {
 		Handler: newHTTPHandler(svcCtx),
 	}
 
-	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, dispatchsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, redisAddr)
+	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(fmt.Errorf("start driver api: %w", err))
 	}
@@ -70,6 +79,7 @@ func loadDriverConfig(path string) (driverConfig, error) {
 		DriverGRPCAddr:   defaultDriverGRPCAddr,
 		OrderGRPCAddr:    defaultOrderGRPCAddr,
 		DispatchGRPCAddr: defaultDispatchGRPCAddr,
+		LocationGRPCAddr: defaultLocationGRPCAddr,
 		RedisAddr:        defaultRedisAddr,
 	}
 	data, err := os.ReadFile(path)
@@ -94,6 +104,9 @@ func loadDriverConfig(path string) (driverConfig, error) {
 	if cfg.DispatchGRPCAddr == "" {
 		cfg.DispatchGRPCAddr = defaultDispatchGRPCAddr
 	}
+	if cfg.LocationGRPCAddr == "" {
+		cfg.LocationGRPCAddr = defaultLocationGRPCAddr
+	}
 	return cfg, nil
 }
 
@@ -116,6 +129,7 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/drivers", protected(methodSwitch("POST", handler.CreateDriverHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/update", protected(handler.UpdateDriverHandler(svcCtx)))
 	mux.Handle("/api/driver/v1/drivers/get", protected(handler.GetDriverHandler(svcCtx)))
+	mux.Handle("/api/driver/v1/drivers/by-phone", protected(methodSwitch("POST", handler.GetDriverByPhoneHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/delete", protected(handler.DeleteDriverHandler(svcCtx)))
 	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
@@ -126,15 +140,26 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/drivers/certification", protected(methodSwitch("GET", handler.GetCertificationHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/vehicles", protected(methodSwitch("POST", handler.CreateVehicleHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/vehicles/get", protected(methodSwitch("GET", handler.GetVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles/update", protected(methodSwitch("POST", handler.UpdateVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles/delete", protected(methodSwitch("POST", handler.DeleteVehicleHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/withdraws", protected(methodSwitch("POST", handler.CreateWithdrawHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/withdraws/list", protected(methodSwitch("POST", handler.ListWithdrawsHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/income/summary", protected(methodSwitch("GET", handler.GetIncomeSummaryHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/wallet/summary", protected(methodSwitch("GET", handler.GetIncomeSummaryHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/income/bills", protected(methodSwitch("POST", handler.ListIncomeBillsHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/accept", protected(methodSwitch("POST", handler.AcceptOrderHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/cancel", protected(methodSwitch("POST", handler.CancelOrderHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/reject", protected(methodSwitch("POST", handler.RejectOrderHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/dispatches", protected(methodSwitch("POST", handler.ListMyDispatchesHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/available", protected(methodSwitch("POST", handler.ListAvailableOrdersHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/list", protected(methodSwitch("POST", handler.ListMyOrdersHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/detail", protected(methodSwitch("POST", handler.GetMyOrderDetailHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/nearby", protected(methodSwitch("POST", handler.ListNearbyDriversHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/start-trip", protected(methodSwitch("POST", handler.StartTripHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/confirm-arrive", protected(methodSwitch("POST", handler.ConfirmArriveHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", handler.FinishTripHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/trajectory", protected(methodSwitch("POST", handler.GetTripTrajectoryHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/reviews/list", protected(methodSwitch("POST", handler.ListPassengerReviewsHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/ws", handler.DriverPushWSHandler(svcCtx))
 	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", handler.AgentChatHandler())))
 

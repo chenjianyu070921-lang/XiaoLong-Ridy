@@ -4,6 +4,7 @@ package logic
 import (
 	"context" // 用于在不同层之间传递请求上下文
 	"errors"  // 用于返回业务校验错误
+	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"          // 服务上下文，提供 driversvc 客户端
 	"XiaoLong-Ridy/api/driver/internal/types"        // API 层使用的请求/响应类型
@@ -242,6 +243,75 @@ func (l *DriverLogic) GetDriver(id int64) (*types.GetDriverResponse, error) {
 
 // maskIDCard 对身份证号做脱敏：保留前 4 位与后 2 位，中间以 * 代替。
 // 长度不足时直接返回原值，避免产生误导性的脱敏结果。
+func (l *DriverLogic) GetDriverByPhone(phone string) (*types.GetDriverByPhoneResponse, error) {
+	phone = strings.TrimSpace(phone)
+	if !validPhone(phone) {
+		return nil, errors.New("手机号码格式不合法")
+	}
+	client, err := l.driverClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.GetDriverByPhone(l.ctx, &driversproto.GetDriverByPhoneRequest{Phone: phone})
+	if err != nil {
+		return nil, err
+	}
+	d := resp.GetDriver()
+	if d == nil {
+		return nil, errors.New("司机不存在")
+	}
+	return &types.GetDriverByPhoneResponse{Driver: types.DriverDetail{
+		ID:              d.GetId(),
+		Phone:           jwtx.MaskPhone(d.GetPhone()),
+		RealName:        d.GetRealName(),
+		IdCardNo:        maskIDCard(d.GetIdCardNo()),
+		DriverLicenseNo: d.GetDriverLicenseNo(),
+		AvatarURL:       d.GetAvatarUrl(),
+		Status:          d.GetStatus().String(),
+		OnlineStatus:    int(d.GetOnlineStatus()),
+		CreatedAt:       d.GetCreatedAt(),
+		UpdatedAt:       d.GetUpdatedAt(),
+	}}, nil
+}
+
+func (l *DriverLogic) ListNearbyDrivers(req *types.ListNearbyDriversRequest) (*types.ListNearbyDriversResponse, error) {
+	if req == nil {
+		return nil, errors.New("请求参数不能为空")
+	}
+	if req.Limit <= 0 {
+		req.Limit = 20
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+	if !validNearbyDriversQuery(req.Longitude, req.Latitude, req.RadiusMeters, req.Limit) {
+		return nil, errors.New("附近司机查询参数不合法")
+	}
+	client, err := l.driverClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.ListNearbyDrivers(l.ctx, &driversproto.ListNearbyDriversRequest{
+		Longitude:    req.Longitude,
+		Latitude:     req.Latitude,
+		RadiusMeters: req.RadiusMeters,
+		Limit:        req.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]types.NearbyDriver, 0, len(resp.GetDrivers()))
+	for _, driver := range resp.GetDrivers() {
+		items = append(items, types.NearbyDriver{
+			DriverID:       driver.GetDriverId(),
+			Longitude:      driver.GetLongitude(),
+			Latitude:       driver.GetLatitude(),
+			DistanceMeters: driver.GetDistanceMeters(),
+		})
+	}
+	return &types.ListNearbyDriversResponse{Drivers: items}, nil
+}
+
 func maskIDCard(id string) string {
 	const keepHead, keepTail = 4, 2
 	if len(id) <= keepHead+keepTail {

@@ -10,13 +10,17 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/jwtx"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/net/websocket"
 )
 
 const (
-	pushAuthTimeout = 10 * time.Second
-	pushPingEvery   = 25 * time.Second
+	pushAuthTimeout  = 10 * time.Second
+	pushPingEvery    = 25 * time.Second
+	pushPollEvery    = 3 * time.Second
+	pushPollPageSize = 20
 )
 
 type wsAuthMessage struct {
@@ -31,6 +35,18 @@ type wsEnvelope struct {
 	Degraded   bool   `json:"degraded,omitempty"`
 	Message    string `json:"message,omitempty"`
 	ServerTime int64  `json:"serverTime,omitempty"`
+}
+
+type wsDispatchOrder struct {
+	Type                string `json:"type"`
+	OrderID             int64  `json:"orderId"`
+	OrderNo             string `json:"orderNo"`
+	FromAddress         string `json:"fromAddress"`
+	ToAddress           string `json:"toAddress"`
+	Status              int32  `json:"status"`
+	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
+	CreatedAt           int64  `json:"createdAt"`
+	ServerTime          int64  `json:"serverTime"`
 }
 
 func DriverPushWSHandler(svcCtx *svc.ServiceContext) http.Handler {
@@ -65,7 +81,7 @@ func serveDriverPushWS(conn *websocket.Conn, svcCtx *svc.ServiceContext) {
 		}); err != nil {
 			return
 		}
-		keepWSAlive(conn)
+		serveDriverPushLoop(conn, svcCtx, int64(claims.AccountID), nil, true)
 		return
 	}
 
@@ -86,31 +102,95 @@ func serveDriverPushWS(conn *websocket.Conn, svcCtx *svc.ServiceContext) {
 		return
 	}
 
+	serveDriverPushLoop(conn, svcCtx, int64(claims.AccountID), pubsub.Channel(), false)
+}
+
+func serveDriverPushLoop(conn *websocket.Conn, svcCtx *svc.ServiceContext, driverID int64, redisCh <-chan *redis.Message, degraded bool) {
 	done := make(chan struct{})
 	go drainWSReads(conn, done)
 
-	ticker := time.NewTicker(pushPingEvery)
-	defer ticker.Stop()
-	ch := pubsub.Channel()
+	pingTicker := time.NewTicker(pushPingEvery)
+	defer pingTicker.Stop()
+	pollTicker := time.NewTicker(resolvePushPollInterval(svcCtx))
+	defer pollTicker.Stop()
+	seenOrders := make(map[int64]struct{})
+
+	if !sendPolledDispatchOrders(conn, svcCtx, driverID, seenOrders) {
+		return
+	}
 	for {
 		select {
 		case <-done:
 			return
 		case <-conn.Request().Context().Done():
 			return
-		case msg, ok := <-ch:
+		case msg, ok := <-redisCh:
 			if !ok {
 				return
 			}
 			if err := websocket.Message.Send(conn, msg.Payload); err != nil {
 				return
 			}
-		case <-ticker.C:
-			if err := sendWSJSON(conn, wsEnvelope{Type: "ping", ServerTime: time.Now().Unix()}); err != nil {
+		case <-pollTicker.C:
+			if !sendPolledDispatchOrders(conn, svcCtx, driverID, seenOrders) {
+				return
+			}
+		case <-pingTicker.C:
+			if err := sendWSJSON(conn, wsEnvelope{Type: "ping", Degraded: degraded, ServerTime: time.Now().Unix()}); err != nil {
 				return
 			}
 		}
 	}
+}
+
+func sendPolledDispatchOrders(conn *websocket.Conn, svcCtx *svc.ServiceContext, driverID int64, seen map[int64]struct{}) bool {
+	if svcCtx == nil || svcCtx.OrderClient == nil || driverID <= 0 {
+		return true
+	}
+	pageSize := svcCtx.PushPollPageSize
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = pushPollPageSize
+	}
+	resp, err := svcCtx.OrderClient.ListOrders(conn.Request().Context(), &orderproto.ListOrdersRequest{
+		DriverId: driverID,
+		Status:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+		Page:     1,
+		PageSize: pageSize,
+	})
+	if err != nil {
+		return sendWSJSON(conn, wsEnvelope{Type: "push_poll_error", Degraded: true, Message: err.Error(), ServerTime: time.Now().Unix()}) == nil
+	}
+	for _, order := range resp.GetList() {
+		orderID := order.GetOrderId()
+		if orderID <= 0 {
+			continue
+		}
+		if _, ok := seen[orderID]; ok {
+			continue
+		}
+		seen[orderID] = struct{}{}
+		if err := sendWSJSON(conn, wsDispatchOrder{
+			Type:                "dispatch_order",
+			OrderID:             orderID,
+			OrderNo:             order.GetOrderNo(),
+			FromAddress:         order.GetFromAddress(),
+			ToAddress:           order.GetToAddress(),
+			Status:              int32(order.GetStatus()),
+			EstimatedPriceCents: order.GetEstimatedPriceCents(),
+			CreatedAt:           order.GetCreatedAt(),
+			ServerTime:          time.Now().Unix(),
+		}); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func resolvePushPollInterval(svcCtx *svc.ServiceContext) time.Duration {
+	if svcCtx != nil && svcCtx.PushPollInterval > 0 {
+		return svcCtx.PushPollInterval
+	}
+	return pushPollEvery
 }
 
 func authenticatePushConn(conn *websocket.Conn, svcCtx *svc.ServiceContext) (*jwtx.AccountClaims, error) {

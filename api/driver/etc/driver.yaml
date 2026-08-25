@@ -6,6 +6,12 @@ httpAddr: ":8082"
 driverGrpcAddr: "127.0.0.1:5055"
 orderGrpcAddr: "127.0.0.1:50051"
 dispatchGrpcAddr: "127.0.0.1:8083"
+locationGrpcAddr: "127.0.0.1:5056"
 # 验证码缓存 Redis 地址（可通过环境变量 DRIVER_REDIS_ADDR 覆盖）。
 # 配置后使用 Redis 存储短信验证码，支持多实例共享；留空则回退本地内存（仅限单实例联调）。
 redisAddr: "127.0.0.1:6379"
+mysql:
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  maxOpenConn: 100
+  maxIdleConn: 10
+  maxLifeTime: 3600

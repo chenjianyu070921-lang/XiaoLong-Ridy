@@ -67,7 +67,7 @@ func writeAuthError(w http.ResponseWriter, err error) {
 	case logic.ErrDriverAuthFailed:
 		writeError(w, http.StatusUnauthorized, 40102, "账号或密码错误")
 	case logic.ErrDriverFrozen:
-		writeError(w, http.StatusForbidden, 40301, "账号已被冻结或注销")
+		writeError(w, http.StatusForbidden, 40301, "账号未审核通过或已被冻结/注销")
 	case logic.ErrCodeInvalid:
 		writeError(w, http.StatusBadRequest, 41001, "验证码错误")
 	case logic.ErrDriverClientNotConfigured:

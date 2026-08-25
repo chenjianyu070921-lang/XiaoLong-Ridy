@@ -16,6 +16,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/jwtx"
+	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -80,6 +81,52 @@ func TestAgentChatEndpointRequiresDriverTokenAndRunsAgent(t *testing.T) {
 	}
 }
 
+type pollingOrderClient struct {
+	listOrdersRequest *orderproto.ListOrdersRequest
+}
+
+func (p *pollingOrderClient) GetOrder(context.Context, *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
+	return nil, nil
+}
+
+func (p *pollingOrderClient) ListOrders(_ context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
+	p.listOrdersRequest = req
+	return &orderproto.ListOrdersResponse{
+		List: []*orderproto.OrderSummary{{
+			OrderId:             1001,
+			OrderNo:             "NO-1001",
+			FromAddress:         "from",
+			ToAddress:           "to",
+			Status:              orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+			EstimatedPriceCents: 29900,
+			CreatedAt:           123,
+		}},
+		Total:    1,
+		Page:     req.GetPage(),
+		PageSize: req.GetPageSize(),
+	}, nil
+}
+
+func (p *pollingOrderClient) AcceptOrder(context.Context, *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error) {
+	return nil, nil
+}
+
+func (p *pollingOrderClient) CancelOrder(context.Context, *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error) {
+	return nil, nil
+}
+
+func (p *pollingOrderClient) StartTrip(context.Context, *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error) {
+	return nil, nil
+}
+
+func (p *pollingOrderClient) ConfirmArrive(context.Context, *orderproto.ConfirmArriveRequest) (*orderproto.ConfirmArriveResponse, error) {
+	return nil, nil
+}
+
+func (p *pollingOrderClient) FinishTrip(context.Context, *orderproto.FinishTripRequest) (*orderproto.FinishTripResponse, error) {
+	return nil, nil
+}
+
 func TestLoadDriverConfigReadsYamlAndEnvCanOverride(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "driver.yaml")
@@ -88,6 +135,7 @@ httpAddr: ":18082"
 driverGrpcAddr: "driversvc:5055"
 orderGrpcAddr: "ordersvc:50051"
 dispatchGrpcAddr: "dispatchsvc:8083"
+locationGrpcAddr: "locationsvc:5056"
 redisAddr: "redis:6379"
 `), 0o600); err != nil {
 		t.Fatal(err)
@@ -99,7 +147,7 @@ redisAddr: "redis:6379"
 	}
 	if cfg.HTTPAddr != ":18082" || cfg.DriverGRPCAddr != "driversvc:5055" ||
 		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.DispatchGRPCAddr != "dispatchsvc:8083" ||
-		cfg.RedisAddr != "redis:6379" {
+		cfg.LocationGRPCAddr != "locationsvc:5056" || cfg.RedisAddr != "redis:6379" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 
@@ -111,23 +159,130 @@ redisAddr: "redis:6379"
 
 func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "order-route-test-key"})
-	paths := []string{
-		"/api/driver/v1/vehicles",
-		"/api/driver/v1/vehicles/get?id=77",
-		"/api/driver/v1/orders/reject",
-		"/api/driver/v1/orders/dispatches",
-		"/api/driver/v1/orders/list",
+	routes := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/driver/v1/vehicles"},
+		{http.MethodGet, "/api/driver/v1/vehicles/get?id=77"},
+		{http.MethodPost, "/api/driver/v1/vehicles/update"},
+		{http.MethodPost, "/api/driver/v1/vehicles/delete?id=77"},
+		{http.MethodPost, "/api/driver/v1/drivers/by-phone?phone=13800000000"},
+		{http.MethodPost, "/api/driver/v1/drivers/nearby"},
+		{http.MethodPost, "/api/driver/v1/orders/cancel"},
+		{http.MethodPost, "/api/driver/v1/orders/reject"},
+		{http.MethodPost, "/api/driver/v1/orders/dispatches"},
+		{http.MethodPost, "/api/driver/v1/orders/list"},
+		{http.MethodGet, "/api/driver/v1/income/summary"},
+		{http.MethodPost, "/api/driver/v1/income/bills"},
+		{http.MethodPost, "/api/driver/v1/reviews/list"},
+		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
 	}
 
-	for _, path := range paths {
-		t.Run(path, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{}`))
+	for _, route := range routes {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			request := httptest.NewRequest(route.method, route.path, bytes.NewBufferString(`{}`))
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)
 			if response.Code != http.StatusUnauthorized {
 				t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusUnauthorized, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "route-conflict-test-key"})
+	routes := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/driver/v1/auth/send-sms-code"},
+		{http.MethodPost, "/api/driver/v1/auth/login-by-password"},
+		{http.MethodPost, "/api/driver/v1/auth/login-by-sms"},
+		{http.MethodPost, "/api/driver/v1/drivers/register"},
+		{http.MethodGet, "/api/driver/v1/drivers/get"},
+		{http.MethodPost, "/api/driver/v1/drivers/update"},
+		{http.MethodPost, "/api/driver/v1/drivers/online"},
+		{http.MethodPost, "/api/driver/v1/drivers/offline"},
+		{http.MethodPost, "/api/driver/v1/drivers/location/report"},
+		{http.MethodPost, "/api/driver/v1/vehicles"},
+		{http.MethodGet, "/api/driver/v1/vehicles/get?id=1"},
+		{http.MethodPost, "/api/driver/v1/orders/available"},
+		{http.MethodPost, "/api/driver/v1/orders/detail"},
+		{http.MethodPost, "/api/driver/v1/orders/accept"},
+		{http.MethodPost, "/api/driver/v1/orders/reject"},
+		{http.MethodPost, "/api/driver/v1/orders/start-trip"},
+		{http.MethodPost, "/api/driver/v1/orders/confirm-arrive"},
+		{http.MethodPost, "/api/driver/v1/orders/finish-trip"},
+		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
+		{http.MethodPost, "/api/driver/v1/reviews/list"},
+		{http.MethodGet, "/api/driver/v1/income/summary"},
+		{http.MethodPost, "/api/driver/v1/income/bills"},
+	}
+	for _, route := range routes {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			request := httptest.NewRequest(route.method, route.path, bytes.NewBufferString(`{}`))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code == http.StatusNotFound || response.Code == http.StatusMethodNotAllowed {
+				t.Fatalf("route is not externally callable, status = %d: %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestDriverPushWebSocketPollsAssignedOrdersWithoutRedisPublisher(t *testing.T) {
+	const signingKey = "driver-ws-poll-test-key"
+	orderClient := &pollingOrderClient{}
+	server := httptest.NewServer(newHTTPHandler(&svc.ServiceContext{
+		SigningKey:       signingKey,
+		OrderClient:      orderClient,
+		PushPollInterval: 10 * time.Millisecond,
+		PushPollPageSize: 20,
+	}))
+	defer server.Close()
+
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/driver/v1/ws?token=" + token
+	conn, err := websocket.Dial(wsURL, "", server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	var ack struct {
+		Type     string `json:"type"`
+		Degraded bool   `json:"degraded"`
+	}
+	if err := websocket.JSON.Receive(conn, &ack); err != nil {
+		t.Fatal(err)
+	}
+	if ack.Type != "connected" || !ack.Degraded {
+		t.Fatalf("unexpected ws ack: %+v", ack)
+	}
+
+	var msg struct {
+		Type    string `json:"type"`
+		OrderID int64  `json:"orderId"`
+	}
+	if err := websocket.JSON.Receive(conn, &msg); err != nil {
+		t.Fatal(err)
+	}
+	if msg.Type != "dispatch_order" || msg.OrderID != 1001 {
+		t.Fatalf("unexpected ws polling message: %+v", msg)
+	}
+	if orderClient.listOrdersRequest.GetDriverId() != 25 {
+		t.Fatalf("ListOrders() driver id = %d, want 25", orderClient.listOrdersRequest.GetDriverId())
 	}
 }
 

@@ -29,6 +29,26 @@ func CreateVehicleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+func UpdateVehicleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			return
+		}
+		var req types.UpdateVehicleRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewVehicleLogic(r.Context(), svcCtx).UpdateVehicle(int64(claims.AccountID), &req)
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
 func GetVehicleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
@@ -42,6 +62,30 @@ func GetVehicleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		resp, err := logic.NewVehicleLogic(r.Context(), svcCtx).GetVehicle(int64(claims.AccountID), id)
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
+func DeleteVehicleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			return
+		}
+		id, ok := decodeQueryID(r, "id")
+		if !ok {
+			var req types.DeleteVehicleRequest
+			if !decodeJSON(w, r, &req) {
+				return
+			}
+			id = req.ID
+		}
+		resp, err := logic.NewVehicleLogic(r.Context(), svcCtx).DeleteVehicle(int64(claims.AccountID), id)
 		if err != nil {
 			writeParamError(w, err)
 			return

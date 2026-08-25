@@ -25,6 +25,10 @@ func writeParamError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadGateway, 50002, "下游 ordersvc 不可用")
 		return
 	}
+	if errors.Is(err, logic.ErrReviewStorageNotConfigured) || errors.Is(err, logic.ErrTrajectoryStorageNotConfigured) {
+		writeError(w, http.StatusNotImplemented, 50003, err.Error())
+		return
+	}
 	if errors.Is(err, logic.ErrInvalidParam) {
 		writeError(w, http.StatusBadRequest, 50000, err.Error())
 		return

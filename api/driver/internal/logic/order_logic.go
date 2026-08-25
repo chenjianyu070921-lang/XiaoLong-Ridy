@@ -2,9 +2,11 @@ package logic
 
 import (
 	"context"
+	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
+	"XiaoLong-Ridy/common/constants"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
@@ -38,6 +40,43 @@ func (l *OrderLogic) AcceptOrder(driverID, orderID int64) (*types.AcceptOrderRes
 		return nil, err
 	}
 	return &types.AcceptOrderResponse{
+		OrderID: resp.GetOrderId(),
+		Status:  int32(resp.GetStatus()),
+	}, nil
+}
+
+// CancelOrder 当前登录司机取消已接单但未开始的订单。
+func (l *OrderLogic) CancelOrder(driverID int64, req *types.CancelOrderRequest) (*types.CancelOrderResponse, error) {
+	if driverID <= 0 || req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidParam
+	}
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		reason = "司机取消订单"
+	}
+	client, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.CancelOrder(l.ctx, &orderproto.CancelOrderRequest{
+		OrderId:      req.OrderID,
+		OperatorType: constants.OperatorDriver,
+		OperatorId:   driverID,
+		Reason:       reason,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if driverClient, err := l.driverClient(); err == nil {
+		_, err = driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+			DriverId:     driverID,
+			OnlineStatus: 1,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &types.CancelOrderResponse{
 		OrderID: resp.GetOrderId(),
 		Status:  int32(resp.GetStatus()),
 	}, nil
@@ -98,7 +137,7 @@ func (l *OrderLogic) ConfirmArrive(driverID, orderID int64) (*types.ConfirmArriv
 
 // FinishTrip 当前登录司机结束行程，并上报实际里程/时长/金额。
 func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*types.FinishTripResponse, error) {
-	if driverID <= 0 || req == nil || req.OrderID <= 0 || req.ActualDistanceM < 0 || req.ActualDurationS < 0 || req.ActualPriceCents < 0 {
+	if driverID <= 0 || req == nil || req.OrderID <= 0 || req.ActualDistanceM < 0 || req.ActualDurationS < 0 {
 		return nil, ErrInvalidParam
 	}
 	client, err := l.orderClient()
@@ -110,7 +149,7 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 		DriverId:         driverID,
 		ActualDistanceM:  req.ActualDistanceM,
 		ActualDurationS:  req.ActualDurationS,
-		ActualPriceCents: req.ActualPriceCents,
+		ActualPriceCents: 0,
 	})
 	if err != nil {
 		return nil, err
@@ -253,7 +292,80 @@ func (l *OrderLogic) ListMyOrders(driverID int64, page, pageSize, status int32) 
 	}, nil
 }
 
+func (l *OrderLogic) ListAvailableOrders(page, pageSize int32) (*types.ListMyOrdersResponse, error) {
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	page, pageSize = clampPage(page, pageSize)
+	resp, err := orderClient.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
+		Status:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+		Page:     page,
+		PageSize: pageSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]types.OrderBrief, 0, len(resp.GetList()))
+	for _, order := range resp.GetList() {
+		items = append(items, types.OrderBrief{
+			OrderID:             order.GetOrderId(),
+			OrderNo:             order.GetOrderNo(),
+			FromAddress:         order.GetFromAddress(),
+			ToAddress:           order.GetToAddress(),
+			Status:              int32(order.GetStatus()),
+			EstimatedPriceCents: order.GetEstimatedPriceCents(),
+			CreatedAt:           order.GetCreatedAt(),
+		})
+	}
+	return &types.ListMyOrdersResponse{
+		List:     items,
+		Total:    resp.GetTotal(),
+		Page:     resp.GetPage(),
+		PageSize: resp.GetPageSize(),
+	}, nil
+}
+
 // orderClient 从服务上下文中安全取出 ordersvc 客户端。
+func (l *OrderLogic) GetMyOrderDetail(driverID, orderID int64) (*types.GetMyOrderDetailResponse, error) {
+	if driverID <= 0 || orderID <= 0 {
+		return nil, ErrInvalidParam
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: orderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetDriverId() != driverID {
+		return nil, ErrForbiddenDriverResource
+	}
+	return &types.GetMyOrderDetailResponse{Order: types.OrderDetail{
+		OrderID:             order.GetOrderId(),
+		OrderNo:             order.GetOrderNo(),
+		UserID:              order.GetUserId(),
+		DriverID:            order.GetDriverId(),
+		CarType:             order.GetCarType(),
+		FromAddress:         order.GetFromAddress(),
+		FromLongitude:       order.GetFromLongitude(),
+		FromLatitude:        order.GetFromLatitude(),
+		ToAddress:           order.GetToAddress(),
+		ToLongitude:         order.GetToLongitude(),
+		ToLatitude:          order.GetToLatitude(),
+		EstimatedDistanceM:  order.GetEstimatedDistanceM(),
+		EstimatedDurationS:  order.GetEstimatedDurationS(),
+		EstimatedPriceCents: order.GetEstimatedPriceCents(),
+		Status:              int32(order.GetStatus()),
+		CancelReason:        order.GetCancelReason(),
+		CancelBy:            order.GetCancelBy(),
+		CreatedAt:           order.GetCreatedAt(),
+		UpdatedAt:           order.GetUpdatedAt(),
+	}}, nil
+}
+
 func (l *OrderLogic) orderClient() (svc.OrderClient, error) {
 	if l.svcCtx == nil || l.svcCtx.OrderClient == nil {
 		return nil, ErrOrderClientNotConfigured

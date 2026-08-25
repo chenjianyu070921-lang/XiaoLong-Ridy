@@ -82,6 +82,14 @@ type GetDriverResponse {
 	Driver DriverDetail `json:"driver"`
 }
 
+type GetDriverByPhoneRequest {
+	Phone string `json:"phone" form:"phone"`
+}
+
+type GetDriverByPhoneResponse {
+	Driver DriverDetail `json:"driver"`
+}
+
 type DeleteDriverRequest {
 	ID int64 `form:"id"`
 }
@@ -162,6 +170,9 @@ type ReportLocationRequest {
 	DeviceID  string  `json:"deviceId"`
 	Longitude float64 `json:"longitude"`
 	Latitude  float64 `json:"latitude"`
+	Heading   int32   `json:"heading"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	OrderID   int64   `json:"orderId"`
 }
 
 type ReportLocationResponse {
@@ -263,6 +274,53 @@ type GetVehicleResponse {
 	Vehicle VehicleInfo `json:"vehicle"`
 }
 
+type UpdateVehicleRequest {
+	ID                int64   `json:"id"`
+	DriverID          *int64  `json:"driverId,omitempty"`
+	PlateNo           *string `json:"plateNo,omitempty"`
+	Brand             *string `json:"brand,omitempty"`
+	Model             *string `json:"model,omitempty"`
+	Color             *string `json:"color,omitempty"`
+	VehicleType       *int32  `json:"vehicleType,omitempty"`
+	RegistrationDate  *int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       *string `json:"insuranceNo,omitempty"`
+	InsuranceExpireAt *int64  `json:"insuranceExpireAt,omitempty"`
+	Status            *string `json:"status,omitempty"`
+}
+
+type UpdateVehicleResponse {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
+type DeleteVehicleRequest {
+	ID int64 `json:"id" form:"id"`
+}
+
+type DeleteVehicleResponse {
+	ID      int64 `json:"id"`
+	Success bool  `json:"success"`
+}
+
+type NearbyDriver {
+	DriverID       int64   `json:"driverId"`
+	Longitude      float64 `json:"longitude"`
+	Latitude       float64 `json:"latitude"`
+	DistanceMeters int32   `json:"distanceMeters"`
+}
+
+type ListNearbyDriversRequest {
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	RadiusMeters float64 `json:"radiusMeters"`
+	Limit        int32   `json:"limit"`
+}
+
+type ListNearbyDriversResponse {
+	Drivers []NearbyDriver `json:"drivers"`
+}
+
 type CreateWithdrawRequest {
 	Amount     float64 `json:"amount"`
 	PayeeName  string  `json:"payeeName"`
@@ -299,11 +357,49 @@ type ListWithdrawsResponse {
 	Total   int64            `json:"total"`
 }
 
+type GetIncomeSummaryResponse {
+	DriverID         int64  `json:"driverId"`
+	CompletedOrders  int64  `json:"completedOrders"`
+	TotalIncomeCents int64  `json:"totalIncomeCents"`
+	Source           string `json:"source"`
+}
+
+type ListIncomeBillsRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type IncomeBill {
+	OrderID     int64  `json:"orderId"`
+	OrderNo     string `json:"orderNo"`
+	IncomeCents int64  `json:"incomeCents"`
+	Status      int32  `json:"status"`
+	CreatedAt   int64  `json:"createdAt"`
+}
+
+type ListIncomeBillsResponse {
+	List     []IncomeBill `json:"list"`
+	Total    int64        `json:"total"`
+	Page     int32        `json:"page"`
+	PageSize int32        `json:"pageSize"`
+	Source   string       `json:"source"`
+}
+
 type AcceptOrderRequest {
 	OrderID int64 `json:"orderId"`
 }
 
 type AcceptOrderResponse {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type CancelOrderRequest {
+	OrderID int64  `json:"orderId"`
+	Reason  string `json:"reason"`
+}
+
+type CancelOrderResponse {
 	OrderID int64 `json:"orderId"`
 	Status  int32 `json:"status"`
 }
@@ -403,6 +499,76 @@ type ListMyOrdersResponse {
 	PageSize int32        `json:"pageSize"`
 }
 
+type GetMyOrderDetailRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderDetail {
+	OrderID             int64   `json:"orderId"`
+	OrderNo             string  `json:"orderNo"`
+	UserID              int64   `json:"userId"`
+	DriverID            int64   `json:"driverId"`
+	CarType             int32   `json:"carType"`
+	FromAddress         string  `json:"fromAddress"`
+	FromLongitude       float64 `json:"fromLongitude"`
+	FromLatitude        float64 `json:"fromLatitude"`
+	ToAddress           string  `json:"toAddress"`
+	ToLongitude         float64 `json:"toLongitude"`
+	ToLatitude          float64 `json:"toLatitude"`
+	EstimatedDistanceM  int64   `json:"estimatedDistanceM"`
+	EstimatedDurationS  int64   `json:"estimatedDurationS"`
+	EstimatedPriceCents int64   `json:"estimatedPriceCents"`
+	Status              int32   `json:"status"`
+	CancelReason        string  `json:"cancelReason"`
+	CancelBy            string  `json:"cancelBy"`
+	CreatedAt           int64   `json:"createdAt"`
+	UpdatedAt           int64   `json:"updatedAt"`
+}
+
+type GetMyOrderDetailResponse {
+	Order OrderDetail `json:"order"`
+}
+
+type ListPassengerReviewsRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type PassengerReview {
+	OrderID   int64  `json:"orderId"`
+	Rating    int32  `json:"rating"`
+	Comment   string `json:"comment"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type ListPassengerReviewsResponse {
+	List     []PassengerReview `json:"list"`
+	Total    int64             `json:"total"`
+	Page     int32             `json:"page"`
+	PageSize int32             `json:"pageSize"`
+	Degraded bool              `json:"degraded"`
+	Message  string            `json:"message"`
+}
+
+type GetTripTrajectoryRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type TrajectoryPoint {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	Heading   int32   `json:"heading"`
+	CreatedAt int64   `json:"createdAt"`
+}
+
+type GetTripTrajectoryResponse {
+	OrderID  int64             `json:"orderId"`
+	Points   []TrajectoryPoint `json:"points"`
+	Degraded bool              `json:"degraded"`
+	Message  string            `json:"message"`
+}
+
 type AgentChatRequest {
 	Question string `json:"question"`
 }
@@ -445,11 +611,17 @@ service driver-api {
 	@handler GetDriverHandler
 	get /api/driver/v1/drivers/get (GetDriverRequest) returns (GetDriverResponse)
 
+	@handler GetDriverByPhoneHandler
+	post /api/driver/v1/drivers/by-phone (GetDriverByPhoneRequest) returns (GetDriverByPhoneResponse)
+
 	@handler DeleteDriverHandler
 	post /api/driver/v1/drivers/delete (DeleteDriverRequest) returns (DeleteResponse)
 
 	@handler GetDriverAiScoreHandler
 	get /api/driver/v1/drivers/ai-score (GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse)
+
+	@handler ListNearbyDriversHandler
+	post /api/driver/v1/drivers/nearby (ListNearbyDriversRequest) returns (ListNearbyDriversResponse)
 
 	@handler SetOnlineHandler
 	post /api/driver/v1/drivers/online (SetOnlineRequest) returns (SetOnlineResponse)
@@ -475,14 +647,32 @@ service driver-api {
 	@handler GetVehicleHandler
 	get /api/driver/v1/vehicles/get (GetVehicleRequest) returns (GetVehicleResponse)
 
+	@handler UpdateVehicleHandler
+	post /api/driver/v1/vehicles/update (UpdateVehicleRequest) returns (UpdateVehicleResponse)
+
+	@handler DeleteVehicleHandler
+	post /api/driver/v1/vehicles/delete (DeleteVehicleRequest) returns (DeleteVehicleResponse)
+
 	@handler CreateWithdrawHandler
 	post /api/driver/v1/withdraws (CreateWithdrawRequest) returns (CreateWithdrawResponse)
 
 	@handler ListWithdrawsHandler
 	post /api/driver/v1/withdraws/list (ListWithdrawsRequest) returns (ListWithdrawsResponse)
 
+	@handler GetIncomeSummaryHandler
+	get /api/driver/v1/income/summary returns (GetIncomeSummaryResponse)
+
+	@handler GetIncomeSummaryHandler
+	get /api/driver/v1/wallet/summary returns (GetIncomeSummaryResponse)
+
+	@handler ListIncomeBillsHandler
+	post /api/driver/v1/income/bills (ListIncomeBillsRequest) returns (ListIncomeBillsResponse)
+
 	@handler AcceptOrderHandler
 	post /api/driver/v1/orders/accept (AcceptOrderRequest) returns (AcceptOrderResponse)
+
+	@handler CancelOrderHandler
+	post /api/driver/v1/orders/cancel (CancelOrderRequest) returns (CancelOrderResponse)
 
 	@handler RejectOrderHandler
 	post /api/driver/v1/orders/reject (RejectOrderRequest) returns (RejectOrderResponse)
@@ -490,8 +680,14 @@ service driver-api {
 	@handler ListMyDispatchesHandler
 	post /api/driver/v1/orders/dispatches (ListMyDispatchesRequest) returns (ListMyDispatchesResponse)
 
+	@handler ListAvailableOrdersHandler
+	post /api/driver/v1/orders/available (ListMyOrdersRequest) returns (ListMyOrdersResponse)
+
 	@handler ListMyOrdersHandler
 	post /api/driver/v1/orders/list (ListMyOrdersRequest) returns (ListMyOrdersResponse)
+
+	@handler GetMyOrderDetailHandler
+	post /api/driver/v1/orders/detail (GetMyOrderDetailRequest) returns (GetMyOrderDetailResponse)
 
 	@handler StartTripHandler
 	post /api/driver/v1/orders/start-trip (StartTripRequest) returns (StartTripResponse)
@@ -502,10 +698,15 @@ service driver-api {
 	@handler FinishTripHandler
 	post /api/driver/v1/orders/finish-trip (FinishTripRequest) returns (FinishTripResponse)
 
+	@handler GetTripTrajectoryHandler
+	post /api/driver/v1/orders/trajectory (GetTripTrajectoryRequest) returns (GetTripTrajectoryResponse)
+
+	@handler ListPassengerReviewsHandler
+	post /api/driver/v1/reviews/list (ListPassengerReviewsRequest) returns (ListPassengerReviewsResponse)
+
 	@handler DriverPushWSHandler
 	get /api/driver/v1/ws (DriverPushWSRequest)
 
 	@handler AgentChatHandler
 	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 }
-

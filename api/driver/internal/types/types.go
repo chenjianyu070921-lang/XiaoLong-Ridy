@@ -190,6 +190,9 @@ type ReportLocationRequest struct {
 	DeviceID  string  `json:"deviceId"`
 	Longitude float64 `json:"longitude"`
 	Latitude  float64 `json:"latitude"`
+	Heading   int32   `json:"heading"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	OrderID   int64   `json:"orderId"`
 }
 
 type ReportLocationResponse struct {
@@ -291,6 +294,65 @@ type GetVehicleResponse struct {
 	Vehicle VehicleInfo `json:"vehicle"`
 }
 
+type UpdateVehicleRequest struct {
+	ID                int64   `json:"id"`
+	DriverID          *int64  `json:"driverId,omitempty"`
+	PlateNo           *string `json:"plateNo,omitempty"`
+	Brand             *string `json:"brand,omitempty"`
+	Model             *string `json:"model,omitempty"`
+	Color             *string `json:"color,omitempty"`
+	VehicleType       *int32  `json:"vehicleType,omitempty"`
+	RegistrationDate  *int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       *string `json:"insuranceNo,omitempty"`
+	InsuranceExpireAt *int64  `json:"insuranceExpireAt,omitempty"`
+	Status            *string `json:"status,omitempty"`
+}
+
+type UpdateVehicleResponse struct {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
+type DeleteVehicleRequest struct {
+	ID int64 `json:"id" form:"id"`
+}
+
+type DeleteVehicleResponse struct {
+	ID      int64 `json:"id"`
+	Success bool  `json:"success"`
+}
+
+type GetDriverByPhoneRequest struct {
+	Phone string `json:"phone" form:"phone"`
+}
+
+type GetDriverByPhoneResponse struct {
+	Driver DriverDetail `json:"driver"`
+}
+
+type NearbyDriver struct {
+	DriverID       int64   `json:"driverId"`
+	Longitude      float64 `json:"longitude"`
+	Latitude       float64 `json:"latitude"`
+	DistanceMeters int32   `json:"distanceMeters"`
+}
+
+type ListNearbyDriversRequest struct {
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	RadiusMeters float64 `json:"radiusMeters"`
+	Limit        int32   `json:"limit"`
+}
+
+type ListNearbyDriversResponse struct {
+	Drivers []NearbyDriver `json:"drivers"`
+}
+
+type CommonResponse struct {
+	Message string `json:"message"`
+}
+
 // ---- 提现相关 ----
 
 type CreateWithdrawRequest struct {
@@ -329,11 +391,49 @@ type ListWithdrawsResponse struct {
 	Total   int64            `json:"total"`
 }
 
+type GetIncomeSummaryResponse struct {
+	DriverID         int64  `json:"driverId"`
+	CompletedOrders  int64  `json:"completedOrders"`
+	TotalIncomeCents int64  `json:"totalIncomeCents"`
+	Source           string `json:"source"`
+}
+
+type ListIncomeBillsRequest struct {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type IncomeBill struct {
+	OrderID     int64  `json:"orderId"`
+	OrderNo     string `json:"orderNo"`
+	IncomeCents int64  `json:"incomeCents"`
+	Status      int32  `json:"status"`
+	CreatedAt   int64  `json:"createdAt"`
+}
+
+type ListIncomeBillsResponse struct {
+	List     []IncomeBill `json:"list"`
+	Total    int64        `json:"total"`
+	Page     int32        `json:"page"`
+	PageSize int32        `json:"pageSize"`
+	Source   string       `json:"source"`
+}
+
 type AcceptOrderRequest struct {
 	OrderID int64 `json:"orderId"`
 }
 
 type AcceptOrderResponse struct {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type CancelOrderRequest struct {
+	OrderID int64  `json:"orderId"`
+	Reason  string `json:"reason"`
+}
+
+type CancelOrderResponse struct {
 	OrderID int64 `json:"orderId"`
 	Status  int32 `json:"status"`
 }
@@ -431,6 +531,76 @@ type ListMyOrdersResponse struct {
 	Total    int64        `json:"total"`
 	Page     int32        `json:"page"`
 	PageSize int32        `json:"pageSize"`
+}
+
+type GetMyOrderDetailRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderDetail struct {
+	OrderID             int64   `json:"orderId"`
+	OrderNo             string  `json:"orderNo"`
+	UserID              int64   `json:"userId"`
+	DriverID            int64   `json:"driverId"`
+	CarType             int32   `json:"carType"`
+	FromAddress         string  `json:"fromAddress"`
+	FromLongitude       float64 `json:"fromLongitude"`
+	FromLatitude        float64 `json:"fromLatitude"`
+	ToAddress           string  `json:"toAddress"`
+	ToLongitude         float64 `json:"toLongitude"`
+	ToLatitude          float64 `json:"toLatitude"`
+	EstimatedDistanceM  int64   `json:"estimatedDistanceM"`
+	EstimatedDurationS  int64   `json:"estimatedDurationS"`
+	EstimatedPriceCents int64   `json:"estimatedPriceCents"`
+	Status              int32   `json:"status"`
+	CancelReason        string  `json:"cancelReason"`
+	CancelBy            string  `json:"cancelBy"`
+	CreatedAt           int64   `json:"createdAt"`
+	UpdatedAt           int64   `json:"updatedAt"`
+}
+
+type GetMyOrderDetailResponse struct {
+	Order OrderDetail `json:"order"`
+}
+
+type ListPassengerReviewsRequest struct {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type PassengerReview struct {
+	OrderID   int64  `json:"orderId"`
+	Rating    int32  `json:"rating"`
+	Comment   string `json:"comment"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type ListPassengerReviewsResponse struct {
+	List     []PassengerReview `json:"list"`
+	Total    int64             `json:"total"`
+	Page     int32             `json:"page"`
+	PageSize int32             `json:"pageSize"`
+	Degraded bool              `json:"degraded"`
+	Message  string            `json:"message"`
+}
+
+type GetTripTrajectoryRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type TrajectoryPoint struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	Heading   int32   `json:"heading"`
+	CreatedAt int64   `json:"createdAt"`
+}
+
+type GetTripTrajectoryResponse struct {
+	OrderID  int64             `json:"orderId"`
+	Points   []TrajectoryPoint `json:"points"`
+	Degraded bool              `json:"degraded"`
+	Message  string            `json:"message"`
 }
 
 type AgentChatRequest struct {

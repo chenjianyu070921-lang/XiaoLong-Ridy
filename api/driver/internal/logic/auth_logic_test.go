@@ -7,6 +7,9 @@ import (
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestLoginByPasswordDelegatesToDriverService(t *testing.T) {
@@ -69,5 +72,12 @@ func TestLoginBySMSRejectsInvalidCodeBeforeDriverService(t *testing.T) {
 	}
 	if driverClient.loginBySMSRequest != nil {
 		t.Fatalf("driversvc LoginBySMS should not be called, got %+v", driverClient.loginBySMSRequest)
+	}
+}
+
+func TestNormalizeLoginErrorTreatsPendingDriverAsForbidden(t *testing.T) {
+	err := normalizeLoginError(status.Error(codes.Unknown, "账号未审核通过"))
+	if err != ErrDriverFrozen {
+		t.Fatalf("normalizeLoginError() = %v, want %v", err, ErrDriverFrozen)
 	}
 }

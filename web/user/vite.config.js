@@ -21,7 +21,12 @@ export default defineConfig({
       ]
     },
     proxy: {
-      '/api': {
+      '/api/driver': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        ws: true
+      },
+      '/api/passenger': {
         target: 'http://localhost:8091',
         changeOrigin: true
       }

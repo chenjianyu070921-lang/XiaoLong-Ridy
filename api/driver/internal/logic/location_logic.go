@@ -7,6 +7,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 )
 
 // LocationLogic 封装司机位置上报逻辑，负责校验坐标并调用 driversvc 刷新在线状态与位置。
@@ -39,6 +40,34 @@ func (l *LocationLogic) ReportLocation(driverID int64, req *types.ReportLocation
 	})
 	if err != nil {
 		return nil, err
+	}
+	if l.svcCtx != nil && l.svcCtx.LocationClient != nil {
+		if _, err := l.svcCtx.LocationClient.ReportLocation(l.ctx, &locationproto.ReportLocationReq{
+			DriverId:     driverID,
+			Lng:          req.Longitude,
+			Lat:          req.Latitude,
+			Heading:      req.Heading,
+			SpeedKmh:     req.SpeedKmh,
+			OnlineStatus: resp.GetOnlineStatus(),
+			OrderId:      req.OrderID,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	if req.OrderID > 0 {
+		if l.svcCtx == nil || l.svcCtx.TrajectoryRepository == nil {
+			return nil, ErrTrajectoryStorageNotConfigured
+		}
+		if err := l.svcCtx.TrajectoryRepository.RecordPoint(l.ctx, &svc.TrajectoryRecord{
+			OrderID:   req.OrderID,
+			DriverID:  driverID,
+			Longitude: req.Longitude,
+			Latitude:  req.Latitude,
+			SpeedKmh:  req.SpeedKmh,
+			Heading:   req.Heading,
+		}); err != nil {
+			return nil, err
+		}
 	}
 	return &types.ReportLocationResponse{
 		DriverID:     resp.GetDriverId(),
