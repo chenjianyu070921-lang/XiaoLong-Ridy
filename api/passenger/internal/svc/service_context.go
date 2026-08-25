@@ -31,6 +31,7 @@ const (
 	defaultPayRPCAddr      = "127.0.0.1:50054"
 	defaultDispatchRPCAddr = "127.0.0.1:8083"
 	defaultPriceCityCode   = "110000"
+	localDevSigningKey     = "xiaolong-passenger-local-dev-key"
 )
 
 // RuntimeConfig 保存 passenger API 启动时需要的运行参数。
@@ -226,6 +227,10 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 	if cfg.TokenSigningKey == "" {
 		cfg.TokenSigningKey = strings.TrimSpace(os.Getenv("JWT_SIGNING_KEY"))
 	}
+	// 本地开发模式使用固定开发密钥，避免每次启动都因未配置环境变量退出。
+	if strings.TrimSpace(cfg.TokenSigningKey) == "" && cfg.ClientMode == clientModeLocal {
+		cfg.TokenSigningKey = localDevSigningKey
+	}
 	if cfg.UserRPCAddr == "" {
 		cfg.UserRPCAddr = defaultUserRPCAddr
 	}
@@ -242,7 +247,7 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 		cfg.DispatchRPCAddr = defaultDispatchRPCAddr
 	}
 	if cfg.ClientMode == "" {
-		cfg.ClientMode = clientModeGRPC
+		cfg.ClientMode = clientModeLocal
 	}
 	if cfg.PriceCityCode == "" {
 		cfg.PriceCityCode = defaultPriceCityCode

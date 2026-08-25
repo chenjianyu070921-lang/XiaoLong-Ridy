@@ -51,6 +51,7 @@ desktop.ini
 .tmp-gocache/
 .gotmp/
 gocache/
+gocache/gotmp/
 
 # Admin 前端与后台本地运行生成物
 web/admin/node_modules/
