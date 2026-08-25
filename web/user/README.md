@@ -60,7 +60,7 @@
 ## 项目结构
 
 ```
-web-h5/
+web/user/
 ├── public/                 # 静态资源
 │   ├── logo.png           # 应用Logo
 │   └── ...
@@ -93,7 +93,7 @@ web-h5/
 
 ### 安装依赖
 ```bash
-cd web-h5
+cd web/user
 npm install
 # 或
 pnpm install

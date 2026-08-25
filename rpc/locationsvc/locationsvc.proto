@@ -40,6 +40,7 @@ message POISearchReq {
   int32  radius  = 4;   // 搜索半径（米）
   int32  page    = 5;   // 页码
   int32  size    = 6;   // 每页条数
+  string city    = 7;   // 城市编码，优先使用 adcode，也支持 citycode
 }
 
 message POIItem {

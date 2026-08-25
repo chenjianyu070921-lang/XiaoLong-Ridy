@@ -14,7 +14,8 @@ export const useOrderStore = defineStore('order', () => {
     toAddress: '',
     toLat: 0,
     toLng: 0,
-    couponId: ''
+    couponId: '',
+    cityCode: ''
   })
 
   // 车型列表
