@@ -1276,7 +1276,7 @@ func (r *Router) writeAuthError(w http.ResponseWriter, err error) {
 	case status.Code(err) == codes.InvalidArgument:
 		writeError(w, http.StatusBadRequest, 40001, "bad request")
 	case status.Code(err) == codes.FailedPrecondition:
-		writeError(w, http.StatusBadRequest, 40001, "bad request")
+		writeError(w, http.StatusBadRequest, 40001, preconditionMessage(err))
 	case status.Code(err) == codes.NotFound:
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case status.Code(err) == codes.PermissionDenied:
@@ -1298,7 +1298,7 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 	case status.Code(err) == codes.InvalidArgument:
 		writeError(w, http.StatusBadRequest, 40001, "bad request")
 	case status.Code(err) == codes.FailedPrecondition:
-		writeError(w, http.StatusBadRequest, 40001, "bad request")
+		writeError(w, http.StatusBadRequest, 40001, preconditionMessage(err))
 	case status.Code(err) == codes.NotFound:
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case status.Code(err) == codes.PermissionDenied:
@@ -1320,6 +1320,18 @@ func permissionDeniedMessage(err error) string {
 		}
 	}
 	return "forbidden"
+}
+
+// preconditionMessage 提取 gRPC FailedPrecondition 的服务端原因。
+// 返回空或非 gRPC 错误时使用通用文案，保证 400 响应给出可读原因。
+func preconditionMessage(err error) string {
+	if err != nil {
+		s := status.Convert(err)
+		if s.Code() == codes.FailedPrecondition && s.Message() != "" {
+			return s.Message()
+		}
+	}
+	return "bad request"
 }
 
 // sessionContextKey 用于在 request context 中保存管理员会话。

@@ -493,6 +493,16 @@ func TestPermissionDeniedMessage(t *testing.T) {
 	}
 }
 
+// TestPreconditionMessage 验证 400 响应能透出 FailedPrecondition 的具体原因。
+func TestPreconditionMessage(t *testing.T) {
+	if got := preconditionMessage(status.Error(codes.FailedPrecondition, "司机服务未启动或下游 RPC 已禁用")); got != "司机服务未启动或下游 RPC 已禁用" {
+		t.Fatalf("want specific message, got %q", got)
+	}
+	if got := preconditionMessage(errors.New("plain error")); got != "bad request" {
+		t.Fatalf("want fallback message, got %q", got)
+	}
+}
+
 // TestRouter_ExportTaskDetailRoute 验证导出任务详情路由会走 adminsvc 并返回状态机字段。
 func TestRouter_ExportTaskDetailRoute(t *testing.T) {
 	fakeSvc := &fakeAdminService{}
