@@ -12,7 +12,7 @@
       <div class="back-btn" @click="goBack">
         <van-icon name="arrow-left" size="20" color="#1F2937" />
       </div>
-      <span class="title">确认行程</span>
+      <span class="title">确认行程 · {{ currentCityName }}</span>
       <div style="width: 32px;"></div>
     </div>
 
@@ -168,8 +168,10 @@ import AMapLoader from '@amap/amap-jsapi-loader'
 import { showToast, showLoadingToast, closeToast } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { createOrder, estimateOrder, getMyCoupons } from '@/api/order'
+import { readSelectedCity } from '@/data/cities'
 
 const router = useRouter()
+const currentCityName = ref(readSelectedCity()?.name || '当前城市')
 const orderStore = useOrderStore()
 
 // 状态
@@ -284,7 +286,7 @@ const refreshEstimate = async () => {
       toAddress: params.toAddress,
       toLongitude: Number(params.toLng),
       toLatitude: Number(params.toLat),
-      cityCode: params.cityCode || '',
+      cityCode: params.cityCode || readSelectedCity()?.adcode || '',
       estimatedDistanceM: Number(routeDistanceMeters.value || params.estimatedDistanceM || 0),
       estimatedDurationS: Number(routeDurationSeconds.value || params.estimatedDurationS || 0),
       userCouponId: selectedCoupon.value?.userCouponId || 0
@@ -378,7 +380,7 @@ const submitOrder = async () => {
       toAddress: params.toAddress,
       toLongitude: Number(params.toLng),
       toLatitude: Number(params.toLat),
-      cityCode: params.cityCode || '',
+      cityCode: params.cityCode || readSelectedCity()?.adcode || '',
       estimatedDistanceM: Number(routeDistanceMeters.value || params.estimatedDistanceM || 0),
       estimatedDurationS: Number(routeDurationSeconds.value || params.estimatedDurationS || 0),
       userCouponId: selectedCoupon.value?.userCouponId || 0,
@@ -392,6 +394,8 @@ const submitOrder = async () => {
     router.replace('/order/waiting')
   } catch (error) {
     console.error('Create order error:', error)
+    closeToast()
+    showToast(error?.response?.data?.message || error?.message || '叫车失败，请稍后重试')
   } finally {
     loading.value = false
   }

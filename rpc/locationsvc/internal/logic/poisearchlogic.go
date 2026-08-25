@@ -29,7 +29,7 @@ func (l *POISearchLogic) POISearch(in *locationsvc.POISearchReq) (*locationsvc.P
 	l.Infof("POISearch: keyword=%s, lat=%f, lng=%f, radius=%d", in.Keyword, in.Lat, in.Lng, in.Radius)
 
 	// 1. 先查本地缓存库
-	cached, err := l.svcCtx.PoiModel.SearchByName(in.Keyword, int(in.Size))
+	cached, err := l.svcCtx.PoiModel.SearchByName(in.Keyword, in.City, int(in.Size))
 	if err == nil && len(cached) > 0 {
 		l.Infof("命中本地缓存，共 %d 条", len(cached))
 		return toPoiSearchResp(cached, int32(len(cached))), nil
@@ -39,7 +39,7 @@ func (l *POISearchLogic) POISearch(in *locationsvc.POISearchReq) (*locationsvc.P
 	}
 
 	// 2. 本地没有，调高德 API
-	amapResp, err := l.svcCtx.GetGeo().SearchPoi(in.Keyword, in.Lat, in.Lng, in.Radius, in.Page, in.Size)
+	amapResp, err := l.svcCtx.GetGeo().SearchPoi(in.Keyword, in.City, in.Lat, in.Lng, in.Radius, in.Page, in.Size)
 	if err != nil {
 		l.Errorf("调用高德POI搜索失败: %v", err)
 		return nil, err
@@ -47,6 +47,10 @@ func (l *POISearchLogic) POISearch(in *locationsvc.POISearchReq) (*locationsvc.P
 
 	// 3. 高德结果写回本地库（下次搜索直接命中缓存，不再调高德）
 	pois := amapResp.ToPoiModels()
+	for i := range pois {
+		// 写入当前城市标识，避免不同城市的同名 POI 互相污染缓存。
+		pois[i].City = in.City
+	}
 	if len(pois) > 0 {
 		if err := l.svcCtx.PoiModel.BatchInsert(pois); err != nil {
 			l.Errorf("写入POI缓存失败: %v", err)

@@ -45,7 +45,7 @@ type AmapPoiResponse struct {
 }
 
 // SearchPoi 调用高德"周边搜索"（place/around）接口
-func (c *Client) SearchPoi(keyword string, lat, lng float64, radius, page, size int32) (*AmapPoiResponse, error) {
+func (c *Client) SearchPoi(keyword, city string, lat, lng float64, radius, page, size int32) (*AmapPoiResponse, error) {
 	// 参数兜底：防止空值传到高德
 	if radius <= 0 {
 		radius = 5000
@@ -60,6 +60,11 @@ func (c *Client) SearchPoi(keyword string, lat, lng float64, radius, page, size 
 	params := url.Values{}
 	params.Set("key", c.apiKey)
 	params.Set("keywords", keyword)
+	if city != "" {
+		// 使用 adcode/citycode 和 citylimit=true，将关键字搜索限制在当前城市。
+		params.Set("city", city)
+		params.Set("citylimit", "true")
+	}
 	params.Set("location", fmt.Sprintf("%.6f,%.6f", lng, lat))
 	params.Set("radius", strconv.Itoa(int(radius)))
 	params.Set("page", strconv.Itoa(int(page)))
@@ -121,8 +126,8 @@ func (r *AmapPoiResponse) Total() int32 {
 
 // AmapRegeoResponse 高德逆地理编码（regeo）响应结构
 type AmapRegeoResponse struct {
-	Status string `json:"status"` // 1=成功
-	Info   string `json:"info"`   // 提示信息
+	Status    string `json:"status"` // 1=成功
+	Info      string `json:"info"`   // 提示信息
 	Regeocode struct {
 		FormattedAddress json.RawMessage `json:"formatted_address"` // 结构化地址（境外坐标会返回空数组）
 		AddressComponent struct {
