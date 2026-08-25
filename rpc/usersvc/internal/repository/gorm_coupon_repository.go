@@ -190,6 +190,20 @@ func (r *gormCouponRepository) Release(ctx context.Context, userID, userCouponID
 	})
 }
 
+// ReleaseByOrder 将指定订单锁定的用户券恢复为未使用状态，供取消订单幂等回滚使用。
+func (r *gormCouponRepository) ReleaseByOrder(ctx context.Context, userID, orderID uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return tx.Model(&model.UserCoupon{}).
+			Where("user_id = ? AND locked_order_id = ? AND status = ?", userID, orderID, model.UserCouponStatusLocked).
+			Updates(map[string]interface{}{
+				"status":          model.UserCouponStatusUnused,
+				"locked_order_id": 0,
+				"locked_at":       nil,
+				"updated_at":      time.Now(),
+			}).Error
+	})
+}
+
 // couponListRow 承接 user_coupon 与 coupon 关联查询结果。
 // ConsumeByOrder 将指定订单锁定的用户券核销为已使用状态。
 // 该方法用于支付成功后的最终确认，重复消费同一订单时保持幂等。

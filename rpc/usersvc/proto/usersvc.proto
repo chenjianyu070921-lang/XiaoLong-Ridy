@@ -17,6 +17,8 @@ service User {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   // SubmitRealName 提交乘客实名信息。
   rpc SubmitRealName(SubmitRealNameRequest) returns (SubmitRealNameResponse);
+  // UpdateProfile 更新乘客昵称与头像，空字段表示不修改。
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // CreateAddress 新增乘客常用地址。
   rpc CreateAddress(CreateAddressRequest) returns (AddressInfo);
   // ListAddresses 查询乘客常用地址列表。
@@ -109,6 +111,18 @@ message SubmitRealNameRequest {
 
 // SubmitRealNameResponse 提交实名信息响应。
 message SubmitRealNameResponse {
+  UserInfo user = 1; // 更新后的用户基础信息
+}
+
+// UpdateProfileRequest 更新个人资料请求。
+message UpdateProfileRequest {
+  uint64 user_id = 1; // 用户 ID
+  string nickname = 2; // 昵称，<=20字，允许特殊符号；为空表示不修改
+  string avatar_url = 3; // 头像地址；为空表示不修改
+}
+
+// UpdateProfileResponse 更新个人资料响应。
+message UpdateProfileResponse {
   UserInfo user = 1; // 更新后的用户基础信息
 }
 

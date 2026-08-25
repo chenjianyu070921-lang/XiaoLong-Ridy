@@ -33,11 +33,10 @@ func currentUserID(svcCtx *svc.ServiceContext, token string) (uint64, error) {
 	if token == "" {
 		return 0, ErrUnauthorized
 	}
-	signingKey := "local-development-signing-key"
-	if svcCtx != nil && svcCtx.TokenSigningKey != "" {
-		signingKey = svcCtx.TokenSigningKey
+	if svcCtx == nil || strings.TrimSpace(svcCtx.TokenSigningKey) == "" {
+		return 0, ErrUnauthorized
 	}
-	claims, err := jwtx.ParseUserToken(token, signingKey)
+	claims, err := jwtx.ParseUserToken(token, strings.TrimSpace(svcCtx.TokenSigningKey))
 	if err != nil {
 		return 0, ErrUnauthorized
 	}

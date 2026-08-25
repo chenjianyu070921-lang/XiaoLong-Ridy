@@ -39,3 +39,19 @@ func SubmitRealNameHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+// UpdateProfileHandler 处理 POST /api/passenger/v1/profile/update。
+func UpdateProfileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.UpdateProfileRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewProfileLogic(r.Context(), svcCtx, bearerToken(r)).UpdateProfile(&req)
+		if err != nil {
+			writeBusinessError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

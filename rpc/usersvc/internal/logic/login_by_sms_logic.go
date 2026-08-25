@@ -50,6 +50,12 @@ func (l *LoginBySMSLogic) LoginBySMS(in *userproto.LoginBySMSRequest) (*userprot
 	if err != nil {
 		return nil, err
 	}
+	// 新账号创建成功后自动发放四张新人券，保证优惠券默认属于账号而不是依赖前端额外点击领取。
+	if isNewUser {
+		if err := l.issueWelcomeCoupons(user.ID); err != nil {
+			return nil, err
+		}
+	}
 	if user.Status == model.UserStatusFrozen {
 		return nil, ErrAccountFrozen
 	}
@@ -139,6 +145,20 @@ func (l *LoginBySMSLogic) findOrCreateUser(phone string) (*model.User, bool, err
 	default:
 		return user, false, nil
 	}
+}
+
+// issueWelcomeCoupons 为新账号发放固定的四张新人券。
+// 券模板由数据库迁移脚本统一维护；领取接口本身具备幂等限制，避免重复发放。
+func (l *LoginBySMSLogic) issueWelcomeCoupons(userID uint64) error {
+	if l == nil || l.svcCtx == nil || l.svcCtx.Coupons == nil || userID == 0 {
+		return ErrCouponRepositoryNotConfigured
+	}
+	for _, couponID := range []uint64{9001, 9002, 9003, 9004} {
+		if _, err := l.svcCtx.Coupons.Claim(l.ctx, userID, couponID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // toUserInfo 将内部用户模型转换为 proto 响应结构，并避免返回明文手机号。

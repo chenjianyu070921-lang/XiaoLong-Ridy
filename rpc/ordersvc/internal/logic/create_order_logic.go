@@ -234,9 +234,15 @@ func buildRideOrder(in *proto.CreateOrderRequest, estimatedPriceCents int64) *mo
 // defaultCityCode 兜底城市编码，与 api 网关默认值保持一致。
 const defaultCityCode = "110000"
 
-// estimatePriceSnapshot 调 pricesvc 落计价快照；客户端缺失或计价失败时降级为入参预估价格。
+// estimatePriceSnapshot 确定订单要保存的金额快照。
+// 乘客端已经根据用户优惠券计算并传入最终应付金额，订单服务必须优先保存该金额，
+// 不能再次用未携带优惠券信息的 pricesvc 结果覆盖，否则会导致下单和支付恢复为原价。
+// 只有调用方没有传入金额时，才使用 pricesvc 计算原始预估价作为兜底。
 func (l *CreateOrderLogic) estimatePriceSnapshot(in *proto.CreateOrderRequest) int64 {
-	if l.svcCtx.PriceClient == nil {
+	if in.EstimatedPriceCents > 0 {
+		return in.EstimatedPriceCents
+	}
+	if l.svcCtx == nil || l.svcCtx.PriceClient == nil {
 		return in.EstimatedPriceCents
 	}
 	cityCode := strings.TrimSpace(in.CityCode)
