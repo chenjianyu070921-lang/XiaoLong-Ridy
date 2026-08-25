@@ -307,6 +307,16 @@ func (f *fakeAdminService) GetOrderStatistics(ctx context.Context, in *adminclie
 	return &adminclient.OrderStatisticsResponse{OrderCount: 3, CompletedOrderCount: 2, CompletionRate: "66.67%"}, nil
 }
 
+// GetDriverStatistics 返回司机经营统计。
+func (f *fakeAdminService) GetDriverStatistics(ctx context.Context, in *adminclient.StatisticsRequest, opts ...grpc.CallOption) (*adminclient.DriverStatisticsResponse, error) {
+	return &adminclient.DriverStatisticsResponse{DriverTotal: 2, NewDriverCount: 1, CompletedOrderCount: 8, DriverIncome: "80.00"}, nil
+}
+
+// GetFinanceStatistics 返回财务收入统计。
+func (f *fakeAdminService) GetFinanceStatistics(ctx context.Context, in *adminclient.StatisticsRequest, opts ...grpc.CallOption) (*adminclient.FinanceStatisticsResponse, error) {
+	return &adminclient.FinanceStatisticsResponse{PaymentOrderCount: 3, PaidAmount: "100.00", DriverIncome: "80.00"}, nil
+}
+
 // GetCouponStatistics 返回优惠券统计。
 func (f *fakeAdminService) GetCouponStatistics(ctx context.Context, in *adminclient.StatisticsRequest, opts ...grpc.CallOption) (*adminclient.CouponStatisticsResponse, error) {
 	return &adminclient.CouponStatisticsResponse{CouponCount: 2, IssuedCouponCount: 10, UseRate: "20.00%"}, nil
@@ -340,6 +350,46 @@ func (f *fakeAdminService) ReleaseBlacklist(ctx context.Context, in *adminclient
 // ListRiskHitRecords 返回风控命中记录列表。
 func (f *fakeAdminService) ListRiskHitRecords(ctx context.Context, in *adminclient.RiskHitRecordListRequest, opts ...grpc.CallOption) (*adminclient.RiskHitRecordListResponse, error) {
 	return &adminclient.RiskHitRecordListResponse{List: []*adminclient.RiskHitRecord{{Id: 1, TargetType: "user", TargetId: 1001, Scene: "login", RiskLevel: 2, HitReason: "命中黑名单"}}, Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize()}, nil
+}
+
+// CreateWorkOrder 返回工单创建结果。
+func (f *fakeAdminService) CreateWorkOrder(ctx context.Context, in *adminclient.WorkOrderRequest, opts ...grpc.CallOption) (*adminclient.WorkOrder, error) {
+	return &adminclient.WorkOrder{Id: 1, WorkOrderNo: "WO202608240001", Title: in.GetTitle(), Status: 1, Version: 1}, nil
+}
+
+// ListWorkOrders 返回工单列表。
+func (f *fakeAdminService) ListWorkOrders(ctx context.Context, in *adminclient.WorkOrderListRequest, opts ...grpc.CallOption) (*adminclient.WorkOrderListResponse, error) {
+	return &adminclient.WorkOrderListResponse{List: []*adminclient.WorkOrder{{Id: 1, WorkOrderNo: "WO202608240001", Title: "测试工单", Status: 1, Version: 1}}, Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize()}, nil
+}
+
+// GetWorkOrder 返回工单详情。
+func (f *fakeAdminService) GetWorkOrder(ctx context.Context, in *adminclient.WorkOrderDetailRequest, opts ...grpc.CallOption) (*adminclient.WorkOrder, error) {
+	return &adminclient.WorkOrder{Id: in.GetId(), WorkOrderNo: "WO202608240001", Title: "测试工单", Status: 1, Version: 1}, nil
+}
+
+// ActWorkOrder 返回工单流转结果。
+func (f *fakeAdminService) ActWorkOrder(ctx context.Context, in *adminclient.WorkOrderActionRequest, opts ...grpc.CallOption) (*adminclient.WorkOrder, error) {
+	return &adminclient.WorkOrder{Id: in.GetId(), WorkOrderNo: "WO202608240001", Status: 2, Version: in.GetVersion() + 1}, nil
+}
+
+// BatchActWorkOrders 返回批量工单处理结果。
+func (f *fakeAdminService) BatchActWorkOrders(ctx context.Context, in *adminclient.WorkOrderBatchActionRequest, opts ...grpc.CallOption) (*adminclient.WorkOrderBatchActionResponse, error) {
+	return &adminclient.WorkOrderBatchActionResponse{SuccessCount: int64(len(in.GetIds()))}, nil
+}
+
+// AddWorkOrderEvidence 返回新增工单证据。
+func (f *fakeAdminService) AddWorkOrderEvidence(ctx context.Context, in *adminclient.WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*adminclient.WorkOrderEvidence, error) {
+	return &adminclient.WorkOrderEvidence{Id: 1, WorkOrderId: in.GetWorkOrderId(), EvidenceType: in.GetEvidenceType(), Content: in.GetContent()}, nil
+}
+
+// ListWorkOrderEvidence 返回工单证据列表。
+func (f *fakeAdminService) ListWorkOrderEvidence(ctx context.Context, in *adminclient.WorkOrderEvidenceListRequest, opts ...grpc.CallOption) (*adminclient.WorkOrderEvidenceListResponse, error) {
+	return &adminclient.WorkOrderEvidenceListResponse{List: []*adminclient.WorkOrderEvidence{{Id: 1, WorkOrderId: in.GetWorkOrderId(), EvidenceType: "text"}}, Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize()}, nil
+}
+
+// HandleRiskHitRecords 返回风控命中处置结果。
+func (f *fakeAdminService) HandleRiskHitRecords(ctx context.Context, in *adminclient.RiskHitActionRequest, opts ...grpc.CallOption) (*adminclient.RiskHitActionResponse, error) {
+	return &adminclient.RiskHitActionResponse{SuccessCount: int64(len(in.GetIds())), WorkOrderIds: []int64{1}}, nil
 }
 
 // newPriceRuleTestRouter 创建绕过鉴权中间件的 Router，用于直接测试价格规则 handler。

@@ -205,11 +205,16 @@ message ClaimCouponResponse {
 message ListMyCouponsRequest {
   uint64 user_id = 1; // 用户 ID
   int32 status = 2; // 0 表示全部；1未用 2已用 3过期 4锁定
+  int32 page = 3; // 页码，从 1 开始；未传时默认第 1 页
+  int32 page_size = 4; // 每页数量；未传时使用服务端默认值
 }
 
 // ListMyCouponsResponse 查询我的优惠券响应。
 message ListMyCouponsResponse {
   repeated CouponInfo list = 1; // 优惠券列表
+  int64 total = 2; // 符合条件的优惠券总数
+  int32 page = 3; // 当前页码
+  int32 page_size = 4; // 当前页大小
 }
 
 // LockUserCouponRequest 下单锁券请求。

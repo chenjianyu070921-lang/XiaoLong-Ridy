@@ -60,16 +60,17 @@ func NewListMyCouponsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Lis
 	return &ListMyCouponsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
 }
 
-// ListMyCoupons 查询指定乘客领取的优惠券列表。
+// ListMyCoupons 查询指定乘客领取的优惠券列表，并在 usersvc 内部完成分页。
 func (l *ListMyCouponsLogic) ListMyCoupons(in *userproto.ListMyCouponsRequest) (*userproto.ListMyCouponsResponse, error) {
 	if in.GetUserId() == 0 || !isValidCouponStatus(in.GetStatus()) {
 		return nil, ErrInvalidCouponRequest
 	}
+	page, pageSize := normalizeCouponPage(in.GetPage(), in.GetPageSize())
 	coupons, err := couponRepository(l.svcCtx)
 	if err != nil {
 		return nil, err
 	}
-	list, err := coupons.ListByUser(l.ctx, in.GetUserId(), int8(in.GetStatus()))
+	list, total, err := coupons.ListByUserPage(l.ctx, in.GetUserId(), int8(in.GetStatus()), page, pageSize)
 	if err != nil {
 		return nil, mapCouponRepositoryError(err)
 	}
@@ -77,7 +78,24 @@ func (l *ListMyCouponsLogic) ListMyCoupons(in *userproto.ListMyCouponsRequest) (
 	for _, item := range list {
 		resp.List = append(resp.List, toCouponInfo(item))
 	}
+	resp.Total = total
+	resp.Page = int32(page)
+	resp.PageSize = int32(pageSize)
 	return resp, nil
+}
+
+// normalizeCouponPage 统一用户券查询的分页边界，避免下游收到无效 LIMIT/OFFSET。
+func normalizeCouponPage(page, pageSize int32) (int, int) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	return int(page), int(pageSize)
 }
 
 // LockUserCouponLogic 处理下单前锁定用户券 RPC。

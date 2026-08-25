@@ -120,8 +120,8 @@ ListenOn: 0.0.0.0:8084
 MySQL:
   DSN: ""
 Cache:
-  Host: 127.0.0.1:6379
-  Password: ""
+  Host: 115.191.16.159:6379
+  Password: "4ay1nkal3u8ed77y"
   DB: 0
 Session:
   SessionTTLHours: 24

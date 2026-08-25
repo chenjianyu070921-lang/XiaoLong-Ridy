@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -106,6 +107,30 @@ func (r *MemoryCouponRepository) ListByUser(_ context.Context, userID uint64, st
 		list = append(list, couponView(&current, coupon))
 	}
 	return list, nil
+}
+
+// ListByUserPage 在内存仓储中提供与数据库仓储一致的分页契约，便于本地开发和单元测试复用。
+func (r *MemoryCouponRepository) ListByUserPage(ctx context.Context, userID uint64, status int8, page, pageSize int) ([]*UserCouponWithTemplate, int64, error) {
+	all, err := r.ListByUser(ctx, userID, status)
+	if err != nil {
+		return nil, 0, err
+	}
+	sort.SliceStable(all, func(i, j int) bool {
+		if all[i].UserCoupon.ReceivedAt.Equal(all[j].UserCoupon.ReceivedAt) {
+			return all[i].UserCoupon.ID > all[j].UserCoupon.ID
+		}
+		return all[i].UserCoupon.ReceivedAt.After(all[j].UserCoupon.ReceivedAt)
+	})
+	total := int64(len(all))
+	start := (page - 1) * pageSize
+	if start >= len(all) {
+		return []*UserCouponWithTemplate{}, total, nil
+	}
+	end := start + pageSize
+	if end > len(all) {
+		end = len(all)
+	}
+	return all[start:end], total, nil
 }
 
 // Lock 将用户券从未使用锁定到指定订单，防止重复下单使用。

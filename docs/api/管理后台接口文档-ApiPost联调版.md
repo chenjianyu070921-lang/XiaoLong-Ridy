@@ -156,7 +156,7 @@ Content-Type: application/json
 
 ---
 
-## 三、接口总览（52 个子用例）
+## 三、接口总览（60 个已登记条目）
 
 | # | 模块 | 方法 | 路由 | 鉴权 |
 | --- | --- | --- | --- | --- |
@@ -173,45 +173,55 @@ Content-Type: application/json
 | 11 | 管理员 | POST | `/admin/v1/admins/{id}/reset-password` | 仅超管 |
 | 12 | 日志 | GET | `/admin/v1/operation-logs` | 是 |
 | 13 | 用户 | GET | `/admin/v1/users` | 是 |
-| 9 | 用户 | GET | `/admin/v1/users/{id}` | 是 |
-| 10 | 用户 | POST | `/admin/v1/users/{id}/freeze` | 是 |
-| 11 | 用户 | POST | `/admin/v1/users/{id}/unfreeze` | 是 |
-| 12 | 司机 | GET | `/admin/v1/driver-certifications` | 是 |
-| 13 | 司机 | GET | `/admin/v1/driver-certifications/{id}` | 是 |
-| 14 | 司机 | POST | `/admin/v1/driver-certifications/{id}/approve` | 是 |
-| 15 | 司机 | POST | `/admin/v1/driver-certifications/{id}/reject` | 是 |
-| 16 | 订单 | GET | `/admin/v1/orders` | 是 |
-| 17 | 订单 | GET | `/admin/v1/orders/{id}` | 是 |
-| 18 | 订单 | GET | `/admin/v1/orders/abnormal` | 是 |
-| 19 | 订单 | POST | `/admin/v1/orders/{id}/cancel` | 是 |
-| 20 | 优惠券 | GET | `/admin/v1/coupons` | 是 |
-| 21 | 优惠券 | POST | `/admin/v1/coupons` | 是 |
-| 22 | 优惠券 | PUT | `/admin/v1/coupons/{id}` | 是 |
-| 23 | 优惠券 | POST | `/admin/v1/coupons/{id}/disable` | 是 |
-| 24 | 优惠券 | POST | `/admin/v1/coupons/{id}/issue` | 是 |
-| 25 | 优惠券 | GET | `/admin/v1/coupon-issue-tasks` | 是 |
-| 26 | 计价规则 | GET | `/admin/v1/price-rules` | 是 |
-| 27 | 计价规则 | POST | `/admin/v1/price-rules` | 是 |
-| 28 | 计价规则 | GET | `/admin/v1/price-rules/{id}` | 是 |
-| 29 | 计价规则 | PUT | `/admin/v1/price-rules/{id}` | 是 |
-| 30 | 计价规则 | POST | `/admin/v1/price-rules/{id}/enable` | 是 |
-| 31 | 计价规则 | POST | `/admin/v1/price-rules/{id}/disable` | 是 |
-| 32 | 营销 | GET | `/admin/v1/promotion-activities` | 是 |
-| 33 | 营销 | POST | `/admin/v1/promotion-activities` | 是 |
-| 34 | 营销 | PUT | `/admin/v1/promotion-activities/{id}` | 是 |
-| 35 | 营销 | POST | `/admin/v1/promotion-activities/{id}/publish` | 是 |
-| 36 | 营销 | POST | `/admin/v1/promotion-activities/{id}/rollback` | 是 |
-| 37 | 统计 | GET | `/admin/v1/statistics/overview` | 是 |
-| 38 | 统计 | GET | `/admin/v1/statistics/orders` | 是 |
-| 39 | 统计 | GET | `/admin/v1/statistics/coupons` | 是 |
-| 40 | 导出 | GET | `/admin/v1/export-tasks` | 是 |
-| 41 | 导出 | POST | `/admin/v1/export-tasks` | 是 |
-| 42 | 导出 | GET | `/admin/v1/export-tasks/{task_no}` | 是 |
-| 43 | 风控 | GET | `/admin/v1/blacklist` | 是 |
-| 44 | 风控 | POST | `/admin/v1/blacklist` | 是 |
-| 45 | 风控 | POST | `/admin/v1/blacklist/{id}/release` | 是 |
-| 46 | 风控 | GET | `/admin/v1/risk/hit-records` | 是 |
-| 47 | 基础 | GET | `/` | 否 |
+| 14 | 用户 | GET | `/admin/v1/users/{id}` | 是 |
+| 15 | 用户 | GET | `/admin/v1/users/{id}/orders` | 是 |
+| 16 | 用户 | GET | `/admin/v1/users/{id}/coupons` | 是 |
+| 17 | 用户 | POST | `/admin/v1/users/{id}/freeze` | 是 |
+| 18 | 用户 | POST | `/admin/v1/users/{id}/unfreeze` | 是 |
+| 19 | 司机 | GET | `/admin/v1/driver-certifications` | 是 |
+| 20 | 司机 | GET | `/admin/v1/driver-certifications/{id}` | 是 |
+| 21 | 司机 | POST | `/admin/v1/driver-certifications/{id}/approve` | 是 |
+| 22 | 司机 | POST | `/admin/v1/driver-certifications/{id}/reject` | 是 |
+| 23 | 订单 | GET | `/admin/v1/orders` | 是 |
+| 24 | 订单 | GET | `/admin/v1/orders/{id}` | 是 |
+| 25 | 订单 | GET | `/admin/v1/orders/abnormal` | 是 |
+| 26 | 订单 | POST | `/admin/v1/orders/{id}/cancel` | 是 |
+| 27 | 优惠券 | GET | `/admin/v1/coupons` | 是 |
+| 28 | 优惠券 | POST | `/admin/v1/coupons` | 是 |
+| 29 | 优惠券 | PUT | `/admin/v1/coupons/{id}` | 是 |
+| 30 | 优惠券 | POST | `/admin/v1/coupons/{id}/disable` | 是 |
+| 31 | 优惠券 | POST | `/admin/v1/coupons/{id}/issue` | 是 |
+| 32 | 优惠券 | GET | `/admin/v1/coupon-issue-tasks` | 是 |
+| 33 | 计价规则 | GET | `/admin/v1/price-rules` | 是 |
+| 34 | 计价规则 | POST | `/admin/v1/price-rules` | 是 |
+| 35 | 计价规则 | GET | `/admin/v1/price-rules/{id}` | 是 |
+| 36 | 计价规则 | PUT | `/admin/v1/price-rules/{id}` | 是 |
+| 37 | 计价规则 | POST | `/admin/v1/price-rules/{id}/enable` | 是 |
+| 38 | 计价规则 | POST | `/admin/v1/price-rules/{id}/disable` | 是 |
+| 39 | 营销 | GET | `/admin/v1/promotion-activities` | 是 |
+| 40 | 营销 | POST | `/admin/v1/promotion-activities` | 是 |
+| 41 | 营销 | PUT | `/admin/v1/promotion-activities/{id}` | 是 |
+| 42 | 营销 | POST | `/admin/v1/promotion-activities/{id}/publish` | 是 |
+| 43 | 营销 | POST | `/admin/v1/promotion-activities/{id}/rollback` | 是 |
+| 44 | 统计 | GET | `/admin/v1/statistics/overview` | 是 |
+| 45 | 统计 | GET | `/admin/v1/statistics/orders` | 是 |
+| 46 | 统计 | GET | `/admin/v1/statistics/drivers` | 是 |
+| 47 | 统计 | GET | `/admin/v1/statistics/revenue` | 是 |
+| 48 | 统计 | GET | `/admin/v1/statistics/coupons` | 是 |
+| 49 | 导出 | GET | `/admin/v1/export-tasks` | 是 |
+| 50 | 导出 | POST | `/admin/v1/export-tasks` | 是 |
+| 51 | 导出 | GET | `/admin/v1/export-tasks/{task_no}` | 是 |
+| 52 | 导出 | GET | `/admin/v1/export-tasks/{task_no}/download` | 是 |
+| 53 | 工单 | GET | `/admin/v1/work-orders` | 是 |
+| 54 | 工单 | POST | `/admin/v1/work-orders` | 是 |
+| 53 | 工单 | GET | `/admin/v1/work-orders/{id}` | 是 |
+| 54 | 工单 | POST | `/admin/v1/work-orders/{id}/actions` | 是 |
+| 55 | 工单 | GET/POST | `/admin/v1/work-orders/{id}/evidence` | 是 |
+| 56 | 风控 | GET | `/admin/v1/blacklist` | 是 |
+| 57 | 风控 | POST | `/admin/v1/blacklist` | 是 |
+| 58 | 风控 | POST | `/admin/v1/blacklist/{id}/release` | 是 |
+| 59 | 风控 | GET | `/admin/v1/risk/hit-records` | 是 |
+| 60 | 基础 | GET | `/` | 否 |
 
 ---
 
@@ -331,6 +341,22 @@ Body：
 ```
 
 成功：`{"code":0,"message":"ok","data":{"message":"ok"}}`。不存在：`404 / 40401`。
+
+### 5.4 用户订单历史
+
+`GET /admin/v1/users/{id}/orders`
+
+Query：`page`、`page_size`、`status`（订单状态，0 或空表示全部）。
+
+处理链路：`api/admin → adminsvc.ListUserOrders → ordersvc.ListOrders`，HTTP 层不直接读取订单表。
+
+### 5.5 用户优惠券历史
+
+`GET /admin/v1/users/{id}/coupons`
+
+Query：`page`、`page_size`、`status`（用户券状态：0 全部，1 未使用，2 已使用，3 已过期，4 锁定）。
+
+处理链路：`api/admin → adminsvc.ListUserCoupons → usersvc.ListMyCoupons`，分页由 usersvc 下游查询完成。
 
 ---
 
@@ -657,7 +683,7 @@ Body：
 
 ## 十一、数据统计
 
-统一 Query：`start_time`、`end_time`、`city_code`。当前订单表尚未保存权威 `city_code`，因此运营总览和订单统计传入非空 `city_code` 会返回 `400 / 40001`；不得将其静默降级为全量统计。订单相关指标的时间范围按订单创建时间生效。
+统一 Query：`start_time`、`end_time`、`city_code`。当前订单、支付、结算、价格明细、司机与优惠券相关表尚未保存权威 `city_code`，因此统计接口传入非空 `city_code` 会返回 `400 / 40001`；不得将其静默降级为全量统计。订单相关指标的时间范围按订单创建时间生效，支付、结算、补贴、司机提现等财务指标按各自业务记录创建时间生效。
 
 ### 11.1 运营总览
 
@@ -671,7 +697,21 @@ Body：
 
 响应 `data`：`order_count`、`completed_order_count`、`canceled_order_count`、`timeout_order_count`、`payment_abnormal_count`、`completion_rate`、`cancel_rate`。
 
-### 11.3 优惠券统计
+### 11.3 司机统计
+
+`GET /admin/v1/statistics/drivers`
+
+响应 `data`：`driver_total`、`new_driver_count`、`pending_audit_count`、`approved_driver_count`、`completed_order_count`、`driver_income`（string）、`withdraw_pending_amount`（string）、`withdraw_success_amount`（string）、`withdraw_failed_count`、`average_score`（string）、`total_complaint_count`。
+
+说明：当前数据库没有司机在线状态和独立接单事件表，因此不返回在线司机、接单司机等无法可靠计算的指标。
+
+### 11.4 收入统计
+
+`GET /admin/v1/statistics/revenue`
+
+响应 `data`：`payment_order_count`、`paid_amount`（string）、`refund_order_count`、`refund_amount`（string）、`payment_failed_count`、`settlement_order_count`、`settlement_total_amount`（string）、`platform_commission`（string）、`driver_income`（string）、`platform_subsidy`（string）。
+
+### 11.5 优惠券统计
 
 `GET /admin/v1/statistics/coupons`
 
@@ -714,11 +754,79 @@ Query：`page`、`page_size`、`export_type`。
 
 Path：`task_no`（string）。响应字段同列表项。
 
+### 12.4 下载导出文件
+
+`GET /admin/v1/export-tasks/{task_no}/download`
+
+鉴权：创建者本人或超级管理员。返回 `text/csv; charset=utf-8` 文件流，响应头包含 `Content-Disposition: attachment; filename="{task_no}.csv"`。
+
+前置条件：任务状态为成功、文件仍在有效期内、服务端文件名与任务号一致。未完成、过期、无权限或文件不存在分别按统一错误格式返回。
+
 ---
 
-## 十三、风控黑名单
+## 十三、工单中心
 
-### 13.1 黑名单列表
+### 13.1 工单列表 / 创建
+
+`GET /admin/v1/work-orders`
+
+Query：`status`、`assignee_id`、`work_order_type`、`page`、`page_size`。
+
+`POST /admin/v1/work-orders`
+
+Body 字段：`work_order_type`、`source_type`、`source_id`、`order_id`、`user_id`、`driver_id`、`title`、`content`、`priority`。
+
+### 13.2 工单详情
+
+`GET /admin/v1/work-orders/{id}`
+
+### 13.3 工单流转
+
+`POST /admin/v1/work-orders/{id}/actions`
+
+Body 字段：`action`（`assign/follow/arbitrate/close/reopen`）、`assignee_id`、`content`、`arbitration_result`、`version`。
+
+角色限制：超管可执行全部动作；运营仅可 `assign/follow`；客服仅可 `follow`；`arbitrate/close/reopen` 仅超管。
+
+### 13.4 工单批量处理
+
+`POST /admin/v1/work-orders/batch-actions`
+
+请求体：
+
+```json
+{
+  "ids": [10001, 10002],
+  "action": "follow",
+  "content": "已完成批量跟进"
+}
+```
+
+字段说明：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `ids` | int64[] | 是 | 工单 ID 列表 |
+| `action` | string | 是 | `assign/follow/arbitrate/close/reopen` |
+| `assignee_id` | int64 | 否 | `assign` 时的目标管理员 |
+| `content` | string | 否 | 处理内容或批量备注 |
+| `arbitration_result` | string | 否 | `arbitrate` 时的仲裁结论 |
+
+运营可执行 `assign/follow`，客服可执行 `follow`，仲裁、结案、重开仅超管可执行。响应返回 `success_count`、`fail_count`、`failure_reasons`，批量项目逐条独立处理。
+
+### 13.5 工单证据
+
+`GET /admin/v1/work-orders/{id}/evidence`
+
+`POST /admin/v1/work-orders/{id}/evidence`
+
+Body 字段：`evidence_type`（`track/audio/chat/payment/image/text`）、`evidence_url`、`content`。
+
+---
+
+## 十四、风控黑名单
+
+### 14.1 黑名单列表
 
 `GET /admin/v1/blacklist`
 
@@ -726,7 +834,7 @@ Query：`target_type`（`user`/`driver`/`device`/`phone`）、`target_id`（int6
 
 列表项字段：`id`、`target_type`、`target_id`、`reason`、`operator_id`、`status`、`created_at`、`updated_at`。
 
-### 13.2 加入黑名单
+### 14.2 加入黑名单
 
 `POST /admin/v1/blacklist`
 
@@ -742,7 +850,7 @@ Body：
 { "target_type": "user", "target_id": 10001, "reason": "高频恶意取消订单" }
 ```
 
-### 13.3 解除黑名单
+### 14.3 解除黑名单
 
 `POST /admin/v1/blacklist/{id}/release`
 
@@ -754,7 +862,7 @@ Body：`reason`（string，可选）。
 
 仅对状态为生效（1）的记录生效，不存在或已解除返回 `404 / 40401`。
 
-### 13.4 风控命中记录
+### 14.4 风控命中记录
 
 `GET /admin/v1/risk/hit-records`
 
@@ -764,9 +872,29 @@ Query：`target_type`、`target_id`、`scene`（场景）、`risk_level`、`page
 
 说明：风控命中记录依赖 `risk_blacklist_hit_record` 表，联调前需确认业务库已应用对应迁移。
 
+运营可查询，客服无权查询。
+
+### 14.5 风控命中处置
+
+`POST /admin/v1/risk/hit-records/actions`
+
+仅超级管理员可调用。
+
+```json
+{
+  "ids": [10001, 10002],
+  "action": "create_work_order",
+  "reason": "高风险命中，转人工复核",
+  "work_order_title": "风控命中复核",
+  "priority": 3
+}
+```
+
+`action` 支持 `review_pass`、`add_blacklist`、`create_work_order`。由于命中表没有处理状态字段，`review_pass` 只写操作日志；其余动作分别写入黑名单或工单及审计记录。响应返回 `success_count`、`fail_count`、`work_order_ids`、`failure_reasons`。
+
 ---
 
-## 十四、操作日志
+## 十五、操作日志
 
 `GET /admin/v1/operation-logs`
 
@@ -776,11 +904,9 @@ Query：`admin_id`（int64）、`module`、`action`、`target_type`、`target_id
 
 ---
 
-## 十五、注意事项
+## 十六、注意事项
 
 1. **数据库迁移注意**：`admin_coupon_issue_task`、`risk_blacklist_hit_record`、`admin_export_task` 等表需按数据库发布流程应用迁移脚本，代码不会自动修改线上数据库。
 2. **写操作注意**：`freeze/unfreeze`、审核通过/驳回、发券、发布/回滚、拉黑、计价规则新增/编辑/启停等会真实改动业务库并写操作日志，测试时建议使用测试账号/可回滚数据。
-3. **文档规划但未开放的路由**（返回 404）：`GET /users/{id}/orders`、`GET /users/{id}/coupons`、`GET /drivers`、`GET /drivers/{id}`、`POST /drivers/{id}/freeze`、`GET /orders/{id}/track`、`POST /orders/{id}/redispatch`、`POST /orders/{id}/refund`、`GET /user-coupons`、`GET /dashboard/overview`、`GET /statistics/{revenue,drivers,users}`。
-
-补充说明：`rpc/adminsvc` 已提供 `ListUserOrders`、`ListUserCoupons`，但尚未由 `api/admin` 注册对应 HTTP 路由；导出文件下载、后台工单及工单证据接口已开放，不属于未实现接口。
-4. **自动化验证**：当前已通过 `go test ./api/admin/... ./rpc/adminsvc/... ./rpc/pricesvc/... ./rpc/driversvc/...`；`TestRouter_AllImplementedAdminRoutesSmoke` 覆盖 47 个已注册 HTTP 子用例。
+3. **文档规划但未开放的路由**（返回 404）：`GET /drivers`、`GET /drivers/{id}`、`POST /drivers/{id}/freeze`、`GET /orders/{id}/track`、`POST /orders/{id}/redispatch`、`POST /orders/{id}/refund`、`GET /user-coupons`、`GET /dashboard/overview`、`GET /statistics/{revenue,drivers,users}`。
+4. **自动化验证**：当前已通过 `go test ./api/admin/... ./rpc/adminsvc/... ./rpc/pricesvc/... ./rpc/driversvc/...`；路由 smoke 用例需继续补齐管理员管理、用户历史、导出下载和工单接口覆盖。

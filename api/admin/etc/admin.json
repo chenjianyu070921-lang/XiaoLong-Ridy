@@ -1,8 +1,8 @@
 {
   "http_addr": ":8717",
   "redis": {
-    "addr": "127.0.0.1:6379",
-    "password": "",
+    "addr": "115.191.16.159:6379",
+    "password": "4ay1nkal3u8ed77y",
     "db": 0
   },
   "auth": {

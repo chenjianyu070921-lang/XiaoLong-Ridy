@@ -20,6 +20,14 @@ func TestRoleAllowed(t *testing.T) {
 		{name: "运营不能发券", method: "/adminsvc.AdminService/IssueCoupon", role: adminRoleOps, want: false},
 		{name: "客服可以取消订单", method: "/adminsvc.AdminService/CancelOrder", role: adminRoleCS, want: true},
 		{name: "客服不能冻结用户", method: "/adminsvc.AdminService/FreezeUser", role: adminRoleCS, want: false},
+		{name: "运营可以进入工单动作入口", method: "/adminsvc.AdminService/ActWorkOrder", role: adminRoleOps, want: true},
+		{name: "客服可以进入工单动作入口", method: "/adminsvc.AdminService/ActWorkOrder", role: adminRoleCS, want: true},
+		{name: "运营可以批量处理工单", method: "/adminsvc.AdminService/BatchActWorkOrders", role: adminRoleOps, want: true},
+		{name: "客服可以批量跟进工单", method: "/adminsvc.AdminService/BatchActWorkOrders", role: adminRoleCS, want: true},
+		{name: "运营可以查询风控命中", method: "/adminsvc.AdminService/ListRiskHitRecords", role: adminRoleOps, want: true},
+		{name: "客服不能查询风控命中", method: "/adminsvc.AdminService/ListRiskHitRecords", role: adminRoleCS, want: false},
+		{name: "运营不能处置风控命中", method: "/adminsvc.AdminService/HandleRiskHitRecords", role: adminRoleOps, want: false},
+		{name: "客服不能处置风控命中", method: "/adminsvc.AdminService/HandleRiskHitRecords", role: adminRoleCS, want: false},
 		{name: "未知角色拒绝", method: "/adminsvc.AdminService/ListUsers", role: 99, want: false},
 	}
 

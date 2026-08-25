@@ -6,846 +6,2981 @@
     "description": "模块三管理后台接口定义。基础路径 /admin/v1。除 login/register 外均需 Authorization: Bearer <token>。统一响应 {code,message,data}，code=0 表示成功。"
   },
   "servers": [
-    { "url": "http://127.0.0.1:8083", "description": "本地 api/admin 网关" }
+    {
+      "url": "http://127.0.0.1:8083",
+      "description": "本地 api/admin 网关"
+    }
   ],
   "tags": [
-    { "name": "基础", "description": "健康检查" },
-    { "name": "鉴权", "description": "注册/登录/登出/当前账号/菜单" },
-    { "name": "操作日志", "description": "后台操作日志查询" },
-    { "name": "用户管理", "description": "用户列表/详情/冻结/解冻" },
-    { "name": "司机审核", "description": "司机资质认证审核" },
-    { "name": "订单管理", "description": "订单列表/详情/异常/取消" },
-    { "name": "优惠券", "description": "优惠券模板与发券" },
-    { "name": "计价规则", "description": "计价规则查询、新增、编辑、启停" },
-    { "name": "营销活动", "description": "活动配置与发布" },
-    { "name": "数据统计", "description": "运营/订单/优惠券统计" },
-    { "name": "导出任务", "description": "导出任务创建与查询" },
-    { "name": "风控", "description": "黑名单与命中记录" }
+    {
+      "name": "基础",
+      "description": "健康检查"
+    },
+    {
+      "name": "鉴权",
+      "description": "注册/登录/登出/当前账号/菜单"
+    },
+    {
+      "name": "操作日志",
+      "description": "后台操作日志查询"
+    },
+    {
+      "name": "用户管理",
+      "description": "用户列表/详情/冻结/解冻"
+    },
+    {
+      "name": "司机审核",
+      "description": "司机资质认证审核"
+    },
+    {
+      "name": "订单管理",
+      "description": "订单列表/详情/异常/取消"
+    },
+    {
+      "name": "优惠券",
+      "description": "优惠券模板与发券"
+    },
+    {
+      "name": "计价规则",
+      "description": "计价规则查询、新增、编辑、启停"
+    },
+    {
+      "name": "营销活动",
+      "description": "活动配置与发布"
+    },
+    {
+      "name": "数据统计",
+      "description": "运营/订单/优惠券统计"
+    },
+    {
+      "name": "导出任务",
+      "description": "导出任务创建与查询"
+    },
+    {
+      "name": "风控",
+      "description": "黑名单与命中记录"
+    },
+    {
+      "name": "管理员管理",
+      "description": "管理员账号列表、创建、编辑、状态和密码重置"
+    },
+    {
+      "name": "工单",
+      "description": "投诉与申诉工单、流转动作、证据索引"
+    }
   ],
   "paths": {
     "/healthz": {
       "get": {
-        "tags": ["基础"],
+        "tags": [
+          "基础"
+        ],
         "summary": "健康检查",
         "security": [],
         "responses": {
           "200": {
             "description": "ok",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok" } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok"
+                }
+              }
+            }
           }
         }
       }
     },
     "/": {
       "get": {
-        "tags": ["基础"],
+        "tags": [
+          "基础"
+        ],
         "summary": "服务信息",
         "security": [],
-        "responses": { "200": { "description": "服务信息" } }
+        "responses": {
+          "200": {
+            "description": "服务信息"
+          }
+        }
       }
     },
     "/admin/v1/auth/register": {
       "post": {
-        "tags": ["鉴权"],
+        "tags": [
+          "鉴权"
+        ],
         "summary": "管理员注册（首个管理员免 token，之后需超管）",
         "security": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/RegisterRequest" },
-              "example": { "username": "admin", "password": "123456", "real_name": "系统管理员", "role": 1 }
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              },
+              "example": {
+                "username": "admin",
+                "password": "123456",
+                "real_name": "系统管理员",
+                "role": 1
+              }
             }
           }
         },
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "token": "xxxx", "expires_in": 86400, "admin": { "id": 1, "username": "admin", "real_name": "系统管理员", "role": 1, "status": 1 } } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "token": "xxxx",
+                    "expires_in": 86400,
+                    "admin": {
+                      "id": 1,
+                      "username": "admin",
+                      "real_name": "系统管理员",
+                      "role": 1,
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
           },
-          "400": { "description": "参数错误 40001" },
-          "401": { "description": "已有管理员且未携带超管 token 40004" },
-          "409": { "description": "用户名已存在 40902" }
+          "400": {
+            "description": "参数错误 40001"
+          },
+          "401": {
+            "description": "已有管理员且未携带超管 token 40004"
+          },
+          "409": {
+            "description": "用户名已存在 40902"
+          }
         }
       }
     },
     "/admin/v1/auth/login": {
       "post": {
-        "tags": ["鉴权"],
+        "tags": [
+          "鉴权"
+        ],
         "summary": "管理员登录",
         "security": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/LoginRequest" },
-              "example": { "username": "admin", "password": "123456" }
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "username": "admin",
+                "password": "123456"
+              }
             }
           }
         },
         "responses": {
           "200": {
             "description": "成功，返回 token",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "token": "xxxx", "expires_in": 86400, "admin": { "id": 1, "username": "admin", "real_name": "系统管理员", "role": 1, "status": 1 } } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "token": "xxxx",
+                    "expires_in": 86400,
+                    "admin": {
+                      "id": 1,
+                      "username": "admin",
+                      "real_name": "系统管理员",
+                      "role": 1,
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
           },
-          "400": { "description": "请求体为空 40001" },
-          "401": { "description": "账号或密码错误 40004" }
+          "400": {
+            "description": "请求体为空 40001"
+          },
+          "401": {
+            "description": "账号或密码错误 40004"
+          }
         }
       }
     },
     "/admin/v1/auth/logout": {
       "post": {
-        "tags": ["鉴权"],
+        "tags": [
+          "鉴权"
+        ],
         "summary": "管理员退出（token 立即失效）",
         "responses": {
-          "200": { "description": "成功", "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "message": "ok" } } } } }
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "message": "ok"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
     "/admin/v1/auth/me": {
       "get": {
-        "tags": ["鉴权"],
+        "tags": [
+          "鉴权"
+        ],
         "summary": "当前管理员信息",
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "admin": { "id": 1, "username": "admin", "real_name": "系统管理员", "role": 1, "status": 1 } } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "admin": {
+                      "id": 1,
+                      "username": "admin",
+                      "real_name": "系统管理员",
+                      "role": 1,
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
           },
-          "401": { "description": "token 缺失或失效 40004" }
+          "401": {
+            "description": "token 缺失或失效 40004"
+          }
         }
       }
     },
     "/admin/v1/menus": {
       "get": {
-        "tags": ["鉴权"],
+        "tags": [
+          "鉴权"
+        ],
         "summary": "当前角色菜单权限",
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "items": [ { "name": "工作台", "path": "/dashboard", "perm": "dashboard:view" } ] } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "items": [
+                      {
+                        "name": "工作台",
+                        "path": "/dashboard",
+                        "perm": "dashboard:view"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/admin/v1/operation-logs": {
       "get": {
-        "tags": ["操作日志"],
+        "tags": [
+          "操作日志"
+        ],
         "summary": "操作日志列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "admin_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "module", "in": "query", "schema": { "type": "string" } },
-          { "name": "action", "in": "query", "schema": { "type": "string" } },
-          { "name": "target_type", "in": "query", "schema": { "type": "string" } },
-          { "name": "target_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "start_time", "in": "query", "schema": { "type": "string", "example": "2026-08-01 00:00:00" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string", "example": "2026-08-18 23:59:59" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "admin_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "module",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "2026-08-01 00:00:00"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "2026-08-18 23:59:59"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "list": [], "total": 0, "page": 1, "page_size": 20 } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [],
+                    "total": 0,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/admin/v1/users": {
       "get": {
-        "tags": ["用户管理"],
+        "tags": [
+          "用户管理"
+        ],
         "summary": "用户列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "keyword", "in": "query", "schema": { "type": "string", "description": "手机号/昵称/真实姓名" } },
-          { "name": "status", "in": "query", "schema": { "type": "integer", "description": "1 正常 2 冻结" } },
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "手机号/昵称/真实姓名"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 正常 2 冻结"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "list": [ { "id": 1, "phone": "19852186366", "nickname": "198****6366", "status": 1 } ], "total": 1, "page": 1, "page_size": 20 } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [
+                      {
+                        "id": 1,
+                        "phone": "19852186366",
+                        "nickname": "198****6366",
+                        "status": 1
+                      }
+                    ],
+                    "total": 1,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/admin/v1/users/{id}": {
       "get": {
-        "tags": ["用户管理"],
+        "tags": [
+          "用户管理"
+        ],
         "summary": "用户详情",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "资源不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "资源不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/users/{id}/freeze": {
       "post": {
-        "tags": ["用户管理"],
+        "tags": [
+          "用户管理"
+        ],
         "summary": "冻结用户",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/FreezeRequest" },
-              "example": { "reason": "异常下单", "remark": "同设备高频取消订单" }
+              "schema": {
+                "$ref": "#/components/schemas/FreezeRequest"
+              },
+              "example": {
+                "reason": "异常下单",
+                "remark": "同设备高频取消订单"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功", "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "message": "ok" } } } } },
-          "404": { "description": "用户不存在 40401" }
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "message": "ok"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "用户不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/users/{id}/unfreeze": {
       "post": {
-        "tags": ["用户管理"],
+        "tags": [
+          "用户管理"
+        ],
         "summary": "解冻用户",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/FreezeRequest" },
-              "example": { "reason": "人工复核通过", "remark": "风险解除" }
+              "schema": {
+                "$ref": "#/components/schemas/FreezeRequest"
+              },
+              "example": {
+                "reason": "人工复核通过",
+                "remark": "风险解除"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "用户不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "用户不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/driver-certifications": {
       "get": {
-        "tags": ["司机审核"],
+        "tags": [
+          "司机审核"
+        ],
         "summary": "司机认证审核列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "keyword", "in": "query", "schema": { "type": "string", "description": "司机手机号/姓名/车牌号" } },
-          { "name": "audit_status", "in": "query", "schema": { "type": "integer", "description": "1 待审核 2 通过 3 驳回" } },
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "司机手机号/姓名/车牌号"
+            }
+          },
+          {
+            "name": "audit_status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 待审核 2 通过 3 驳回"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "list": [], "total": 0, "page": 1, "page_size": 20 } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [],
+                    "total": 0,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/admin/v1/driver-certifications/{id}": {
       "get": {
-        "tags": ["司机审核"],
+        "tags": [
+          "司机审核"
+        ],
         "summary": "司机认证详情",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "资源不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "资源不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/driver-certifications/{id}/approve": {
       "post": {
-        "tags": ["司机审核"],
+        "tags": [
+          "司机审核"
+        ],
         "summary": "审核通过（联动激活司机与车辆）",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/AuditRequest" },
-              "example": { "remark": "资料齐全，审核通过" }
+              "schema": {
+                "$ref": "#/components/schemas/AuditRequest"
+              },
+              "example": {
+                "remark": "资料齐全，审核通过"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功", "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "message": "ok" } } } } },
-          "400": { "description": "已审核过 40001" },
-          "404": { "description": "认证不存在 40401" }
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "message": "ok"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "已审核过 40001"
+          },
+          "404": {
+            "description": "认证不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/driver-certifications/{id}/reject": {
       "post": {
-        "tags": ["司机审核"],
+        "tags": [
+          "司机审核"
+        ],
         "summary": "审核驳回",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/AuditRequest" },
-              "example": { "remark": "身份证照片不清晰，请重新上传" }
+              "schema": {
+                "$ref": "#/components/schemas/AuditRequest"
+              },
+              "example": {
+                "remark": "身份证照片不清晰，请重新上传"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "400": { "description": "已审核过 40001" },
-          "404": { "description": "认证不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "已审核过 40001"
+          },
+          "404": {
+            "description": "认证不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/orders": {
       "get": {
-        "tags": ["订单管理"],
+        "tags": [
+          "订单管理"
+        ],
         "summary": "订单列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "keyword", "in": "query", "schema": { "type": "string", "description": "订单号" } },
-          { "name": "status", "in": "query", "schema": { "type": "integer", "description": "1 待接单 2 已接单 3 行程中 4 待支付 5 已完成 6 已取消" } },
-          { "name": "user_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "driver_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "订单号"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 待接单 2 已接单 3 行程中 4 待支付 5 已完成 6 已取消"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "driver_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "list": [ { "id": 8, "order_no": "DD20260818155131768998100000002", "status": 1 } ], "total": 8, "page": 1, "page_size": 20 } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [
+                      {
+                        "id": 8,
+                        "order_no": "DD20260818155131768998100000002",
+                        "status": 1
+                      }
+                    ],
+                    "total": 8,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/admin/v1/orders/{id}": {
       "get": {
-        "tags": ["订单管理"],
+        "tags": [
+          "订单管理"
+        ],
         "summary": "订单详情（聚合：订单+状态日志+派单+价格+支付+结算）",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "order": { "id": 8, "order_no": "DD20260818155131768998100000002", "status": 1 }, "status_logs": [], "dispatch_records": [], "price": null, "payment": null, "settlement": null } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "order": {
+                      "id": 8,
+                      "order_no": "DD20260818155131768998100000002",
+                      "status": 1
+                    },
+                    "status_logs": [],
+                    "dispatch_records": [],
+                    "price": null,
+                    "payment": null,
+                    "settlement": null
+                  }
+                }
+              }
+            }
           },
-          "404": { "description": "订单不存在 40401" }
+          "404": {
+            "description": "订单不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/orders/abnormal": {
       "get": {
-        "tags": ["订单管理"],
+        "tags": [
+          "订单管理"
+        ],
         "summary": "异常订单列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "abnormal_type", "in": "query", "schema": { "type": "string", "enum": ["cancel", "payment", "dispatch"], "description": "空表示全部" } },
-          { "name": "keyword", "in": "query", "schema": { "type": "string" } },
-          { "name": "user_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "driver_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "abnormal_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cancel",
+                "payment",
+                "dispatch"
+              ],
+              "description": "空表示全部"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "driver_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" }
+          "200": {
+            "description": "成功"
+          }
         }
       }
     },
     "/admin/v1/orders/{id}/cancel": {
       "post": {
-        "tags": ["订单管理"],
+        "tags": [
+          "订单管理"
+        ],
         "summary": "后台取消订单（依赖 ordersvc）",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/OrderCancelRequest" },
-              "example": { "reason": "司机长时间未接单" }
+              "schema": {
+                "$ref": "#/components/schemas/OrderCancelRequest"
+              },
+              "example": {
+                "reason": "司机长时间未接单"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "订单不存在 40401" },
-          "500": { "description": "ordersvc 不可用 50000" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "订单不存在 40401"
+          },
+          "500": {
+            "description": "ordersvc 不可用 50000"
+          }
         }
       }
     },
     "/admin/v1/coupons": {
       "get": {
-        "tags": ["优惠券"],
+        "tags": [
+          "优惠券"
+        ],
         "summary": "优惠券模板列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "keyword", "in": "query", "schema": { "type": "string", "description": "优惠券名称" } },
-          { "name": "type", "in": "query", "schema": { "type": "integer", "description": "1 满减 2 折扣 3 立减" } },
-          { "name": "status", "in": "query", "schema": { "type": "integer", "description": "1 草稿 2 启用 3 停用" } },
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "优惠券名称"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 满减 2 折扣 3 立减"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 草稿 2 启用 3 停用"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" }
+          "200": {
+            "description": "成功"
+          }
         }
       },
       "post": {
-        "tags": ["优惠券"],
+        "tags": [
+          "优惠券"
+        ],
         "summary": "新增优惠券模板（返回新 ID）",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CouponSaveRequest" },
-              "example": { "name": "新用户立减券", "type": 3, "face_value": "8.00", "discount": "1.00", "threshold_amount": "0.00", "total_count": 10000, "per_user_limit": 1, "valid_start_at": "2026-08-18 00:00:00", "valid_end_at": "2026-12-31 23:59:59", "status": 1 }
+              "schema": {
+                "$ref": "#/components/schemas/CouponSaveRequest"
+              },
+              "example": {
+                "name": "新用户立减券",
+                "type": 3,
+                "face_value": "8.00",
+                "discount": "1.00",
+                "threshold_amount": "0.00",
+                "total_count": 10000,
+                "per_user_limit": 1,
+                "valid_start_at": "2026-08-18 00:00:00",
+                "valid_end_at": "2026-12-31 23:59:59",
+                "status": 1
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功", "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "id": 1 } } } } },
-          "400": { "description": "参数校验失败 40001" }
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "id": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数校验失败 40001"
+          }
         }
       }
     },
     "/admin/v1/coupons/{id}": {
       "put": {
-        "tags": ["优惠券"],
+        "tags": [
+          "优惠券"
+        ],
         "summary": "编辑优惠券模板",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CouponSaveRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/CouponSaveRequest"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "优惠券不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "优惠券不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/coupons/{id}/disable": {
       "post": {
-        "tags": ["优惠券"],
+        "tags": [
+          "优惠券"
+        ],
         "summary": "停用优惠券模板",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "不存在或已停用 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "不存在或已停用 40401"
+          }
         }
       }
     },
     "/admin/v1/coupons/{id}/issue": {
       "post": {
-        "tags": ["优惠券"],
+        "tags": [
+          "优惠券"
+        ],
         "summary": "发券",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CouponIssueRequest" },
-              "example": { "target_type": "user", "target_config": "{\"user_ids\":[10001,10002]}" }
+              "schema": {
+                "$ref": "#/components/schemas/CouponIssueRequest"
+              },
+              "example": {
+                "target_type": "user",
+                "target_config": "{\"user_ids\":[10001,10002]}"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "400": { "description": "券未启用/已过期/参数错误 40001" },
-          "404": { "description": "优惠券不存在 40401" },
-          "500": { "description": "缺表 50000" }
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "券未启用/已过期/参数错误 40001"
+          },
+          "404": {
+            "description": "优惠券不存在 40401"
+          },
+          "500": {
+            "description": "缺表 50000"
+          }
         }
       }
     },
     "/admin/v1/coupon-issue-tasks": {
       "get": {
-        "tags": ["优惠券"],
+        "tags": [
+          "优惠券"
+        ],
         "summary": "发券任务列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "coupon_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "running", "success", "partial_failed", "failed"] } },
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "coupon_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "running",
+                "success",
+                "partial_failed",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" }
+          "200": {
+            "description": "成功"
+          }
         }
       }
     },
     "/admin/v1/price-rules": {
       "get": {
-        "tags": ["计价规则"],
+        "tags": [
+          "计价规则"
+        ],
         "summary": "计价规则列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "keyword", "in": "query", "schema": { "type": "string" } },
-          { "name": "city_code", "in": "query", "schema": { "type": "string" } },
-          { "name": "car_type", "in": "query", "schema": { "type": "integer" } },
-          { "name": "status", "in": "query", "schema": { "type": "integer" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "car_type",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
         ],
-        "responses": { "200": { "description": "成功" } }
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
       },
       "post": {
-        "tags": ["计价规则"],
+        "tags": [
+          "计价规则"
+        ],
         "summary": "新增计价规则（返回新 ID）",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PriceRuleSaveRequest" },
-              "example": { "name": "标准快车", "city_code": "110100", "car_type": 1, "base_price": "12.50", "base_distance_km": "3.00", "per_km_price": "2.40", "per_minute_price": "0.50", "night_start_time": "22:00:00", "night_end_time": "06:00:00", "night_surcharge": "1.20", "dynamic_max_factor": "2.00", "status": 1, "effective_at": "2026-08-20 00:00:00", "expire_at": "2026-12-31 23:59:59" }
+              "schema": {
+                "$ref": "#/components/schemas/PriceRuleSaveRequest"
+              },
+              "example": {
+                "name": "标准快车",
+                "city_code": "110100",
+                "car_type": 1,
+                "base_price": "12.50",
+                "base_distance_km": "3.00",
+                "per_km_price": "2.40",
+                "per_minute_price": "0.50",
+                "night_start_time": "22:00:00",
+                "night_end_time": "06:00:00",
+                "night_surcharge": "1.20",
+                "dynamic_max_factor": "2.00",
+                "status": 1,
+                "effective_at": "2026-08-20 00:00:00",
+                "expire_at": "2026-12-31 23:59:59"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功，data.id 为 pricesvc 创建的真实规则 ID" },
-          "400": { "description": "参数校验失败 40001" }
+          "200": {
+            "description": "成功，data.id 为 pricesvc 创建的真实规则 ID"
+          },
+          "400": {
+            "description": "参数校验失败 40001"
+          }
         }
       }
     },
     "/admin/v1/price-rules/{id}": {
       "get": {
-        "tags": ["计价规则"],
+        "tags": [
+          "计价规则"
+        ],
         "summary": "计价规则详情",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "计价规则不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "计价规则不存在 40401"
+          }
         }
       },
       "put": {
-        "tags": ["计价规则"],
+        "tags": [
+          "计价规则"
+        ],
         "summary": "编辑计价规则",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PriceRuleSaveRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/PriceRuleSaveRequest"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "计价规则不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "计价规则不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/price-rules/{id}/enable": {
       "post": {
-        "tags": ["计价规则"],
+        "tags": [
+          "计价规则"
+        ],
         "summary": "启用计价规则",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "计价规则不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "计价规则不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/price-rules/{id}/disable": {
       "post": {
-        "tags": ["计价规则"],
+        "tags": [
+          "计价规则"
+        ],
         "summary": "停用计价规则",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "计价规则不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "计价规则不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/promotion-activities": {
       "get": {
-        "tags": ["营销活动"],
+        "tags": [
+          "营销活动"
+        ],
         "summary": "活动配置列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "keyword", "in": "query", "schema": { "type": "string" } },
-          { "name": "type", "in": "query", "schema": { "type": "integer" } },
-          { "name": "status", "in": "query", "schema": { "type": "integer" } },
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" }
+          "200": {
+            "description": "成功"
+          }
         }
       },
       "post": {
-        "tags": ["营销活动"],
+        "tags": [
+          "营销活动"
+        ],
         "summary": "新增活动配置",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PromotionActivitySaveRequest" },
-              "example": { "name": "暑期满减活动", "type": 3, "config": "{\"city_code\":\"110000\",\"discount\":\"8.00\"}", "start_at": "2026-08-18 00:00:00", "end_at": "2026-08-31 23:59:59", "status": 1 }
+              "schema": {
+                "$ref": "#/components/schemas/PromotionActivitySaveRequest"
+              },
+              "example": {
+                "name": "暑期满减活动",
+                "type": 3,
+                "config": "{\"city_code\":\"110000\",\"discount\":\"8.00\"}",
+                "start_at": "2026-08-18 00:00:00",
+                "end_at": "2026-08-31 23:59:59",
+                "status": 1
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "400": { "description": "参数校验失败 40001" }
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "参数校验失败 40001"
+          }
         }
       }
     },
     "/admin/v1/promotion-activities/{id}": {
       "put": {
-        "tags": ["营销活动"],
+        "tags": [
+          "营销活动"
+        ],
         "summary": "编辑活动配置",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PromotionActivitySaveRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/PromotionActivitySaveRequest"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "活动不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "活动不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/promotion-activities/{id}/publish": {
       "post": {
-        "tags": ["营销活动"],
+        "tags": [
+          "营销活动"
+        ],
         "summary": "发布活动（状态置 2）",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PromotionActivityActionRequest" },
-              "example": { "publish_scope": "all", "target_config": "{}" }
+              "schema": {
+                "$ref": "#/components/schemas/PromotionActivityActionRequest"
+              },
+              "example": {
+                "publish_scope": "all",
+                "target_config": "{}"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "活动不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "活动不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/promotion-activities/{id}/rollback": {
       "post": {
-        "tags": ["营销活动"],
+        "tags": [
+          "营销活动"
+        ],
         "summary": "回滚活动（状态置 1）",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PromotionActivityActionRequest" },
-              "example": { "target_config": "{}" }
+              "schema": {
+                "$ref": "#/components/schemas/PromotionActivityActionRequest"
+              },
+              "example": {
+                "target_config": "{}"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "活动不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "活动不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/statistics/overview": {
       "get": {
-        "tags": ["数据统计"],
+        "tags": [
+          "数据统计"
+        ],
         "summary": "运营总览",
         "parameters": [
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "city_code", "in": "query", "description": "当前订单表无权威城市字段；非空会返回 40001", "schema": { "type": "string" } }
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city_code",
+            "in": "query",
+            "description": "当前订单表无权威城市字段；非空会返回 40001",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "user_count": 1, "driver_count": 1, "order_count": 8, "completed_order_count": 1, "abnormal_order_count": 4, "gmv": "0.00", "coupon_issue_count": 0, "blacklist_count": 0 } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "user_count": 1,
+                    "driver_count": 1,
+                    "order_count": 8,
+                    "completed_order_count": 1,
+                    "abnormal_order_count": 4,
+                    "gmv": "0.00",
+                    "coupon_issue_count": 0,
+                    "blacklist_count": 0
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/admin/v1/statistics/orders": {
       "get": {
-        "tags": ["数据统计"],
+        "tags": [
+          "数据统计"
+        ],
         "summary": "订单统计",
         "parameters": [
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "city_code", "in": "query", "description": "当前订单表无权威城市字段；非空会返回 40001", "schema": { "type": "string" } }
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city_code",
+            "in": "query",
+            "description": "当前订单表无权威城市字段；非空会返回 40001",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "order_count": 8, "completed_order_count": 1, "canceled_order_count": 4, "timeout_order_count": 0, "payment_abnormal_count": 0, "completion_rate": "12.50%", "cancel_rate": "50.00%" } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "order_count": 8,
+                    "completed_order_count": 1,
+                    "canceled_order_count": 4,
+                    "timeout_order_count": 0,
+                    "payment_abnormal_count": 0,
+                    "completion_rate": "12.50%",
+                    "cancel_rate": "50.00%"
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/admin/v1/statistics/coupons": {
       "get": {
-        "tags": ["数据统计"],
+        "tags": [
+          "数据统计"
+        ],
         "summary": "优惠券统计",
         "parameters": [
-          { "name": "start_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "end_time", "in": "query", "schema": { "type": "string" } },
-          { "name": "city_code", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "coupon_count": 1, "enabled_coupon_count": 0, "issued_coupon_count": 0, "used_coupon_count": 0, "expired_coupon_count": 0, "use_rate": "0.00%" } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "coupon_count": 1,
+                    "enabled_coupon_count": 0,
+                    "issued_coupon_count": 0,
+                    "used_coupon_count": 0,
+                    "expired_coupon_count": 0,
+                    "use_rate": "0.00%"
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/admin/v1/export-tasks": {
       "get": {
-        "tags": ["导出任务"],
+        "tags": [
+          "导出任务"
+        ],
         "summary": "导出任务列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "export_type", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "export_type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" }
+          "200": {
+            "description": "成功"
+          }
         }
       },
       "post": {
-        "tags": ["导出任务"],
+        "tags": [
+          "导出任务"
+        ],
         "summary": "创建导出任务",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ExportTaskRequest" },
-              "example": { "export_type": "orders", "filters": "{\"start_time\":\"2026-08-01 00:00:00\",\"status\":5}" }
+              "schema": {
+                "$ref": "#/components/schemas/ExportTaskRequest"
+              },
+              "example": {
+                "export_type": "orders",
+                "filters": "{\"start_time\":\"2026-08-01 00:00:00\",\"status\":5}"
+              }
             }
           }
         },
         "responses": {
           "200": {
             "description": "成功",
-            "content": { "application/json": { "example": { "code": 0, "message": "ok", "data": { "task_no": "EX20260818163232307500", "status": "pending", "message": "导出任务已创建，后台正在异步生成文件" } } } }
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "task_no": "EX20260818163232307500",
+                    "status": "pending",
+                    "message": "导出任务已创建，后台正在异步生成文件"
+                  }
+                }
+              }
+            }
           },
-          "400": { "description": "仅支持 orders；filters 仅允许 status、user_id、driver_id、start_time、end_time，参数错误返回 40001" }
+          "400": {
+            "description": "仅支持 orders；filters 仅允许 status、user_id、driver_id、start_time、end_time，参数错误返回 40001"
+          }
         }
       }
     },
     "/admin/v1/export-tasks/{task_no}": {
       "get": {
-        "tags": ["导出任务"],
+        "tags": [
+          "导出任务"
+        ],
         "summary": "导出任务详情",
         "parameters": [
-          { "name": "task_no", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "task_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "导出任务不存在 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "导出任务不存在 40401"
+          }
         }
       }
     },
     "/admin/v1/blacklist": {
       "get": {
-        "tags": ["风控"],
+        "tags": [
+          "风控"
+        ],
         "summary": "黑名单列表",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "target_type", "in": "query", "schema": { "type": "string", "enum": ["user", "driver", "device", "phone"] } },
-          { "name": "target_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "status", "in": "query", "schema": { "type": "integer", "description": "1 生效 2 已解除" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "driver",
+                "device",
+                "phone"
+              ]
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 生效 2 已解除"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" }
+          "200": {
+            "description": "成功"
+          }
         }
       },
       "post": {
-        "tags": ["风控"],
+        "tags": [
+          "风控"
+        ],
         "summary": "加入黑名单",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/BlacklistRequest" },
-              "example": { "target_type": "user", "target_id": 10001, "reason": "高频恶意取消订单" }
+              "schema": {
+                "$ref": "#/components/schemas/BlacklistRequest"
+              },
+              "example": {
+                "target_type": "user",
+                "target_id": 10001,
+                "reason": "高频恶意取消订单"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "400": { "description": "参数错误 40001" }
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "参数错误 40001"
+          }
         }
       }
     },
     "/admin/v1/blacklist/{id}/release": {
       "post": {
-        "tags": ["风控"],
+        "tags": [
+          "风控"
+        ],
         "summary": "解除黑名单",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/BlacklistReleaseRequest" },
-              "example": { "reason": "人工复核通过" }
+              "schema": {
+                "$ref": "#/components/schemas/BlacklistReleaseRequest"
+              },
+              "example": {
+                "reason": "人工复核通过"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "成功" },
-          "404": { "description": "不存在或已解除 40401" }
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "不存在或已解除 40401"
+          }
         }
       }
     },
     "/admin/v1/risk/hit-records": {
       "get": {
-        "tags": ["风控"],
+        "tags": [
+          "风控"
+        ],
         "summary": "风控命中记录",
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "target_type", "in": "query", "schema": { "type": "string" } },
-          { "name": "target_id", "in": "query", "schema": { "type": "integer", "format": "int64" } },
-          { "name": "scene", "in": "query", "schema": { "type": "string" } },
-          { "name": "risk_level", "in": "query", "schema": { "type": "integer" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "scene",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "risk_level",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "成功" },
-          "500": { "description": "缺表 50000" }
+          "200": {
+            "description": "成功"
+          },
+          "500": {
+            "description": "缺表 50000"
+          }
+        }
+      }
+    },
+    "/admin/v1/risk/hit-records/actions": {
+      "post": {
+        "tags": [
+          "风控"
+        ],
+        "summary": "批量处置风控命中记录（仅超管）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RiskHitActionRequest"
+              },
+              "example": {
+                "ids": [
+                  10001,
+                  10002
+                ],
+                "action": "create_work_order",
+                "reason": "高风险命中，转人工复核",
+                "work_order_title": "风控命中复核",
+                "priority": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功，返回成功数、失败数和转工单 ID"
+          },
+          "400": {
+            "description": "参数错误 40001"
+          },
+          "403": {
+            "description": "仅超级管理员可执行 40003"
+          }
+        }
+      }
+    },
+    "/admin/v1/admins": {
+      "get": {
+        "tags": [
+          "管理员管理"
+        ],
+        "summary": "管理员列表（仅超管）",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 超管 2 运营 3 客服"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 正常 2 停用"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [],
+                    "total": 0,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "管理员管理"
+        ],
+        "summary": "创建管理员（仅超管）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSaveRequest"
+              },
+              "example": {
+                "username": "ops01",
+                "password": "123456",
+                "real_name": "运营一号",
+                "role": 2,
+                "status": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "参数错误 40001"
+          },
+          "403": {
+            "description": "非超管 40003"
+          },
+          "409": {
+            "description": "用户名已存在 40902"
+          }
+        }
+      }
+    },
+    "/admin/v1/admins/{id}": {
+      "put": {
+        "tags": [
+          "管理员管理"
+        ],
+        "summary": "编辑管理员（仅超管）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUpdateRequest"
+              },
+              "example": {
+                "real_name": "运营一号",
+                "role": 2,
+                "status": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "403": {
+            "description": "不能编辑自己或非超管 40003"
+          },
+          "404": {
+            "description": "管理员不存在 40401"
+          }
+        }
+      }
+    },
+    "/admin/v1/admins/{id}/status": {
+      "post": {
+        "tags": [
+          "管理员管理"
+        ],
+        "summary": "启用或停用管理员（仅超管）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminStatusRequest"
+              },
+              "example": {
+                "status": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "403": {
+            "description": "不能停用自己或非超管 40003"
+          },
+          "404": {
+            "description": "管理员不存在 40401"
+          }
+        }
+      }
+    },
+    "/admin/v1/admins/{id}/reset-password": {
+      "post": {
+        "tags": [
+          "管理员管理"
+        ],
+        "summary": "重置管理员密码（仅超管）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPasswordResetRequest"
+              },
+              "example": {
+                "password": "654321"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "403": {
+            "description": "不能重置自己或非超管 40003"
+          },
+          "404": {
+            "description": "管理员不存在 40401"
+          }
+        }
+      }
+    },
+    "/admin/v1/users/{id}/orders": {
+      "get": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "用户订单历史",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "订单状态，0 全部"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [],
+                    "total": 0,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/users/{id}/coupons": {
+      "get": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "用户优惠券历史",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "用户券状态：0 全部，1 未使用，2 已使用，3 已过期，4 锁定"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [],
+                    "total": 0,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/export-tasks/{task_no}/download": {
+      "get": {
+        "tags": [
+          "导出任务"
+        ],
+        "summary": "下载已完成导出 CSV",
+        "parameters": [
+          {
+            "name": "task_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV 文件流",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "非创建者且非超管 40003"
+          },
+          "404": {
+            "description": "导出文件不存在 40401"
+          },
+          "412": {
+            "description": "任务未完成或文件无效"
+          },
+          "416": {
+            "description": "导出文件已过期"
+          }
+        }
+      }
+    },
+    "/admin/v1/work-orders": {
+      "get": {
+        "tags": [
+          "工单"
+        ],
+        "summary": "工单列表",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "assignee_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "work_order_type",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "1 投诉 2 申诉 3 其他"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [],
+                    "total": 0,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "工单"
+        ],
+        "summary": "创建工单",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "参数错误 40001"
+          }
+        }
+      }
+    },
+    "/admin/v1/work-orders/{id}": {
+      "get": {
+        "tags": [
+          "工单"
+        ],
+        "summary": "工单详情",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "404": {
+            "description": "工单不存在 40401"
+          }
+        }
+      }
+    },
+    "/admin/v1/work-orders/batch-actions": {
+      "post": {
+        "tags": [
+          "工单"
+        ],
+        "summary": "批量执行工单流转动作",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkOrderBatchActionRequest"
+              },
+              "example": {
+                "ids": [
+                  10001,
+                  10002
+                ],
+                "action": "follow",
+                "content": "已完成批量跟进"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功，返回成功数、失败数和失败原因"
+          },
+          "400": {
+            "description": "参数错误 40001"
+          },
+          "403": {
+            "description": "角色无权执行该动作 40003"
+          }
+        }
+      }
+    },
+    "/admin/v1/work-orders/{id}/actions": {
+      "post": {
+        "tags": [
+          "工单"
+        ],
+        "summary": "执行工单流转动作",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkOrderActionRequest"
+              },
+              "example": {
+                "action": "follow",
+                "content": "已联系乘客补充证据",
+                "version": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "动作或参数错误 40001"
+          },
+          "403": {
+            "description": "角色无权执行该动作 40003"
+          },
+          "409": {
+            "description": "版本冲突或状态不允许"
+          }
+        }
+      }
+    },
+    "/admin/v1/work-orders/{id}/evidence": {
+      "get": {
+        "tags": [
+          "工单"
+        ],
+        "summary": "工单证据列表",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "list": [],
+                    "total": 0,
+                    "page": 1,
+                    "page_size": 20
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "工单"
+        ],
+        "summary": "新增工单证据索引",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkOrderEvidenceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "证据参数错误 40001"
+          },
+          "404": {
+            "description": "工单不存在 40401"
+          }
         }
       }
     }
@@ -861,130 +2996,571 @@
     "schemas": {
       "RegisterRequest": {
         "type": "object",
-        "required": ["username", "password", "real_name", "role"],
+        "required": [
+          "username",
+          "password",
+          "real_name",
+          "role"
+        ],
         "properties": {
-          "username": { "type": "string" },
-          "password": { "type": "string" },
-          "real_name": { "type": "string" },
-          "role": { "type": "integer", "description": "1 超管 2 运营 3 客服" }
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "real_name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "integer",
+            "description": "1 超管 2 运营 3 客服"
+          }
         }
       },
       "LoginRequest": {
         "type": "object",
-        "required": ["username", "password"],
+        "required": [
+          "username",
+          "password"
+        ],
         "properties": {
-          "username": { "type": "string" },
-          "password": { "type": "string" }
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
         }
       },
       "FreezeRequest": {
         "type": "object",
         "properties": {
-          "reason": { "type": "string" },
-          "remark": { "type": "string" }
+          "reason": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          }
         }
       },
       "AuditRequest": {
         "type": "object",
         "properties": {
-          "remark": { "type": "string" }
+          "remark": {
+            "type": "string"
+          }
         }
       },
       "OrderCancelRequest": {
         "type": "object",
         "properties": {
-          "reason": { "type": "string" }
+          "reason": {
+            "type": "string"
+          }
         }
       },
       "CouponSaveRequest": {
         "type": "object",
-        "required": ["name", "type", "face_value", "discount", "threshold_amount", "total_count", "per_user_limit", "valid_start_at", "valid_end_at", "status"],
+        "required": [
+          "name",
+          "type",
+          "face_value",
+          "discount",
+          "threshold_amount",
+          "total_count",
+          "per_user_limit",
+          "valid_start_at",
+          "valid_end_at",
+          "status"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "type": { "type": "integer", "description": "1 满减 2 折扣 3 立减" },
-          "face_value": { "type": "string", "example": "8.00" },
-          "discount": { "type": "string", "example": "1.00" },
-          "threshold_amount": { "type": "string", "example": "0.00" },
-          "total_count": { "type": "integer", "format": "int64", "description": "0 表示不限量" },
-          "per_user_limit": { "type": "integer" },
-          "valid_start_at": { "type": "string", "example": "2026-08-18 00:00:00" },
-          "valid_end_at": { "type": "string", "example": "2026-12-31 23:59:59" },
-          "status": { "type": "integer", "description": "1 草稿 2 启用 3 停用" }
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "integer",
+            "description": "1 满减 2 折扣 3 立减"
+          },
+          "face_value": {
+            "type": "string",
+            "example": "8.00"
+          },
+          "discount": {
+            "type": "string",
+            "example": "1.00"
+          },
+          "threshold_amount": {
+            "type": "string",
+            "example": "0.00"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "0 表示不限量"
+          },
+          "per_user_limit": {
+            "type": "integer"
+          },
+          "valid_start_at": {
+            "type": "string",
+            "example": "2026-08-18 00:00:00"
+          },
+          "valid_end_at": {
+            "type": "string",
+            "example": "2026-12-31 23:59:59"
+          },
+          "status": {
+            "type": "integer",
+            "description": "1 草稿 2 启用 3 停用"
+          }
         }
       },
       "CouponIssueRequest": {
         "type": "object",
-        "required": ["target_type", "target_config"],
+        "required": [
+          "target_type",
+          "target_config"
+        ],
         "properties": {
-          "target_type": { "type": "string", "enum": ["user", "batch", "crowd"] },
-          "target_config": { "type": "string", "description": "JSON 字符串，如 {\"user_ids\":[10001,10002]}" }
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "batch",
+              "crowd"
+            ]
+          },
+          "target_config": {
+            "type": "string",
+            "description": "JSON 字符串，如 {\"user_ids\":[10001,10002]}"
+          }
         }
       },
       "PriceRuleSaveRequest": {
         "type": "object",
-        "required": ["name", "city_code", "car_type", "base_price", "base_distance_km", "per_km_price", "per_minute_price", "night_start_time", "night_end_time", "night_surcharge", "dynamic_max_factor", "status", "effective_at"],
+        "required": [
+          "name",
+          "city_code",
+          "car_type",
+          "base_price",
+          "base_distance_km",
+          "per_km_price",
+          "per_minute_price",
+          "night_start_time",
+          "night_end_time",
+          "night_surcharge",
+          "dynamic_max_factor",
+          "status",
+          "effective_at"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "city_code": { "type": "string", "example": "110100" },
-          "car_type": { "type": "integer", "example": 1 },
-          "base_price": { "type": "string", "example": "12.50" },
-          "base_distance_km": { "type": "string", "example": "3.00" },
-          "per_km_price": { "type": "string", "example": "2.40" },
-          "per_minute_price": { "type": "string", "example": "0.50" },
-          "night_start_time": { "type": "string", "example": "22:00:00" },
-          "night_end_time": { "type": "string", "example": "06:00:00" },
-          "night_surcharge": { "type": "string", "example": "1.20" },
-          "dynamic_max_factor": { "type": "string", "example": "2.00" },
-          "status": { "type": "integer", "description": "1 启用 2 停用" },
-          "effective_at": { "type": "string", "example": "2026-08-20 00:00:00" },
-          "expire_at": { "type": "string", "example": "2026-12-31 23:59:59" }
+          "name": {
+            "type": "string"
+          },
+          "city_code": {
+            "type": "string",
+            "example": "110100"
+          },
+          "car_type": {
+            "type": "integer",
+            "example": 1
+          },
+          "base_price": {
+            "type": "string",
+            "example": "12.50"
+          },
+          "base_distance_km": {
+            "type": "string",
+            "example": "3.00"
+          },
+          "per_km_price": {
+            "type": "string",
+            "example": "2.40"
+          },
+          "per_minute_price": {
+            "type": "string",
+            "example": "0.50"
+          },
+          "night_start_time": {
+            "type": "string",
+            "example": "22:00:00"
+          },
+          "night_end_time": {
+            "type": "string",
+            "example": "06:00:00"
+          },
+          "night_surcharge": {
+            "type": "string",
+            "example": "1.20"
+          },
+          "dynamic_max_factor": {
+            "type": "string",
+            "example": "2.00"
+          },
+          "status": {
+            "type": "integer",
+            "description": "1 启用 2 停用"
+          },
+          "effective_at": {
+            "type": "string",
+            "example": "2026-08-20 00:00:00"
+          },
+          "expire_at": {
+            "type": "string",
+            "example": "2026-12-31 23:59:59"
+          }
         }
       },
       "PromotionActivitySaveRequest": {
         "type": "object",
-        "required": ["name", "type", "config", "start_at", "end_at", "status"],
+        "required": [
+          "name",
+          "type",
+          "config",
+          "start_at",
+          "end_at",
+          "status"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "type": { "type": "integer" },
-          "config": { "type": "string", "description": "JSON 字符串" },
-          "start_at": { "type": "string" },
-          "end_at": { "type": "string" },
-          "status": { "type": "integer", "description": "1 草稿 2 运行中 3 已结束" }
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "integer"
+          },
+          "config": {
+            "type": "string",
+            "description": "JSON 字符串"
+          },
+          "start_at": {
+            "type": "string"
+          },
+          "end_at": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "description": "1 草稿 2 运行中 3 已结束"
+          }
         }
       },
       "PromotionActivityActionRequest": {
         "type": "object",
         "properties": {
-          "publish_scope": { "type": "string" },
-          "target_config": { "type": "string" }
+          "publish_scope": {
+            "type": "string"
+          },
+          "target_config": {
+            "type": "string"
+          }
         }
       },
       "ExportTaskRequest": {
         "type": "object",
-        "required": ["export_type"],
+        "required": [
+          "export_type"
+        ],
         "properties": {
-          "export_type": { "type": "string", "example": "orders" },
-          "filters": { "type": "string", "description": "JSON 字符串" }
+          "export_type": {
+            "type": "string",
+            "example": "orders"
+          },
+          "filters": {
+            "type": "string",
+            "description": "JSON 字符串"
+          }
         }
       },
       "BlacklistRequest": {
         "type": "object",
-        "required": ["target_type", "target_id", "reason"],
+        "required": [
+          "target_type",
+          "target_id",
+          "reason"
+        ],
         "properties": {
-          "target_type": { "type": "string", "enum": ["user", "driver", "device", "phone"] },
-          "target_id": { "type": "integer", "format": "int64" },
-          "reason": { "type": "string" }
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "driver",
+              "device",
+              "phone"
+            ]
+          },
+          "target_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reason": {
+            "type": "string"
+          }
         }
       },
       "BlacklistReleaseRequest": {
         "type": "object",
         "properties": {
-          "reason": { "type": "string" }
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminSaveRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password",
+          "real_name",
+          "role",
+          "status"
+        ],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "real_name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "integer",
+            "description": "1 超管 2 运营 3 客服"
+          },
+          "status": {
+            "type": "integer",
+            "description": "1 正常 2 停用"
+          }
+        }
+      },
+      "AdminUpdateRequest": {
+        "type": "object",
+        "required": [
+          "real_name",
+          "role",
+          "status"
+        ],
+        "properties": {
+          "real_name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "integer"
+          }
+        }
+      },
+      "AdminStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "integer",
+            "description": "1 正常 2 停用"
+          }
+        }
+      },
+      "AdminPasswordResetRequest": {
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkOrderBatchActionRequest": {
+        "type": "object",
+        "required": [
+          "ids",
+          "action"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "assign",
+              "follow",
+              "arbitrate",
+              "close",
+              "reopen"
+            ]
+          },
+          "assignee_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "content": {
+            "type": "string"
+          },
+          "arbitration_result": {
+            "type": "string"
+          }
+        }
+      },
+      "RiskHitActionRequest": {
+        "type": "object",
+        "required": [
+          "ids",
+          "action"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "review_pass",
+              "add_blacklist",
+              "create_work_order"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "work_order_title": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "description": "1 低 2 中 3 高 4 紧急"
+          }
+        }
+      },
+      "WorkOrderRequest": {
+        "type": "object",
+        "required": [
+          "work_order_type",
+          "source_type",
+          "source_id",
+          "title",
+          "content",
+          "priority"
+        ],
+        "properties": {
+          "work_order_type": {
+            "type": "integer",
+            "description": "1 投诉 2 申诉 3 其他"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "driver",
+              "order",
+              "system"
+            ]
+          },
+          "source_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "order_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "driver_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "description": "1-4"
+          }
+        }
+      },
+      "WorkOrderActionRequest": {
+        "type": "object",
+        "required": [
+          "action",
+          "version"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "assign",
+              "follow",
+              "arbitrate",
+              "close",
+              "reopen"
+            ]
+          },
+          "assignee_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "content": {
+            "type": "string"
+          },
+          "arbitration_result": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "WorkOrderEvidenceRequest": {
+        "type": "object",
+        "required": [
+          "evidence_type"
+        ],
+        "properties": {
+          "evidence_type": {
+            "type": "string",
+            "enum": [
+              "track",
+              "audio",
+              "chat",
+              "payment",
+              "image",
+              "text"
+            ]
+          },
+          "evidence_url": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
         }
       }
     }
   },
   "security": [
-    { "BearerAuth": [] }
+    {
+      "BearerAuth": []
+    }
   ]
 }

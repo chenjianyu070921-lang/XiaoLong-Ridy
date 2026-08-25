@@ -24,7 +24,7 @@ const pathToRoute = {
   '/admins': '/admins',
 }
 
-// 静态兜底菜单（菜单接口失败或为空时使用）
+// 静态菜单全集仅用于超级管理员的故障兜底。
 const fallbackMenus = [
   { name: '工作台', path: '/dashboard', icon: 'Odometer' },
   { name: '管理员管理', path: '/admins', icon: 'Management' },
@@ -45,21 +45,37 @@ const fallbackMenus = [
   { name: '风控命中记录', path: '/risk-hits', icon: 'Management' },
 ]
 
-const menuItems = ref(fallbackMenus)
+// 菜单接口失败时，普通角色只展示与其日常查询职责匹配的基础入口。
+// 这是安全兜底，不依赖前端传入的 role，也不将受限配置类模块暴露到导航。
+const restrictedRoleFallbackPaths = {
+  2: ['/users', '/driver-certifications', '/orders', '/orders/abnormal', '/operation-logs'],
+  3: ['/users', '/driver-certifications', '/orders', '/orders/abnormal', '/operation-logs', '/work-orders'],
+}
+
+// 工作台是所有已登录管理员都可访问的固定入口。
+const dashboardMenu = { name: '工作台', path: '/dashboard', icon: 'Odometer' }
+const menuItems = ref([dashboardMenu])
 const iconMap = { Odometer, User, Avatar, Tickets, Memo, Discount, List, Setting, Warning, DataAnalysis, Document, Management }
 
-// 登录后尝试用后端 /menus 渲染（工作台固定在最前）
+// 返回按当前角色收敛后的静态兜底菜单。
+// 超级管理员可以看到完整菜单；运营和客服只保留基础查询入口。
+const getFallbackMenus = (role) => {
+  if (role === 1) return fallbackMenus.filter((item) => item.path !== dashboardMenu.path)
+  const allowedPaths = restrictedRoleFallbackPaths[role] || []
+  return fallbackMenus.filter((item) => allowedPaths.includes(item.path))
+}
+
+// 登录后使用后端 /menus 渲染，后端返回结果是菜单权限的唯一来源。
 onMounted(async () => {
   try {
     const data = await getMenus()
     const items = (data?.items || [])
       .map((i) => ({ name: i.name, path: pathToRoute[i.path] || i.path, icon: '' }))
       .filter((i) => router.resolve(i.path).matched.length > 0)
-      if (items.length > 0) {
-        menuItems.value = [{ name: '工作台', path: '/dashboard', icon: 'Odometer' }, ...items, ...fallbackMenus.slice(5)]
-      }
+    menuItems.value = [dashboardMenu, ...items]
   } catch {
-    // 菜单接口失败时保留静态兜底菜单
+    // 菜单接口失败时只使用按当前角色收敛后的静态菜单，避免故障状态扩大可见权限。
+    menuItems.value = [dashboardMenu, ...getFallbackMenus(store.admin?.role)]
   }
 })
 

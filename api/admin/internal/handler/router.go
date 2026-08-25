@@ -95,16 +95,20 @@ func (r *Router) routes() {
 
 	r.mux.HandleFunc("/admin/v1/statistics/overview", r.authRequired(r.handleStatisticsOverview))
 	r.mux.HandleFunc("/admin/v1/statistics/orders", r.authRequired(r.handleStatisticsOrders))
+	r.mux.HandleFunc("/admin/v1/statistics/drivers", r.authRequired(r.handleStatisticsDrivers))
+	r.mux.HandleFunc("/admin/v1/statistics/revenue", r.authRequired(r.handleStatisticsRevenue))
 	r.mux.HandleFunc("/admin/v1/statistics/coupons", r.authRequired(r.handleStatisticsCoupons))
 
 	r.mux.HandleFunc("/admin/v1/export-tasks", r.authRequired(r.handleExportTasks))
 	r.mux.HandleFunc("/admin/v1/export-tasks/", r.authRequired(r.handleExportTaskByNo))
 	r.mux.HandleFunc("/admin/v1/work-orders", r.authRequired(r.handleWorkOrders))
+	r.mux.HandleFunc("/admin/v1/work-orders/batch-actions", r.authRequired(r.handleWorkOrderBatchActions))
 	r.mux.HandleFunc("/admin/v1/work-orders/", r.authRequired(r.handleWorkOrderByID))
 
 	r.mux.HandleFunc("/admin/v1/blacklist", r.authRequired(r.handleBlacklists))
 	r.mux.HandleFunc("/admin/v1/blacklist/", r.authRequired(r.handleBlacklistByID))
 	r.mux.HandleFunc("/admin/v1/risk/hit-records", r.authRequired(r.handleRiskHitRecords))
+	r.mux.HandleFunc("/admin/v1/risk/hit-records/actions", r.authRequired(r.handleRiskHitRecordActions))
 
 	r.mux.HandleFunc("/admin/v1/orders", r.authRequired(r.handleOrders))
 	r.mux.HandleFunc("/admin/v1/orders/abnormal", r.authRequired(r.handleAbnormalOrders))
@@ -903,6 +907,34 @@ func (r *Router) handleStatisticsOrders(w http.ResponseWriter, req *http.Request
 	writeSuccess(w, resp)
 }
 
+// handleStatisticsDrivers 查询司机经营统计。
+func (r *Router) handleStatisticsDrivers(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewStatisticsLogic(r.ctx).Drivers(req.Context(), statisticsRequestFromQuery(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleStatisticsRevenue 查询财务收入统计。
+func (r *Router) handleStatisticsRevenue(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewStatisticsLogic(r.ctx).Revenue(req.Context(), statisticsRequestFromQuery(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
 // handleStatisticsCoupons 查询优惠券统计。
 func (r *Router) handleStatisticsCoupons(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
@@ -1029,6 +1061,34 @@ func (r *Router) handleWorkOrders(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// handleWorkOrderBatchActions 处理后台工单批量分配、跟进、仲裁、结案和重开。
+func (r *Router) handleWorkOrderBatchActions(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body types.WorkOrderBatchActionRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	session := sessionFromContext(req.Context())
+	resp, err := r.ctx.AdminSvc.BatchActWorkOrders(req.Context(), &adminclient.WorkOrderBatchActionRequest{
+		Ids:               body.IDs,
+		Action:            body.Action,
+		AssigneeId:        body.AssigneeID,
+		Content:           body.Content,
+		ArbitrationResult: body.ArbitrationResult,
+		AdminId:           session.AdminID,
+		Ip:                clientIP(req),
+	})
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
 // handleWorkOrderByID 处理工单详情、流转与证据索引接口。
 func (r *Router) handleWorkOrderByID(w http.ResponseWriter, req *http.Request) {
 	rest := strings.Trim(strings.TrimPrefix(req.URL.Path, "/admin/v1/work-orders/"), "/")
@@ -1151,6 +1211,25 @@ func (r *Router) handleRiskHitRecords(w http.ResponseWriter, req *http.Request) 
 	query := req.URL.Query()
 	resp, err := logic.NewRiskLogic(r.ctx).ListRiskHitRecords(req.Context(), intQuery(req, "page", 1), intQuery(req, "page_size", 20),
 		query.Get("target_type"), int64Query(req, "target_id", 0), query.Get("scene"), int32Query(req, "risk_level", 0))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleRiskHitRecordActions 处理风控命中记录复核、拉黑和转工单。
+func (r *Router) handleRiskHitRecordActions(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body types.RiskHitActionRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	resp, err := logic.NewRiskLogic(r.ctx).HandleRiskHitRecords(req.Context(), body, sessionFromContext(req.Context()), clientIP(req))
 	if err != nil {
 		r.writeBizError(w, err)
 		return

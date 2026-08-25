@@ -64,6 +64,8 @@ const (
 	AdminService_RollbackPromotionActivity_FullMethodName  = "/adminsvc.AdminService/RollbackPromotionActivity"
 	AdminService_GetStatisticsOverview_FullMethodName      = "/adminsvc.AdminService/GetStatisticsOverview"
 	AdminService_GetOrderStatistics_FullMethodName         = "/adminsvc.AdminService/GetOrderStatistics"
+	AdminService_GetDriverStatistics_FullMethodName        = "/adminsvc.AdminService/GetDriverStatistics"
+	AdminService_GetFinanceStatistics_FullMethodName       = "/adminsvc.AdminService/GetFinanceStatistics"
 	AdminService_GetCouponStatistics_FullMethodName        = "/adminsvc.AdminService/GetCouponStatistics"
 	AdminService_CreateExportTask_FullMethodName           = "/adminsvc.AdminService/CreateExportTask"
 	AdminService_ListExportTasks_FullMethodName            = "/adminsvc.AdminService/ListExportTasks"
@@ -74,12 +76,14 @@ const (
 	AdminService_ListWorkOrders_FullMethodName             = "/adminsvc.AdminService/ListWorkOrders"
 	AdminService_GetWorkOrder_FullMethodName               = "/adminsvc.AdminService/GetWorkOrder"
 	AdminService_ActWorkOrder_FullMethodName               = "/adminsvc.AdminService/ActWorkOrder"
+	AdminService_BatchActWorkOrders_FullMethodName         = "/adminsvc.AdminService/BatchActWorkOrders"
 	AdminService_AddWorkOrderEvidence_FullMethodName       = "/adminsvc.AdminService/AddWorkOrderEvidence"
 	AdminService_ListWorkOrderEvidence_FullMethodName      = "/adminsvc.AdminService/ListWorkOrderEvidence"
 	AdminService_ListBlacklists_FullMethodName             = "/adminsvc.AdminService/ListBlacklists"
 	AdminService_AddBlacklist_FullMethodName               = "/adminsvc.AdminService/AddBlacklist"
 	AdminService_ReleaseBlacklist_FullMethodName           = "/adminsvc.AdminService/ReleaseBlacklist"
 	AdminService_ListRiskHitRecords_FullMethodName         = "/adminsvc.AdminService/ListRiskHitRecords"
+	AdminService_HandleRiskHitRecords_FullMethodName       = "/adminsvc.AdminService/HandleRiskHitRecords"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -179,6 +183,10 @@ type AdminServiceClient interface {
 	GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error)
 	// 查询订单统计。
 	GetOrderStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*OrderStatisticsResponse, error)
+	// 查询司机统计。
+	GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error)
+	// 查询财务统计。
+	GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error)
 	// 查询优惠券统计。
 	GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
 	// 创建导出任务。
@@ -199,6 +207,8 @@ type AdminServiceClient interface {
 	GetWorkOrder(ctx context.Context, in *WorkOrderDetailRequest, opts ...grpc.CallOption) (*WorkOrder, error)
 	// 执行后台工单流转动作。
 	ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+	// 批量执行后台工单流转动作。
+	BatchActWorkOrders(ctx context.Context, in *WorkOrderBatchActionRequest, opts ...grpc.CallOption) (*WorkOrderBatchActionResponse, error)
 	// 新增工单证据索引。
 	AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error)
 	// 查询工单证据列表。
@@ -211,6 +221,8 @@ type AdminServiceClient interface {
 	ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询风控命中记录。
 	ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
+	// 处置风控命中记录。
+	HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
 }
 
 type adminServiceClient struct {
@@ -671,6 +683,26 @@ func (c *adminServiceClient) GetOrderStatistics(ctx context.Context, in *Statist
 	return out, nil
 }
 
+func (c *adminServiceClient) GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetDriverStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FinanceStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetFinanceStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CouponStatisticsResponse)
@@ -794,6 +826,16 @@ func (c *adminServiceClient) ActWorkOrder(ctx context.Context, in *WorkOrderActi
 	return out, nil
 }
 
+func (c *adminServiceClient) BatchActWorkOrders(ctx context.Context, in *WorkOrderBatchActionRequest, opts ...grpc.CallOption) (*WorkOrderBatchActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrderBatchActionResponse)
+	err := c.cc.Invoke(ctx, AdminService_BatchActWorkOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(WorkOrderEvidence)
@@ -848,6 +890,16 @@ func (c *adminServiceClient) ListRiskHitRecords(ctx context.Context, in *RiskHit
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RiskHitRecordListResponse)
 	err := c.cc.Invoke(ctx, AdminService_ListRiskHitRecords_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RiskHitActionResponse)
+	err := c.cc.Invoke(ctx, AdminService_HandleRiskHitRecords_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -951,6 +1003,10 @@ type AdminServiceServer interface {
 	GetStatisticsOverview(context.Context, *StatisticsRequest) (*StatisticsOverviewResponse, error)
 	// 查询订单统计。
 	GetOrderStatistics(context.Context, *StatisticsRequest) (*OrderStatisticsResponse, error)
+	// 查询司机统计。
+	GetDriverStatistics(context.Context, *StatisticsRequest) (*DriverStatisticsResponse, error)
+	// 查询财务统计。
+	GetFinanceStatistics(context.Context, *StatisticsRequest) (*FinanceStatisticsResponse, error)
 	// 查询优惠券统计。
 	GetCouponStatistics(context.Context, *StatisticsRequest) (*CouponStatisticsResponse, error)
 	// 创建导出任务。
@@ -971,6 +1027,8 @@ type AdminServiceServer interface {
 	GetWorkOrder(context.Context, *WorkOrderDetailRequest) (*WorkOrder, error)
 	// 执行后台工单流转动作。
 	ActWorkOrder(context.Context, *WorkOrderActionRequest) (*WorkOrder, error)
+	// 批量执行后台工单流转动作。
+	BatchActWorkOrders(context.Context, *WorkOrderBatchActionRequest) (*WorkOrderBatchActionResponse, error)
 	// 新增工单证据索引。
 	AddWorkOrderEvidence(context.Context, *WorkOrderEvidenceRequest) (*WorkOrderEvidence, error)
 	// 查询工单证据列表。
@@ -983,6 +1041,8 @@ type AdminServiceServer interface {
 	ReleaseBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error)
 	// 查询风控命中记录。
 	ListRiskHitRecords(context.Context, *RiskHitRecordListRequest) (*RiskHitRecordListResponse, error)
+	// 处置风控命中记录。
+	HandleRiskHitRecords(context.Context, *RiskHitActionRequest) (*RiskHitActionResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -1125,6 +1185,12 @@ func (UnimplementedAdminServiceServer) GetStatisticsOverview(context.Context, *S
 func (UnimplementedAdminServiceServer) GetOrderStatistics(context.Context, *StatisticsRequest) (*OrderStatisticsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrderStatistics not implemented")
 }
+func (UnimplementedAdminServiceServer) GetDriverStatistics(context.Context, *StatisticsRequest) (*DriverStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDriverStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) GetFinanceStatistics(context.Context, *StatisticsRequest) (*FinanceStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFinanceStatistics not implemented")
+}
 func (UnimplementedAdminServiceServer) GetCouponStatistics(context.Context, *StatisticsRequest) (*CouponStatisticsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCouponStatistics not implemented")
 }
@@ -1155,6 +1221,9 @@ func (UnimplementedAdminServiceServer) GetWorkOrder(context.Context, *WorkOrderD
 func (UnimplementedAdminServiceServer) ActWorkOrder(context.Context, *WorkOrderActionRequest) (*WorkOrder, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ActWorkOrder not implemented")
 }
+func (UnimplementedAdminServiceServer) BatchActWorkOrders(context.Context, *WorkOrderBatchActionRequest) (*WorkOrderBatchActionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BatchActWorkOrders not implemented")
+}
 func (UnimplementedAdminServiceServer) AddWorkOrderEvidence(context.Context, *WorkOrderEvidenceRequest) (*WorkOrderEvidence, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddWorkOrderEvidence not implemented")
 }
@@ -1172,6 +1241,9 @@ func (UnimplementedAdminServiceServer) ReleaseBlacklist(context.Context, *Blackl
 }
 func (UnimplementedAdminServiceServer) ListRiskHitRecords(context.Context, *RiskHitRecordListRequest) (*RiskHitRecordListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRiskHitRecords not implemented")
+}
+func (UnimplementedAdminServiceServer) HandleRiskHitRecords(context.Context, *RiskHitActionRequest) (*RiskHitActionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HandleRiskHitRecords not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 
@@ -1996,6 +2068,42 @@ func _AdminService_GetOrderStatistics_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_GetDriverStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetDriverStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetDriverStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetDriverStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetFinanceStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetFinanceStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetFinanceStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetFinanceStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_GetCouponStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StatisticsRequest)
 	if err := dec(in); err != nil {
@@ -2179,6 +2287,24 @@ func _AdminService_ActWorkOrder_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_BatchActWorkOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderBatchActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).BatchActWorkOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_BatchActWorkOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).BatchActWorkOrders(ctx, req.(*WorkOrderBatchActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_AddWorkOrderEvidence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(WorkOrderEvidenceRequest)
 	if err := dec(in); err != nil {
@@ -2283,6 +2409,24 @@ func _AdminService_ListRiskHitRecords_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AdminServiceServer).ListRiskHitRecords(ctx, req.(*RiskHitRecordListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_HandleRiskHitRecords_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RiskHitActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).HandleRiskHitRecords(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_HandleRiskHitRecords_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).HandleRiskHitRecords(ctx, req.(*RiskHitActionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2475,6 +2619,14 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_GetOrderStatistics_Handler,
 		},
 		{
+			MethodName: "GetDriverStatistics",
+			Handler:    _AdminService_GetDriverStatistics_Handler,
+		},
+		{
+			MethodName: "GetFinanceStatistics",
+			Handler:    _AdminService_GetFinanceStatistics_Handler,
+		},
+		{
 			MethodName: "GetCouponStatistics",
 			Handler:    _AdminService_GetCouponStatistics_Handler,
 		},
@@ -2511,6 +2663,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_ActWorkOrder_Handler,
 		},
 		{
+			MethodName: "BatchActWorkOrders",
+			Handler:    _AdminService_BatchActWorkOrders_Handler,
+		},
+		{
 			MethodName: "AddWorkOrderEvidence",
 			Handler:    _AdminService_AddWorkOrderEvidence_Handler,
 		},
@@ -2533,6 +2689,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListRiskHitRecords",
 			Handler:    _AdminService_ListRiskHitRecords_Handler,
+		},
+		{
+			MethodName: "HandleRiskHitRecords",
+			Handler:    _AdminService_HandleRiskHitRecords_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
