@@ -2,6 +2,7 @@ package adminservicelogic
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
@@ -85,22 +86,30 @@ func (l *AdminManagementLogic) CreateAdmin(in *adminsvc.AdminSaveRequest) (*admi
 	if err != nil {
 		return nil, err
 	}
-	result, err := l.svcCtx.MySQL.ExecContext(l.ctx, "INSERT INTO admin_user (username,password_hash,real_name,role,status,created_at,updated_at) VALUES (?,?,?,?,1,NOW(),NOW())", in.GetUsername(), string(hash), in.GetRealName(), in.GetRole())
-	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-			return nil, status.Error(codes.AlreadyExists, "管理员账号已存在")
+	var admin *adminRow
+	err = l.executeAdminWriteTx(func(tx *sql.Tx) error {
+		result, err := tx.ExecContext(l.ctx, "INSERT INTO admin_user (username,password_hash,real_name,role,status,created_at,updated_at) VALUES (?,?,?,?,1,NOW(),NOW())", in.GetUsername(), string(hash), in.GetRealName(), in.GetRole())
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+				return status.Error(codes.AlreadyExists, "管理员账号已存在")
+			}
+			return err
 		}
-		return nil, err
-	}
-	id, err := result.LastInsertId()
+		id, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		admin, err = scanAdmin(tx.QueryRowContext(l.ctx, `
+			SELECT id, username, password_hash, real_name, role, status
+			FROM admin_user
+			WHERE id = ? AND deleted_at IS NULL
+		`, id))
+		if err != nil {
+			return err
+		}
+		return createOperationLogTx(l.ctx, tx, operator.ID, "admin", "create", "admin_user", id, "新增管理员", in.GetIp())
+	})
 	if err != nil {
-		return nil, err
-	}
-	admin, err := getAdminByID(l.ctx, l.svcCtx, id)
-	if err != nil {
-		return nil, err
-	}
-	if err := createOperationLog(l.ctx, l.svcCtx, operator.ID, "admin", "create", "admin_user", id, "新增管理员", in.GetIp()); err != nil {
 		return nil, err
 	}
 	return toAdminPB(admin), nil
@@ -121,15 +130,28 @@ func (l *AdminManagementLogic) UpdateAdmin(in *adminsvc.AdminSaveRequest) (*admi
 	if _, err := getAdminByID(l.ctx, l.svcCtx, in.GetId()); err != nil {
 		return nil, err
 	}
-	_, err = l.svcCtx.MySQL.ExecContext(l.ctx, "UPDATE admin_user SET real_name=?, role=?, updated_at=NOW() WHERE id=? AND deleted_at IS NULL", in.GetRealName(), in.GetRole(), in.GetId())
+	var admin *adminRow
+	err = l.executeAdminWriteTx(func(tx *sql.Tx) error {
+		result, err := tx.ExecContext(l.ctx, "UPDATE admin_user SET real_name=?, role=?, updated_at=NOW() WHERE id=? AND deleted_at IS NULL", in.GetRealName(), in.GetRole(), in.GetId())
+		if err != nil {
+			return err
+		}
+		if affected, err := result.RowsAffected(); err != nil {
+			return err
+		} else if affected == 0 {
+			return status.Error(codes.NotFound, "管理员不存在")
+		}
+		admin, err = scanAdmin(tx.QueryRowContext(l.ctx, `
+			SELECT id, username, password_hash, real_name, role, status
+			FROM admin_user
+			WHERE id = ? AND deleted_at IS NULL
+		`, in.GetId()))
+		if err != nil {
+			return err
+		}
+		return createOperationLogTx(l.ctx, tx, operator.ID, "admin", "update", "admin_user", in.GetId(), "编辑管理员", in.GetIp())
+	})
 	if err != nil {
-		return nil, err
-	}
-	admin, err := getAdminByID(l.ctx, l.svcCtx, in.GetId())
-	if err != nil {
-		return nil, err
-	}
-	if err := createOperationLog(l.ctx, l.svcCtx, operator.ID, "admin", "update", "admin_user", in.GetId(), "编辑管理员", in.GetIp()); err != nil {
 		return nil, err
 	}
 	return toAdminPB(admin), nil
@@ -150,10 +172,19 @@ func (l *AdminManagementLogic) SetAdminStatus(in *adminsvc.AdminStatusRequest) (
 	if _, err := getAdminByID(l.ctx, l.svcCtx, in.GetId()); err != nil {
 		return nil, err
 	}
-	if _, err := l.svcCtx.MySQL.ExecContext(l.ctx, "UPDATE admin_user SET status=?, updated_at=NOW() WHERE id=? AND deleted_at IS NULL", in.GetStatus(), in.GetId()); err != nil {
-		return nil, err
-	}
-	if err := createOperationLog(l.ctx, l.svcCtx, operator.ID, "admin", map[int32]string{1: "enable", 2: "disable"}[in.GetStatus()], "admin_user", in.GetId(), in.GetReason(), in.GetIp()); err != nil {
+	err = l.executeAdminWriteTx(func(tx *sql.Tx) error {
+		result, err := tx.ExecContext(l.ctx, "UPDATE admin_user SET status=?, updated_at=NOW() WHERE id=? AND deleted_at IS NULL", in.GetStatus(), in.GetId())
+		if err != nil {
+			return err
+		}
+		if affected, err := result.RowsAffected(); err != nil {
+			return err
+		} else if affected == 0 {
+			return status.Error(codes.NotFound, "管理员不存在")
+		}
+		return createOperationLogTx(l.ctx, tx, operator.ID, "admin", map[int32]string{1: "enable", 2: "disable"}[in.GetStatus()], "admin_user", in.GetId(), in.GetReason(), in.GetIp())
+	})
+	if err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -178,13 +209,36 @@ func (l *AdminManagementLogic) ResetAdminPassword(in *adminsvc.AdminPasswordRese
 	if err != nil {
 		return nil, err
 	}
-	if _, err := l.svcCtx.MySQL.ExecContext(l.ctx, "UPDATE admin_user SET password_hash=?, updated_at=NOW() WHERE id=? AND deleted_at IS NULL", string(hash), in.GetId()); err != nil {
-		return nil, err
-	}
-	if err := createOperationLog(l.ctx, l.svcCtx, operator.ID, "admin", "reset_password", "admin_user", in.GetId(), "重置管理员密码", in.GetIp()); err != nil {
+	err = l.executeAdminWriteTx(func(tx *sql.Tx) error {
+		result, err := tx.ExecContext(l.ctx, "UPDATE admin_user SET password_hash=?, updated_at=NOW() WHERE id=? AND deleted_at IS NULL", string(hash), in.GetId())
+		if err != nil {
+			return err
+		}
+		if affected, err := result.RowsAffected(); err != nil {
+			return err
+		} else if affected == 0 {
+			return status.Error(codes.NotFound, "管理员不存在")
+		}
+		return createOperationLogTx(l.ctx, tx, operator.ID, "admin", "reset_password", "admin_user", in.GetId(), "重置管理员密码", in.GetIp())
+	})
+	if err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
+}
+
+// executeAdminWriteTx 在同一数据库事务中执行管理员业务变更和审计写入。
+// 回调返回错误时事务回滚，确保 admin_user 与 admin_operation_log 不会出现部分提交。
+func (l *AdminManagementLogic) executeAdminWriteTx(fn func(*sql.Tx) error) error {
+	tx, err := l.svcCtx.MySQL.BeginTx(l.ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (l *AdminManagementLogic) requireSuperAdmin() (*adminRow, error) {

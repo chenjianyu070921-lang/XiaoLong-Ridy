@@ -71,6 +71,11 @@ func auditCertification(ctx context.Context, svcCtx *svc.ServiceContext, in *adm
 	if in.GetAdminId() <= 0 {
 		return status.Error(codes.InvalidArgument, "管理员ID不能为空")
 	}
+	// 本地最小服务集（DisableDownstreamRPC）不会创建 driversvc 客户端，
+	// 直接调用会触发空指针 panic 并使整个 adminsvc 进程崩溃，必须显式拦截。
+	if svcCtx == nil || svcCtx.DriversSvc == nil {
+		return status.Error(codes.FailedPrecondition, "司机服务未启动或下游 RPC 已禁用")
+	}
 	rpcReq := &driversvcproto.AuditCertificationRequest{
 		CertificationId: in.GetId(),
 		Remark:          in.GetRemark(),

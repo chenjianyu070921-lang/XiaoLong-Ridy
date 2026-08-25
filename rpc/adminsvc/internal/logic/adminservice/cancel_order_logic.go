@@ -2,6 +2,7 @@ package adminservicelogic
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
@@ -56,6 +57,21 @@ func (l *CancelOrderLogic) CancelOrder(in *adminsvc.AdminCancelOrderRequest) (*a
 		if strings.Contains(err.Error(), "orderclient not found") {
 			return nil, status.Error(codes.NotFound, "订单不存在")
 		}
+		return nil, err
+	}
+	// ordersvc 已完成跨服务订单状态变更，adminsvc 在本地补写后台审计日志。
+	// 审计日志写入失败时由公共 helper 创建 outbox 补偿任务，避免跨服务成功但审计事件丢失。
+	if err := writeAuditAfterCommitted(
+		l.ctx,
+		l.svcCtx,
+		in.GetAdminId(),
+		"order",
+		"cancel",
+		"ride_order",
+		in.GetOrderId(),
+		fmt.Sprintf("后台取消订单：%s", reason),
+		in.GetIp(),
+	); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil

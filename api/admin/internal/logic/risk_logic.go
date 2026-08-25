@@ -89,6 +89,23 @@ func (l *RiskLogic) ListRiskHitRecords(ctx context.Context, page, pageSize int, 
 	return &types.PageResult{List: items, Total: resp.Total, Page: int(resp.Page), PageSize: int(resp.PageSize)}, nil
 }
 
+// HandleRiskHitRecords 处置风控命中记录，支持复核通过、加入黑名单和转工单。
+func (l *RiskLogic) HandleRiskHitRecords(ctx context.Context, req types.RiskHitActionRequest, session *model.AdminSession, ip string) (*adminclient.RiskHitActionResponse, error) {
+	adminID := int64(0)
+	if session != nil {
+		adminID = session.AdminID
+	}
+	return l.ctx.AdminSvc.HandleRiskHitRecords(ctx, &adminclient.RiskHitActionRequest{
+		Ids:            req.IDs,
+		Action:         req.Action,
+		Reason:         req.Reason,
+		WorkOrderTitle: req.WorkOrderTitle,
+		Priority:       req.Priority,
+		AdminId:        adminID,
+		Ip:             ip,
+	})
+}
+
 // blacklistRequestToPB 将 HTTP 黑名单请求转换为 RPC 请求。
 func blacklistRequestToPB(id int64, req types.BlacklistRequest, session *model.AdminSession, ip string) *adminclient.BlacklistRequest {
 	adminID := int64(0)

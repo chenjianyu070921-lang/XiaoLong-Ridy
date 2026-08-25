@@ -28,6 +28,16 @@ func (l *StatisticsLogic) Orders(ctx context.Context, req types.StatisticsReques
 	return l.ctx.AdminSvc.GetOrderStatistics(ctx, statisticsRequestToPB(req))
 }
 
+// Drivers 查询司机统计。
+func (l *StatisticsLogic) Drivers(ctx context.Context, req types.StatisticsRequest) (*adminclient.DriverStatisticsResponse, error) {
+	return l.ctx.AdminSvc.GetDriverStatistics(ctx, statisticsRequestToPB(req))
+}
+
+// Revenue 查询财务收入统计。
+func (l *StatisticsLogic) Revenue(ctx context.Context, req types.StatisticsRequest) (*adminclient.FinanceStatisticsResponse, error) {
+	return l.ctx.AdminSvc.GetFinanceStatistics(ctx, statisticsRequestToPB(req))
+}
+
 // Coupons 查询优惠券统计。
 func (l *StatisticsLogic) Coupons(ctx context.Context, req types.StatisticsRequest) (*adminclient.CouponStatisticsResponse, error) {
 	return l.ctx.AdminSvc.GetCouponStatistics(ctx, statisticsRequestToPB(req))

@@ -38,6 +38,8 @@ type (
 	CouponListResponse               = adminsvc.CouponListResponse
 	CouponRequest                    = adminsvc.CouponRequest
 	CouponStatisticsResponse         = adminsvc.CouponStatisticsResponse
+	DriverStatisticsResponse         = adminsvc.DriverStatisticsResponse
+	FinanceStatisticsResponse        = adminsvc.FinanceStatisticsResponse
 	DispatchRecord                   = adminsvc.DispatchRecord
 	DriverCertification              = adminsvc.DriverCertification
 	DriverCertificationDetailRequest = adminsvc.DriverCertificationDetailRequest
@@ -81,6 +83,8 @@ type (
 	PromotionActivityRequest         = adminsvc.PromotionActivityRequest
 	RegisterRequest                  = adminsvc.RegisterRequest
 	RiskHitRecord                    = adminsvc.RiskHitRecord
+	RiskHitActionRequest             = adminsvc.RiskHitActionRequest
+	RiskHitActionResponse            = adminsvc.RiskHitActionResponse
 	RiskHitRecordListRequest         = adminsvc.RiskHitRecordListRequest
 	RiskHitRecordListResponse        = adminsvc.RiskHitRecordListResponse
 	Settlement                       = adminsvc.Settlement
@@ -170,6 +174,10 @@ type (
 		GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error)
 		// 查询订单统计。
 		GetOrderStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*OrderStatisticsResponse, error)
+		// 查询司机统计。
+		GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error)
+		// 查询财务统计。
+		GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error)
 		// 查询优惠券统计。
 		GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
 		// 创建导出任务。
@@ -186,6 +194,8 @@ type (
 		ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询风控命中记录。
 		ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
+		// 处置风控命中记录。
+		HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
 	}
 
 	defaultAdminService struct {
@@ -427,6 +437,18 @@ func (m *defaultAdminService) GetOrderStatistics(ctx context.Context, in *Statis
 	return client.GetOrderStatistics(ctx, in, opts...)
 }
 
+// 查询司机统计。
+func (m *defaultAdminService) GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetDriverStatistics(ctx, in, opts...)
+}
+
+// 查询财务统计。
+func (m *defaultAdminService) GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetFinanceStatistics(ctx, in, opts...)
+}
+
 // 查询优惠券统计。
 func (m *defaultAdminService) GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
@@ -473,4 +495,10 @@ func (m *defaultAdminService) ReleaseBlacklist(ctx context.Context, in *Blacklis
 func (m *defaultAdminService) ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListRiskHitRecords(ctx, in, opts...)
+}
+
+// 处置风控命中记录。
+func (m *defaultAdminService) HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.HandleRiskHitRecords(ctx, in, opts...)
 }

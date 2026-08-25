@@ -117,6 +117,67 @@ func (r *gormCouponRepository) ListByUser(ctx context.Context, userID uint64, st
 	return list, nil
 }
 
+// ListByUserPage 按用户和状态在数据库侧完成总数统计与分页查询，避免跨服务传输全量用户券。
+func (r *gormCouponRepository) ListByUserPage(ctx context.Context, userID uint64, status int8, page, pageSize int) ([]*UserCouponWithTemplate, int64, error) {
+	now := time.Now()
+	offset := (page - 1) * pageSize
+
+	countQuery := r.db.WithContext(ctx).
+		Table("user_coupon AS uc").
+		Where("uc.user_id = ?", userID)
+	if status > 0 {
+		countQuery = applyCouponStatusFilter(countQuery, status, now)
+	}
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	query := r.db.WithContext(ctx).
+		Table("user_coupon AS uc").
+		Select(`uc.id AS user_coupon_id, uc.user_id, uc.coupon_id, uc.order_id, uc.locked_order_id,
+			uc.status, uc.received_at, uc.used_at, uc.locked_at, uc.expire_at, uc.created_at, uc.updated_at,
+			c.name, c.type, c.face_value, c.discount, c.threshold_amount, c.car_type, c.city_code`).
+		Joins("JOIN coupon AS c ON c.id = uc.coupon_id").
+		Where("uc.user_id = ?", userID).
+		Order("uc.received_at DESC, uc.id DESC").
+		Offset(offset).
+		Limit(pageSize)
+	if status > 0 {
+		query = applyCouponStatusFilter(query, status, now)
+	}
+
+	var rows []couponListRow
+	if err := query.Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	list := make([]*UserCouponWithTemplate, 0, len(rows))
+	for _, row := range rows {
+		item := row.toView()
+		if item.UserCoupon.Status == model.UserCouponStatusUnused && item.UserCoupon.ExpireAt.Before(now) {
+			item.UserCoupon.Status = model.UserCouponStatusExpired
+		}
+		list = append(list, item)
+	}
+	return list, total, nil
+}
+
+// applyCouponStatusFilter 将用户券状态筛选转换为数据库条件。
+// 未使用券过期后在业务层展示为过期，因此状态 3 需要同时匹配数据库中的过期状态
+// 和已超过有效期的未使用券，保证 COUNT 与分页列表的口径一致。
+func applyCouponStatusFilter(query *gorm.DB, status int8, now time.Time) *gorm.DB {
+	switch status {
+	case model.UserCouponStatusUnused:
+		return query.Where("uc.status = ? AND uc.expire_at >= ?", status, now)
+	case model.UserCouponStatusExpired:
+		return query.Where("(uc.status = ? OR (uc.status = ? AND uc.expire_at < ?))", status, model.UserCouponStatusUnused, now)
+	default:
+		return query.Where("uc.status = ?", status)
+	}
+}
+
 // Lock 将用户券从未使用状态锁定到指定订单。
 func (r *gormCouponRepository) Lock(ctx context.Context, userID, userCouponID, orderID uint64, carType int8, cityCode string) (*UserCouponWithTemplate, error) {
 	var result *UserCouponWithTemplate
