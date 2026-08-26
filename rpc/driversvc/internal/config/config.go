@@ -2,15 +2,33 @@ package config
 
 import "github.com/zeromicro/go-zero/zrpc"
 
-// Config 是 driversvc 的全局配置结构体，映射 etc/driversvc.yaml。
+// Config maps rpc/driversvc/etc/driversvc.yaml.
 type Config struct {
-	zrpc.RpcServerConf // RpcServerConf：go-zero RPC 服务配置（监听地址、Etcd、日志等）
+	zrpc.RpcServerConf
 
-	Mysql MysqlConf `yaml:"mysql" json:"mysql"` // Mysql：MySQL 数据库连接配置
-	SigningKey string `yaml:"signingKey" json:"signingKey"` // SigningKey：JWT 签发/校验的 HMAC-SHA256 密钥
+	Mysql       MysqlConf       `yaml:"mysql" json:"mysql"`
+	SigningKey  string          `yaml:"signingKey" json:"signingKey"`
+	DriverRedis DriverRedisConf `yaml:"driverRedis" json:"driverRedis"`
+	Minio       MinioConf       `yaml:"minio" json:"minio"`
 }
 
-// MysqlConf 描述 MySQL 数据源配置。
+// MysqlConf describes the MySQL datasource.
 type MysqlConf struct {
-	DSN string `yaml:"dsn" json:"dsn"` // DSN：MySQL 数据源连接串
+	DSN string `yaml:"dsn" json:"dsn"`
+}
+
+// DriverRedisConf describes the Redis instance used by driver online state.
+type DriverRedisConf struct {
+	Host     string `yaml:"host" json:"host"`
+	Password string `yaml:"password" json:"password"`
+	DB       int    `yaml:"db" json:"db"`
+}
+
+// MinioConf describes the object storage used by driver certification images.
+type MinioConf struct {
+	Endpoint  string `yaml:"endpoint" json:"endpoint"`
+	AccessKey string `yaml:"accessKey" json:"accessKey"`
+	SecretKey string `yaml:"secretKey" json:"secretKey"`
+	Bucket    string `yaml:"bucket" json:"bucket"`
+	UseSSL    bool   `yaml:"useSSL" json:"useSSL"`
 }

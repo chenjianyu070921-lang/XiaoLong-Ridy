@@ -512,7 +512,7 @@ func buildModify(c colInfo, comment string) string {
 }
 
 func main() {
-	dsn := flag.String("dsn", "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=true&loc=Local", "MySQL DSN")
+	dsn := flag.String("dsn", "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local", "MySQL DSN")
 	dry := flag.Bool("dry-run", false, "仅打印将要执行的 SQL，不实际执行")
 	flag.Parse()
 
