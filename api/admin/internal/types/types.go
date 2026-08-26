@@ -160,7 +160,8 @@ type AuditRequest struct {
 
 // OrderCancelRequest 表示后台人工取消订单的请求体。
 type OrderCancelRequest struct {
-	Reason string `json:"reason"`
+	Reason    string `json:"reason"`
+	RequestID string `json:"request_id"`
 }
 
 // OrderListRequest 表示订单列表查询条件。
@@ -223,12 +224,13 @@ type AbnormalOrderDTO struct {
 
 // OrderDetailDTO 表示订单详情聚合信息。
 type OrderDetailDTO struct {
-	Order           OrderDTO         `json:"orderclient"`
+	Order           OrderDTO         `json:"order"`
 	StatusLogs      []OrderStatusLog `json:"status_logs"`
 	DispatchRecords []DispatchRecord `json:"dispatch_records"`
 	Price           *OrderPrice      `json:"price,omitempty"`
 	Payment         *Payment         `json:"payment,omitempty"`
 	Settlement      *Settlement      `json:"settlement,omitempty"`
+	Degraded        []string         `json:"degraded,omitempty"`
 }
 
 // OrderStatusLog 表示订单状态流转日志。

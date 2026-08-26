@@ -29,14 +29,58 @@ MenuRoles:
     Path: /driver-certifications
     Icon: BadgeCheck
     Perm: driver:audit
+  - Name: 司机列表
+    Path: /drivers
+    Icon: Avatar
+    Perm: driver:list
   - Name: 订单监控
     Path: /orders
     Icon: ClipboardList
     Perm: order:list
+  - Name: 异常订单
+    Path: /orders/abnormal
+    Icon: Warning
+    Perm: order:abnormal
   - Name: 操作日志
     Path: /operation-logs
     Icon: ScrollText
     Perm: log:list
+  - Name: 优惠券模板
+    Path: /coupons
+    Icon: Discount
+    Perm: coupon:list
+  - Name: 发券任务
+    Path: /coupon-issue-tasks
+    Icon: List
+    Perm: coupon:issue_task:list
+  - Name: 计价规则
+    Path: /price-rules
+    Icon: Setting
+    Perm: price_rule:list
+  - Name: 活动配置
+    Path: /promotion-activities
+    Icon: Discount
+    Perm: promotion:list
+  - Name: 投诉与申诉工单
+    Path: /work-orders
+    Icon: Document
+    Perm: work-order:list
+  - Name: 数据统计
+    Path: /statistics
+    Icon: DataAnalysis
+    Perm: statistics:view
+  - Name: 导出任务
+    Path: /export-tasks
+    Icon: Document
+    Perm: export:list
+  - Name: 黑名单
+    Path: /blacklist
+    Icon: Warning
+    Perm: risk:blacklist:list
+  - Name: 风控命中记录
+    Path: /risk-hits
+    Icon: Management
+    Perm: risk:hit:list
   2:
   - Name: 用户管理
     Path: /users
@@ -46,14 +90,58 @@ MenuRoles:
     Path: /driver-certifications
     Icon: BadgeCheck
     Perm: driver:audit
+  - Name: 司机列表
+    Path: /drivers
+    Icon: Avatar
+    Perm: driver:list
   - Name: 订单监控
     Path: /orders
     Icon: ClipboardList
     Perm: order:list
+  - Name: 异常订单
+    Path: /orders/abnormal
+    Icon: Warning
+    Perm: order:abnormal
   - Name: 操作日志
     Path: /operation-logs
     Icon: ScrollText
     Perm: log:list
+  - Name: 优惠券模板
+    Path: /coupons
+    Icon: Discount
+    Perm: coupon:list
+  - Name: 发券任务
+    Path: /coupon-issue-tasks
+    Icon: List
+    Perm: coupon:issue_task:list
+  - Name: 计价规则
+    Path: /price-rules
+    Icon: Setting
+    Perm: price_rule:list
+  - Name: 活动配置
+    Path: /promotion-activities
+    Icon: Discount
+    Perm: promotion:list
+  - Name: 投诉与申诉工单
+    Path: /work-orders
+    Icon: Document
+    Perm: work-order:list
+  - Name: 数据统计
+    Path: /statistics
+    Icon: DataAnalysis
+    Perm: statistics:view
+  - Name: 导出任务
+    Path: /export-tasks
+    Icon: Document
+    Perm: export:list
+  - Name: 黑名单
+    Path: /blacklist
+    Icon: Warning
+    Perm: risk:blacklist:list
+  - Name: 风控命中记录
+    Path: /risk-hits
+    Icon: Management
+    Perm: risk:hit:list
   3:
   - Name: 用户管理
     Path: /users
@@ -63,10 +151,18 @@ MenuRoles:
     Path: /driver-certifications
     Icon: BadgeCheck
     Perm: driver:audit
+  - Name: 司机列表
+    Path: /drivers
+    Icon: Avatar
+    Perm: driver:list
   - Name: 订单监控
     Path: /orders
     Icon: ClipboardList
     Perm: order:list
+  - Name: 异常订单
+    Path: /orders/abnormal
+    Icon: Warning
+    Perm: order:abnormal
   - Name: 操作日志
     Path: /operation-logs
     Icon: ScrollText
@@ -77,6 +173,9 @@ MenuRoles:
     Perm: work-order:list
 OrdersRPC:
   Target: 127.0.0.1:50051
+  NonBlock: true
+DispatchRPC:
+  Target: 127.0.0.1:8083
   NonBlock: true
 DriversRPC:
   Target: 127.0.0.1:8080

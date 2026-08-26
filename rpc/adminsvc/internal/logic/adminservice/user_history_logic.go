@@ -3,6 +3,7 @@ package adminservicelogic
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
@@ -71,6 +72,15 @@ func (l *UserHistoryLogic) ListUserCoupons(in *adminsvc.UserCouponHistoryRequest
 
 // formatCents 将分单位金额转换为后台展示使用的两位小数字符串。
 func formatCents(cents int64) string { return fmt.Sprintf("%d.%02d", cents/100, cents%100) }
+
+// floatText 将下游 double 数值转换为后台接口沿用的字符串字段。
+// 采用定点 6 位精度，匹配经纬度数据库字段 decimal(10,6) 的展示口径。
+func floatText(value float64) string {
+	if value == 0 {
+		return ""
+	}
+	return strconv.FormatFloat(value, 'f', 6, 64)
+}
 
 // unixText 统一将下游 Unix 秒时间戳转换为管理端接口约定的时间字符串。
 func unixText(timestamp int64) string {

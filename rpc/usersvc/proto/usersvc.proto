@@ -35,6 +35,10 @@ service User {
   rpc LockUserCoupon(LockUserCouponRequest) returns (LockUserCouponResponse);
   // ReleaseUserCoupon 下单失败时释放用户券锁定。
   rpc ReleaseUserCoupon(ReleaseUserCouponRequest) returns (ReleaseUserCouponResponse);
+  // AdminListUsers 为管理后台提供分页用户查询能力。
+  rpc AdminListUsers(AdminUserListRequest) returns (AdminUserListResponse);
+  // AdminGetUser 为管理后台提供指定用户详情查询能力。
+  rpc AdminGetUser(AdminUserDetailRequest) returns (AdminUser);
 }
 
 // SendSMSCodeRequest 发送短信验证码请求。
@@ -255,4 +259,39 @@ message ReleaseUserCouponRequest {
 // ReleaseUserCouponResponse 释放锁券响应。
 message ReleaseUserCouponResponse {
   bool success = 1; // 是否释放成功
+}
+
+// AdminUserListRequest 表示管理后台用户列表筛选条件。
+message AdminUserListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 status = 3;
+}
+
+// AdminUserDetailRequest 表示管理后台用户详情查询条件。
+message AdminUserDetailRequest {
+  uint64 id = 1;
+}
+
+// AdminUser 表示管理后台展示的用户资料。
+message AdminUser {
+  uint64 id = 1;
+  string phone = 2;
+  string nickname = 3;
+  string avatar_url = 4;
+  int32 gender = 5;
+  string real_name = 6;
+  string id_card_no = 7;
+  string register_source = 8;
+  int32 status = 9;
+  int64 created_at = 10;
+  int64 updated_at = 11;
+}
+
+// AdminUserListResponse 返回管理后台用户分页结果。
+message AdminUserListResponse {
+  repeated AdminUser list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }

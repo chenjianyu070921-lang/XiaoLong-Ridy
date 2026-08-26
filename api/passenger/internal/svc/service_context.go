@@ -251,7 +251,9 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 		cfg.DispatchRPCAddr = defaultDispatchRPCAddr
 	}
 	if cfg.ClientMode == "" {
-		cfg.ClientMode = clientModeLocal
+		// 默认使用真实 gRPC 下游，避免联调或验收环境误用本地内存客户端。
+		// 如需无依赖运行单元测试或临时演示，必须显式设置 PASSENGER_CLIENT_MODE=local。
+		cfg.ClientMode = clientModeGRPC
 	}
 	if cfg.PriceCityCode == "" {
 		cfg.PriceCityCode = defaultPriceCityCode

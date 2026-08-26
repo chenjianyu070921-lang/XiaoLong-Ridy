@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -13,6 +14,36 @@ type MemoryUserRepository struct {
 	nextID       uint64
 	usersByID    map[uint64]*model.User
 	usersByPhone map[string]*model.User
+}
+
+// ListPage 按 ID 倒序返回内存用户分页结果，模拟生产仓储的查询语义。
+func (r *MemoryUserRepository) ListPage(_ context.Context, status, page, pageSize int) ([]*model.User, int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	items := make([]*model.User, 0, len(r.usersByID))
+	for _, user := range r.usersByID {
+		if status > 0 && user.Status != status {
+			continue
+		}
+		copied := *user
+		items = append(items, &copied)
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].ID > items[j].ID })
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	start := (page - 1) * pageSize
+	if start >= len(items) {
+		return []*model.User{}, int64(len(items)), nil
+	}
+	end := start + pageSize
+	if end > len(items) {
+		end = len(items)
+	}
+	return items[start:end], int64(len(items)), nil
 }
 
 // NewMemoryUserRepository 创建用于本地开发和测试的内存仓储。

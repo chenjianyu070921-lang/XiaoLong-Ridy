@@ -13,6 +13,8 @@ type Config struct {
 	Cache     RedisConfig        `json:"Cache" yaml:"Cache"`
 	Session   AuthConfig         `json:"Session" yaml:"Session"`
 	OrdersRPC zrpc.RpcClientConf `json:"OrdersRPC,optional" yaml:"OrdersRPC"`
+	// DispatchRPC 供后台订单详情查询真实派单记录。
+	DispatchRPC zrpc.RpcClientConf `json:"DispatchRPC,optional" yaml:"DispatchRPC"`
 	// UsersRPC 供后台查询用户优惠券历史，数据读取仍由 usersvc 负责。
 	UsersRPC   zrpc.RpcClientConf `json:"UsersRPC,optional" yaml:"UsersRPC"`
 	DriversRPC zrpc.RpcClientConf `json:"DriversRPC,optional" yaml:"DriversRPC"`

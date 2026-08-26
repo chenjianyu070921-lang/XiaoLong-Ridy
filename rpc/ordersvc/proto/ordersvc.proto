@@ -122,6 +122,18 @@ message OrderSummary {
   OrderStatus status = 5;
   int64 estimated_price_cents = 6;
   int64 created_at = 7; // Unix 秒
+  int64 user_id = 8;
+  int64 driver_id = 9;
+  int32 car_type = 10;
+  double from_longitude = 11;
+  double from_latitude = 12;
+  double to_longitude = 13;
+  double to_latitude = 14;
+  int64 estimated_distance_m = 15;
+  int64 estimated_duration_s = 16;
+  string cancel_reason = 17;
+  string cancel_by = 18;
+  int64 updated_at = 19; // Unix 秒
 }
 
 message ListOrdersResponse {
