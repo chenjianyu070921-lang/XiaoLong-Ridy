@@ -33,6 +33,9 @@ func TestListOrdersFiltersAndPagination(t *testing.T) {
 	if resp.List[0].Status != proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
 		t.Fatalf("ListOrders() item = %+v", resp.List[0])
 	}
+	if got := resp.List[0]; got.UserId != 1001 || got.CarType != 1 || got.FromLongitude == 0 || got.UpdatedAt == 0 {
+		t.Fatalf("ListOrders() full item fields = %+v", got)
+	}
 }
 
 func TestListOrdersDefaults(t *testing.T) {

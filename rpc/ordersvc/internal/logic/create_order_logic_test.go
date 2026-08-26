@@ -201,12 +201,14 @@ func TestCreateOrderUsesPriceSnapshot(t *testing.T) {
 
 	req := validCreateOrderRequest()
 	req.CityCode = "310000"
+	// 价格快照为空时，订单服务调用 pricesvc 生成服务端价格快照。
+	req.EstimatedPriceCents = 0
 	resp, err := l.CreateOrder(req)
 	if err != nil {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
 	if resp.EstimatedPriceCents != 4500 {
-		t.Fatalf("EstimatedPriceCents = %d, want 4500", resp.EstimatedPriceCents)
+		t.Fatalf("EstimatedPriceCents = %d, want pricesvc snapshot 4500", resp.EstimatedPriceCents)
 	}
 	if pc.gotCityCode != "310000" {
 		t.Fatalf("price client city code = %q, want 310000", pc.gotCityCode)
@@ -216,7 +218,7 @@ func TestCreateOrderUsesPriceSnapshot(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if order.EstimatedPrice != 45 {
-		t.Fatalf("stored estimated price = %v, want 45", order.EstimatedPrice)
+		t.Fatalf("stored estimated price = %v, want pricesvc snapshot 45", order.EstimatedPrice)
 	}
 }
 
@@ -247,8 +249,10 @@ func TestCreateOrderPriceSnapshotDefaultCity(t *testing.T) {
 		PriceClient:     pc,
 	})
 
-	// 不传 city_code，应兜底默认城市 110000
-	if _, err := l.CreateOrder(validCreateOrderRequest()); err != nil {
+	// 不传 city_code 且不传价格快照时，才调用 pricesvc 并使用默认城市 110000。
+	req := validCreateOrderRequest()
+	req.EstimatedPriceCents = 0
+	if _, err := l.CreateOrder(req); err != nil {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
 	if pc.gotCityCode != "110000" {

@@ -25,6 +25,7 @@ const (
 	User_Logout_FullMethodName            = "/usersvc.User/Logout"
 	User_GetProfile_FullMethodName        = "/usersvc.User/GetProfile"
 	User_SubmitRealName_FullMethodName    = "/usersvc.User/SubmitRealName"
+	User_UpdateProfile_FullMethodName     = "/usersvc.User/UpdateProfile"
 	User_CreateAddress_FullMethodName     = "/usersvc.User/CreateAddress"
 	User_ListAddresses_FullMethodName     = "/usersvc.User/ListAddresses"
 	User_UpdateAddress_FullMethodName     = "/usersvc.User/UpdateAddress"
@@ -33,6 +34,8 @@ const (
 	User_ListMyCoupons_FullMethodName     = "/usersvc.User/ListMyCoupons"
 	User_LockUserCoupon_FullMethodName    = "/usersvc.User/LockUserCoupon"
 	User_ReleaseUserCoupon_FullMethodName = "/usersvc.User/ReleaseUserCoupon"
+	User_AdminListUsers_FullMethodName    = "/usersvc.User/AdminListUsers"
+	User_AdminGetUser_FullMethodName      = "/usersvc.User/AdminGetUser"
 )
 
 // UserClient is the client API for User service.
@@ -51,6 +54,8 @@ type UserClient interface {
 	GetProfile(ctx context.Context, in *GetProfileRequest, opts ...grpc.CallOption) (*GetProfileResponse, error)
 	// SubmitRealName 提交乘客实名信息。
 	SubmitRealName(ctx context.Context, in *SubmitRealNameRequest, opts ...grpc.CallOption) (*SubmitRealNameResponse, error)
+	// UpdateProfile 更新乘客昵称与头像，空字段表示不修改。
+	UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*UpdateProfileResponse, error)
 	// CreateAddress 新增乘客常用地址。
 	CreateAddress(ctx context.Context, in *CreateAddressRequest, opts ...grpc.CallOption) (*AddressInfo, error)
 	// ListAddresses 查询乘客常用地址列表。
@@ -67,6 +72,10 @@ type UserClient interface {
 	LockUserCoupon(ctx context.Context, in *LockUserCouponRequest, opts ...grpc.CallOption) (*LockUserCouponResponse, error)
 	// ReleaseUserCoupon 下单失败时释放用户券锁定。
 	ReleaseUserCoupon(ctx context.Context, in *ReleaseUserCouponRequest, opts ...grpc.CallOption) (*ReleaseUserCouponResponse, error)
+	// AdminListUsers 为管理后台提供分页用户查询能力。
+	AdminListUsers(ctx context.Context, in *AdminUserListRequest, opts ...grpc.CallOption) (*AdminUserListResponse, error)
+	// AdminGetUser 为管理后台提供指定用户详情查询能力。
+	AdminGetUser(ctx context.Context, in *AdminUserDetailRequest, opts ...grpc.CallOption) (*AdminUser, error)
 }
 
 type userClient struct {
@@ -131,6 +140,16 @@ func (c *userClient) SubmitRealName(ctx context.Context, in *SubmitRealNameReque
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SubmitRealNameResponse)
 	err := c.cc.Invoke(ctx, User_SubmitRealName_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*UpdateProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateProfileResponse)
+	err := c.cc.Invoke(ctx, User_UpdateProfile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -217,6 +236,26 @@ func (c *userClient) ReleaseUserCoupon(ctx context.Context, in *ReleaseUserCoupo
 	return out, nil
 }
 
+func (c *userClient) AdminListUsers(ctx context.Context, in *AdminUserListRequest, opts ...grpc.CallOption) (*AdminUserListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminUserListResponse)
+	err := c.cc.Invoke(ctx, User_AdminListUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) AdminGetUser(ctx context.Context, in *AdminUserDetailRequest, opts ...grpc.CallOption) (*AdminUser, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminUser)
+	err := c.cc.Invoke(ctx, User_AdminGetUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServer is the server API for User service.
 // All implementations must embed UnimplementedUserServer
 // for forward compatibility
@@ -233,6 +272,8 @@ type UserServer interface {
 	GetProfile(context.Context, *GetProfileRequest) (*GetProfileResponse, error)
 	// SubmitRealName 提交乘客实名信息。
 	SubmitRealName(context.Context, *SubmitRealNameRequest) (*SubmitRealNameResponse, error)
+	// UpdateProfile 更新乘客昵称与头像，空字段表示不修改。
+	UpdateProfile(context.Context, *UpdateProfileRequest) (*UpdateProfileResponse, error)
 	// CreateAddress 新增乘客常用地址。
 	CreateAddress(context.Context, *CreateAddressRequest) (*AddressInfo, error)
 	// ListAddresses 查询乘客常用地址列表。
@@ -249,6 +290,10 @@ type UserServer interface {
 	LockUserCoupon(context.Context, *LockUserCouponRequest) (*LockUserCouponResponse, error)
 	// ReleaseUserCoupon 下单失败时释放用户券锁定。
 	ReleaseUserCoupon(context.Context, *ReleaseUserCouponRequest) (*ReleaseUserCouponResponse, error)
+	// AdminListUsers 为管理后台提供分页用户查询能力。
+	AdminListUsers(context.Context, *AdminUserListRequest) (*AdminUserListResponse, error)
+	// AdminGetUser 为管理后台提供指定用户详情查询能力。
+	AdminGetUser(context.Context, *AdminUserDetailRequest) (*AdminUser, error)
 	mustEmbedUnimplementedUserServer()
 }
 
@@ -274,6 +319,9 @@ func (UnimplementedUserServer) GetProfile(context.Context, *GetProfileRequest) (
 func (UnimplementedUserServer) SubmitRealName(context.Context, *SubmitRealNameRequest) (*SubmitRealNameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitRealName not implemented")
 }
+func (UnimplementedUserServer) UpdateProfile(context.Context, *UpdateProfileRequest) (*UpdateProfileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateProfile not implemented")
+}
 func (UnimplementedUserServer) CreateAddress(context.Context, *CreateAddressRequest) (*AddressInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateAddress not implemented")
 }
@@ -297,6 +345,12 @@ func (UnimplementedUserServer) LockUserCoupon(context.Context, *LockUserCouponRe
 }
 func (UnimplementedUserServer) ReleaseUserCoupon(context.Context, *ReleaseUserCouponRequest) (*ReleaseUserCouponResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReleaseUserCoupon not implemented")
+}
+func (UnimplementedUserServer) AdminListUsers(context.Context, *AdminUserListRequest) (*AdminUserListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AdminListUsers not implemented")
+}
+func (UnimplementedUserServer) AdminGetUser(context.Context, *AdminUserDetailRequest) (*AdminUser, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AdminGetUser not implemented")
 }
 func (UnimplementedUserServer) mustEmbedUnimplementedUserServer() {}
 
@@ -415,6 +469,24 @@ func _User_SubmitRealName_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserServer).SubmitRealName(ctx, req.(*SubmitRealNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_UpdateProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).UpdateProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_UpdateProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).UpdateProfile(ctx, req.(*UpdateProfileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -563,6 +635,42 @@ func _User_ReleaseUserCoupon_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _User_AdminListUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminUserListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).AdminListUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_AdminListUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).AdminListUsers(ctx, req.(*AdminUserListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_AdminGetUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminUserDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).AdminGetUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_AdminGetUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).AdminGetUser(ctx, req.(*AdminUserDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // User_ServiceDesc is the grpc.ServiceDesc for User service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -595,6 +703,10 @@ var User_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _User_SubmitRealName_Handler,
 		},
 		{
+			MethodName: "UpdateProfile",
+			Handler:    _User_UpdateProfile_Handler,
+		},
+		{
 			MethodName: "CreateAddress",
 			Handler:    _User_CreateAddress_Handler,
 		},
@@ -625,6 +737,14 @@ var User_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReleaseUserCoupon",
 			Handler:    _User_ReleaseUserCoupon_Handler,
+		},
+		{
+			MethodName: "AdminListUsers",
+			Handler:    _User_AdminListUsers_Handler,
+		},
+		{
+			MethodName: "AdminGetUser",
+			Handler:    _User_AdminGetUser_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -42,11 +42,23 @@ func (l *ListOrdersLogic) ListOrders(in *proto.ListOrdersRequest) (*proto.ListOr
 		items = append(items, &proto.OrderSummary{
 			OrderId:             int64(order.Id),
 			OrderNo:             order.OrderNo,
+			UserId:              int64(order.UserId),
+			DriverId:            int64(order.DriverId),
+			CarType:             int32(order.CarType),
 			FromAddress:         order.FromAddress,
+			FromLongitude:       order.FromLongitude,
+			FromLatitude:        order.FromLatitude,
 			ToAddress:           order.ToAddress,
+			ToLongitude:         order.ToLongitude,
+			ToLatitude:          order.ToLatitude,
+			EstimatedDistanceM:  int64(order.EstimatedDistanceM),
+			EstimatedDurationS:  int64(order.EstimatedDurationS),
 			Status:              proto.OrderStatus(order.Status),
 			EstimatedPriceCents: yuanToCents(order.EstimatedPrice),
+			CancelReason:        order.CancelReason,
+			CancelBy:            order.CancelBy,
 			CreatedAt:           order.CreatedAt.Unix(),
+			UpdatedAt:           order.UpdatedAt.Unix(),
 		})
 	}
 
