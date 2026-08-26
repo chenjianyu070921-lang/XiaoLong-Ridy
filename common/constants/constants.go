@@ -8,6 +8,7 @@ const (
 	OrderStatusWaitPay    = 4 // 待支付
 	OrderStatusCompleted  = 5 // 已完成
 	OrderStatusCancelled  = 6 // 已取消
+	OrderStatusRefunded   = 7 // 已退款（终态）
 )
 
 // 派单类型

@@ -67,6 +67,11 @@ func (s *OrderServer) ConfirmPaid(ctx context.Context, in *__proto.ConfirmPaidRe
 	return l.ConfirmPaid(in)
 }
 
+func (s *OrderServer) RefundOrder(ctx context.Context, in *__proto.RefundOrderRequest) (*__proto.RefundOrderResponse, error) {
+	l := logic.NewRefundOrderLogic(ctx, s.svcCtx)
+	return l.RefundOrder(in)
+}
+
 func (s *OrderServer) TimeoutCancel(ctx context.Context, in *__proto.TimeoutCancelRequest) (*__proto.TimeoutCancelResponse, error) {
 	l := logic.NewTimeoutCancelLogic(ctx, s.svcCtx)
 	return l.TimeoutCancel(in)

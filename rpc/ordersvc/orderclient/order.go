@@ -35,6 +35,8 @@ type (
 	ListTimeoutOrdersResponse   = __proto.ListTimeoutOrdersResponse
 	OrderStatusLog              = __proto.OrderStatusLog
 	OrderSummary                = __proto.OrderSummary
+	RefundOrderRequest          = __proto.RefundOrderRequest
+	RefundOrderResponse         = __proto.RefundOrderResponse
 	StartTripRequest            = __proto.StartTripRequest
 	StartTripResponse           = __proto.StartTripResponse
 	TimeoutCancelRequest        = __proto.TimeoutCancelRequest
@@ -53,6 +55,7 @@ type (
 		TimeoutCancel(ctx context.Context, in *TimeoutCancelRequest, opts ...grpc.CallOption) (*TimeoutCancelResponse, error)
 		ListTimeoutOrders(ctx context.Context, in *ListTimeoutOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutOrdersResponse, error)
 		ListOrderStatusLogs(ctx context.Context, in *ListOrderStatusLogsRequest, opts ...grpc.CallOption) (*ListOrderStatusLogsResponse, error)
+		RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error)
 	}
 
 	defaultOrder struct {
@@ -124,4 +127,9 @@ func (m *defaultOrder) ListTimeoutOrders(ctx context.Context, in *ListTimeoutOrd
 func (m *defaultOrder) ListOrderStatusLogs(ctx context.Context, in *ListOrderStatusLogsRequest, opts ...grpc.CallOption) (*ListOrderStatusLogsResponse, error) {
 	client := __proto.NewOrderClient(m.cli.Conn())
 	return client.ListOrderStatusLogs(ctx, in, opts...)
+}
+
+func (m *defaultOrder) RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error) {
+	client := __proto.NewOrderClient(m.cli.Conn())
+	return client.RefundOrder(ctx, in, opts...)
 }

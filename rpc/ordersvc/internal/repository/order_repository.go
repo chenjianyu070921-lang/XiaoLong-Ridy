@@ -43,4 +43,8 @@ type OrderRepository interface {
 	ListTimeoutOrders(ctx context.Context, before time.Time, page, pageSize int32) ([]model.RideOrder, int64, error)
 	// ListStatusLogs 分页查询订单状态日志。
 	ListStatusLogs(ctx context.Context, orderID uint64, page, pageSize int32) ([]model.OrderStatusLog, int64, error)
+	// Refund 将已完成订单退款为已退款终态，并落库退款金额，需状态机合法跳转。
+	Refund(ctx context.Context, orderID uint64, refundCents int64, statusLog *model.OrderStatusLog) (bool, error)
+	// ReleaseCoupon 释放订单锁定的优惠券（取消/退款时回滚），幂等。
+	ReleaseCoupon(ctx context.Context, userID, orderID uint64) error
 }

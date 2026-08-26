@@ -40,7 +40,7 @@ func writeResponse(w http.ResponseWriter, status, code int, message string, data
 	})
 }
 
-// traceID 生成一个随机的 traceID 用于请求链路追踪。
+// traceID 生成一个随机的 traceID 用于请求链路追踪（8 字节随机数转十六进制，失败回退固定值）。
 func traceID() string {
 	// 8 字节随机缓冲。
 	var value [8]byte
@@ -52,7 +52,8 @@ func traceID() string {
 	return "trace_" + hex.EncodeToString(value[:])
 }
 
-// decodeJSON 校验请求方法为 POST 并解析 JSON 请求体到 target。解析失败已直接写错误响应。
+// decodeJSON 校验请求方法为 POST 并解析 JSON 请求体到 target；方法不支持返回 405、解析失败返回 400（已写响应）。
+// 返回 true 表示解析成功，调用方继续处理；false 表示已写错误响应，应直接返回。
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	// 仅允许 POST 方法。
 	if r.Method != http.MethodPost {
@@ -70,7 +71,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	return true
 }
 
-// decodeQueryID 从 URL 查询参数中读取整型 id，缺失或非法时返回 (0, false)。
+// decodeQueryID 从 URL 查询参数中读取整型 id：缺失、非整数或值非正时返回 (0, false)，否则返回 (id, true)。
 func decodeQueryID(r *http.Request, key string) (int64, bool) {
 	// 读取指定 key 的查询参数原始字符串。
 	raw := r.URL.Query().Get(key)

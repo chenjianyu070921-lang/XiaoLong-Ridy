@@ -45,8 +45,10 @@ html, body, #app {
 }
 
 body {
+  display: flex;
+  justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: var(--bg-color);
+  background: #d9dee8;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -55,6 +57,15 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+#app {
+  width: min(100vw, 375px);
+  min-height: 100vh;
+  margin: 0 auto;
+  background: var(--bg-color);
+  box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.08), 0 18px 48px rgba(17, 24, 39, 0.12);
+  overflow-x: hidden;
 }
 
 button, input, textarea {

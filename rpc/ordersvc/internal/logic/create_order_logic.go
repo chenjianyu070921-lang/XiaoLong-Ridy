@@ -111,6 +111,25 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 			return nil, err
 		}
 
+		// 下单即锁定优惠券（P1-订单-2）：保证"锁券->下单->支付->核销->失败回滚"的原子边界。
+		// 锁券失败直接回滚订单，避免券被并发重复占用。
+		if in.CouponId > 0 && l.svcCtx.CouponConsumer != nil {
+			if lockErr := l.svcCtx.CouponConsumer.LockByOrder(l.ctx, uint64(in.UserId), uint64(in.CouponId), order.Id); lockErr != nil {
+				l.Logger.Errorf("lock coupon %d for order %d failed: %v", in.CouponId, order.Id, lockErr)
+				// 锁券失败：回滚已创建订单，返回明确错误。
+				_, _ = l.svcCtx.OrderRepository.Cancel(l.ctx, order.Id,
+					[]int8{constants.OrderStatusWaitAccept, constants.OrderStatusAccepted},
+					constants.OperatorSystem, "优惠券锁定失败自动取消", &model.OrderStatusLog{
+						FromStatus:    order.Status,
+						ToStatus:      constants.OrderStatusCancelled,
+						OperatorType:  constants.OperatorSystem,
+						OperatorId:    0,
+						Remark:        "优惠券锁定失败自动取消",
+					})
+				return nil, repository.ErrCouponLockFailed
+			}
+		}
+
 		// 优先发布 order.created 事件，由 order-event-consumer 触发派单。
 		published := false
 		if l.svcCtx.EventBus != nil {
@@ -228,6 +247,10 @@ func buildRideOrder(in *proto.CreateOrderRequest, estimatedPriceCents int64) *mo
 		EstimatedDurationS: int(in.EstimatedDurationS),
 		EstimatedPrice:     float64(estimatedPriceCents) / 100,
 		Status:             constants.OrderStatusWaitAccept,
+		// 价格与优惠券快照落库（P1-订单-1/2）：实付 = 预估 - 优惠，服务端以传参金额为准。
+		CouponId:     in.CouponId,
+		DiscountCents: in.DiscountCents,
+		PayableCents: estimatedPriceCents - in.DiscountCents,
 	}
 }
 

@@ -42,8 +42,8 @@ func main() {
 	}
 
 	driverIDs := make([]int64, 0, len(drivers))
-	for i, d := range drivers {
-		r, e := c.CreateDriver(ctx, &d)
+	for i := range drivers {
+		r, e := c.CreateDriver(ctx, &drivers[i])
 		log(fmt.Sprintf("CreateDriver-%d", i+1), r, e)
 		if r != nil {
 			driverIDs = append(driverIDs, r.Id)
