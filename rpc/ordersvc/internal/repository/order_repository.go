@@ -47,4 +47,9 @@ type OrderRepository interface {
 	Refund(ctx context.Context, orderID uint64, refundCents int64, statusLog *model.OrderStatusLog) (bool, error)
 	// ReleaseCoupon 释放订单锁定的优惠券（取消/退款时回滚），幂等。
 	ReleaseCoupon(ctx context.Context, userID, orderID uint64) error
+	// Redispatch 人工改派：解除司机绑定、订单回到待接单并重新进入派单队列；指定 newDriverID 时直接绑定新司机。
+	// allowStatuses 为该操作允许的前置状态（如待接单/已接单）。返回最终绑定的 driverID（0 表示回自动派单池）。
+	Redispatch(ctx context.Context, orderID, newDriverID uint64, allowStatuses []int8, statusLog *model.OrderStatusLog) (uint64, bool, error)
+	// ForceRefund 管理员强制退款：可从更多终态（含已支付/行程中等）发起，状态改为已退款并累加退款金额，需状态机合法跳转。
+	ForceRefund(ctx context.Context, orderID uint64, refundCents int64, statusLog *model.OrderStatusLog) (bool, error)
 }

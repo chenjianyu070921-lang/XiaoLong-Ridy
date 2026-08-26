@@ -74,12 +74,13 @@ func NewCreateOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Creat
 }
 
 type orderCreatedEvent struct {
-	OrderId       int64   `json:"order_id"`
-	OrderNo       string  `json:"order_no"`
-	FromLongitude float64 `json:"from_longitude"`
-	FromLatitude  float64 `json:"from_latitude"`
-	CarType       int32   `json:"car_type"`
-	CityCode      string  `json:"city_code"`
+	OrderId          int64   `json:"order_id"`
+	OrderNo          string  `json:"order_no"`
+	FromLongitude    float64 `json:"from_longitude"`
+	FromLatitude     float64 `json:"from_latitude"`
+	CarType          int32   `json:"car_type"`
+	CityCode         string  `json:"city_code"`
+	ExcludeDriverIds []int64 `json:"exclude_driver_ids"` // 改派/重派时排除的司机（如原司机）
 }
 
 // CreateOrder 校验参数并创建待接单订单，同时写入创建状态日志并发布订单创建事件。

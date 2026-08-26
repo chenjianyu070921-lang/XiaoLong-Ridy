@@ -10,7 +10,7 @@ MySQL:
 Cache:
   Host: 115.191.16.159:6379
   # 真实 Redis 密码由环境变量 ADMINSVC_REDIS_PASSWORD 注入，禁止在此提交明文凭据。
-  Password: ""
+  Password: "4ay1nkal3u8ed77y"
   DB: 0
 Session:
   SessionTTLHours: 24
@@ -79,7 +79,7 @@ OrdersRPC:
   Target: 127.0.0.1:50051
   NonBlock: true
 DriversRPC:
-  Target: 127.0.0.1:8080
+  Target: 127.0.0.1:5055
   NonBlock: true
 PricesRPC:
   Target: 127.0.0.1:50053

@@ -58,6 +58,7 @@ message DispatchOrderRequest {
   double from_latitude = 3;
   int32 car_type = 4;
   string city_code = 5;
+  repeated int64 exclude_driver_ids = 6; // 改派/重派时排除的司机（如原司机）
 }
 
 message DispatchOrderResponse {

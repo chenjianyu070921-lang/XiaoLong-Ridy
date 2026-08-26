@@ -20,7 +20,7 @@
 # 数据库凭据仅保存在本机环境变量或部署平台 Secret，不能写入配置文件。
 $env:ADMINSVC_MYSQL_DSN = "<your-admin-mysql-dsn>"
 
-# 1. 启动服务栈（ordersvc:50051 -> driversvc:8080 -> adminsvc:8084 -> api/admin:8717）
+# 1. 启动服务栈（ordersvc:50051 -> driversvc:5055 -> adminsvc:8084 -> api/admin:8717）
 .\scripts\admin-test\start_admin_stack.ps1
 
 # 2. 运行接口测试（只读 + 错误路径用例）

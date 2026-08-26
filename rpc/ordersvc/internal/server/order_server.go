@@ -86,3 +86,13 @@ func (s *OrderServer) ListOrderStatusLogs(ctx context.Context, in *__proto.ListO
 	l := logic.NewListOrderStatusLogsLogic(ctx, s.svcCtx)
 	return l.ListOrderStatusLogs(in)
 }
+
+func (s *OrderServer) RedispatchOrder(ctx context.Context, in *__proto.RedispatchOrderRequest) (*__proto.RedispatchOrderResponse, error) {
+	l := logic.NewRedispatchOrderLogic(ctx, s.svcCtx)
+	return l.RedispatchOrder(in)
+}
+
+func (s *OrderServer) ForceRefundOrder(ctx context.Context, in *__proto.ForceRefundOrderRequest) (*__proto.ForceRefundOrderResponse, error) {
+	l := logic.NewForceRefundOrderLogic(ctx, s.svcCtx)
+	return l.ForceRefundOrder(in)
+}

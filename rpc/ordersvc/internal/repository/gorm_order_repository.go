@@ -314,6 +314,94 @@ func (r *gormOrderRepository) Refund(ctx context.Context, orderID uint64, refund
 	return true, nil
 }
 
+// Redispatch 人工改派：解除司机绑定、订单回到待接单并重新进入派单队列；指定 newDriverID 时直接绑定新司机。
+func (r *gormOrderRepository) Redispatch(ctx context.Context, orderID, newDriverID uint64, allowStatuses []int8, statusLog *model.OrderStatusLog) (uint64, bool, error) {
+	var finalDriver uint64
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 将订单从允许的前置状态原子改回待接单并解绑司机。
+		res := tx.Model(&model.RideOrder{}).
+			Where("id = ? AND status IN ? AND deleted_at IS NULL", orderID, allowStatuses).
+			Updates(map[string]interface{}{
+				"status":     constants.OrderStatusWaitAccept,
+				"driver_id":  0,
+				"updated_at": time.Now(),
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errOrderNotUpdated
+		}
+		statusLog.OrderId = orderID
+		if err := tx.Create(statusLog).Error; err != nil {
+			return err
+		}
+		// 指定新司机：直接绑定为已接单，跳过自动派单。
+		if newDriverID > 0 {
+			if err := tx.Model(&model.RideOrder{}).
+				Where("id = ? AND status = ? AND deleted_at IS NULL", orderID, constants.OrderStatusWaitAccept).
+				Updates(map[string]interface{}{
+					"status":     constants.OrderStatusAccepted,
+					"driver_id":  newDriverID,
+					"updated_at": time.Now(),
+				}).Error; err != nil {
+				return err
+			}
+			finalDriver = newDriverID
+		}
+		return nil
+	})
+	if errors.Is(err, errOrderNotUpdated) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return finalDriver, true, nil
+}
+
+// ForceRefund 管理员强制退款：状态改为已退款并累加退款金额，需状态机合法跳转。
+func (r *gormOrderRepository) ForceRefund(ctx context.Context, orderID uint64, refundCents int64, statusLog *model.OrderStatusLog) (bool, error) {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&model.RideOrder{}).
+			Where("id = ? AND status = ? AND deleted_at IS NULL", orderID, constants.OrderStatusRefunded).
+			Updates(map[string]interface{}{
+				"refund_cents": gorm.Expr("refund_cents + ?", refundCents),
+				"updated_at":   time.Now(),
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		// 若订单已是已退款终态，仅累加退款金额（重复退款场景）。
+		if res.RowsAffected == 0 {
+			// 否则尝试从其他允许终态跳转至已退款。
+			res = tx.Model(&model.RideOrder{}).
+				Where("id = ? AND status IN ? AND deleted_at IS NULL", orderID,
+					[]int8{constants.OrderStatusCompleted, constants.OrderStatusWaitPay, constants.OrderStatusOnTrip}).
+				Updates(map[string]interface{}{
+					"status":       constants.OrderStatusRefunded,
+					"refund_cents": gorm.Expr("refund_cents + ?", refundCents),
+					"updated_at":   time.Now(),
+				})
+			if res.Error != nil {
+				return res.Error
+			}
+			if res.RowsAffected == 0 {
+				return errOrderNotUpdated
+			}
+		}
+		statusLog.OrderId = orderID
+		return tx.Create(statusLog).Error
+	})
+	if errors.Is(err, errOrderNotUpdated) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // ReleaseCoupon 释放订单锁定的优惠券（取消/退款时回滚）。
 func (r *gormOrderRepository) ReleaseCoupon(ctx context.Context, userID, orderID uint64) error {
 	return r.couponConsumer.ReleaseByOrder(ctx, userID, orderID)

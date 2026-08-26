@@ -39,6 +39,7 @@ const (
 	RedisDriverOnline   = "driver:online"         // 在线司机集合（location-consumer 位置上报时写入）
 	RedisDriverBusy     = "driver:busy"           // 忙碌司机集合（接单后写入、订单结束/取消时移除，派单过滤用）
 	RedisDriverAvailable = "driver:available:%d"  // 派给司机的待接单集合（driverID）
+	RedisDriverPush      = "driver:push:%d"      // 推送给司机的实时消息（driverID 格式化）
 )
 
 // Kafka/事件主题
@@ -51,6 +52,7 @@ const (
 	TopicDispatchNew        = "dispatch.new"         // 派单通知
 	TopicDispatchResult     = "dispatch.result"      // 派单结果
 	TopicOrderPaid          = "order.paid"            // 支付成功
+	TopicOrderRefunded      = "order.refunded"        // 退款成功
 )
 
 // 事件流

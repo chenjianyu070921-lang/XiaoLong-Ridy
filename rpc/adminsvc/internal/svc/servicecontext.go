@@ -131,7 +131,7 @@ func newOrdersRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, ordersvcproto.Orde
 // newDriversRPCClient 初始化 driversvc 客户端。
 func newDriversRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, driversvcproto.DriversvcClient, error) {
 	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
-		cfg.Target = "127.0.0.1:8080"
+		cfg.Target = "127.0.0.1:5055"
 	}
 	client, err := zrpc.NewClient(cfg)
 	if err != nil {

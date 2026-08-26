@@ -183,10 +183,10 @@ $dummy = Start-ServiceProcess -Name "dummygrpc" -Exe (Join-Path $binDir "dummygr
 Start-Sleep -Seconds 1
 
 $driversvc = Start-ServiceProcess -Name "driversvc" -Exe (Join-Path $binDir "driversvc.exe") `
-    -ArgList @("-f", ".gotmp\driversvc-admin-test.yaml") -WorkingDir $RepoRoot
+    -ArgList @("-f", (Join-Path $RepoRoot "rpc\driversvc\etc\driversvc.yaml")) -WorkingDir $RepoRoot
 
-Write-Host "Waiting for driversvc:8080 ..."
-if (-not (Wait-TcpPort -Port 8080)) { Write-Host "ERROR: driversvc did not start. See $logDir\driversvc.err.log" }
+Write-Host "Waiting for driversvc:5055 ..."
+if (-not (Wait-TcpPort -Port 5055)) { Write-Host "ERROR: driversvc did not start. See $logDir\driversvc.err.log" }
 
 $adminsvc = Start-ServiceProcess -Name "adminsvc" -Exe (Join-Path $binDir "adminsvc.exe") `
     -ArgList @("-f", ".gotmp\adminsvc-admin-test.yaml") -WorkingDir $RepoRoot
@@ -204,7 +204,7 @@ Write-Host ""
 Write-Host "Admin test stack is up:"
 Write-Host "  api/admin   http://127.0.0.1:8717"
 Write-Host "  adminsvc    grpc 127.0.0.1:8084"
-Write-Host "  driversvc   grpc 127.0.0.1:8080"
+Write-Host "  driversvc   grpc 127.0.0.1:5055"
 Write-Host "  dummygrpc   grpc 127.0.0.1:15051 (ordersvc placeholder)"
 Write-Host ""
 Write-Host "Next: .\scripts\admin-test\admin_api_test.ps1"

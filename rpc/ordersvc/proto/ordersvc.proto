@@ -18,6 +18,8 @@ service Order {
   rpc TimeoutCancel(TimeoutCancelRequest) returns (TimeoutCancelResponse);
   rpc ListTimeoutOrders(ListTimeoutOrdersRequest) returns (ListTimeoutOrdersResponse);
   rpc ListOrderStatusLogs(ListOrderStatusLogsRequest) returns (ListOrderStatusLogsResponse);
+  rpc RedispatchOrder(RedispatchOrderRequest) returns (RedispatchOrderResponse); // 人工改派
+  rpc ForceRefundOrder(ForceRefundOrderRequest) returns (ForceRefundOrderResponse); // 管理员强制退款
 }
 
 enum OrderStatus {
@@ -253,6 +255,35 @@ message RefundOrderRequest {
 }
 
 message RefundOrderResponse {
+  int64 order_id = 1;
+  OrderStatus status = 2;
+  int64 refund_cents = 3; // 实际退款金额（分）
+}
+
+// 人工改派：解除原司机绑定，订单回到待接单并重新进入派单队列（排除原司机）。
+message RedispatchOrderRequest {
+  int64 order_id = 1;
+  int64 new_driver_id = 2; // 指定新司机（0 表示仅释放回自动派单池）
+  int64 operator_id = 3;   // 操作人（管理员）
+  string reason = 4;
+}
+
+message RedispatchOrderResponse {
+  int64 order_id = 1;
+  OrderStatus status = 2;
+  int64 driver_id = 3; // 改派后的司机（指定改派时为 new_driver_id，否则 0）
+}
+
+// 管理员强制退款：可从更多终态（含已支付/行程中异常）发起，记录 operator=admin。
+message ForceRefundOrderRequest {
+  int64 order_id = 1;
+  int64 operator_id = 2;    // 操作管理员
+  string refund_no = 3;     // 退款单号（幂等键）
+  int64 refund_amount_cents = 4; // 退款金额（分），0 表示按已支付金额全额退款
+  string reason = 5;
+}
+
+message ForceRefundOrderResponse {
   int64 order_id = 1;
   OrderStatus status = 2;
   int64 refund_cents = 3; // 实际退款金额（分）
