@@ -1,3 +1,5 @@
+//go:build verify
+
 // verify 检查线上库所有表/列注释是否还有乱码残留。
 package main
 
@@ -23,7 +25,7 @@ func hasGarbage(s string) bool {
 }
 
 func main() {
-	dsn := flag.String("dsn", "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4", "MySQL DSN")
+	dsn := flag.String("dsn", "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local", "MySQL DSN")
 	flag.Parse()
 
 	db, err := sql.Open("mysql", *dsn)

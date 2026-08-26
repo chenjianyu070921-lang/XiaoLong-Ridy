@@ -6,6 +6,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/logic"
 	"XiaoLong-Ridy/api/driver/internal/middleware"
 	"XiaoLong-Ridy/api/driver/internal/svc"
+	"XiaoLong-Ridy/api/driver/internal/types"
 )
 
 // SetOnlineHandler POST /api/driver/v1/drivers/online
@@ -17,7 +18,11 @@ func SetOnlineHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
 			return
 		}
-		resp, err := logic.NewOnlineLogic(r.Context(), svcCtx).SetOnline(int64(claims.AccountID))
+		var req types.SetOnlineRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewOnlineLogic(r.Context(), svcCtx).SetOnline(int64(claims.AccountID), &req)
 		if err != nil {
 			writeParamError(w, err)
 			return
@@ -35,7 +40,11 @@ func SetOfflineHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
 			return
 		}
-		resp, err := logic.NewOfflineLogic(r.Context(), svcCtx).SetOffline(int64(claims.AccountID))
+		var req types.SetOfflineRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewOfflineLogic(r.Context(), svcCtx).SetOffline(int64(claims.AccountID), &req)
 		if err != nil {
 			writeParamError(w, err)
 			return

@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `driver` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  `online_status` TINYINT NOT NULL DEFAULT 0 COMMENT 'driver online status: 0 offline, 1 online, 2 on trip',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_phone` (`phone`),
   UNIQUE KEY `uk_driver_license_no` (`driver_license_no`)

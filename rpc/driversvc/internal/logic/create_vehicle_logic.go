@@ -2,6 +2,8 @@ package logic
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
@@ -27,15 +29,21 @@ func NewCreateVehicleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cre
 
 // CreateVehicle 创建车辆，状态初始为待审核（PENDING）。
 func (l *CreateVehicleLogic) CreateVehicle(in *proto.CreateVehicleRequest) (*proto.CreateVehicleResponse, error) {
+	if in == nil || in.GetDriverId() <= 0 {
+		return nil, errors.New("invalid driver id")
+	}
+	if err := validateCreateVehicle(in.GetPlateNo(), in.GetBrand(), in.GetModel(), in.GetColor(), in.GetVehicleType(), in.GetInsuranceNo()); err != nil {
+		return nil, err
+	}
 	v := &model.DriverVehicle{
-		DriverId:         uint64(in.DriverId),
-		PlateNo:          in.PlateNo,
-		Brand:            in.Brand,
-		Model:            in.Model,
-		Color:            in.Color,
-		VehicleType:      int8(in.VehicleType),
-		InsuranceNo:      in.InsuranceNo,
-		Status:           int8(proto.VehicleStatus_VEHICLE_STATUS_PENDING),
+		DriverId:    uint64(in.GetDriverId()),
+		PlateNo:     strings.ToUpper(strings.TrimSpace(in.GetPlateNo())),
+		Brand:       strings.TrimSpace(in.GetBrand()),
+		Model:       strings.TrimSpace(in.GetModel()),
+		Color:       strings.TrimSpace(in.GetColor()),
+		VehicleType: int8(in.GetVehicleType()),
+		InsuranceNo: strings.TrimSpace(in.GetInsuranceNo()),
+		Status:      int8(proto.VehicleStatus_VEHICLE_STATUS_PENDING),
 	}
 	if in.RegistrationDate != nil {
 		t := time.Unix(in.GetRegistrationDate(), 0)

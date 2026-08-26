@@ -1,20 +1,37 @@
 syntax = "v1"
 
 info (
-	title: "driver api"
-	desc: "司机端 HTTP API，当前仅封装司机「增删改查」四个核心接口，为后续对接留出清晰空间"
+	title:  "driver api"
+	desc:   "driver-side HTTP API"
 	author: "XiaoLong-Ridy"
 )
 
-// 通用约定：
-// - 写接口使用 POST + JSON 请求体；查询/删除接口使用 GET/POST + 路径后缀，id 通过 ?id= 传递。
-// - 所有响应统一为 { code, message, data, timestamp, traceId }。
-// - 入参校验失败返回 HTTP 400 + code 50000，并携带具体中文错误信息。
+type Response {
+	Code      int         `json:"code"`
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data"`
+	Timestamp int64       `json:"timestamp"`
+	TraceID   string      `json:"traceId"`
+}
 
-// ============ 司机（增删改查） ============
+type RegisterDriverRequest {
+	Phone           string `json:"phone"`
+	Password        string `json:"password"`
+	RealName        string `json:"realName"`
+	IdCardNo        string `json:"idCardNo"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
+	AvatarURL       string `json:"avatarUrl"`
+}
+
+type RegisterDriverResponse {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
 type CreateDriverRequest {
 	Phone           string `json:"phone"`
-	PasswordHash    string `json:"passwordHash"`
+	Password        string `json:"password"`
 	RealName        string `json:"realName"`
 	IdCardNo        string `json:"idCardNo"`
 	DriverLicenseNo string `json:"driverLicenseNo"`
@@ -30,7 +47,7 @@ type CreateDriverResponse {
 type UpdateDriverRequest {
 	ID              int64   `json:"id"`
 	Phone           *string `json:"phone,omitempty"`
-	PasswordHash    *string `json:"passwordHash,omitempty"`
+	Password        *string `json:"password,omitempty"`
 	RealName        *string `json:"realName,omitempty"`
 	IdCardNo        *string `json:"idCardNo,omitempty"`
 	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"`
@@ -44,8 +61,8 @@ type UpdateDriverResponse {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
-type GetDriverResponse {
-	Driver DriverDetail `json:"driver"`
+type GetDriverRequest {
+	ID int64 `form:"id"`
 }
 
 type DriverDetail {
@@ -56,16 +73,535 @@ type DriverDetail {
 	DriverLicenseNo string `json:"driverLicenseNo"`
 	AvatarURL       string `json:"avatarUrl"`
 	Status          string `json:"status"`
+	OnlineStatus    int    `json:"onlineStatus"`
 	CreatedAt       int64  `json:"createdAt"`
 	UpdatedAt       int64  `json:"updatedAt"`
 }
 
+type GetDriverResponse {
+	Driver DriverDetail `json:"driver"`
+}
+
+type GetDriverByPhoneRequest {
+	Phone string `json:"phone" form:"phone"`
+}
+
+type GetDriverByPhoneResponse {
+	Driver DriverDetail `json:"driver"`
+}
+
+type DeleteDriverRequest {
+	ID int64 `form:"id"`
+}
+
 type DeleteResponse {
-	ID      int64  `json:"id"`
-	Success bool   `json:"success"`
+	ID      int64 `json:"id"`
+	Success bool  `json:"success"`
+}
+
+type SendSMSCodeRequest {
+	Phone string `json:"phone"`
+}
+
+type SendSMSCodeResponse {
+	Success  bool `json:"success"`
+	ExpireIn int  `json:"expireIn"`
+}
+
+type LoginByPasswordRequest {
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
+}
+
+type LoginBySMSRequest {
+	Phone string `json:"phone"`
+	Code  string `json:"code"`
+}
+
+type DriverBrief {
+	ID     int64  `json:"id"`
+	Phone  string `json:"phone"`
+	Status string `json:"status"`
+}
+
+type LoginResponse {
+	Token    string      `json:"token"`
+	ExpireIn int64       `json:"expireIn"`
+	Driver   DriverBrief `json:"driver"`
+}
+
+type SetOnlineRequest {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type SetOfflineRequest {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type SetOnlineResponse {
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+}
+
+type SetOfflineResponse {
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+}
+
+type HeartbeatRequest {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type HeartbeatResponse {
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+	ServerTime   int64 `json:"serverTime"`
+}
+
+type ReportLocationRequest {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Heading   int32   `json:"heading"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	OrderID   int64   `json:"orderId"`
+}
+
+type ReportLocationResponse {
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+	ReportTime   int64 `json:"reportTime"`
+}
+
+type AiScoreFactor {
+	Key    string  `json:"key"`
+	Label  string  `json:"label"`
+	Value  float64 `json:"value"`
+	Impact string  `json:"impact"`
+	Hint   string  `json:"hint"`
+}
+
+type GetDriverAiScoreRequest {
+	DriverID int64 `form:"id"`
+}
+
+type GetDriverAiScoreResponse {
+	DriverID      int64           `json:"driverId"`
+	AiScore       float64         `json:"aiScore"`
+	Level         int32           `json:"level"`
+	Factors       []AiScoreFactor `json:"factors"`
+	Degraded      bool            `json:"degraded"`
+	DegradeReason string          `json:"degradeReason"`
+}
+
+type UploadCertificationRequest {
+	VehicleID      int64  `json:"vehicleId"`
+	IdCardFront    string `json:"idCardFront"`
+	IdCardBack     string `json:"idCardBack"`
+	DriverLicense  string `json:"driverLicense"`
+	VehicleLicense string `json:"vehicleLicense"`
+}
+
+type CertificationInfo {
+	ID                int64  `json:"id"`
+	DriverID          int64  `json:"driverId"`
+	VehicleID         int64  `json:"vehicleId"`
+	IdCardFrontURL    string `json:"idCardFrontUrl"`
+	IdCardBackURL     string `json:"idCardBackUrl"`
+	DriverLicenseURL  string `json:"driverLicenseUrl"`
+	VehicleLicenseURL string `json:"vehicleLicenseUrl"`
+	AuditStatus       int    `json:"auditStatus"`
+	AuditRemark       string `json:"auditRemark"`
+}
+
+type UploadCertificationResponse {
+	ID            int64              `json:"id"`
+	Certification *CertificationInfo `json:"certification"`
+}
+
+type GetCertificationResponse {
+	Certification *CertificationInfo `json:"certification"`
+	Found         bool               `json:"found"`
+}
+
+type CreateVehicleRequest {
+	PlateNo           string `json:"plateNo"`
+	Brand             string `json:"brand"`
+	Model             string `json:"model"`
+	Color             string `json:"color"`
+	VehicleType       int32  `json:"vehicleType"`
+	RegistrationDate  int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       string `json:"insuranceNo"`
+	InsuranceExpireAt int64  `json:"insuranceExpireAt,omitempty"`
+}
+
+type CreateVehicleResponse {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type GetVehicleRequest {
+	ID int64 `form:"id"`
+}
+
+type VehicleInfo {
+	ID                int64  `json:"id"`
+	DriverID          int64  `json:"driverId"`
+	PlateNo           string `json:"plateNo"`
+	Brand             string `json:"brand"`
+	Model             string `json:"model"`
+	Color             string `json:"color"`
+	VehicleType       int32  `json:"vehicleType"`
+	RegistrationDate  int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       string `json:"insuranceNo"`
+	InsuranceExpireAt int64  `json:"insuranceExpireAt,omitempty"`
+	Status            string `json:"status"`
+	CreatedAt         int64  `json:"createdAt"`
+	UpdatedAt         int64  `json:"updatedAt"`
+}
+
+type GetVehicleResponse {
+	Vehicle VehicleInfo `json:"vehicle"`
+}
+
+type UpdateVehicleRequest {
+	ID                int64   `json:"id"`
+	DriverID          *int64  `json:"driverId,omitempty"`
+	PlateNo           *string `json:"plateNo,omitempty"`
+	Brand             *string `json:"brand,omitempty"`
+	Model             *string `json:"model,omitempty"`
+	Color             *string `json:"color,omitempty"`
+	VehicleType       *int32  `json:"vehicleType,omitempty"`
+	RegistrationDate  *int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       *string `json:"insuranceNo,omitempty"`
+	InsuranceExpireAt *int64  `json:"insuranceExpireAt,omitempty"`
+	Status            *string `json:"status,omitempty"`
+}
+
+type UpdateVehicleResponse {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
+type DeleteVehicleRequest {
+	ID int64 `json:"id" form:"id"`
+}
+
+type DeleteVehicleResponse {
+	ID      int64 `json:"id"`
+	Success bool  `json:"success"`
+}
+
+type NearbyDriver {
+	DriverID       int64   `json:"driverId"`
+	Longitude      float64 `json:"longitude"`
+	Latitude       float64 `json:"latitude"`
+	DistanceMeters int32   `json:"distanceMeters"`
+}
+
+type ListNearbyDriversRequest {
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	RadiusMeters float64 `json:"radiusMeters"`
+	Limit        int32   `json:"limit"`
+}
+
+type ListNearbyDriversResponse {
+	Drivers []NearbyDriver `json:"drivers"`
+}
+
+type CreateWithdrawRequest {
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+}
+
+type CreateWithdrawResponse {
+	ID         int64  `json:"id"`
+	WithdrawNo string `json:"withdrawNo"`
+	Status     int32  `json:"status"`
+	CreatedAt  int64  `json:"createdAt"`
+}
+
+type ListWithdrawsRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type WithdrawRecord {
+	ID         int64   `json:"id"`
+	WithdrawNo string  `json:"withdrawNo"`
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+	Status     int32   `json:"status"`
+	Remark     string  `json:"remark"`
+	AppliedAt  int64   `json:"appliedAt"`
+	PaidAt     int64   `json:"paidAt"`
+	CreatedAt  int64   `json:"createdAt"`
+}
+
+type ListWithdrawsResponse {
+	Records []WithdrawRecord `json:"records"`
+	Total   int64            `json:"total"`
+}
+
+type GetIncomeSummaryResponse {
+	DriverID         int64  `json:"driverId"`
+	CompletedOrders  int64  `json:"completedOrders"`
+	TotalIncomeCents int64  `json:"totalIncomeCents"`
+	Source           string `json:"source"`
+}
+
+type ListIncomeBillsRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type IncomeBill {
+	OrderID     int64  `json:"orderId"`
+	OrderNo     string `json:"orderNo"`
+	IncomeCents int64  `json:"incomeCents"`
+	Status      int32  `json:"status"`
+	CreatedAt   int64  `json:"createdAt"`
+}
+
+type ListIncomeBillsResponse {
+	List     []IncomeBill `json:"list"`
+	Total    int64        `json:"total"`
+	Page     int32        `json:"page"`
+	PageSize int32        `json:"pageSize"`
+	Source   string       `json:"source"`
+}
+
+type AcceptOrderRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type AcceptOrderResponse {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type CancelOrderRequest {
+	OrderID int64  `json:"orderId"`
+	Reason  string `json:"reason"`
+}
+
+type CancelOrderResponse {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type ConfirmArriveRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type ConfirmArriveResponse {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type StartTripRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type StartTripResponse {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type FinishTripRequest {
+	OrderID          int64 `json:"orderId"`
+	ActualDistanceM  int64 `json:"actualDistanceM"`
+	ActualDurationS  int64 `json:"actualDurationS"`
+	ActualPriceCents int64 `json:"actualPriceCents"`
+}
+
+type FinishTripResponse {
+	OrderID            int64 `json:"orderId"`
+	Status             int32 `json:"status"`
+	PayableAmountCents int64 `json:"payableAmountCents"`
+}
+
+type RejectOrderRequest {
+	OrderID int64  `json:"orderId"`
+	Reason  string `json:"reason"`
+}
+
+type RejectOrderResponse {
+	OrderID  int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	Status   int32 `json:"status"`
+}
+
+type ListMyDispatchesRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+	Status   int32 `json:"status"`
+}
+
+type DispatchRecord {
+	ID           int64   `json:"id"`
+	OrderID      int64   `json:"orderId"`
+	DriverID     int64   `json:"driverId"`
+	DispatchType int32   `json:"dispatchType"`
+	Status       int32   `json:"status"`
+	MatchScore   float64 `json:"matchScore"`
+	Remark       string  `json:"remark"`
+	CreatedAt    int64   `json:"createdAt"`
+	UpdatedAt    int64   `json:"updatedAt"`
+}
+
+type OrderBrief {
+	OrderID             int64  `json:"orderId"`
+	OrderNo             string `json:"orderNo"`
+	FromAddress         string `json:"fromAddress"`
+	ToAddress           string `json:"toAddress"`
+	Status              int32  `json:"status"`
+	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
+	CreatedAt           int64  `json:"createdAt"`
+}
+
+type MyDispatchItem {
+	Dispatch DispatchRecord `json:"dispatch"`
+	Order    OrderBrief     `json:"order"`
+}
+
+type ListMyDispatchesResponse {
+	List     []MyDispatchItem `json:"list"`
+	Total    int64            `json:"total"`
+	Page     int32            `json:"page"`
+	PageSize int32            `json:"pageSize"`
+}
+
+type ListMyOrdersRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+	Status   int32 `json:"status"`
+}
+
+type ListMyOrdersResponse {
+	List     []OrderBrief `json:"list"`
+	Total    int64        `json:"total"`
+	Page     int32        `json:"page"`
+	PageSize int32        `json:"pageSize"`
+}
+
+type GetMyOrderDetailRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderDetail {
+	OrderID             int64   `json:"orderId"`
+	OrderNo             string  `json:"orderNo"`
+	UserID              int64   `json:"userId"`
+	DriverID            int64   `json:"driverId"`
+	CarType             int32   `json:"carType"`
+	FromAddress         string  `json:"fromAddress"`
+	FromLongitude       float64 `json:"fromLongitude"`
+	FromLatitude        float64 `json:"fromLatitude"`
+	ToAddress           string  `json:"toAddress"`
+	ToLongitude         float64 `json:"toLongitude"`
+	ToLatitude          float64 `json:"toLatitude"`
+	EstimatedDistanceM  int64   `json:"estimatedDistanceM"`
+	EstimatedDurationS  int64   `json:"estimatedDurationS"`
+	EstimatedPriceCents int64   `json:"estimatedPriceCents"`
+	Status              int32   `json:"status"`
+	CancelReason        string  `json:"cancelReason"`
+	CancelBy            string  `json:"cancelBy"`
+	CreatedAt           int64   `json:"createdAt"`
+	UpdatedAt           int64   `json:"updatedAt"`
+}
+
+type GetMyOrderDetailResponse {
+	Order OrderDetail `json:"order"`
+}
+
+type ListPassengerReviewsRequest {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type PassengerReview {
+	OrderID   int64  `json:"orderId"`
+	Rating    int32  `json:"rating"`
+	Comment   string `json:"comment"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type ListPassengerReviewsResponse {
+	List     []PassengerReview `json:"list"`
+	Total    int64             `json:"total"`
+	Page     int32             `json:"page"`
+	PageSize int32             `json:"pageSize"`
+	Degraded bool              `json:"degraded"`
+	Message  string            `json:"message"`
+}
+
+type GetTripTrajectoryRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type TrajectoryPoint {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	Heading   int32   `json:"heading"`
+	CreatedAt int64   `json:"createdAt"`
+}
+
+type GetTripTrajectoryResponse {
+	OrderID  int64             `json:"orderId"`
+	Points   []TrajectoryPoint `json:"points"`
+	Degraded bool              `json:"degraded"`
+	Message  string            `json:"message"`
+}
+
+type AgentChatRequest {
+	Question string `json:"question"`
+}
+
+type DriverPushWSRequest {
+	Token string `form:"token,optional"`
+}
+
+type AgentObservation {
+	ToolName string `json:"toolName"`
+	Result   string `json:"result"`
+}
+
+type AgentChatResponse {
+	Answer       string             `json:"answer"`
+	LoopCount    int                `json:"loopCount"`
+	Observations []AgentObservation `json:"observations"`
+	Mode         string             `json:"mode"`
 }
 
 service driver-api {
+	@handler SendSMSCodeHandler
+	post /api/driver/v1/auth/send-sms-code (SendSMSCodeRequest) returns (SendSMSCodeResponse)
+
+	@handler LoginByPasswordHandler
+	post /api/driver/v1/auth/login-by-password (LoginByPasswordRequest) returns (LoginResponse)
+
+	@handler LoginBySMSHandler
+	post /api/driver/v1/auth/login-by-sms (LoginBySMSRequest) returns (LoginResponse)
+
+	@handler RegisterDriverHandler
+	post /api/driver/v1/drivers/register (RegisterDriverRequest) returns (RegisterDriverResponse)
+
 	@handler CreateDriverHandler
 	post /api/driver/v1/drivers (CreateDriverRequest) returns (CreateDriverResponse)
 
@@ -73,8 +609,104 @@ service driver-api {
 	post /api/driver/v1/drivers/update (UpdateDriverRequest) returns (UpdateDriverResponse)
 
 	@handler GetDriverHandler
-	get /api/driver/v1/drivers/get (GetDriverResponse)
+	get /api/driver/v1/drivers/get (GetDriverRequest) returns (GetDriverResponse)
+
+	@handler GetDriverByPhoneHandler
+	post /api/driver/v1/drivers/by-phone (GetDriverByPhoneRequest) returns (GetDriverByPhoneResponse)
 
 	@handler DeleteDriverHandler
-	post /api/driver/v1/drivers/delete (DeleteResponse)
+	post /api/driver/v1/drivers/delete (DeleteDriverRequest) returns (DeleteResponse)
+
+	@handler GetDriverAiScoreHandler
+	get /api/driver/v1/drivers/ai-score (GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse)
+
+	@handler ListNearbyDriversHandler
+	post /api/driver/v1/drivers/nearby (ListNearbyDriversRequest) returns (ListNearbyDriversResponse)
+
+	@handler SetOnlineHandler
+	post /api/driver/v1/drivers/online (SetOnlineRequest) returns (SetOnlineResponse)
+
+	@handler SetOfflineHandler
+	post /api/driver/v1/drivers/offline (SetOfflineRequest) returns (SetOfflineResponse)
+
+	@handler HeartbeatHandler
+	post /api/driver/v1/drivers/heartbeat (HeartbeatRequest) returns (HeartbeatResponse)
+
+	@handler ReportLocationHandler
+	post /api/driver/v1/drivers/location/report (ReportLocationRequest) returns (ReportLocationResponse)
+
+	@handler UploadCertificationHandler
+	post /api/driver/v1/drivers/certification/upload (UploadCertificationRequest) returns (UploadCertificationResponse)
+
+	@handler GetCertificationHandler
+	get /api/driver/v1/drivers/certification returns (GetCertificationResponse)
+
+	@handler CreateVehicleHandler
+	post /api/driver/v1/vehicles (CreateVehicleRequest) returns (CreateVehicleResponse)
+
+	@handler GetVehicleHandler
+	get /api/driver/v1/vehicles/get (GetVehicleRequest) returns (GetVehicleResponse)
+
+	@handler UpdateVehicleHandler
+	post /api/driver/v1/vehicles/update (UpdateVehicleRequest) returns (UpdateVehicleResponse)
+
+	@handler DeleteVehicleHandler
+	post /api/driver/v1/vehicles/delete (DeleteVehicleRequest) returns (DeleteVehicleResponse)
+
+	@handler CreateWithdrawHandler
+	post /api/driver/v1/withdraws (CreateWithdrawRequest) returns (CreateWithdrawResponse)
+
+	@handler ListWithdrawsHandler
+	post /api/driver/v1/withdraws/list (ListWithdrawsRequest) returns (ListWithdrawsResponse)
+
+	@handler GetIncomeSummaryHandler
+	get /api/driver/v1/income/summary returns (GetIncomeSummaryResponse)
+
+	@handler GetIncomeSummaryHandler
+	get /api/driver/v1/wallet/summary returns (GetIncomeSummaryResponse)
+
+	@handler ListIncomeBillsHandler
+	post /api/driver/v1/income/bills (ListIncomeBillsRequest) returns (ListIncomeBillsResponse)
+
+	@handler AcceptOrderHandler
+	post /api/driver/v1/orders/accept (AcceptOrderRequest) returns (AcceptOrderResponse)
+
+	@handler CancelOrderHandler
+	post /api/driver/v1/orders/cancel (CancelOrderRequest) returns (CancelOrderResponse)
+
+	@handler RejectOrderHandler
+	post /api/driver/v1/orders/reject (RejectOrderRequest) returns (RejectOrderResponse)
+
+	@handler ListMyDispatchesHandler
+	post /api/driver/v1/orders/dispatches (ListMyDispatchesRequest) returns (ListMyDispatchesResponse)
+
+	@handler ListAvailableOrdersHandler
+	post /api/driver/v1/orders/available (ListMyOrdersRequest) returns (ListMyOrdersResponse)
+
+	@handler ListMyOrdersHandler
+	post /api/driver/v1/orders/list (ListMyOrdersRequest) returns (ListMyOrdersResponse)
+
+	@handler GetMyOrderDetailHandler
+	post /api/driver/v1/orders/detail (GetMyOrderDetailRequest) returns (GetMyOrderDetailResponse)
+
+	@handler StartTripHandler
+	post /api/driver/v1/orders/start-trip (StartTripRequest) returns (StartTripResponse)
+
+	@handler ConfirmArriveHandler
+	post /api/driver/v1/orders/confirm-arrive (ConfirmArriveRequest) returns (ConfirmArriveResponse)
+
+	@handler FinishTripHandler
+	post /api/driver/v1/orders/finish-trip (FinishTripRequest) returns (FinishTripResponse)
+
+	@handler GetTripTrajectoryHandler
+	post /api/driver/v1/orders/trajectory (GetTripTrajectoryRequest) returns (GetTripTrajectoryResponse)
+
+	@handler ListPassengerReviewsHandler
+	post /api/driver/v1/reviews/list (ListPassengerReviewsRequest) returns (ListPassengerReviewsResponse)
+
+	@handler DriverPushWSHandler
+	get /api/driver/v1/ws (DriverPushWSRequest)
+
+	@handler AgentChatHandler
+	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 }

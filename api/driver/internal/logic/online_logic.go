@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
@@ -20,18 +21,28 @@ func NewOnlineLogic(ctx context.Context, svcCtx *svc.ServiceContext) *OnlineLogi
 }
 
 // SetOnline 将当前登录司机置为在线。driverID 由鉴权中间件从 JWT 解析得到。
-func (l *OnlineLogic) SetOnline(driverID int64) (*types.SetOnlineResponse, error) {
+func (l *OnlineLogic) SetOnline(driverID int64, req *types.SetOnlineRequest) (*types.SetOnlineResponse, error) {
+	if driverID <= 0 || req == nil || strings.TrimSpace(req.DeviceID) == "" ||
+		!validLocation(req.Longitude, req.Latitude) {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.driverClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.SetDriverOnline(l.ctx, &driversproto.SetDriverOnlineRequest{DriverId: driverID})
+	resp, err := client.SetDriverOnline(l.ctx, &driversproto.SetDriverOnlineRequest{
+		DriverId:  driverID,
+		DeviceId:  strings.TrimSpace(req.DeviceID),
+		Longitude: req.Longitude,
+		Latitude:  req.Latitude,
+	})
 	if err != nil {
 		return nil, err
 	}
 	return &types.SetOnlineResponse{
 		DriverID:     resp.GetDriverId(),
 		OnlineStatus: int(resp.GetOnlineStatus()),
+		Kicked:       resp.GetKicked(),
 	}, nil
 }
 
