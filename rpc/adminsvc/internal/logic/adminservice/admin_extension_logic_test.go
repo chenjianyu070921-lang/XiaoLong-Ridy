@@ -183,6 +183,9 @@ func TestAddBlacklist_CreatesOutboxAndReturnsSuccess(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
 	defer cleanup()
 
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM blacklist WHERE target_type = \? AND target_id = \? AND status = 1`).
+		WithArgs("user", int64(1001)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 	mock.ExpectExec(`INSERT INTO blacklist`).
 		WithArgs("user", int64(1001), "恶意取消订单", int64(9001)).
 		WillReturnResult(sqlmock.NewResult(88, 1))
@@ -204,6 +207,26 @@ func TestAddBlacklist_CreatesOutboxAndReturnsSuccess(t *testing.T) {
 	}
 }
 
+// TestAddBlacklist_RejectsDuplicateActiveTarget 验证新增黑名单前会拒绝重复生效记录，避免同一目标被多次拉黑。
+func TestAddBlacklist_RejectsDuplicateActiveTarget(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM blacklist WHERE target_type = \? AND target_id = \? AND status = 1`).
+		WithArgs("user", int64(1001)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	_, err := NewAddBlacklistLogic(context.Background(), svcCtx).AddBlacklist(&adminsvc.BlacklistRequest{
+		TargetType: "user",
+		TargetId:   1001,
+		Reason:     "重复拉黑",
+		AdminId:    9001,
+	})
+	if status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("AddBlacklist() error code = %v, want AlreadyExists", status.Code(err))
+	}
+}
+
 // TestCreateExportTask_RejectsUnknownFilter 验证创建任务时拒绝未定义筛选字段，防止条件被静默忽略。
 func TestCreateExportTask_RejectsUnknownFilter(t *testing.T) {
 	svcCtx, _, cleanup := newAdminSQLMock(t)
@@ -219,8 +242,28 @@ func TestCreateExportTask_RejectsUnknownFilter(t *testing.T) {
 // TestPromotionActionValidation 验证发布范围和目标配置必须符合活动状态机入口约束。
 func TestPromotionActionValidation(t *testing.T) {
 	err := validatePromotionAction(&adminsvc.PromotionActivityActionRequest{Id: 1, AdminId: 1, PublishScope: "all", TargetConfig: `{}`}, true)
+	if err != nil {
+		t.Fatalf("validatePromotionAction() error = %v, want all scope accepted", err)
+	}
+	err = validatePromotionAction(&adminsvc.PromotionActivityActionRequest{Id: 1, AdminId: 1, PublishScope: "gray", TargetConfig: `{}`}, true)
 	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("validatePromotionAction() code = %v, want InvalidArgument", status.Code(err))
+		t.Fatalf("validatePromotionAction(gray empty) code = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
+// TestPromotionActivityValidation_RequiresTypedRule 验证活动配置必须按活动类型提供真实规则字段。
+func TestPromotionActivityValidation_RequiresTypedRule(t *testing.T) {
+	err := validatePromotionActivity(&adminsvc.PromotionActivityRequest{
+		Name: "折扣活动", Type: 2, Config: `{"discount":"0.85"}`, StartAt: "2026-08-20 00:00:00", EndAt: "2026-08-21 00:00:00", Status: 1, AdminId: 9001,
+	})
+	if err != nil {
+		t.Fatalf("validatePromotionActivity() error = %v, want valid discount activity", err)
+	}
+	err = validatePromotionActivity(&adminsvc.PromotionActivityRequest{
+		Name: "空活动", Type: 2, Config: `{}`, StartAt: "2026-08-20 00:00:00", EndAt: "2026-08-21 00:00:00", Status: 1, AdminId: 9001,
+	})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("validatePromotionActivity(empty rule) code = %v, want InvalidArgument", status.Code(err))
 	}
 }
 

@@ -117,3 +117,13 @@ func (c *LocalClient) LockUserCoupon(ctx context.Context, req *userproto.LockUse
 func (c *LocalClient) ReleaseUserCoupon(ctx context.Context, req *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error) {
 	return c.service.ReleaseUserCoupon(ctx, req)
 }
+
+// AdminListUsers 转发管理后台用户列表 RPC。
+func (c *LocalClient) AdminListUsers(ctx context.Context, req *userproto.AdminUserListRequest) (*userproto.AdminUserListResponse, error) {
+	return c.service.AdminListUsers(ctx, req)
+}
+
+// AdminGetUser 转发管理后台用户详情 RPC。
+func (c *LocalClient) AdminGetUser(ctx context.Context, req *userproto.AdminUserDetailRequest) (*userproto.AdminUser, error) {
+	return c.service.AdminGetUser(ctx, req)
+}

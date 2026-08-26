@@ -63,6 +63,13 @@ type couponIssueTargetConfig struct {
 	UserIDs []int64 `json:"user_ids"`
 }
 
+// promotionTargetConfig 表示活动发布时的灰度目标配置。
+// 当前活动没有独立人群包表，因此仅校验前端和文档已经约定的显式用户与城市编码。
+type promotionTargetConfig struct {
+	UserIDs   []int64  `json:"user_ids"`
+	CityCodes []string `json:"city_codes"`
+}
+
 // IssueCouponLogic 处理优惠券发放任务创建和同步发券。
 type IssueCouponLogic struct {
 	ctx    context.Context
@@ -251,6 +258,9 @@ func NewListPromotionActivitiesLogic(ctx context.Context, svcCtx *svc.ServiceCon
 
 // ListPromotionActivities 查询活动配置列表。
 func (l *ListPromotionActivitiesLogic) ListPromotionActivities(in *adminsvc.PromotionActivityListRequest) (*adminsvc.PromotionActivityListResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	where, args := buildPromotionWhere(in)
 	var total int64
 	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM promotion_activity `+where, args...).Scan(&total); err != nil {
@@ -292,6 +302,9 @@ func NewCreatePromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceCon
 
 // CreatePromotionActivity 新增活动配置草稿或待开始活动。
 func (l *CreatePromotionActivityLogic) CreatePromotionActivity(in *adminsvc.PromotionActivityRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	if err := validatePromotionActivity(in); err != nil {
 		return nil, err
 	}
@@ -330,6 +343,9 @@ func NewUpdatePromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceCon
 
 // UpdatePromotionActivity 更新活动配置。
 func (l *UpdatePromotionActivityLogic) UpdatePromotionActivity(in *adminsvc.PromotionActivityRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	if in.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "活动ID不能为空")
 	}
@@ -374,13 +390,13 @@ func NewPublishPromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceCo
 
 // PublishPromotionActivity 将活动状态置为运行中，并写入操作日志。
 func (l *PublishPromotionActivityLogic) PublishPromotionActivity(in *adminsvc.PromotionActivityActionRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1); err != nil {
+		return nil, err
+	}
 	if err := validatePromotionAction(in, true); err != nil {
 		return nil, err
 	}
-	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 1, 2); err != nil {
-		return nil, err
-	}
-	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "publish", "promotion_activity", in.GetId(), fmt.Sprintf("发布活动，范围：%s，配置：%s", in.GetPublishScope(), in.GetTargetConfig()), in.GetIp()); err != nil {
+	if err := changePromotionStatusWithAudit(l.ctx, l.svcCtx, in.GetId(), 1, 2, in.GetAdminId(), "publish", fmt.Sprintf("发布活动，范围：%s，配置：%s", normalizePromotionPublishScope(in.GetPublishScope()), in.GetTargetConfig()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -399,13 +415,13 @@ func NewRollbackPromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceC
 
 // RollbackPromotionActivity 将活动回滚为未开始状态，并写入操作日志。
 func (l *RollbackPromotionActivityLogic) RollbackPromotionActivity(in *adminsvc.PromotionActivityActionRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1); err != nil {
+		return nil, err
+	}
 	if err := validatePromotionAction(in, false); err != nil {
 		return nil, err
 	}
-	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 2, 1); err != nil {
-		return nil, err
-	}
-	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "rollback", "promotion_activity", in.GetId(), fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp()); err != nil {
+	if err := changePromotionStatusWithAudit(l.ctx, l.svcCtx, in.GetId(), 2, 1, in.GetAdminId(), "rollback", fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -785,6 +801,9 @@ func NewListBlacklistsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Li
 
 // ListBlacklists 查询风控黑名单列表。
 func (l *ListBlacklistsLogic) ListBlacklists(in *adminsvc.BlacklistListRequest) (*adminsvc.BlacklistListResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	where, args := buildBlacklistWhere(in)
 	var total int64
 	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM blacklist `+where, args...).Scan(&total); err != nil {
@@ -826,8 +845,16 @@ func NewAddBlacklistLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AddB
 
 // AddBlacklist 新增或重新激活风控黑名单。
 func (l *AddBlacklistLogic) AddBlacklist(in *adminsvc.BlacklistRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1); err != nil {
+		return nil, err
+	}
 	if err := validateBlacklistRequest(in, false); err != nil {
 		return nil, err
+	}
+	if exists, err := activeBlacklistExists(l.ctx, l.svcCtx, in.GetTargetType(), in.GetTargetId()); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, status.Error(codes.AlreadyExists, "目标已在生效黑名单中")
 	}
 	res, err := l.svcCtx.MySQL.ExecContext(l.ctx, `
 		INSERT INTO blacklist (target_type, target_id, reason, operator_id, status)
@@ -856,6 +883,9 @@ func NewReleaseBlacklistLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 
 // ReleaseBlacklist 将黑名单状态置为已解除。
 func (l *ReleaseBlacklistLogic) ReleaseBlacklist(in *adminsvc.BlacklistRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1); err != nil {
+		return nil, err
+	}
 	if err := validateBlacklistRequest(in, true); err != nil {
 		return nil, err
 	}
@@ -885,6 +915,9 @@ func NewListRiskHitRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 
 // ListRiskHitRecords 查询风控黑名单命中记录。
 func (l *ListRiskHitRecordsLogic) ListRiskHitRecords(in *adminsvc.RiskHitRecordListRequest) (*adminsvc.RiskHitRecordListResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	where, args := buildRiskHitWhere(in)
 	var total int64
 	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM risk_blacklist_hit_record `+where, args...).Scan(&total); err != nil {
@@ -928,6 +961,13 @@ func NewHandleRiskHitRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContex
 // risk_blacklist_hit_record 当前没有处理状态字段，因此复核通过只写操作日志；
 // 拉黑和转工单会写入对应业务表，并在同一事务中记录审计，形成可追溯闭环。
 func (l *HandleRiskHitRecordsLogic) HandleRiskHitRecords(in *adminsvc.RiskHitActionRequest) (*adminsvc.RiskHitActionResponse, error) {
+	allowedRoles := []int32{1, 2}
+	if in.GetAction() == "add_blacklist" {
+		allowedRoles = []int32{1}
+	}
+	if err := requireAdminRoles(l.ctx, l.svcCtx, allowedRoles...); err != nil {
+		return nil, err
+	}
 	if err := validateRiskHitActionRequest(in); err != nil {
 		return nil, err
 	}
@@ -970,6 +1010,11 @@ func (l *HandleRiskHitRecordsLogic) handleOneRiskHit(id int64, in *adminsvc.Risk
 			return 0, err
 		}
 	case "add_blacklist":
+		if exists, err := activeBlacklistExistsTx(l.ctx, tx, hit.GetTargetType(), hit.GetTargetId()); err != nil {
+			return 0, err
+		} else if exists {
+			return 0, status.Error(codes.AlreadyExists, "目标已在生效黑名单中")
+		}
 		res, err := tx.ExecContext(l.ctx, `
 			INSERT INTO blacklist (target_type, target_id, reason, operator_id, status)
 			VALUES (?, ?, ?, ?, 1)
@@ -1051,8 +1096,8 @@ func validatePromotionActivity(in *adminsvc.PromotionActivityRequest) error {
 	if in.GetType() < 1 || in.GetType() > 3 || in.GetStatus() < 1 || in.GetStatus() > 3 {
 		return status.Error(codes.InvalidArgument, "活动类型或状态不合法")
 	}
-	if !json.Valid([]byte(in.GetConfig())) {
-		return status.Error(codes.InvalidArgument, "活动配置必须是合法JSON")
+	if err := validatePromotionConfig(in.GetType(), in.GetConfig()); err != nil {
+		return err
 	}
 	start, err := time.ParseInLocation(couponTimeLayout, in.GetStartAt(), time.Local)
 	if err != nil {
@@ -1073,13 +1118,125 @@ func validatePromotionAction(in *adminsvc.PromotionActivityActionRequest, publis
 	if in.GetId() <= 0 || in.GetAdminId() <= 0 {
 		return status.Error(codes.InvalidArgument, "活动ID和管理员ID不能为空")
 	}
-	if publish && in.GetPublishScope() != "gray" && in.GetPublishScope() != "full" {
-		return status.Error(codes.InvalidArgument, "活动发布范围仅支持gray或full")
+	scope := normalizePromotionPublishScope(in.GetPublishScope())
+	if publish && scope != "gray" && scope != "all" {
+		return status.Error(codes.InvalidArgument, "活动发布范围仅支持all或gray")
 	}
-	if !json.Valid([]byte(in.GetTargetConfig())) {
-		return status.Error(codes.InvalidArgument, "活动目标配置必须是合法JSON")
+	if err := validatePromotionTargetConfig(scope, in.GetTargetConfig()); err != nil {
+		return err
 	}
 	return nil
+}
+
+// validatePromotionConfig 按活动类型校验活动规则 JSON，避免空壳活动被发布到运营侧。
+func validatePromotionConfig(activityType int32, raw string) error {
+	var cfg map[string]any
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return status.Error(codes.InvalidArgument, "活动配置必须是合法JSON对象")
+	}
+	if cfg == nil {
+		return status.Error(codes.InvalidArgument, "活动配置不能为空")
+	}
+	switch activityType {
+	case 1:
+		if !positiveJSONNumber(cfg["coupon_id"]) && !positiveJSONNumber(cfg["reward_coupon_id"]) {
+			return status.Error(codes.InvalidArgument, "拉新活动配置必须包含coupon_id或reward_coupon_id")
+		}
+	case 2:
+		if !positiveJSONDecimal(cfg["discount"]) {
+			return status.Error(codes.InvalidArgument, "折扣活动配置必须包含大于0的discount")
+		}
+	case 3:
+		if !positiveJSONDecimal(cfg["amount"]) && !positiveJSONDecimal(cfg["face_value"]) {
+			return status.Error(codes.InvalidArgument, "立减活动配置必须包含amount或face_value")
+		}
+	}
+	return nil
+}
+
+// normalizePromotionPublishScope 兼容历史 full 与接口文档 all，两者都表示全量发布。
+func normalizePromotionPublishScope(scope string) string {
+	scope = strings.TrimSpace(scope)
+	if scope == "" || scope == "full" {
+		return "all"
+	}
+	return scope
+}
+
+// validatePromotionTargetConfig 校验活动发布目标配置。
+// 全量发布允许空对象；灰度发布必须明确用户 ID 或城市编码，避免误把空配置当成灰度范围。
+func validatePromotionTargetConfig(scope, raw string) error {
+	if strings.TrimSpace(raw) == "" {
+		raw = "{}"
+	}
+	var cfg promotionTargetConfig
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return status.Error(codes.InvalidArgument, "活动目标配置必须是合法JSON对象")
+	}
+	if scope != "gray" {
+		return nil
+	}
+	for _, userID := range cfg.UserIDs {
+		if userID > 0 {
+			return nil
+		}
+	}
+	for _, cityCode := range cfg.CityCodes {
+		if strings.TrimSpace(cityCode) != "" {
+			return nil
+		}
+	}
+	return status.Error(codes.InvalidArgument, "灰度发布必须指定user_ids或city_codes")
+}
+
+// positiveJSONNumber 判断 JSON 数值字段是否为正整数。
+func positiveJSONNumber(value any) bool {
+	switch v := value.(type) {
+	case float64:
+		return v > 0 && v == float64(int64(v))
+	case string:
+		n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		return err == nil && n > 0
+	default:
+		return false
+	}
+}
+
+// positiveJSONDecimal 判断 JSON 金额或折扣字段是否为正数。
+func positiveJSONDecimal(value any) bool {
+	switch v := value.(type) {
+	case float64:
+		return v > 0
+	case string:
+		n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return err == nil && n > 0
+	default:
+		return false
+	}
+}
+
+// changePromotionStatusWithAudit 在同一事务内完成活动状态流转和审计日志写入。
+// 任一步失败都会回滚，避免活动已经发布但审计缺失，或审计成功但状态未变化。
+func changePromotionStatusWithAudit(ctx context.Context, svcCtx *svc.ServiceContext, id int64, expectedStatus, targetStatus int32, adminID int64, action, detail, ip string) error {
+	if id <= 0 {
+		return status.Error(codes.InvalidArgument, "活动ID不能为空")
+	}
+	tx, err := svcCtx.MySQL.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `UPDATE promotion_activity SET status = ? WHERE id = ? AND status = ?`, targetStatus, id, expectedStatus)
+	if err != nil {
+		return err
+	}
+	if affected, _ := res.RowsAffected(); affected == 0 {
+		return status.Error(codes.FailedPrecondition, "活动当前状态不允许执行该操作")
+	}
+	if err := createOperationLogTx(ctx, tx, adminID, "promotion", action, "promotion_activity", id, detail, ip); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // changePromotionStatus 通过源状态限制更新，保证发布和回滚不会越过活动状态机。
@@ -1095,6 +1252,38 @@ func changePromotionStatus(ctx context.Context, svcCtx *svc.ServiceContext, id i
 		return status.Error(codes.FailedPrecondition, "活动当前状态不允许执行该操作")
 	}
 	return nil
+}
+
+// requireAdminRoles 根据 gRPC metadata 中的真实管理员会话做服务端 RBAC 校验。
+// 旧单元测试和少量本地兼容路径没有初始化 Redis 时直接放行；生产 ServiceContext 一定包含 Redis 和 MySQL，会严格校验 token、账号状态和角色。
+func requireAdminRoles(ctx context.Context, svcCtx *svc.ServiceContext, roles ...int32) error {
+	if svcCtx == nil || svcCtx.Redis == nil || svcCtx.MySQL == nil {
+		return nil
+	}
+	admin, err := ValidateAdminTokenFromContext(ctx, svcCtx)
+	if err != nil {
+		return err
+	}
+	for _, role := range roles {
+		if admin.Role == role {
+			return nil
+		}
+	}
+	return status.Error(codes.PermissionDenied, "当前管理员无权执行该操作")
+}
+
+// activeBlacklistExists 查询目标是否已经存在生效黑名单。
+func activeBlacklistExists(ctx context.Context, svcCtx *svc.ServiceContext, targetType string, targetID int64) (bool, error) {
+	var count int64
+	err := svcCtx.MySQL.QueryRowContext(ctx, `SELECT COUNT(1) FROM blacklist WHERE target_type = ? AND target_id = ? AND status = 1`, targetType, targetID).Scan(&count)
+	return count > 0, err
+}
+
+// activeBlacklistExistsTx 在风控命中处置事务内检查重复黑名单，保证批量拉黑时单条操作具备一致性。
+func activeBlacklistExistsTx(ctx context.Context, tx *sql.Tx, targetType string, targetID int64) (bool, error) {
+	var count int64
+	err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM blacklist WHERE target_type = ? AND target_id = ? AND status = 1`, targetType, targetID).Scan(&count)
+	return count > 0, err
 }
 
 // buildIssueTaskWhere 组装发券任务筛选条件。

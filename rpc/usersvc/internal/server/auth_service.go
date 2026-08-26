@@ -110,3 +110,15 @@ func (s *UserServer) ReleaseUserCoupon(ctx context.Context, req *userproto.Relea
 	l := logic.NewReleaseUserCouponLogic(ctx, s.svcCtx)
 	return l.ReleaseUserCoupon(req)
 }
+
+// AdminListUsers 转发管理后台用户列表查询请求。
+func (s *UserServer) AdminListUsers(ctx context.Context, req *userproto.AdminUserListRequest) (*userproto.AdminUserListResponse, error) {
+	l := logic.NewAdminUserLogic(ctx, s.svcCtx)
+	return l.ListUsers(req)
+}
+
+// AdminGetUser 转发管理后台用户详情查询请求。
+func (s *UserServer) AdminGetUser(ctx context.Context, req *userproto.AdminUserDetailRequest) (*userproto.AdminUser, error) {
+	l := logic.NewAdminUserLogic(ctx, s.svcCtx)
+	return l.GetUser(req)
+}

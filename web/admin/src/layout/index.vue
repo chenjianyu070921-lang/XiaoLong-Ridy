@@ -48,8 +48,8 @@ const fallbackMenus = [
 // 菜单接口失败时，普通角色只展示与其日常查询职责匹配的基础入口。
 // 这是安全兜底，不依赖前端传入的 role，也不将受限配置类模块暴露到导航。
 const restrictedRoleFallbackPaths = {
-  2: ['/users', '/driver-certifications', '/orders', '/orders/abnormal', '/operation-logs'],
-  3: ['/users', '/driver-certifications', '/orders', '/orders/abnormal', '/operation-logs', '/work-orders'],
+  2: ['/users', '/driver-certifications', '/drivers', '/orders', '/orders/abnormal', '/operation-logs', '/coupons', '/coupon-issue-tasks', '/price-rules', '/promotion-activities', '/work-orders', '/statistics', '/export-tasks', '/blacklist', '/risk-hits'],
+  3: ['/users', '/driver-certifications', '/drivers', '/orders', '/orders/abnormal', '/operation-logs', '/work-orders'],
 }
 
 // 工作台是所有已登录管理员都可访问的固定入口。

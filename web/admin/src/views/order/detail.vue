@@ -54,7 +54,8 @@ const cancelOrder = async () => {
   })
   canceling.value = true
   try {
-    await ordersApi.cancel(order.value.id, { reason: result.value.trim() })
+    const requestID = crypto.randomUUID ? crypto.randomUUID() : `cancel-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    await ordersApi.cancel(order.value.id, { reason: result.value.trim(), request_id: requestID })
     ElMessage.success('订单已取消')
     await loadDetail()
   } finally {

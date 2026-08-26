@@ -449,6 +449,7 @@ message AdminCancelOrderRequest {
   string reason = 2;
   int64 admin_id = 3;
   string ip = 4;
+  string request_id = 5;
 }
 
 message Order {
@@ -546,6 +547,7 @@ message OrderDetail {
   OrderPrice price = 4;
   Payment payment = 5;
   Settlement settlement = 6;
+  repeated string degraded = 7;
 }
 
 message OrderListResponse {
