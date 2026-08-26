@@ -82,13 +82,25 @@ run-pushesvc:
 # API 服务 main 启动命令
 
 run-passenger-api:
-	cd api\passenger && go run .
+	powershell -Command "cd api/passenger; go run ."
 
 run-driver-api:
-	cd api\driver && go run .
+	powershell -Command "cd api/driver; go run ."
 
 run-admin-api:
-	cd api\admin && go run .
+	powershell -Command "cd api/admin; go run ."
+
+# 前端启动命令
+
+install-web:
+	powershell -Command "cd web/user; npm install"
+	powershell -Command "cd web/admin; npm install"
+
+run-user-web:
+	powershell -Command "cd web/user; npm run dev"
+
+run-admin-web:
+	powershell -Command "cd web/admin; npm run dev"
 
 # 消息消费者与定时任务启动命令
 
@@ -101,5 +113,5 @@ run-location-consumer:
 run-job:
 	go run .\job\job.go -f .\job\etc\job.yaml
 
-.PHONY: run-ordersvc run-usersvc run-adminsvc run-driversvc run-dispatchsvc run-locationsvc run-pricesvc run-paysvc run-pushesvc run-passenger-api run-driver-api run-admin-api run-order-event-consumer run-location-consumer run-job
+.PHONY: run-ordersvc run-usersvc run-adminsvc run-driversvc run-dispatchsvc run-locationsvc run-pricesvc run-paysvc run-pushesvc run-passenger-api run-driver-api run-admin-api run-order-event-consumer run-location-consumer run-job run-user-web run-admin-web install-web
 

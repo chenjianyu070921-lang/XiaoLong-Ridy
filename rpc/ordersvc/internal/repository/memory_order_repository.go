@@ -295,6 +295,31 @@ func (r *MemoryOrderRepository) ListStatusLogs(_ context.Context, orderID uint64
 	return out, total, nil
 }
 
+// Refund 内存版：已完成订单退款为已退款终态并累加退款金额。
+func (r *MemoryOrderRepository) Refund(_ context.Context, orderID uint64, refundCents int64, statusLog *model.OrderStatusLog) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	order, ok := r.orders[orderID]
+	if !ok {
+		return false, ErrOrderNotFound
+	}
+	if order.Status != constants.OrderStatusCompleted {
+		return false, nil
+	}
+	now := time.Now()
+	order.Status = constants.OrderStatusRefunded
+	order.RefundCents += refundCents
+	order.UpdatedAt = now
+	r.appendLogLocked(orderID, statusLog, now)
+	return true, nil
+}
+
+// ReleaseCoupon 内存版：仅记录调用，不做真实释放。
+func (r *MemoryOrderRepository) ReleaseCoupon(_ context.Context, _ uint64, _ uint64) error {
+	return nil
+}
+
 // appendLogLocked 在持有写锁时追加日志并分配 ID 和时间。
 func (r *MemoryOrderRepository) appendLogLocked(orderID uint64, statusLog *model.OrderStatusLog, now time.Time) {
 	logCopied := *statusLog

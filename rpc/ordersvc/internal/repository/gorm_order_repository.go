@@ -15,12 +15,13 @@ import (
 var errOrderNotUpdated = errors.New("orderclient not updated")
 
 type gormOrderRepository struct {
-	db *gorm.DB
+	db             *gorm.DB
+	couponConsumer CouponConsumer
 }
 
 // NewGormOrderRepository 创建基于 gorm 的订单仓储。
-func NewGormOrderRepository(db *gorm.DB) OrderRepository {
-	return &gormOrderRepository{db: db}
+func NewGormOrderRepository(db *gorm.DB, couponConsumer CouponConsumer) OrderRepository {
+	return &gormOrderRepository{db: db, couponConsumer: couponConsumer}
 }
 
 // Create 在事务中创建订单和创建状态日志。
@@ -282,4 +283,38 @@ func (r *gormOrderRepository) ListStatusLogs(ctx context.Context, orderID uint64
 func isDuplicateKey(err error) bool {
 	var mysqlErr *mysql.MySQLError
 	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
+}
+
+// Refund 将已完成订单退款为已退款终态，并累加退款金额。
+// 仅允许从已完成状态跳转（由状态机保证），采用 CAS 条件更新防止并发重复退款。
+func (r *gormOrderRepository) Refund(ctx context.Context, orderID uint64, refundCents int64, statusLog *model.OrderStatusLog) (bool, error) {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&model.RideOrder{}).
+			Where("id = ? AND status = ? AND deleted_at IS NULL", orderID, constants.OrderStatusCompleted).
+			Updates(map[string]interface{}{
+				"status":       constants.OrderStatusRefunded,
+				"refund_cents": gorm.Expr("refund_cents + ?", refundCents),
+				"updated_at":   time.Now(),
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errOrderNotUpdated
+		}
+		statusLog.OrderId = orderID
+		return tx.Create(statusLog).Error
+	})
+	if errors.Is(err, errOrderNotUpdated) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ReleaseCoupon 释放订单锁定的优惠券（取消/退款时回滚）。
+func (r *gormOrderRepository) ReleaseCoupon(ctx context.Context, userID, orderID uint64) error {
+	return r.couponConsumer.ReleaseByOrder(ctx, userID, orderID)
 }

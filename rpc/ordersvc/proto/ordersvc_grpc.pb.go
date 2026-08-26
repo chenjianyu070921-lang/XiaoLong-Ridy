@@ -28,6 +28,7 @@ const (
 	Order_StartTrip_FullMethodName           = "/ordersvc.Order/StartTrip"
 	Order_FinishTrip_FullMethodName          = "/ordersvc.Order/FinishTrip"
 	Order_ConfirmPaid_FullMethodName         = "/ordersvc.Order/ConfirmPaid"
+	Order_RefundOrder_FullMethodName         = "/ordersvc.Order/RefundOrder"
 	Order_TimeoutCancel_FullMethodName       = "/ordersvc.Order/TimeoutCancel"
 	Order_ListTimeoutOrders_FullMethodName   = "/ordersvc.Order/ListTimeoutOrders"
 	Order_ListOrderStatusLogs_FullMethodName = "/ordersvc.Order/ListOrderStatusLogs"
@@ -46,6 +47,7 @@ type OrderClient interface {
 	StartTrip(ctx context.Context, in *StartTripRequest, opts ...grpc.CallOption) (*StartTripResponse, error)
 	FinishTrip(ctx context.Context, in *FinishTripRequest, opts ...grpc.CallOption) (*FinishTripResponse, error)
 	ConfirmPaid(ctx context.Context, in *ConfirmPaidRequest, opts ...grpc.CallOption) (*ConfirmPaidResponse, error)
+	RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error)
 	TimeoutCancel(ctx context.Context, in *TimeoutCancelRequest, opts ...grpc.CallOption) (*TimeoutCancelResponse, error)
 	ListTimeoutOrders(ctx context.Context, in *ListTimeoutOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutOrdersResponse, error)
 	ListOrderStatusLogs(ctx context.Context, in *ListOrderStatusLogsRequest, opts ...grpc.CallOption) (*ListOrderStatusLogsResponse, error)
@@ -149,6 +151,16 @@ func (c *orderClient) ConfirmPaid(ctx context.Context, in *ConfirmPaidRequest, o
 	return out, nil
 }
 
+func (c *orderClient) RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefundOrderResponse)
+	err := c.cc.Invoke(ctx, Order_RefundOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *orderClient) TimeoutCancel(ctx context.Context, in *TimeoutCancelRequest, opts ...grpc.CallOption) (*TimeoutCancelResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(TimeoutCancelResponse)
@@ -192,6 +204,7 @@ type OrderServer interface {
 	StartTrip(context.Context, *StartTripRequest) (*StartTripResponse, error)
 	FinishTrip(context.Context, *FinishTripRequest) (*FinishTripResponse, error)
 	ConfirmPaid(context.Context, *ConfirmPaidRequest) (*ConfirmPaidResponse, error)
+	RefundOrder(context.Context, *RefundOrderRequest) (*RefundOrderResponse, error)
 	TimeoutCancel(context.Context, *TimeoutCancelRequest) (*TimeoutCancelResponse, error)
 	ListTimeoutOrders(context.Context, *ListTimeoutOrdersRequest) (*ListTimeoutOrdersResponse, error)
 	ListOrderStatusLogs(context.Context, *ListOrderStatusLogsRequest) (*ListOrderStatusLogsResponse, error)
@@ -228,6 +241,9 @@ func (UnimplementedOrderServer) FinishTrip(context.Context, *FinishTripRequest) 
 }
 func (UnimplementedOrderServer) ConfirmPaid(context.Context, *ConfirmPaidRequest) (*ConfirmPaidResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ConfirmPaid not implemented")
+}
+func (UnimplementedOrderServer) RefundOrder(context.Context, *RefundOrderRequest) (*RefundOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RefundOrder not implemented")
 }
 func (UnimplementedOrderServer) TimeoutCancel(context.Context, *TimeoutCancelRequest) (*TimeoutCancelResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TimeoutCancel not implemented")
@@ -413,6 +429,24 @@ func _Order_ConfirmPaid_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Order_RefundOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServer).RefundOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Order_RefundOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServer).RefundOrder(ctx, req.(*RefundOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Order_TimeoutCancel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TimeoutCancelRequest)
 	if err := dec(in); err != nil {
@@ -509,6 +543,10 @@ var Order_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ConfirmPaid",
 			Handler:    _Order_ConfirmPaid_Handler,
+		},
+		{
+			MethodName: "RefundOrder",
+			Handler:    _Order_RefundOrder_Handler,
 		},
 		{
 			MethodName: "TimeoutCancel",

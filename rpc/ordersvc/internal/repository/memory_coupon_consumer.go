@@ -17,3 +17,17 @@ func (m *MemoryCouponConsumer) ConsumeByOrder(_ context.Context, userID, orderID
 	m.OrderID = orderID
 	return m.Err
 }
+
+// LockByOrder 内存版锁定实现，仅记录调用便于断言。
+func (m *MemoryCouponConsumer) LockByOrder(_ context.Context, userID, couponID, orderID uint64) error {
+	m.UserID = userID
+	m.OrderID = orderID
+	return m.Err
+}
+
+// ReleaseByOrder 内存版释放实现，仅记录调用便于断言。
+func (m *MemoryCouponConsumer) ReleaseByOrder(_ context.Context, userID, orderID uint64) error {
+	m.UserID = userID
+	m.OrderID = orderID
+	return m.Err
+}
