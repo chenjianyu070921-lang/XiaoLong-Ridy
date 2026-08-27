@@ -92,35 +92,13 @@ func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOr
 		ToLatitude:          req.ToLatitude,
 		EstimatedDistanceM:  price.EstimatedDistanceM,
 		EstimatedDurationS:  price.EstimatedDurationS,
-		EstimatedPriceCents: payableAmountCents,
+		EstimatedPriceCents: originalPriceCents,
 		CityCode:            l.orderCityCode(req.CityCode),
+		CouponId:            int64(req.UserCouponID),
+		DiscountCents:       discountAmountCents,
 	})
 	if err != nil {
 		return nil, err
-	}
-	if hasUserCoupon(req) {
-		userClient, err := l.userClient()
-		if err != nil {
-			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券服务不可用")
-			return nil, err
-		}
-		lockOrderID := uint64(order.GetOrderId())
-		lockedCoupon, err := userClient.LockUserCoupon(l.ctx, &userproto.LockUserCouponRequest{
-			UserId:       userID,
-			UserCouponId: req.UserCouponID,
-			OrderId:      lockOrderID,
-			CarType:      req.CarType,
-			CityCode:     l.orderCityCode(req.CityCode),
-		})
-		if err != nil {
-			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券锁定失败")
-			return nil, err
-		}
-		if lockedCoupon.GetCoupon() == nil || selectedCoupon == nil || lockedCoupon.GetCoupon().GetUserCouponId() != selectedCoupon.GetUserCouponId() {
-			releaseLockedCoupon(l.ctx, userClient, userID, req.UserCouponID, lockOrderID)
-			cancelCreatedOrder(l.ctx, orderClient, order.GetOrderId(), userID, "优惠券信息为空")
-			return nil, ErrInvalidRequest
-		}
 	}
 	return &types.CreateOrderResponse{
 		OrderID:             order.GetOrderId(),
@@ -197,7 +175,11 @@ func (l *OrderLogic) GetOrder(req *types.GetOrderRequest) (*types.OrderDetail, e
 	if order.GetUserId() != int64(userID) {
 		return nil, ErrForbidden
 	}
-	return toOrderDetail(order), nil
+	detail := toOrderDetail(order)
+	if detail.CouponID > 0 {
+		detail.CouponName = l.findCouponName(userID, uint64(detail.CouponID))
+	}
+	return detail, nil
 }
 
 // CancelOrder 取消当前乘客自己的订单。
@@ -373,6 +355,29 @@ func hasUserCoupon(req *types.CreateOrderRequest) bool {
 	return req != nil && req.UserCouponID > 0
 }
 
+// findCouponName 根据订单保存的用户券实例 ID 查询优惠券名称；查询失败不影响订单详情主流程。
+func (l *OrderLogic) findCouponName(userID, userCouponID uint64) string {
+	userClient, err := l.userClient()
+	if err != nil {
+		return ""
+	}
+	coupons, err := userClient.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{
+		UserId:   userID,
+		Status:   0,
+		Page:     1,
+		PageSize: 100,
+	})
+	if err != nil {
+		return ""
+	}
+	for _, coupon := range coupons.GetList() {
+		if coupon.GetUserCouponId() == userCouponID {
+			return strings.TrimSpace(coupon.GetName())
+		}
+	}
+	return ""
+}
+
 // toPriceCoupon 将 usersvc 校验后的券信息转换为 pricesvc 抵扣计算参数。
 // 最大抵扣额只应来自后端券模板；当前 usersvc 尚未暴露该字段，因此这里不采信前端透传值。
 func toPriceCoupon(coupon *userproto.CouponInfo) priceclient.Coupon {
@@ -391,18 +396,6 @@ func toPriceCoupon(coupon *userproto.CouponInfo) priceclient.Coupon {
 		Discount:       coupon.GetDiscount(),
 		ThresholdCents: coupon.GetThresholdCents(),
 	}
-}
-
-// releaseLockedCoupon 在订单创建或抵扣计算失败时释放已锁定用户券，避免用户券长期卡在锁定状态。
-func releaseLockedCoupon(ctx context.Context, userClient svc.UserClient, userID, userCouponID, lockOrderID uint64) {
-	if userClient == nil || userID == 0 || userCouponID == 0 || lockOrderID == 0 {
-		return
-	}
-	_, _ = userClient.ReleaseUserCoupon(ctx, &userproto.ReleaseUserCouponRequest{
-		UserId:       userID,
-		UserCouponId: userCouponID,
-		OrderId:      lockOrderID,
-	})
 }
 
 // validateListOrders 校验订单列表筛选和分页参数，0 页码/页大小交给下游按默认值归一化。
@@ -488,6 +481,11 @@ func toOrderDetail(order *orderproto.GetOrderResponse) *types.OrderDetail {
 		EstimatedDistanceM:  order.GetEstimatedDistanceM(),
 		EstimatedDurationS:  order.GetEstimatedDurationS(),
 		EstimatedPriceCents: order.GetEstimatedPriceCents(),
+		CouponID:            order.GetCouponId(),
+		DiscountCents:       order.GetDiscountCents(),
+		PayableCents:        order.GetPayableCents(),
+		PaidCents:           order.GetPaidCents(),
+		RefundCents:         order.GetRefundCents(),
 		Status:              int32(order.GetStatus()),
 		CancelReason:        order.GetCancelReason(),
 		CancelBy:            order.GetCancelBy(),

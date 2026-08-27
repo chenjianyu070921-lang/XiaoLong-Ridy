@@ -50,8 +50,8 @@
         </div>
         <div class="stat-divider"></div>
         <div class="stat-item">
-          <span class="value price">¥{{ order.totalPrice }}</span>
-          <span class="label">费用</span>
+          <span class="value price">¥{{ order.payablePrice }}</span>
+          <span class="label">实付金额</span>
         </div>
       </div>
     </div>
@@ -82,13 +82,13 @@
         <div class="fee-item" v-for="(item, index) in order.feeDetail" :key="index">
           <span>{{ item.name }}</span>
           <span :class="{ discount: item.amount < 0 }">
-            {{ item.amount > 0 ? '+' : '' }}¥{{ Math.abs(item.amount) }}
+            {{ item.amount > 0 ? '+' : '' }}¥{{ money(Math.abs(item.amount)) }}
           </span>
         </div>
         <div class="fee-divider"></div>
         <div class="fee-total">
           <span>实付金额</span>
-          <span>¥{{ order.totalPrice }}</span>
+          <span>¥{{ order.payablePrice }}</span>
         </div>
       </div>
     </div>
@@ -113,9 +113,12 @@
           <span>支付时间</span>
           <span>{{ order.payTime }}</span>
         </div>
-        <div class="info-item" v-if="order.couponAmount">
-          <span>优惠券</span>
-          <span>-¥{{ order.couponAmount }}</span>
+        <div class="info-item" v-if="order.hasCoupon">
+          <span>使用优惠券</span>
+          <span class="coupon-used">
+            <em>{{ order.couponName }}</em>
+            <strong>-¥{{ order.discountPrice }}</strong>
+          </span>
         </div>
       </div>
     </div>
@@ -173,16 +176,27 @@ const route = useRoute()
 const orderId = Number(route.params.id)
 
 // 订单详情数据由接口返回，禁止使用固定演示订单覆盖真实订单。
-const order = ref({ id: orderId, status: 'SEARCHING', createTime: '--', arriveTime: '', fromAddress: '加载中...', toAddress: '加载中...', distance: '', duration: '', totalPrice: '0.00', driverName: '', driverAvatar: '', plateNumber: '', carModel: '', driverRating: 0, orderNo: '', payMethod: '', payTime: '', couponAmount: '', rated: false, feeDetail: [] })
+const order = ref({ id: orderId, status: 'SEARCHING', createTime: '--', arriveTime: '', fromAddress: '加载中...', toAddress: '加载中...', distance: '', duration: '', totalPrice: '0.00', discountPrice: '0.00', payablePrice: '0.00', driverName: '', driverAvatar: '', plateNumber: '', carModel: '', driverRating: 0, orderNo: '', payMethod: '', payTime: '', hasCoupon: false, couponName: '', rated: false, feeDetail: [] })
 
 // 将后端数字状态转换成详情页展示状态。
 // 后端状态：1待接单 2已接单 3行程中 4待支付 5已完成 6已取消
 const normalizeStatus = (status) => ({ 1: 'SEARCHING', 2: 'ACCEPTED', 3: 'IN_PROGRESS', 4: 'PENDING_PAYMENT', 5: 'COMPLETED', 6: 'CANCELLED' })[status] || status
 
+// 将后端金额分转换为两位小数金额，统一详情页费用展示格式。
+const money = (cents) => (Number(cents || 0) / 100).toFixed(2)
+
 // 将订单详情接口字段转换为页面展示模型。
 const mapOrderDetail = (item) => {
   const distanceM = Number(item.estimatedDistanceM || 0)
   const durationS = Number(item.estimatedDurationS || 0)
+  const estimatedPriceCents = Number(item.estimatedPriceCents || 0)
+  const discountCents = Math.max(0, Number(item.discountCents || 0))
+  const payableCents = Number(item.payableCents || 0) || Math.max(0, estimatedPriceCents - discountCents)
+  const couponId = Number(item.couponId || 0)
+  const feeDetail = [{ name: '预估金额', amount: estimatedPriceCents }]
+  if (discountCents > 0) {
+    feeDetail.push({ name: '优惠券扣减', amount: -discountCents })
+  }
   return {
     ...item,
     id: item.orderId || orderId,
@@ -192,10 +206,14 @@ const mapOrderDetail = (item) => {
     toAddress: item.toAddress || '未填写目的地',
     distance: distanceM ? (distanceM / 1000).toFixed(1) : '',
     duration: durationS ? Math.ceil(durationS / 60) : '',
-    totalPrice: (Number(item.estimatedPriceCents || 0) / 100).toFixed(2),
+    totalPrice: money(estimatedPriceCents),
+    discountPrice: money(discountCents),
+    payablePrice: money(payableCents),
     driverName: item.driverName || '',
     driverRating: Number(item.driverRating || 0),
-    feeDetail: []
+    hasCoupon: couponId > 0 && discountCents > 0,
+    couponName: item.couponName || '优惠券',
+    feeDetail
   }
 }
 
@@ -543,6 +561,31 @@ onMounted(async () => {
 
 .info-item span:first-child {
   color: #6B7280;
+}
+
+.info-item .coupon-used {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  text-align: right;
+}
+
+.info-item .coupon-used em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-item .coupon-used strong {
+  flex-shrink: 0;
+  color: #059669;
+  font-weight: 600;
 }
 
 .bottom-bar {

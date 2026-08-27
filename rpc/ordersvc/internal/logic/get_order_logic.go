@@ -56,6 +56,11 @@ func (l *GetOrderLogic) GetOrder(in *proto.GetOrderRequest) (*proto.GetOrderResp
 		CancelBy:            order.CancelBy,
 		CreatedAt:           order.CreatedAt.Unix(),
 		UpdatedAt:           order.UpdatedAt.Unix(),
+		CouponId:            order.CouponId,
+		DiscountCents:       order.DiscountCents,
+		PayableCents:        order.PayableCents,
+		PaidCents:           order.PaidCents,
+		RefundCents:         order.RefundCents,
 	}, nil
 }
 
