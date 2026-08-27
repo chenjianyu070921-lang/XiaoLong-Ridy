@@ -25,13 +25,15 @@ func TestPaymentFlowE2E(t *testing.T) {
 	svcCtx := newTestSvcCtx(db, &mockOrderClient{driverId: 3001}, nil)
 	ctx := context.Background()
 
-	// ============ 1. CreatePayment（事务 + 渠道下单） ============
-	// 渠道下单是事务外的 RPC；这里用 MockChannel 不触发外部 IO，仅校验：
-	//   - 事务 Begin
-	//   - INSERT payment（GORM 自动 Begin/Commit）
-	//   - 事务 Commit
+	// ============ 1. CreatePayment（先落库 pending + 渠道下单 + 回填 transaction_id） ============
+	// 渠道下单是事务外的 MockChannel，不触发外部 IO；DB 侧分两步，GORM 默认给单条写加事务：
+	//   - Begin → INSERT payment（pending，无 transaction_id）→ Commit
+	//   - Begin → UPDATE payment.transaction_id（状态仍为 pending）→ Commit
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO `payment`").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	mock.ExpectBegin()
+	mock.ExpectExec("UPDATE `payment` SET").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	createResp, err := NewCreatePaymentLogic(ctx, svcCtx).CreatePayment(&proto.CreatePaymentRequest{
@@ -58,7 +60,13 @@ func TestPaymentFlowE2E(t *testing.T) {
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs(sqlmock.AnyArg(), 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
-			AddRow(1, "PAY_ANY", 1001, 2001, 25.00, "wechat", 1, "", 0.00, nil, time.Now(), time.Now()))
+			AddRow(1, "PAY_ANY", 1001, 2001, 2500, "wechat", 1, "", 0, 0, nil, time.Now(), time.Now()))
+	mock.ExpectExec("UPDATE `payment` SET").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	// 支付成功事件发送成功后，标记 event_sent=true。
+	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE `payment` SET").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
@@ -69,7 +77,7 @@ func TestPaymentFlowE2E(t *testing.T) {
 		TransactionId:    "tx_e2e",
 		PaidAt:           1753065600,
 		NotifyRaw:        "x=1",
-		TotalAmountCents: 2500, // 与 amount(25.00) 一致
+		TotalAmountCents: 2500, // 与 amount(2500) 一致
 	})
 	if err != nil {
 		t.Fatalf("NotifyPayment: %v", err)
@@ -83,7 +91,7 @@ func TestPaymentFlowE2E(t *testing.T) {
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs(sqlmock.AnyArg(), 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
-			AddRow(1, "PAY_ANY", 1001, 2001, 25.00, "wechat", 2, "tx_e2e", 0.00, &paidAt, time.Now(), time.Now()))
+			AddRow(1, "PAY_ANY", 1001, 2001, 2500, "wechat", 2, "tx_e2e", 0, 1, &paidAt, time.Now(), time.Now()))
 
 	getResp, err := NewGetPaymentLogic(ctx, svcCtx).GetPayment(&proto.GetPaymentRequest{
 		PaymentNo: createResp.PaymentNo,
@@ -102,7 +110,7 @@ func TestPaymentFlowE2E(t *testing.T) {
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs(sqlmock.AnyArg(), 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
-			AddRow(1, "PAY_ANY", 1001, 2001, 25.00, "wechat", 2, "tx_e2e", 0.00, &paidAt, time.Now(), time.Now()))
+			AddRow(1, "PAY_ANY", 1001, 2001, 2500, "wechat", 2, "tx_e2e", 0, 1, &paidAt, time.Now(), time.Now()))
 
 	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE `payment` SET").

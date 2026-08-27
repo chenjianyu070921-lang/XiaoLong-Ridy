@@ -1,5 +1,5 @@
 const ExcelJS = require('C:\\Users\\hjy\\AppData\\Roaming\\npm\\node_modules\\exceljs');
-const path = 'c:\\Users\\hjy\\Desktop\\XiaoLong-Ridy\\docs\\module5\\日check-乔宇翔-2026-08-21.xlsx';
+const path = 'c:\\Users\\hjy\\Desktop\\XiaoLong-Ridy\\docs\\module5\\日check-乔宇翔-2026-08-26.xlsx';
 
 const wb = new ExcelJS.Workbook();
 const ws = wb.addWorksheet('日check', { views: [{ showGridLines: false }] });
@@ -28,7 +28,7 @@ ws.columns = [
 function setBorder(r, c) { ws.getCell(r, c).border = border; }
 
 ws.mergeCells('A1:E1');
-ws.getCell('A1').value = '2026年8月21日（日check）';
+ws.getCell('A1').value = '2026年8月26日（日check）';
 ws.getCell('A1').font = titleFont;
 ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
 ws.getCell('A1').fill = titleFill;
@@ -59,11 +59,11 @@ headers.forEach((h, i) => {
 ws.getRow(3).height = 30;
 
 const data = [
-    ['设计', '新增 pricesvc 真实 e2e 联调客户端：EstimatePrice→CalculateDiscount→SaveActualOrderPrice 三接口串联', '是', '进度100%。直连 pricesvc 跑通，参数含 city_code/car_type/distance/duration', '补夜间/高峰动态调价分支联调'],
-    ['研发', '更新 pay_e2e_client.go 适配真实 AlipayChannel 联调链路（mock→alipay）', '是', '进度100%。下单/退款/结算全流程打通', '接入真实沙箱密钥跑一次端到端'],
-    ['研发', '新增 diag_sign.go 签名诊断工具：用 yaml 私钥生成签名 + 公钥验签', '是', '进度100%。快速定位签名规则/编码问题', '沉淀为 docs/superpowers/排障 SOP'],
-    ['测试', 'price_e2e_client.go + pay_e2e_client.go 联合联调：预估→优惠→实付→下单→退款→结算全链路', '是', '进度100%。各接口打印明细校验通过', '加并发场景联调（幂等/重复下单）'],
-    ['优化', '计价支付接口文档.md 增补真实联调示例 + AlipayChannel 配置说明', '是', '进度100%。文档与代码同步', '接入 docs/api 模块五接口文档统一入口'],
+    ['计价', '梳理 pricesvc 三接口的入参/出参契约与 proto 字段语义（EstimatePriceRequest/Response、Coupon 子消息）', '是', '进度100%。能口述每个字段含义、cents 单位约定', '补讲 EstimatePriceResponse.Detail 6 个分项字段'],
+    ['计价', '梳理 pricesvc repository 层：PriceRuleRepo.FindActive 按 city_code+car_type 查规则，OrderPriceRepo.FindByOrderId 拉明细', '是', '进度100%。能讲清仓库层与 model.TableName 的对应关系', '补讲 GORM decimal 字段读写的精度处理'],
+    ['支付', '梳理 paysvc 退款业务规则：仅 status=2 已支付可退，refunded_cents 累计，全额流转 status=3 已退款', '是', '进度100%。能讲清 rule.ValidateRefund 的边界校验', '补讲重复退款请求幂等'],
+    ['支付', '梳理结算业务：CalcSettlement(commission_rate) 拆平台抽成与司机实收，settlement_no 单号规范 SET+时间戳', '是', '进度100%。能讲清 settlement 表字段与 model.SettlementStatus 常量', '补讲司机提现链路差异'],
+    ['联调', '梳理跨模块联调链路：ordersvc.FinishTrip → pricesvc.SaveActualOrderPrice → paysvc.CreatePayment → NotifyPayment → SettleOrder', '是', '进度100%。能口述各模块在订单/支付事件中的角色', '补讲 event_reconcile_job 对账补偿触发时机'],
 ];
 
 data.forEach((row, idx) => {
@@ -95,7 +95,7 @@ data.forEach((row, idx) => {
 });
 
 ws.mergeCells('A9:E9');
-ws.getCell('A9').value = '备注：内容基于今日 8-21 改动整理，覆盖 pricesvc/paysvc 真实 e2e 联调客户端与支付宝签名诊断工具。';
+ws.getCell('A9').value = '备注：今日围绕模块代码业务做接口级提问清单与跨模块联调演练，准备答辩代码演示。';
 ws.getCell('A9').font = { name: '微软雅黑', size: 10, italic: true, color: { argb: 'FF808080' } };
 ws.getCell('A9').alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
 

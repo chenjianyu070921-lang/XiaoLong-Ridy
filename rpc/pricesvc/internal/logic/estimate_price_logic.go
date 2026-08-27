@@ -68,10 +68,11 @@ func (l *EstimatePriceLogic) EstimatePrice(in *proto.EstimatePriceRequest) (*pro
 	}
 	isNight := rule.IsNightTime(now, nightStart, nightEnd)
 
-	// 3. 计算动态调价 factor：高峰时段自动上调
+	// 3. 计算动态调价 factor：高峰时段使用规则配置的 DynamicMaxFactor，
+	// 不再硬编码 1.3；非高峰 factor 保持 1.0。
 	factor := 1.0
 	if rule.IsPeakTime(now) {
-		factor = rule.PeakFactor
+		factor = pr.DynamicMaxFactor
 	}
 
 	// 4. 调计价引擎计算费用明细

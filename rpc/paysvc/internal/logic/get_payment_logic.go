@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"XiaoLong-Ridy/common/priceutil"
 	"XiaoLong-Ridy/rpc/paysvc/internal/model"
 	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
@@ -52,10 +51,10 @@ func (l *GetPaymentLogic) GetPayment(in *proto.GetPaymentRequest) (*proto.GetPay
 		PaymentId:         int64(p.Id),
 		PaymentNo:         p.PaymentNo,
 		OrderId:           int64(p.OrderId),
-		AmountCents:       priceutil.YuanToCents(p.Amount),
+		AmountCents:       p.AmountCents,
 		Channel:           p.Channel,
 		Status:            int32(p.Status),
 		TransactionId:     p.TransactionId,
-		RefundAmountCents: priceutil.YuanToCents(p.RefundAmount),
+		RefundAmountCents: p.RefundAmountCents,
 	}, nil
 }

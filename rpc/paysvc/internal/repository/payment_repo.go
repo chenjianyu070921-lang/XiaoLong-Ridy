@@ -45,6 +45,19 @@ func (r *PaymentRepo) FindByOrderId(ctx context.Context, orderId uint64) (*model
 	return &p, nil
 }
 
+// FindUnsentPaidPayments 查询已支付但 Kafka 事件未发送的支付单，用于对账补发。
+func (r *PaymentRepo) FindUnsentPaidPayments(ctx context.Context, limit int) ([]*model.Payment, error) {
+	var list []*model.Payment
+	if err := r.db.WithContext(ctx).
+		Where("status = ? AND event_sent = ?", model.PaymentStatusPaid, false).
+		Order("id ASC").
+		Limit(limit).
+		Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
 // UpdateSelective 按 id 条件更新指定列（不在事务外单独使用时应放在事务里）。
 // 用 Updates(map) 仅更新给定列，避免 Save 全字段覆盖造成的：
 //   1) 并发场景下丢字段；

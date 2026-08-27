@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	"XiaoLong-Ridy/rpc/paysvc/internal/config"
+	"XiaoLong-Ridy/rpc/paysvc/internal/handler"
+	"XiaoLong-Ridy/rpc/paysvc/internal/logic"
 	"XiaoLong-Ridy/rpc/paysvc/internal/server"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
 	"XiaoLong-Ridy/rpc/paysvc/proto"
@@ -49,6 +54,23 @@ func main() {
 		}
 	}()
 	defer s.Stop()
+
+	// 启动 HTTP 回调服务（处理支付宝异步通知），与 zrpc 服务并行运行。
+	// 仅当配置了 httpAddr 时才启用，避免测试/无公网环境误监听。
+	if c.HttpAddr != "" {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/api/pay/callback/alipay", handler.AlipayCallback(ctx))
+		go func() {
+			fmt.Printf("Starting pay callback http server at %s...\n", c.HttpAddr)
+			if err := http.ListenAndServe(c.HttpAddr, mux); err != nil && err != http.ErrServerClosed {
+				fmt.Fprintf(os.Stderr, "pay callback http server stopped: %v\n", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
+	// 启动支付成功事件对账补发任务（兜底 Kafka 发送失败）。
+	logic.StartEventReconcileJob(context.Background(), ctx, 30*time.Second)
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	s.Start()

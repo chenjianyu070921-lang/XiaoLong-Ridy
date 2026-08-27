@@ -8,8 +8,8 @@ import (
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/mq"
-	"XiaoLong-Ridy/common/priceutil"
 	"XiaoLong-Ridy/rpc/paysvc/internal/model"
+	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
 	"XiaoLong-Ridy/rpc/paysvc/proto"
 
@@ -49,6 +49,7 @@ func NewNotifyPaymentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Not
 // notifyResult 事务回调写入，事务外继续使用。
 type notifyResult struct {
 	statusChanged bool                // 是否在本事务内把状态从「待支付」流转为「支付成功」
+	paymentId     int64               // 支付单 ID（用于更新 event_sent）
 	paidAt        *time.Time          // 流水支付时间（可能为 nil）
 	orderId       int64               // 支付单归属的订单 ID（用于发事件）
 }
@@ -77,6 +78,7 @@ func (l *NotifyPaymentLogic) NotifyPayment(in *proto.NotifyPaymentRequest) (*pro
 			}
 			return err
 		}
+		res.paymentId = int64(p.Id)
 		res.orderId = int64(p.OrderId)
 
 		// 幂等：已支付直接视为成功，事务回滚不影响（仅读）。
@@ -91,9 +93,9 @@ func (l *NotifyPaymentLogic) NotifyPayment(in *proto.NotifyPaymentRequest) (*pro
 		}
 
 		// 4. 金额比对（M5-1）：回调 total_amount_cents 必须等于支付单金额（分）。
-		wantCents := priceutil.YuanToCents(p.Amount)
-		if in.TotalAmountCents != wantCents {
-			return fmt.Errorf("%w: want=%d, got=%d", ErrPaymentAmountMismatch, wantCents, in.TotalAmountCents)
+		// 支付单金额已用 int64 分存储，无需 YuanToCents 转换，彻底避免 double 精度误差。
+		if in.TotalAmountCents != p.AmountCents {
+			return fmt.Errorf("%w: want=%d, got=%d", ErrPaymentAmountMismatch, p.AmountCents, in.TotalAmountCents)
 		}
 
 		// 5. 条件更新（M5-4）：WHERE id=? AND status=待支付
@@ -103,10 +105,12 @@ func (l *NotifyPaymentLogic) NotifyPayment(in *proto.NotifyPaymentRequest) (*pro
 			t := time.Unix(in.PaidAt, 0)
 			paidAt = &t
 		}
+		// event_sent 在事务中先置为 false；Kafka 发送成功后再更新为 true，发送失败可依赖对账补发。
 		updates := map[string]interface{}{
 			"status":         model.PaymentStatusPaid,
 			"transaction_id": in.TransactionId,
 			"paid_at":        paidAt,
+			"event_sent":     false,
 		}
 		txRes := tx.Model(&model.Payment{}).
 			Where("id = ? AND status = ?", p.Id, model.PaymentStatusPending).
@@ -136,16 +140,23 @@ func (l *NotifyPaymentLogic) NotifyPayment(in *proto.NotifyPaymentRequest) (*pro
 
 	// 6. 仅当本事务确实把状态从「待支付」流转为「支付成功」时，才发 Kafka 事件。
 	// 幂等/并发路径不发，避免重复事件。
+	// 投递失败先本地重试；最终失败时 DB 已提交为「已支付/事件未发送」，由对账任务补发，
+	// 仍返回 success 给支付宝，避免支付宝重复回调导致幂等分支无法补发事件。
 	if res.statusChanged {
 		if err := l.publishPaidEvent(in, in.TotalAmountCents, res.orderId); err != nil {
-			l.Errorf("publish order.paid event failed: %v", err)
+			l.Errorf("publish order.paid event failed, will be reconciled later: %v", err)
+		} else if err := repository.NewPaymentRepo(l.svcCtx.DB).UpdateSelective(l.ctx, uint64(res.paymentId), map[string]interface{}{
+			"event_sent": true,
+		}); err != nil {
+			l.Errorf("mark event_sent=true failed: %v", err)
 		}
 	}
 
 	return &proto.NotifyPaymentResponse{Success: true, Message: "success"}, nil
 }
 
-// publishPaidEvent 发送支付成功事件到 Kafka（fire-and-forget）。
+// publishPaidEvent 发送支付成功事件到 Kafka，带有限重试；最终仍失败返回错误，
+// 由调用方记日志并交给对账任务补发。
 func (l *NotifyPaymentLogic) publishPaidEvent(in *proto.NotifyPaymentRequest, totalCents int64, orderId int64) error {
 	event := &mq.OrderPaidEvent{
 		OrderId:     orderId,
@@ -157,5 +168,18 @@ func (l *NotifyPaymentLogic) publishPaidEvent(in *proto.NotifyPaymentRequest, to
 	if err != nil {
 		return err
 	}
-	return l.svcCtx.Producer.Send(constants.TopicOrderPaid, in.PaymentNo, data)
+
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		if i > 0 {
+			// 简单退避：100ms、200ms
+			time.Sleep(time.Duration(i) * 100 * time.Millisecond)
+		}
+		lastErr = l.svcCtx.Producer.Send(constants.TopicOrderPaid, in.PaymentNo, data)
+		if lastErr == nil {
+			return nil
+		}
+		l.Errorf("publish order.paid event attempt %d failed: %v", i+1, lastErr)
+	}
+	return fmt.Errorf("publish order.paid event failed after retries: %w", lastErr)
 }

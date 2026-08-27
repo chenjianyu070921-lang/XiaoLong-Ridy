@@ -9,6 +9,7 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 
+	HttpAddr string        `yaml:"httpAddr" json:"httpAddr"`
 	Mysql    MysqlConf     `yaml:"mysql" json:"mysql"`
 	Alipay   alipay.Config `yaml:"alipay" json:"alipay"`
 	Kafka    KafkaConf     `yaml:"kafka" json:"kafka"`

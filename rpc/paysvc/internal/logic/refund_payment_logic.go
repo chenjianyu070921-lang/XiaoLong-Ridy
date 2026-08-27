@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"XiaoLong-Ridy/common/priceutil"
 	"XiaoLong-Ridy/rpc/paysvc/internal/model"
 	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/rule"
@@ -60,8 +59,8 @@ func (l *RefundPaymentLogic) RefundPayment(in *proto.RefundPaymentRequest) (*pro
 		return nil, err
 	}
 
-	amountCents := priceutil.YuanToCents(p.Amount)
-	refundedCents := priceutil.YuanToCents(p.RefundAmount)
+	amountCents := p.AmountCents
+	refundedCents := p.RefundAmountCents
 	if err := rule.ValidateRefund(p.Status, amountCents, refundedCents, in.RefundAmountCents); err != nil {
 		return nil, err
 	}
@@ -76,7 +75,7 @@ func (l *RefundPaymentLogic) RefundPayment(in *proto.RefundPaymentRequest) (*pro
 	// 3. 条件更新 + 事务（M5-4 / M5-5）。
 	totalRefunded := refundedCents + in.RefundAmountCents
 	updates := map[string]interface{}{
-		"refund_amount": priceutil.CentsToYuan(totalRefunded),
+		"refund_amount": totalRefunded,
 	}
 	// 全额退款才流转为「已退款」，部分退款保持「支付成功」。
 	if totalRefunded >= amountCents {

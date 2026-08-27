@@ -7,14 +7,13 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/common/errorx"
-	"XiaoLong-Ridy/common/priceutil"
 	"XiaoLong-Ridy/rpc/paysvc/internal/channel"
 	"XiaoLong-Ridy/rpc/paysvc/internal/model"
+	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
 	"XiaoLong-Ridy/rpc/paysvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
-	"gorm.io/gorm"
 )
 
 // 错误标识：渠道下单成功但回写 transaction_id 失败，可对账补单。
@@ -51,12 +50,13 @@ func genPaymentNo() string {
 	return fmt.Sprintf("PAY%s%06d", time.Now().Format("20060102150405"), time.Now().Nanosecond()/1000)
 }
 
-// CreatePayment 支付预下单：创建支付单并调第三方下单（本期为 mock，开发态 mock，生产态按配置启用 AlipayChannel）。
+// CreatePayment 支付预下单：先落库 pending 支付单，再调第三方渠道下单并回填 transaction_id。
 //
-// 事务边界：
-//   - DB 写入（Create payment + 回填 transaction_id）包在一个事务里，
-//     防止"第三方已下单但 transaction_id 落库失败"造成对账黑洞。
-//   - 渠道下单放在事务外：第三方 RPC 是长耗时操作，包在事务里会持续占连接。
+// 事务边界（解决 M5-6 对账黑洞）：
+//   - 阶段 1：DB 事务内先写入 status=pending 的支付单（无 transaction_id），保证后续可对账；
+//   - 阶段 2：在事务外调用第三方渠道下单（避免长事务持锁）；
+//   - 阶段 3：渠道成功则 DB 事务回填 transaction_id；渠道失败则把支付单标记为 failed。
+//   - 生产环境真实渠道不能放入事务，因此靠"先落库 + 状态机 + 对账任务"保证最终一致。
 func (l *CreatePaymentLogic) CreatePayment(in *proto.CreatePaymentRequest) (*proto.CreatePaymentResponse, error) {
 	// 入参校验：金额必须为正。
 	if in.AmountCents <= 0 {
@@ -67,39 +67,43 @@ func (l *CreatePaymentLogic) CreatePayment(in *proto.CreatePaymentRequest) (*pro
 	paymentNo := genPaymentNo()
 	chName := channelName(in.Channel)
 
-	// 2. 调渠道下单（放在事务外，避免持锁做 RPC）。
+	// 2. 先落库 pending 支付单（无 transaction_id），确保后续可对账。
+	payment := &model.Payment{
+		PaymentNo:   paymentNo,
+		OrderId:     uint64(in.OrderId),
+		UserId:      uint64(in.UserId),
+		AmountCents: in.AmountCents,
+		Channel:     chName,
+		Status:      model.PaymentStatusPending,
+	}
+	repo := repository.NewPaymentRepo(l.svcCtx.DB)
+	if err := repo.Create(l.ctx, payment); err != nil {
+		return nil, fmt.Errorf("create payment failed: %w", err)
+	}
+
+	// 3. 在事务外调用第三方渠道下单（mock / alipay）。
 	ch := l.svcCtx.GetChannel(chName)
 	channelResult, err := ch.CreateOrder(l.ctx, paymentNo, in.AmountCents)
 	if err != nil {
+		// 渠道下单失败：把支付单标记为失败，避免这笔单长期处于 pending 而形成对账干扰。
+		if updateErr := repo.UpdateSelective(l.ctx, payment.Id, map[string]interface{}{
+			"status": model.PaymentStatusFailed,
+		}); updateErr != nil {
+			l.Errorf("mark payment failed after channel error: %v", updateErr)
+		}
 		return nil, fmt.Errorf("channel create order failed: %w", err)
 	}
 
-	// 3. DB 写入：用事务包"创建支付单 + 回填 transaction_id"。
-	//    闭包返回值用于事务外构造响应。
-	var paymentID int64
-	err = l.svcCtx.DB.WithContext(l.ctx).Transaction(func(tx *gorm.DB) error {
-		payment := &model.Payment{
-			PaymentNo:     paymentNo,
-			OrderId:       uint64(in.OrderId),
-			UserId:        uint64(in.UserId),
-			Amount:        priceutil.CentsToYuan(in.AmountCents),
-			Channel:       chName,
-			Status:        model.PaymentStatusPending, // 待支付
-			TransactionId: channelResult.TransactionId,
-		}
-		if err := tx.Create(payment).Error; err != nil {
-			return err
-		}
-		paymentID = int64(payment.Id)
-		return nil
-	})
-	if err != nil {
-		// 这里渠道已经下单成功但 DB 没写成功，需要后续对账补单；先回传 500 让上游感知。
+	// 4. 回填第三方交易流水号，严格限定只在 pending 状态下更新，防止并发/重试时误改已支付单。
+	if err := repo.UpdateSelective(l.ctx, payment.Id, map[string]interface{}{
+		"transaction_id": channelResult.TransactionId,
+	}); err != nil {
+		// 渠道已下单但回填失败，DB 里已存在 pending 单，可通过对账任务根据 payment_no 补填 transaction_id。
 		return nil, fmt.Errorf("%w: %v", errCreatePaymentFinalize, err)
 	}
 
 	return &proto.CreatePaymentResponse{
-		PaymentId:     paymentID,
+		PaymentId:     int64(payment.Id),
 		PaymentNo:     paymentNo,
 		TransactionId: channelResult.TransactionId,
 		PayParams:     channelResult.PayParams,

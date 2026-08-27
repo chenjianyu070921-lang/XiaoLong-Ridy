@@ -20,7 +20,7 @@ func TestRefundPayment_Success(t *testing.T) {
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs("PAY123", 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
-			AddRow(1, "PAY123", 1001, 2001, 100.00, "wechat", 2, "tx_1", 0.00, nil, time.Now(), time.Now()))
+			AddRow(1, "PAY123", 1001, 2001, 10000, "wechat", 2, "tx_1", 0, 0, nil, time.Now(), time.Now()))
 
 	// 2. 更新支付单（部分退款：退款 3000 分 = 30 元）
 	mock.ExpectBegin()
@@ -52,7 +52,7 @@ func TestRefundPayment_Exceed(t *testing.T) {
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs("PAY123", 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
-			AddRow(1, "PAY123", 1001, 2001, 100.00, "wechat", 2, "tx_1", 0.00, nil, time.Now(), time.Now()))
+			AddRow(1, "PAY123", 1001, 2001, 10000, "wechat", 2, "tx_1", 0, 0, nil, time.Now(), time.Now()))
 
 	l := NewRefundPaymentLogic(context.Background(), svcCtx)
 	_, err := l.RefundPayment(&proto.RefundPaymentRequest{
@@ -72,7 +72,7 @@ func TestRefundPayment_NotPaid(t *testing.T) {
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs("PAY123", 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
-			AddRow(1, "PAY123", 1001, 2001, 100.00, "wechat", 1, "", 0.00, nil, time.Now(), time.Now()))
+			AddRow(1, "PAY123", 1001, 2001, 10000, "wechat", 1, "", 0, 0, nil, time.Now(), time.Now()))
 
 	l := NewRefundPaymentLogic(context.Background(), svcCtx)
 	_, err := l.RefundPayment(&proto.RefundPaymentRequest{

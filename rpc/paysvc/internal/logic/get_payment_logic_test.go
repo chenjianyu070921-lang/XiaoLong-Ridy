@@ -19,7 +19,7 @@ func TestGetPayment_ByPaymentNo(t *testing.T) {
 	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
 		WithArgs("PAY123", 1).
 		WillReturnRows(sqlmock.NewRows(paymentColumns).
-			AddRow(1, "PAY123", 1001, 2001, 25.00, "wechat", 2, "tx_1", 5.00, nil, time.Now(), time.Now()))
+			AddRow(1, "PAY123", 1001, 2001, 2500, "wechat", 2, "tx_1", 500, 1, nil, time.Now(), time.Now()))
 
 	l := NewGetPaymentLogic(context.Background(), svcCtx)
 	resp, err := l.GetPayment(&proto.GetPaymentRequest{PaymentNo: "PAY123"})

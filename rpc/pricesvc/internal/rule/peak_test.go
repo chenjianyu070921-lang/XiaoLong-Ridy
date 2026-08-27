@@ -29,8 +29,3 @@ func TestIsPeakTime(t *testing.T) {
 	}
 }
 
-func TestPeakFactor(t *testing.T) {
-	if PeakFactor <= 1.0 {
-		t.Errorf("PeakFactor = %v, should be > 1.0", PeakFactor)
-	}
-}
