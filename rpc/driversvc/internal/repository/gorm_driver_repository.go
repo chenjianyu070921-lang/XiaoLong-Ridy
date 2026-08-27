@@ -203,6 +203,26 @@ func (r *gormDriverRepository) UpdateLocationStatus(ctx context.Context, driverI
 		}).Error
 }
 
+// UpdateStatusAndLocation 在一个事务里同时更新 driver 表和 driver_location 表的 online_status，避免中间状态不一致。
+func (r *gormDriverRepository) UpdateStatusAndLocation(ctx context.Context, driverID uint64, status int8) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Driver{}).
+			Where("id = ?", driverID).
+			Updates(map[string]interface{}{"online_status": status}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.DriverLocation{}).
+			Where("driver_id = ?", driverID).
+			Updates(map[string]interface{}{
+				"online_status": status,
+				"report_time":   time.Now(),
+			}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
 // GetDriverScore returns the driver's scoring metrics.
 func (r *gormDriverRepository) GetDriverScore(ctx context.Context, driverID uint64) (*model.DriverScore, error) {
 	var score model.DriverScore

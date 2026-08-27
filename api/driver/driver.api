@@ -1,4 +1,4 @@
-syntax = "v1"
+﻿syntax = "v1"
 
 info (
 	title:  "driver api"
@@ -383,7 +383,7 @@ type WithdrawRecord {
 }
 
 type ListWithdrawsResponse {
-	Records []WithdrawRecord `json:"records"`
+	List  []WithdrawRecord `json:"list"`
 	Total   int64            `json:"total"`
 }
 

@@ -34,10 +34,18 @@ func syncDispatchDriverOnlineWithPreference(ctx context.Context, svcCtx *svc.Ser
 		return nil
 	}
 	member := strconv.FormatInt(driverID, 10)
+	// #4 修复：检查司机是否在 busy 集合（已接单/行程中），已接单则不加回可派单池，避免一司多单。
+	busy, err := svcCtx.RedisClient.SIsMember(ctx, constants.RedisDriverBusy, member).Result()
+	if err != nil {
+		return err
+	}
+	if busy {
+		return nil
+	}
 	geoKey := fmt.Sprintf(constants.RedisDriverGeo, defaultDispatchCity)
 	posKey := fmt.Sprintf(constants.RedisDriverPos, driverID)
 	reportTime := strconv.FormatInt(time.Now().Unix(), 10)
-	_, err := svcCtx.RedisClient.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+	_, err = svcCtx.RedisClient.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 		pipe.GeoAdd(ctx, geoKey, &redis.GeoLocation{
 			Name:      member,
 			Longitude: longitude,

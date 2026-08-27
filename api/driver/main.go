@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime/debug"
+	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/handler"
 	"XiaoLong-Ridy/api/driver/internal/middleware"
@@ -63,14 +65,32 @@ func main() {
 	}
 
 	server := &http.Server{
-		Addr:    address,
-		Handler: newHTTPHandler(svcCtx),
+		Addr:         address,
+		Handler:      recoverMiddleware(newHTTPHandler(svcCtx)),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(fmt.Errorf("start driver api: %w", err))
 	}
+}
+
+// recoverMiddleware 捕获 handler panic，返回 500 而非让连接异常断开。
+func recoverMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("panic recovered: %v\n%s", rec, debug.Stack())
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"code":50000,"message":"internal server error","data":null,"timestamp":0,"traceId":""}`))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func loadDriverConfig(path string) (driverConfig, error) {

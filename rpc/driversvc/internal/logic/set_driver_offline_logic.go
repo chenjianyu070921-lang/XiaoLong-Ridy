@@ -35,11 +35,8 @@ func (l *SetDriverOfflineLogic) SetDriverOffline(in *proto.SetDriverOfflineReque
 	if err := l.svcCtx.OnlineStore.SetOffline(l.ctx, in.GetDriverId()); err != nil {
 		return nil, err
 	}
-	updates := map[string]interface{}{"online_status": DriverOffline}
-	if err := l.svcCtx.DriverRepository.Update(l.ctx, uint64(in.GetDriverId()), updates); err != nil {
-		return nil, err
-	}
-	if err := l.svcCtx.DriverRepository.UpdateLocationStatus(l.ctx, uint64(in.GetDriverId()), DriverOffline); err != nil {
+	// 合并为一个事务，避免中间状态不一致
+	if err := l.svcCtx.DriverRepository.UpdateStatusAndLocation(l.ctx, uint64(in.GetDriverId()), DriverOffline); err != nil {
 		return nil, err
 	}
 	if err := syncDispatchDriverOffline(l.ctx, l.svcCtx, in.GetDriverId()); err != nil {

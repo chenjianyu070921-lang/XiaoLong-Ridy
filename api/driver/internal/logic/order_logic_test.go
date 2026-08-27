@@ -491,7 +491,7 @@ func TestGetMyOrderDetailRequiresOrderOwnedByDriver(t *testing.T) {
 	}
 	if resp.Order.OrderID != 1001 ||
 		resp.Order.DriverID != 25 ||
-		resp.Order.UserID != 300 ||
+		resp.Order.UserID != 0 || // UserID 对司机隐藏，应为 0
 		resp.Order.FromLongitude != 116.391 ||
 		resp.Order.ToLatitude != 39.991 ||
 		resp.Order.EstimatedDistanceM != 12500 ||

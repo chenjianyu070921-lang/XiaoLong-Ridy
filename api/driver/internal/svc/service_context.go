@@ -15,9 +15,31 @@ import (
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+// defaultRPCTimeout 是 gRPC 调用的默认超时，下游不可用时快速失败而非 hang。
+const defaultRPCTimeout = 3 * time.Second
+
+// timeoutInterceptor 为未设置 deadline 的 gRPC 调用统一加超时。
+func timeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if _, ok := ctx.Deadline(); !ok {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// grpcDialOpts 是所有 gRPC 客户端共用的拨号选项：不安全凭证 + 统一超时拦截器。
+var grpcDialOpts = []grpc.DialOption{
+	grpc.WithTransportCredentials(insecure.NewCredentials()),
+	grpc.WithChainUnaryInterceptor(timeoutInterceptor(defaultRPCTimeout)),
+}
 
 type DriverClient interface {
 	CreateDriver(ctx context.Context, req *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error)
@@ -245,10 +267,10 @@ func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, location
 }
 
 func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr string, mysqlConf commonconfig.MysqlConf) *ServiceContext {
-	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	locationConn, locationErr := grpc.NewClient(locationGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpcDialOpts...)
+	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpcDialOpts...)
+	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpcDialOpts...)
+	locationConn, locationErr := grpc.NewClient(locationGRPCAddr, grpcDialOpts...)
 
 	// Code cache: use Redis when configured, otherwise fall back to local memory.
 	var codeCache CodeCache
@@ -280,10 +302,12 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 	if strings.TrimSpace(mysqlConf.Dsn) != "" {
 		db, err := datasource.NewMysqlClient(mysqlConf)
 		if err != nil {
-			panic("driver api mysql init failed: " + err.Error())
+			// 妥协：MySQL 初始化失败不 panic，打日志后继续启动，Review/Trajectory 接口返回 501 降级。
+			logx.Errorf("driver api mysql init failed, review/trajectory endpoints will be unavailable: %v", err)
+		} else {
+			svcCtx.ReviewRepository = NewGormReviewRepository(db)
+			svcCtx.TrajectoryRepository = NewGormTrajectoryRepository(db)
 		}
-		svcCtx.ReviewRepository = NewGormReviewRepository(db)
-		svcCtx.TrajectoryRepository = NewGormTrajectoryRepository(db)
 	}
 	return svcCtx
 }

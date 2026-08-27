@@ -92,6 +92,9 @@ func (r *reportLocationDriverRepository) Update(_ context.Context, _ uint64, upd
 	return nil
 }
 func (r *reportLocationDriverRepository) Delete(context.Context, *model.Driver) error { return nil }
+func (r *reportLocationDriverRepository) UpdateStatusAndLocation(context.Context, uint64, int8) error {
+	return nil
+}
 
 type reportLocationPreferenceRepository struct {
 	pref *model.DriverListenPreference

@@ -42,14 +42,16 @@ func (l *SetDriverListenPreferenceLogic) SetDriverListenPreference(in *proto.Set
 		return nil, err
 	}
 	updatedAt := time.Now().Unix()
+	// 偏好已保存到 DB，后续派单侧同步失败仅告警，不阻断主流程（避免司机端收到"设置失败"但实际已保存）
 	if l.svcCtx.OnlineStore != nil {
 		state, err := l.svcCtx.OnlineStore.Get(l.ctx, in.GetDriverId())
 		if err != nil {
-			return nil, err
+			l.Errorf("get online state for listen preference sync failed: %v", err)
+			return listenPreferenceResponse(in.GetDriverId(), pref, updatedAt), nil
 		}
 		if state != nil && state.OnlineStatus == int32(DriverOnline) {
 			if err := syncDispatchDriverOnlineWithPreference(l.ctx, l.svcCtx, in.GetDriverId(), state.Longitude, state.Latitude, pref); err != nil {
-				return nil, err
+				l.Errorf("sync dispatch listen preference failed: %v", err)
 			}
 		}
 	}

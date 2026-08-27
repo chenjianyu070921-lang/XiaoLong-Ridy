@@ -69,8 +69,9 @@ func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest)
 	if err := l.svcCtx.DriverRepository.Update(l.ctx, uint64(in.DriverId), updates); err != nil {
 		return nil, err
 	}
+	// 派单侧同步失败仅告警，不阻断主流程（onlinestore 和 DB 已更新，避免司机端收到"上线失败"但实际已上线）
 	if err := syncDispatchDriverOnlineWithPreference(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude(), pref); err != nil {
-		return nil, err
+		l.Errorf("sync dispatch online failed (driver already online in DB/Redis): %v", err)
 	}
 	return &proto.SetDriverOnlineResponse{
 		DriverId:     in.DriverId,

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"  // 用于生成随机 traceID
 	"encoding/hex" // 将随机字节编码为十六进制字符串
 	"encoding/json" // 提供 JSON 编解码能力
+	"errors"
 	"net/http"      // HTTP 基础类型与状态码
 	"strconv"       // 将查询参数字符串解析为整型
 	"time"          // 生成响应时间戳
@@ -52,6 +53,9 @@ func traceID() string {
 	return "trace_" + hex.EncodeToString(value[:])
 }
 
+// maxRequestBodySize 限制 POST 请求体最大 1MB，防止大请求打内存。
+const maxRequestBodySize = 1 << 20
+
 // decodeJSON 校验请求方法为 POST 并解析 JSON 请求体到 target；方法不支持返回 405、解析失败返回 400（已写响应）。
 // 返回 true 表示解析成功，调用方继续处理；false 表示已写错误响应，应直接返回。
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
@@ -61,8 +65,16 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 		writeError(w, http.StatusMethodNotAllowed, 50000, "仅支持POST请求")
 		return false
 	}
+	// 限制请求体大小，防止超大 body 打内存。
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
 	// 解析 JSON 请求体到目标结构。
 	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
+		// 请求体过大。
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			writeError(w, http.StatusRequestEntityTooLarge, 50000, "请求体过大")
+			return false
+		}
 		// 解析失败，返回 400 与错误信息。
 		writeError(w, http.StatusBadRequest, 50000, "请求体不是合法JSON")
 		return false

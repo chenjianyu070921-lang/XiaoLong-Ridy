@@ -14,6 +14,8 @@ import (
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type OrderLogic struct {
@@ -40,6 +42,8 @@ func (l *OrderLogic) AcceptOrder(driverID, orderID int64) (*types.AcceptOrderRes
 	if err != nil {
 		return nil, err
 	}
+	// 接单后从 available 集合移除，避免大厅/WS 重复展示已接订单
+	l.removeFromAvailable(driverID, orderID)
 	return &types.AcceptOrderResponse{
 		OrderID: resp.GetOrderId(),
 		Status:  int32(resp.GetStatus()),
@@ -68,12 +72,11 @@ func (l *OrderLogic) CancelOrder(driverID int64, req *types.CancelOrderRequest) 
 		return nil, err
 	}
 	if driverClient, err := l.driverClient(); err == nil {
-		_, err = driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
 			DriverId:     driverID,
 			OnlineStatus: 1,
-		})
-		if err != nil {
-			return nil, err
+		}); sErr != nil {
+			logx.WithContext(l.ctx).Errorf("set driver online after cancel failed (order already cancelled): %v", sErr)
 		}
 	}
 	return &types.CancelOrderResponse{
@@ -98,12 +101,11 @@ func (l *OrderLogic) StartTrip(driverID, orderID int64) (*types.StartTripRespons
 		return nil, err
 	}
 	if driverClient, err := l.driverClient(); err == nil {
-		_, err = driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
 			DriverId:     driverID,
 			OnlineStatus: 2,
-		})
-		if err != nil {
-			return nil, err
+		}); sErr != nil {
+			logx.WithContext(l.ctx).Errorf("set driver on-trip after start failed (order already started): %v", sErr)
 		}
 	}
 	return &types.StartTripResponse{
@@ -151,12 +153,11 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 		return nil, err
 	}
 	if driverClient, err := l.driverClient(); err == nil {
-		_, err = driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
 			DriverId:     driverID,
 			OnlineStatus: 1,
-		})
-		if err != nil {
-			return nil, err
+		}); sErr != nil {
+			logx.WithContext(l.ctx).Errorf("set driver online after finish failed (order already finished): %v", sErr)
 		}
 	}
 	return &types.FinishTripResponse{
@@ -186,6 +187,8 @@ func (l *OrderLogic) RejectOrder(driverID int64, req *types.RejectOrderRequest) 
 	if err != nil {
 		return nil, err
 	}
+	// 拒单后从 available 集合移除，避免大厅/WS 在 TTL 过期前重复展示已拒订单
+	l.removeFromAvailable(driverID, req.OrderID)
 	return &types.RejectOrderResponse{
 		OrderID:  resp.GetOrderId(),
 		DriverID: resp.GetDriverId(),
@@ -444,7 +447,7 @@ func (l *OrderLogic) GetMyOrderDetail(driverID, orderID int64) (*types.GetMyOrde
 	return &types.GetMyOrderDetailResponse{Order: types.OrderDetail{
 		OrderID:             order.GetOrderId(),
 		OrderNo:             order.GetOrderNo(),
-		UserID:              order.GetUserId(),
+		UserID:              0, // 对司机隐藏乘客 UserID，避免隐私泄露
 		DriverID:            order.GetDriverId(),
 		CarType:             order.GetCarType(),
 		FromAddress:         order.GetFromAddress(),
@@ -493,4 +496,14 @@ func (l *OrderLogic) dispatchClient() (svc.DispatchClient, error) {
 		return nil, ErrDispatchClientNotConfigured
 	}
 	return l.svcCtx.DispatchClient, nil
+}
+
+// removeFromAvailable 从 driver:available:%d 集合移除指定订单，接单/拒单后调用，
+// 避免大厅和 WS 在集合 TTL 过期前重复展示已处理的订单。
+func (l *OrderLogic) removeFromAvailable(driverID, orderID int64) {
+	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || driverID <= 0 || orderID <= 0 {
+		return
+	}
+	key := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
+	_ = l.svcCtx.RedisClient.SRem(l.ctx, key, fmt.Sprint(orderID)).Err()
 }

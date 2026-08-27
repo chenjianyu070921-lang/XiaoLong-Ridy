@@ -26,6 +26,8 @@ type DriverRepository interface {
 	UpsertLocation(ctx context.Context, location *model.DriverLocation) error
 	// UpdateLocationStatus updates online_status in driver_location.
 	UpdateLocationStatus(ctx context.Context, driverID uint64, status int8) error
+	// UpdateStatusAndLocation 在一个事务里同时更新 driver 表和 driver_location 表的 online_status。
+	UpdateStatusAndLocation(ctx context.Context, driverID uint64, status int8) error
 	// GetDriverScore returns nil, nil when no score record exists.
 	GetDriverScore(ctx context.Context, driverID uint64) (*model.DriverScore, error)
 	// Update 按 ID 增量更新司机字段。

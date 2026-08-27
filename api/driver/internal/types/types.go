@@ -1,4 +1,4 @@
-package types
+﻿package types
 
 import "encoding/json"
 
@@ -417,7 +417,7 @@ type WithdrawRecord struct {
 }
 
 type ListWithdrawsResponse struct {
-	Records []WithdrawRecord `json:"records"`
+	List  []WithdrawRecord `json:"list"`
 	Total   int64            `json:"total"`
 }
 

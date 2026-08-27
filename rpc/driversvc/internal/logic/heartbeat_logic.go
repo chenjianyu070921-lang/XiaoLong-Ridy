@@ -82,6 +82,11 @@ func (l *HeartbeatLogic) Heartbeat(in *proto.HeartbeatRequest) (*proto.Heartbeat
 				return nil, err
 			}
 		}
+	} else {
+		// 被踢：旧设备位置已失效，清理 GEO 和在线集合，避免派单到错误位置（#7 修复）
+		if err := syncDispatchDriverOffline(l.ctx, l.svcCtx, in.GetDriverId()); err != nil {
+			l.Errorf("sync dispatch offline on kick failed: %v", err)
+		}
 	}
 	return &proto.HeartbeatResponse{
 		OnlineStatus: onlineStatus,
