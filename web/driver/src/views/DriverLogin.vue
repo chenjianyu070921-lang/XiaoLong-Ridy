@@ -125,7 +125,7 @@ async function submitLogin(action) {
     await action()
     closeToast()
     showToast('登录成功')
-    router.replace('/driver/home')
+    router.replace('/home')
   } catch (error) {
     closeToast()
     showToast(apiErrorMessage(error, '登录失败'))

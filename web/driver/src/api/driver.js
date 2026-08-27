@@ -41,7 +41,7 @@ driverRequest.interceptors.response.use(
       localStorage.removeItem('driverCurrentOrder')
       localStorage.removeItem('driverCurrentOrderId')
       localStorage.removeItem('driverTripPhase')
-      router.push('/driver/login')
+      router.push('/login')
       showToast('司机登录已过期，请重新登录')
     } else {
       if (!error.config?.silentError) {

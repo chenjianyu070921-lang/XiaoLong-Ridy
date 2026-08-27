@@ -20,12 +20,7 @@ export default defineConfig({
         path.resolve(__dirname, 'src')
       ]
     },
-    proxy: {
-      '/api/driver': {
-        target: 'http://localhost:8082',
-        changeOrigin: true,
-        ws: true
-      },
+    proxy: {
       '/api/passenger': {
         target: 'http://localhost:8091',
         changeOrigin: true

@@ -1,0 +1,230 @@
+/* 全局样式 */
+:root {
+  --primary-color: #7C3AED;
+  --primary-light: #9333EA;
+  --primary-dark: #6D28D9;
+  --secondary-color: #F59E0B;
+  --success-color: #10B981;
+  --warning-color: #F59E0B;
+  --danger-color: #EF4444;
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-light: #9CA3AF;
+  --bg-color: #F5F5F5;
+  --bg-white: #FFFFFF;
+  --border-color: #E5E7EB;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  color: var(--text-primary);
+  background-color: var(--bg-color);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* 页面容器 */
+.page-container {
+  min-height: 100vh;
+  background-color: var(--bg-white);
+}
+
+/* 安全区域适配 */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* 主色调按钮 */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 40px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.btn-primary:disabled {
+  background: #D1D5DB;
+  box-shadow: none;
+}
+
+/* 次要按钮（绿色） */
+.btn-success {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 40px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+/* 卡片样式 */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 页面标题栏 */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.page-header .title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.page-header .back-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.page-header .back-btn:active {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* 底部固定按钮 */
+.fixed-bottom-btn {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 20px;
+  background: white;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  z-index: 99;
+}
+
+.fixed-bottom-btn button {
+  width: 100%;
+}
+
+/* 输入框样式 */
+.custom-input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.custom-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+/* 文字省略 */
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Flex布局工具类 */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* 统一触控反馈和键盘焦点，兼顾移动端操作与无障碍使用。 */
+button { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--primary-light); outline-offset: 2px; }

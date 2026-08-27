@@ -1,12 +1,13 @@
 {
-  "name": "xiaolong-ridy-h5",
+  "name": "xiaolong-ridy-driver",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5174",
+    "dev": "vite --host 0.0.0.0 --port 5175",
     "build": "vite build",
-    "preview": "vite preview"
+    "test:driver-web": "node scripts/check-driver-web.mjs",
+    "preview": "vite preview --host 0.0.0.0 --port 4175"
   },
   "dependencies": {
     "vue": "^3.5.13",

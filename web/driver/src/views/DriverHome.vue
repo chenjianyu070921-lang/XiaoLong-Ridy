@@ -857,7 +857,7 @@ function logoutDriver() {
   stopTripRealtime()
   if (pushSocket) pushSocket.close()
   driverStore.logout()
-  router.replace('/driver/login')
+  router.replace('/login')
 }
 
 function compact(payload) {
