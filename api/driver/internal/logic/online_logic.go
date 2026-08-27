@@ -30,12 +30,19 @@ func (l *OnlineLogic) SetOnline(driverID int64, req *types.SetOnlineRequest) (*t
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.SetDriverOnline(l.ctx, &driversproto.SetDriverOnlineRequest{
+	rpcReq := &driversproto.SetDriverOnlineRequest{
 		DriverId:  driverID,
 		DeviceId:  strings.TrimSpace(req.DeviceID),
 		Longitude: req.Longitude,
 		Latitude:  req.Latitude,
-	})
+	}
+	if req.AcceptRealtime != nil {
+		rpcReq.AcceptRealtime = req.AcceptRealtime
+	}
+	if req.AcceptReservation != nil {
+		rpcReq.AcceptReservation = req.AcceptReservation
+	}
+	resp, err := client.SetDriverOnline(l.ctx, rpcReq)
 	if err != nil {
 		return nil, err
 	}

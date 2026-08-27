@@ -80,6 +80,9 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/users", r.authRequired(r.handleUsers))
 	r.mux.HandleFunc("/admin/v1/users/", r.authRequired(r.handleUserByID))
 
+	r.mux.HandleFunc("/admin/v1/drivers", r.authRequired(r.handleDrivers))
+	r.mux.HandleFunc("/admin/v1/drivers/", r.authRequired(r.handleDriverByID))
+
 	r.mux.HandleFunc("/admin/v1/driver-certifications", r.authRequired(r.handleDriverCertifications))
 	r.mux.HandleFunc("/admin/v1/driver-certifications/", r.authRequired(r.handleDriverCertificationByID))
 
@@ -421,6 +424,44 @@ func (r *Router) handleUserByID(w http.ResponseWriter, req *http.Request) {
 	writeSuccess(w, types.CommonResponse{Message: "ok"})
 }
 
+// handleDrivers returns the driver base record list.
+func (r *Router) handleDrivers(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	query := req.URL.Query()
+	resp, err := logic.NewDriverLogic(r.ctx).ListDrivers(req.Context(), types.DriverListRequest{
+		Page:     intQuery(req, "page", 1),
+		PageSize: intQuery(req, "page_size", 20),
+		Keyword:  query.Get("keyword"),
+		Status:   int32Query(req, "status", 0),
+	})
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleDriverByID returns a single driver base record.
+func (r *Router) handleDriverByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/drivers/")
+	if !ok || action != "" {
+		writeError(w, http.StatusBadRequest, 40001, "invalid driver id")
+		return
+	}
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewDriverLogic(r.ctx).DriverDetail(req.Context(), id)
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
 // handleDriverCertifications 返回司机审核列表。
 func (r *Router) handleDriverCertifications(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {

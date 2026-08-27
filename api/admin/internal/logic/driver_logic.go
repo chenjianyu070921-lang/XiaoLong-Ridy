@@ -20,6 +20,57 @@ func NewDriverLogic(ctx *svc.ServiceContext) *DriverLogic {
 	return &DriverLogic{ctx: ctx}
 }
 
+// ListDrivers 查询司机基础资料列表。
+func (l *DriverLogic) ListDrivers(ctx context.Context, req types.DriverListRequest) (*types.PageResult, error) {
+	resp, err := l.ctx.AdminSvc.ListDrivers(ctx, &adminclient.DriverListRequest{
+		Page:     int32(req.Page),
+		PageSize: int32(req.PageSize),
+		Keyword:  req.Keyword,
+		Status:   req.Status,
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]types.DriverDTO, 0, len(resp.List))
+	for _, item := range resp.List {
+		items = append(items, toDriverDTO(item))
+	}
+	return &types.PageResult{List: items, Total: resp.Total, Page: int(resp.Page), PageSize: int(resp.PageSize)}, nil
+}
+
+// DriverDetail 查询司机基础资料详情。
+func (l *DriverLogic) DriverDetail(ctx context.Context, id int64) (*types.DriverDTO, error) {
+	resp, err := l.ctx.AdminSvc.GetDriver(ctx, &adminclient.DriverDetailRequest{Id: id})
+	if err != nil {
+		return nil, err
+	}
+	item := toDriverDTO(resp)
+	return &item, nil
+}
+
+func toDriverDTO(item *adminclient.Driver) types.DriverDTO {
+	if item == nil {
+		return types.DriverDTO{}
+	}
+	return types.DriverDTO{
+		ID:              item.Id,
+		Phone:           item.Phone,
+		RealName:        item.RealName,
+		IDCardNo:        item.IdCardNo,
+		DriverLicenseNo: item.DriverLicenseNo,
+		AvatarURL:       item.AvatarUrl,
+		Status:          item.Status,
+		OnlineStatus:    item.OnlineStatus,
+		VehicleID:       item.VehicleId,
+		PlateNo:         item.PlateNo,
+		VehicleStatus:   item.VehicleStatus,
+		CertificationID: item.CertificationId,
+		AuditStatus:     item.AuditStatus,
+		AuditRemark:     item.AuditRemark,
+		CreatedAt:       item.CreatedAt,
+		UpdatedAt:       item.UpdatedAt,
+	}
+}
 // ListCertifications 查询司机审核列表。
 func (l *DriverLogic) ListCertifications(ctx context.Context, req types.DriverCertificationListRequest) (*types.PageResult, error) {
 	resp, err := l.ctx.AdminSvc.ListDriverCertifications(ctx, &adminclient.DriverCertificationListRequest{

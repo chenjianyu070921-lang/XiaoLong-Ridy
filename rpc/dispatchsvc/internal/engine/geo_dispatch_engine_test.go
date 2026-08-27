@@ -17,7 +17,7 @@ func TestGeoDispatchEngineMockFallbackDisabled(t *testing.T) {
 	if eng.enableMock {
 		t.Fatal("NewGeoDispatchEngine() should default to enableMock=false")
 	}
-	candidates, err := eng.FindCandidates(context.Background(), 1, 116.47, 39.9, 1, "110000")
+	candidates, err := eng.FindCandidates(context.Background(), 1, 116.47, 39.9, 1, "110000", OrderTypeRealtime)
 	if err != nil {
 		t.Fatalf("FindCandidates() error = %v", err)
 	}
@@ -36,7 +36,7 @@ func TestGeoDispatchEngineMockFallbackEnabled(t *testing.T) {
 	if !eng.enableMock {
 		t.Fatal("NewGeoDispatchEngineWithMock(true) should set enableMock=true")
 	}
-	candidates, err := eng.FindCandidates(context.Background(), 1, 116.47, 39.9, 1, "110000")
+	candidates, err := eng.FindCandidates(context.Background(), 1, 116.47, 39.9, 1, "110000", OrderTypeRealtime)
 	if err != nil {
 		t.Fatalf("FindCandidates() error = %v", err)
 	}
@@ -78,5 +78,18 @@ func TestGeoDispatchEngineAvailabilityNil(t *testing.T) {
 	filtered := eng.filterAvailable(context.Background(), locs)
 	if len(filtered) != 2 {
 		t.Fatalf("filterAvailable() with nil availability len = %d, want 2", len(filtered))
+	}
+}
+
+func TestGeoDispatchEnginePreferenceFilter(t *testing.T) {
+	eng := &geoDispatchEngine{
+		preference: func(_ context.Context, driverID uint64, orderType int32) bool {
+			return driverID == 1 && orderType == OrderTypeReservation
+		},
+	}
+	locs := []redis.GeoLocation{{Name: "1"}, {Name: "2"}}
+	filtered := eng.filterPreference(context.Background(), locs, OrderTypeReservation)
+	if len(filtered) != 1 || filtered[0].Name != "1" {
+		t.Fatalf("filterPreference() = %+v, want only driver 1", filtered)
 	}
 }

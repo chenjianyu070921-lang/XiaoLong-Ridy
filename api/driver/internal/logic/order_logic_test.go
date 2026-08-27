@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
@@ -9,11 +10,15 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 type fakeOrderClient struct {
 	getOrderRequest           *orderproto.GetOrderRequest
 	getOrderResponseDriverID  int64
+	getOrderResponseStatus    orderproto.OrderStatus
 	acceptRequest             *orderproto.AcceptOrderRequest
 	cancelRequest             *orderproto.CancelOrderRequest
 	arriveRequest             *orderproto.ConfirmArriveRequest
@@ -21,13 +26,27 @@ type fakeOrderClient struct {
 	finishRequest             *orderproto.FinishTripRequest
 	finishResponseAmountCents int64
 	listOrdersRequest         *orderproto.ListOrdersRequest
+	listOrdersResponse        *orderproto.ListOrdersResponse
+	getOrderResponses         map[int64]*orderproto.GetOrderResponse
 }
 
 func (f *fakeOrderClient) GetOrder(_ context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
 	f.getOrderRequest = req
+	if f.getOrderResponses != nil {
+		if resp, ok := f.getOrderResponses[req.GetOrderId()]; ok {
+			return resp, nil
+		}
+	}
 	driverID := f.getOrderResponseDriverID
 	if driverID == 0 {
 		driverID = 25
+	}
+	if driverID < 0 {
+		driverID = 0
+	}
+	status := f.getOrderResponseStatus
+	if status == orderproto.OrderStatus_ORDER_STATUS_UNSPECIFIED {
+		status = orderproto.OrderStatus_ORDER_STATUS_ACCEPTED
 	}
 	return &orderproto.GetOrderResponse{
 		OrderId:             req.OrderId,
@@ -35,30 +54,34 @@ func (f *fakeOrderClient) GetOrder(_ context.Context, req *orderproto.GetOrderRe
 		UserId:              300,
 		DriverId:            driverID,
 		CarType:             1,
-		FromAddress:         "璧风偣",
+		FromAddress:         "pickup",
 		FromLongitude:       116.391,
 		FromLatitude:        39.907,
-		ToAddress:           "缁堢偣",
+		ToAddress:           "destination",
 		ToLongitude:         116.481,
 		ToLatitude:          39.991,
 		EstimatedDistanceM:  12500,
 		EstimatedDurationS:  1800,
 		EstimatedPriceCents: 29900,
-		Status:              orderproto.OrderStatus_ORDER_STATUS_ACCEPTED,
+		PayableCents:        1001,
+		PaidCents:           1001,
+		Status:              status,
 		CreatedAt:           100,
 		UpdatedAt:           200,
 	}, nil
-	return &orderproto.GetOrderResponse{OrderId: req.OrderId, OrderNo: "NO-1001", FromAddress: "起点", ToAddress: "终点", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 29900, CreatedAt: 100}, nil
 }
 
 func (f *fakeOrderClient) ListOrders(_ context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
 	f.listOrdersRequest = req
+	if f.listOrdersResponse != nil {
+		return f.listOrdersResponse, nil
+	}
 	return &orderproto.ListOrdersResponse{
 		List: []*orderproto.OrderSummary{{
 			OrderId:             1001,
 			OrderNo:             "NO-1001",
-			FromAddress:         "起点",
-			ToAddress:           "终点",
+			FromAddress:         "pickup",
+			ToAddress:           "destination",
 			Status:              req.Status,
 			EstimatedPriceCents: 29900,
 			CreatedAt:           100,
@@ -122,7 +145,7 @@ func TestCancelOrderForwardsDriverOperatorAndReason(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
 
-	resp, err := logic.CancelOrder(25, &types.CancelOrderRequest{OrderID: 1001, Reason: "司机临时有事"})
+	resp, err := logic.CancelOrder(25, &types.CancelOrderRequest{OrderID: 1001, Reason: "driver unavailable"})
 	if err != nil {
 		t.Fatalf("CancelOrder() error = %v", err)
 	}
@@ -132,7 +155,7 @@ func TestCancelOrderForwardsDriverOperatorAndReason(t *testing.T) {
 	if client.cancelRequest.GetOperatorId() != 25 ||
 		client.cancelRequest.GetOperatorType() != constants.OperatorDriver ||
 		client.cancelRequest.GetOrderId() != 1001 ||
-		client.cancelRequest.GetReason() != "司机临时有事" {
+		client.cancelRequest.GetReason() != "driver unavailable" {
 		t.Fatalf("CancelOrder() request = %+v", client.cancelRequest)
 	}
 }
@@ -232,7 +255,7 @@ func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 func TestRejectOrderRequiresDispatchClient(t *testing.T) {
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{DispatchClient: &fakeDispatchClient{}})
 
-	_, err := logic.RejectOrder(25, &types.RejectOrderRequest{OrderID: 1001})
+	_, err := logic.RejectOrder(25, &types.RejectOrderRequest{OrderID: 1001, Reason: "too far"})
 	if err != nil {
 		t.Fatalf("RejectOrder() error = %v", err)
 	}
@@ -259,19 +282,45 @@ func (f *fakeDispatchClient) RejectDispatch(_ context.Context, req *dispatchprot
 
 func (f *fakeDispatchClient) ListDispatchRecords(_ context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
 	f.listRequest = req
-	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{{Id: 7, OrderId: 1001, DriverId: req.DriverId, Status: 1}}, Total: 1, Page: req.Page, PageSize: req.PageSize}, nil
+	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{{Id: 7, OrderId: 1001, DriverId: req.DriverId, Status: 1, Remark: "too far"}}, Total: 1, Page: req.Page, PageSize: req.PageSize}, nil
 }
 
 func TestRejectOrderForwardsDispatchRequest(t *testing.T) {
 	client := &fakeDispatchClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{DispatchClient: client})
 
-	resp, err := logic.RejectOrder(25, &types.RejectOrderRequest{OrderID: 1001, Reason: "临时有事"})
+	resp, err := logic.RejectOrder(25, &types.RejectOrderRequest{OrderID: 1001, Reason: "temporary conflict"})
 	if err != nil || resp.OrderID != 1001 || resp.DriverID != 25 {
 		t.Fatalf("RejectOrder() response = %+v, error = %v", resp, err)
 	}
-	if client.rejectRequest.GetOrderId() != 1001 || client.rejectRequest.GetDriverId() != 25 || client.rejectRequest.GetReason() != "临时有事" {
+	if client.rejectRequest.GetOrderId() != 1001 || client.rejectRequest.GetDriverId() != 25 || client.rejectRequest.GetReason() != "temporary conflict" {
 		t.Fatalf("RejectOrder() request = %+v", client.rejectRequest)
+	}
+}
+
+func TestRejectOrderRequiresReason(t *testing.T) {
+	client := &fakeDispatchClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{DispatchClient: client})
+
+	_, err := logic.RejectOrder(25, &types.RejectOrderRequest{OrderID: 1001, Reason: "   "})
+	if err != ErrInvalidParam {
+		t.Fatalf("RejectOrder() error = %v, want %v", err, ErrInvalidParam)
+	}
+	if client.rejectRequest != nil {
+		t.Fatalf("RejectOrder() should not call dispatchsvc for empty reason, got %+v", client.rejectRequest)
+	}
+}
+
+func TestRejectOrderTrimsReasonBeforeDispatch(t *testing.T) {
+	client := &fakeDispatchClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{DispatchClient: client})
+
+	_, err := logic.RejectOrder(25, &types.RejectOrderRequest{OrderID: 1001, Reason: "  too far  "})
+	if err != nil {
+		t.Fatalf("RejectOrder() error = %v", err)
+	}
+	if client.rejectRequest.GetReason() != "too far" {
+		t.Fatalf("RejectOrder() reason = %q, want too far", client.rejectRequest.GetReason())
 	}
 }
 
@@ -282,6 +331,10 @@ func TestListMyDispatchesCombinesDispatchAndOrder(t *testing.T) {
 	resp, err := logic.ListMyDispatches(25, 1, 20, 1)
 	if err != nil || len(resp.List) != 1 || resp.List[0].Order.OrderNo != "NO-1001" {
 		t.Fatalf("ListMyDispatches() response = %+v, error = %v", resp, err)
+	}
+
+	if resp.List[0].Dispatch.RejectReason != "too far" {
+		t.Fatalf("ListMyDispatches() reject reason = %q, want too far", resp.List[0].Dispatch.RejectReason)
 	}
 	if dispatchClient.listRequest.GetDriverId() != 25 || dispatchClient.listRequest.GetStatus() != 1 {
 		t.Fatalf("ListMyDispatches() request = %+v", dispatchClient.listRequest)
@@ -308,10 +361,22 @@ func TestListMyOrdersUsesOrderService(t *testing.T) {
 }
 
 func TestListAvailableOrdersUsesWaitAcceptWithoutDriverFilter(t *testing.T) {
-	client := &fakeOrderClient{}
-	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, "25").Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, 25), map[string]interface{}{
+		"longitude": "116.397",
+		"latitude":  "39.908",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	client := &fakeOrderClient{getOrderResponseStatus: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
 
-	resp, err := logic.ListAvailableOrders(1, 10)
+	resp, err := logic.ListAvailableOrders(25, 1, 10)
 	if err != nil {
 		t.Fatalf("ListAvailableOrders() error = %v", err)
 	}
@@ -320,12 +385,103 @@ func TestListAvailableOrdersUsesWaitAcceptWithoutDriverFilter(t *testing.T) {
 	}
 	if client.listOrdersRequest.GetDriverId() != 0 ||
 		client.listOrdersRequest.GetPage() != 1 ||
-		client.listOrdersRequest.GetPageSize() != 10 ||
+		client.listOrdersRequest.GetPageSize() != 100 ||
 		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
 		t.Fatalf("ListAvailableOrders() request = %+v", client.listOrdersRequest)
 	}
 }
 
+func TestListAvailableOrdersReturnsEmptyWhenDriverOffline(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	client := &fakeOrderClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(25, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if resp.Total != 0 || len(resp.List) != 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want empty", resp)
+	}
+	if client.listOrdersRequest != nil {
+		t.Fatalf("ListAvailableOrders() should not call ordersvc for offline driver, got %+v", client.listOrdersRequest)
+	}
+}
+
+func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "116.397",
+		"latitude":  "39.908",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	client := &fakeOrderClient{
+		listOrdersResponse: &orderproto.ListOrdersResponse{
+			List: []*orderproto.OrderSummary{
+				{OrderId: 1001, OrderNo: "far-but-in-range", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 3000, CreatedAt: 100},
+				{OrderId: 1002, OrderNo: "too-far", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 5000, CreatedAt: 101},
+				{OrderId: 1003, OrderNo: "nearest", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 2800, CreatedAt: 102},
+			},
+			Total:    3,
+			Page:     1,
+			PageSize: 100,
+		},
+		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
+			1001: availableOrderDetail(1001, "far-but-in-range", 116.415, 39.908),
+			1002: availableOrderDetail(1002, "too-far", 116.520, 39.908),
+			1003: availableOrderDetail(1003, "nearest", 116.398, 39.908),
+		},
+	}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if resp.Total != 2 || len(resp.List) != 2 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want 2 nearby orders", resp)
+	}
+	if got := []int64{resp.List[0].OrderID, resp.List[1].OrderID}; got[0] != 1003 || got[1] != 1001 {
+		t.Fatalf("ListAvailableOrders() order IDs = %v, want [1003 1001]", got)
+	}
+	if resp.List[0].DistanceMeters <= 0 || resp.List[0].DistanceMeters >= resp.List[1].DistanceMeters {
+		t.Fatalf("ListAvailableOrders() distances = %d/%d, want nearest first", resp.List[0].DistanceMeters, resp.List[1].DistanceMeters)
+	}
+	if client.listOrdersRequest.GetDriverId() != 0 ||
+		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT ||
+		client.listOrdersRequest.GetPage() != 1 ||
+		client.listOrdersRequest.GetPageSize() != 100 {
+		t.Fatalf("ListAvailableOrders() request = %+v", client.listOrdersRequest)
+	}
+}
+
+func availableOrderDetail(orderID int64, orderNo string, longitude, latitude float64) *orderproto.GetOrderResponse {
+	return &orderproto.GetOrderResponse{
+		OrderId:             orderID,
+		OrderNo:             orderNo,
+		UserId:              300,
+		CarType:             1,
+		FromAddress:         "pickup",
+		FromLongitude:       longitude,
+		FromLatitude:        latitude,
+		ToAddress:           "destination",
+		ToLongitude:         116.481,
+		ToLatitude:          39.991,
+		EstimatedDistanceM:  12500,
+		EstimatedDurationS:  1800,
+		EstimatedPriceCents: 29900,
+		Status:              orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+		CreatedAt:           100,
+	}
+}
 func TestGetMyOrderDetailRequiresOrderOwnedByDriver(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
@@ -355,5 +511,24 @@ func TestGetMyOrderDetailRejectsOtherDriverOrder(t *testing.T) {
 	_, err := logic.GetMyOrderDetail(25, 1001)
 	if err != ErrForbiddenDriverResource {
 		t.Fatalf("GetMyOrderDetail() error = %v, want %v", err, ErrForbiddenDriverResource)
+	}
+}
+
+func TestGetMyOrderDetailAllowsUnassignedWaitAcceptOrder(t *testing.T) {
+	client := &fakeOrderClient{
+		getOrderResponseDriverID: -1,
+		getOrderResponseStatus:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+	}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
+
+	resp, err := logic.GetMyOrderDetail(25, 1001)
+	if err != nil {
+		t.Fatalf("GetMyOrderDetail() error = %v", err)
+	}
+	if client.getOrderRequest.GetOrderId() != 1001 {
+		t.Fatalf("GetMyOrderDetail() request = %+v", client.getOrderRequest)
+	}
+	if resp.Order.DriverID != 0 || resp.Order.Status != int32(orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT) {
+		t.Fatalf("GetMyOrderDetail() response = %+v", resp)
 	}
 }

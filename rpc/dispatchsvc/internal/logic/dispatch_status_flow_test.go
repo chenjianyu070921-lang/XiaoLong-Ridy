@@ -20,14 +20,14 @@ func seedDispatch(t *testing.T, svcCtx *svc.ServiceContext, orderID uint64) {
 	}
 }
 
-// TestRejectDispatchFlow 拒单：该司机记录置 Rejected，其他候选仍为 Pending，重复拒单报错。
+// TestRejectDispatchFlow 鎷掑崟锛氳鍙告満璁板綍缃?Rejected锛屽叾浠栧€欓€変粛涓?Pending锛岄噸澶嶆嫆鍗曟姤閿欍€?
 func TestRejectDispatchFlow(t *testing.T) {
 	ctx := context.Background()
 	svcCtx := newDispatchTestSvcCtx()
 	seedDispatch(t, svcCtx, 1)
 
 	l := NewRejectDispatchLogic(ctx, svcCtx)
-	resp, err := l.RejectDispatch(&proto.RejectDispatchRequest{OrderId: 1, DriverId: 9001, Reason: "距离太远"})
+	resp, err := l.RejectDispatch(&proto.RejectDispatchRequest{OrderId: 1, DriverId: 9001, Reason: "too far"})
 	if err != nil {
 		t.Fatalf("RejectDispatch() error = %v", err)
 	}
@@ -43,30 +43,36 @@ func TestRejectDispatchFlow(t *testing.T) {
 		t.Fatalf("ListByOrder() total = %d, want 3", total)
 	}
 	statusByDriver := make(map[uint64]int32)
+	reasonByDriver := make(map[uint64]string)
 	for _, r := range records {
 		statusByDriver[r.DriverId] = int32(r.Status)
+		reasonByDriver[r.DriverId] = r.RejectReason
 	}
 	if statusByDriver[9001] != constants.DispatchStatusRejected {
 		t.Fatalf("driver 9001 status = %d, want Rejected", statusByDriver[9001])
 	}
+	if reasonByDriver[9001] != "too far" {
+		t.Fatalf("driver 9001 reject reason = %q, want too far", reasonByDriver[9001])
+	}
+
 	if statusByDriver[9002] != constants.DispatchStatusPending || statusByDriver[9003] != constants.DispatchStatusPending {
 		t.Fatalf("other candidates should stay Pending, got %+v", statusByDriver)
 	}
 
-	// 重复拒单：记录已非 Pending，应报记录不存在。
+	// 閲嶅鎷掑崟锛氳褰曞凡闈?Pending锛屽簲鎶ヨ褰曚笉瀛樺湪銆?
 	if _, err := l.RejectDispatch(&proto.RejectDispatchRequest{OrderId: 1, DriverId: 9001}); !errors.Is(err, repository.ErrDispatchRecordNotFound) {
 		t.Fatalf("RejectDispatch() second error = %v, want ErrDispatchRecordNotFound", err)
 	}
 }
 
-// TestCancelDispatchFlow 订单取消：全部 Pending 派单记录同步置为 Cancelled。
+// TestCancelDispatchFlow 璁㈠崟鍙栨秷锛氬叏閮?Pending 娲惧崟璁板綍鍚屾缃负 Cancelled銆?
 func TestCancelDispatchFlow(t *testing.T) {
 	ctx := context.Background()
 	svcCtx := newDispatchTestSvcCtx()
 	seedDispatch(t, svcCtx, 2)
 
 	l := NewCancelDispatchLogic(ctx, svcCtx)
-	resp, err := l.CancelDispatch(&proto.CancelDispatchRequest{OrderId: 2, Reason: "用户取消"})
+	resp, err := l.CancelDispatch(&proto.CancelDispatchRequest{OrderId: 2, Reason: "too far"})
 	if err != nil {
 		t.Fatalf("CancelDispatch() error = %v", err)
 	}
@@ -87,7 +93,7 @@ func TestCancelDispatchFlow(t *testing.T) {
 		}
 	}
 
-	// 幂等：再次取消不影响已取消记录。
+	// 骞傜瓑锛氬啀娆″彇娑堜笉褰卞搷宸插彇娑堣褰曘€?
 	again, err := l.CancelDispatch(&proto.CancelDispatchRequest{OrderId: 2})
 	if err != nil {
 		t.Fatalf("CancelDispatch() again error = %v", err)
@@ -97,7 +103,7 @@ func TestCancelDispatchFlow(t *testing.T) {
 	}
 }
 
-// TestListTimeoutPendingOrdersNoTimeout 新派单未超时时，超时扫描不应返回任何订单。
+// TestListTimeoutPendingOrdersNoTimeout 鏂版淳鍗曟湭瓒呮椂鏃讹紝瓒呮椂鎵弿涓嶅簲杩斿洖浠讳綍璁㈠崟銆?
 func TestListTimeoutPendingOrdersNoTimeout(t *testing.T) {
 	ctx := context.Background()
 	svcCtx := newDispatchTestSvcCtx()

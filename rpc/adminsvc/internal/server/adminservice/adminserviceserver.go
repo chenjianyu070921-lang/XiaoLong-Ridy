@@ -128,6 +128,16 @@ func (s *AdminServiceServer) UnfreezeUser(ctx context.Context, in *adminsvc.Chan
 }
 
 // 查询司机审核列表。
+func (s *AdminServiceServer) ListDrivers(ctx context.Context, in *adminsvc.DriverListRequest) (*adminsvc.DriverListResponse, error) {
+	l := adminservicelogic.NewListDriversLogic(ctx, s.svcCtx)
+	return l.ListDrivers(in)
+}
+
+func (s *AdminServiceServer) GetDriver(ctx context.Context, in *adminsvc.DriverDetailRequest) (*adminsvc.Driver, error) {
+	l := adminservicelogic.NewGetDriverLogic(ctx, s.svcCtx)
+	return l.GetDriver(in)
+}
+
 func (s *AdminServiceServer) ListDriverCertifications(ctx context.Context, in *adminsvc.DriverCertificationListRequest) (*adminsvc.DriverCertificationListResponse, error) {
 	l := adminservicelogic.NewListDriverCertificationsLogic(ctx, s.svcCtx)
 	return l.ListDriverCertifications(in)

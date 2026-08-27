@@ -131,9 +131,11 @@ type LoginResponse {
 }
 
 type SetOnlineRequest {
-	DeviceID  string  `json:"deviceId"`
-	Longitude float64 `json:"longitude"`
-	Latitude  float64 `json:"latitude"`
+	DeviceID          string  `json:"deviceId"`
+	Longitude         float64 `json:"longitude"`
+	Latitude          float64 `json:"latitude"`
+	AcceptRealtime    *bool   `json:"acceptRealtime,omitempty"`
+	AcceptReservation *bool   `json:"acceptReservation,omitempty"`
 }
 
 type SetOfflineRequest {
@@ -146,6 +148,18 @@ type SetOnlineResponse {
 	DriverID     int64 `json:"driverId"`
 	OnlineStatus int   `json:"onlineStatus"`
 	Kicked       bool  `json:"kicked"`
+}
+
+type DriverListenPreferenceRequest {
+	AcceptRealtime    bool `json:"acceptRealtime"`
+	AcceptReservation bool `json:"acceptReservation"`
+}
+
+type DriverListenPreferenceResponse {
+	DriverID          int64 `json:"driverId"`
+	AcceptRealtime    bool  `json:"acceptRealtime"`
+	AcceptReservation bool  `json:"acceptReservation"`
+	UpdatedAt         int64 `json:"updatedAt"`
 }
 
 type SetOfflineResponse {
@@ -364,6 +378,15 @@ type GetIncomeSummaryResponse {
 	Source           string `json:"source"`
 }
 
+type PeriodIncomeResponse {
+	DriverID         int64  `json:"driverId"`
+	Period           string `json:"period"`
+	CompletedOrders  int64  `json:"completedOrders"`
+	TotalIncomeCents int64  `json:"totalIncomeCents"`
+	StartAt          int64  `json:"startAt"`
+	EndAt            int64  `json:"endAt"`
+	Source           string `json:"source"`
+}
 type ListIncomeBillsRequest {
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"pageSize"`
@@ -460,6 +483,7 @@ type DispatchRecord {
 	Status       int32   `json:"status"`
 	MatchScore   float64 `json:"matchScore"`
 	Remark       string  `json:"remark"`
+	RejectReason string  `json:"rejectReason"`
 	CreatedAt    int64   `json:"createdAt"`
 	UpdatedAt    int64   `json:"updatedAt"`
 }
@@ -471,9 +495,9 @@ type OrderBrief {
 	ToAddress           string `json:"toAddress"`
 	Status              int32  `json:"status"`
 	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
+	DistanceMeters      int64  `json:"distanceMeters"`
 	CreatedAt           int64  `json:"createdAt"`
 }
-
 type MyDispatchItem {
 	Dispatch DispatchRecord `json:"dispatch"`
 	Order    OrderBrief     `json:"order"`
@@ -626,6 +650,12 @@ service driver-api {
 	@handler SetOnlineHandler
 	post /api/driver/v1/drivers/online (SetOnlineRequest) returns (SetOnlineResponse)
 
+	@handler SetListenPreferenceHandler
+	post /api/driver/v1/drivers/listen-preference (DriverListenPreferenceRequest) returns (DriverListenPreferenceResponse)
+
+	@handler GetListenPreferenceHandler
+	get /api/driver/v1/drivers/listen-preference returns (DriverListenPreferenceResponse)
+
 	@handler SetOfflineHandler
 	post /api/driver/v1/drivers/offline (SetOfflineRequest) returns (SetOfflineResponse)
 
@@ -664,6 +694,12 @@ service driver-api {
 
 	@handler GetIncomeSummaryHandler
 	get /api/driver/v1/wallet/summary returns (GetIncomeSummaryResponse)
+
+	@handler GetTodayIncomeHandler
+	get /api/driver/v1/income/today returns (PeriodIncomeResponse)
+
+	@handler GetWeekIncomeHandler
+	get /api/driver/v1/income/week returns (PeriodIncomeResponse)
 
 	@handler ListIncomeBillsHandler
 	post /api/driver/v1/income/bills (ListIncomeBillsRequest) returns (ListIncomeBillsResponse)
@@ -710,3 +746,6 @@ service driver-api {
 	@handler AgentChatHandler
 	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 }
+
+
+

@@ -33,24 +33,30 @@ driverRequest.interceptors.response.use(
     const status = error.response?.status
     const message = error.response?.data?.message || error.message || '网络连接失败'
     if (status === 401) {
-      localStorage.removeItem('driverToken')
-      localStorage.removeItem('driverProfile')
-      localStorage.removeItem('driverVehicle')
-      localStorage.removeItem('driverVehicleId')
-      localStorage.removeItem('driverCertification')
-      localStorage.removeItem('driverCurrentOrder')
-      localStorage.removeItem('driverCurrentOrderId')
-      localStorage.removeItem('driverTripPhase')
-      router.push('/driver/login')
+      clearDriverSession()
+      router.push('/login')
       showToast('司机登录已过期，请重新登录')
-    } else {
-      if (!error.config?.silentError) {
-        showToast(message)
-      }
+    } else if (!error.config?.silentError) {
+      showToast(message)
     }
     return Promise.reject(error)
   }
 )
+
+function clearDriverSession() {
+  for (const key of [
+    'driverToken',
+    'driverProfile',
+    'driverVehicle',
+    'driverVehicleId',
+    'driverCertification',
+    'driverCurrentOrder',
+    'driverCurrentOrderId',
+    'driverTripPhase'
+  ]) {
+    localStorage.removeItem(key)
+  }
+}
 
 export function sendDriverSMSCode(phone, config = {}) {
   return driverRequest.post('/auth/send-sms-code', { phone }, config)
@@ -126,6 +132,14 @@ export function getIncomeSummary(config = {}) {
 
 export function getWalletSummary(config = {}) {
   return driverRequest.get('/wallet/summary', config)
+}
+
+export function getTodayIncome(config = {}) {
+  return driverRequest.get('/income/today', config)
+}
+
+export function getWeekIncome(config = {}) {
+  return driverRequest.get('/income/week', config)
 }
 
 export function listIncomeBills(data = {}, config = {}) {

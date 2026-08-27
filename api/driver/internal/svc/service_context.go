@@ -27,6 +27,8 @@ type DriverClient interface {
 	GetDriverByPhone(ctx context.Context, req *driversproto.GetDriverByPhoneRequest) (*driversproto.GetDriverByPhoneResponse, error)
 	SetDriverOnline(ctx context.Context, req *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error)
 	SetDriverOffline(ctx context.Context, req *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error)
+	SetDriverListenPreference(ctx context.Context, req *driversproto.SetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error)
+	GetDriverListenPreference(ctx context.Context, req *driversproto.GetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error)
 	ReportLocation(ctx context.Context, req *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error)
 	SetDriverServiceStatus(ctx context.Context, req *driversproto.SetDriverServiceStatusRequest) (*driversproto.SetDriverServiceStatusResponse, error)
 	Heartbeat(ctx context.Context, req *driversproto.HeartbeatRequest) (*driversproto.HeartbeatResponse, error)
@@ -46,7 +48,7 @@ type DriverClient interface {
 }
 
 type grpcClient struct {
-	cli driversproto.DriversvcClient
+	cli driversproto.DriverServiceClient
 }
 
 func (g *grpcClient) CreateDriver(ctx context.Context, req *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
@@ -77,6 +79,14 @@ func (g *grpcClient) SetDriverOffline(ctx context.Context, req *driversproto.Set
 	return g.cli.SetDriverOffline(ctx, req)
 }
 
+func (g *grpcClient) SetDriverListenPreference(ctx context.Context, req *driversproto.SetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error) {
+	return g.cli.SetDriverListenPreference(ctx, req)
+}
+
+func (g *grpcClient) GetDriverListenPreference(ctx context.Context, req *driversproto.GetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error) {
+	return g.cli.GetDriverListenPreference(ctx, req)
+}
+
 func (g *grpcClient) ReportLocation(ctx context.Context, req *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error) {
 	return g.cli.ReportLocation(ctx, req)
 }
@@ -98,7 +108,7 @@ func (g *grpcClient) Login(ctx context.Context, req *driversproto.LoginRequest) 
 }
 
 func (g *grpcClient) LoginBySMS(ctx context.Context, req *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error) {
-	return g.cli.LoginBySMS(ctx, req)
+	return g.cli.LoginBySms(ctx, req)
 }
 
 func (g *grpcClient) CreateVehicle(ctx context.Context, req *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error) {
@@ -240,7 +250,7 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	locationConn, locationErr := grpc.NewClient(locationGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
-	// 验证码缓存：配置了 Redis 地址则使用 Redis（多实例共享），否则回退本地内存（单实例联调）。
+	// Code cache: use Redis when configured, otherwise fall back to local memory.
 	var codeCache CodeCache
 	var rdb *redis.Client
 	if redisAddr != "" {
@@ -256,7 +266,7 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 		RedisClient: rdb,
 	}
 	if driverErr == nil {
-		svcCtx.DriverClient = &grpcClient{cli: driversproto.NewDriversvcClient(driverConn)}
+		svcCtx.DriverClient = &grpcClient{cli: driversproto.NewDriverServiceClient(driverConn)}
 	}
 	if orderErr == nil {
 		svcCtx.OrderClient = &orderGRPCClient{cli: orderproto.NewOrderClient(orderConn)}

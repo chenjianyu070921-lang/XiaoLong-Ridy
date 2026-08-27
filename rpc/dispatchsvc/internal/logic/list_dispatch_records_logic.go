@@ -64,6 +64,7 @@ func (l *ListDispatchRecordsLogic) ListDispatchRecords(in *proto.ListDispatchRec
 			Status:       int32(record.Status),
 			MatchScore:   record.MatchScore,
 			Remark:       record.Remark,
+			RejectReason: record.RejectReason,
 			CreatedAt:    record.CreatedAt.Unix(),
 			UpdatedAt:    record.UpdatedAt.Unix(),
 		})

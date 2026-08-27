@@ -121,6 +121,7 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 		in.FromLatitude,
 		in.CarType,
 		in.CityCode,
+		in.GetOrderType(),
 	)
 	if err != nil {
 		return nil, err
@@ -174,6 +175,7 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 			FromLatitude:  in.FromLatitude,
 			CarType:       in.CarType,
 			CityCode:      in.CityCode,
+			OrderType:     in.GetOrderType(),
 			DispatchedAt:  time.Now().Unix(),
 		})
 		if err := l.publishWithRetry(l.ctx, constants.TopicDispatchNew, payload); err != nil {
@@ -224,6 +226,7 @@ func toProtoDispatchRecord(record *model.DispatchRecord) *proto.DispatchRecord {
 		Status:       int32(record.Status),
 		MatchScore:   record.MatchScore,
 		Remark:       record.Remark,
+		RejectReason: record.RejectReason,
 		CreatedAt:    record.CreatedAt.Unix(),
 		UpdatedAt:    record.UpdatedAt.Unix(),
 	}
@@ -237,5 +240,6 @@ type dispatchNewEvent struct {
 	FromLatitude  float64 `json:"from_latitude"`
 	CarType       int32   `json:"car_type"`
 	CityCode      string  `json:"city_code"`
+	OrderType     int32   `json:"order_type"`
 	DispatchedAt  int64   `json:"dispatched_at"`
 }

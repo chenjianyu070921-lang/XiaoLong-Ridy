@@ -19,7 +19,7 @@ enum VehicleStatus {
   VEHICLE_STATUS_DISABLED = 3;
 }
 
-service Driversvc {
+service DriverService {
   rpc CreateDriver(CreateDriverRequest) returns (CreateDriverResponse);
   rpc RegisterDriver(CreateDriverRequest) returns (CreateDriverResponse);
   rpc UpdateDriver(UpdateDriverRequest) returns (UpdateDriverResponse);
@@ -29,6 +29,8 @@ service Driversvc {
 
   rpc SetDriverOnline(SetDriverOnlineRequest) returns (SetDriverOnlineResponse);
   rpc SetDriverOffline(SetDriverOfflineRequest) returns (SetDriverOfflineResponse);
+  rpc SetDriverListenPreference(SetDriverListenPreferenceRequest) returns (DriverListenPreferenceResponse);
+  rpc GetDriverListenPreference(GetDriverListenPreferenceRequest) returns (DriverListenPreferenceResponse);
   rpc ReportLocation(ReportLocationRequest) returns (ReportLocationResponse);
   rpc SetDriverServiceStatus(SetDriverServiceStatusRequest) returns (SetDriverServiceStatusResponse);
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
@@ -40,7 +42,7 @@ service Driversvc {
 
   rpc ListDrivers(ListDriversRequest) returns (ListDriversResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
-  rpc LoginBySMS(LoginBySMSRequest) returns (LoginResponse);
+  rpc LoginBySms(LoginBySMSRequest) returns (LoginResponse);
   rpc ListNearbyDrivers(ListNearbyDriversRequest) returns (ListNearbyDriversResponse);
   rpc GetDriverAiScore(GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse);
 
@@ -121,6 +123,8 @@ message SetDriverOnlineRequest {
   string device_id = 2;
   double longitude = 3;
   double latitude = 4;
+  optional bool accept_realtime = 5;
+  optional bool accept_reservation = 6;
 }
 
 message SetDriverOnlineResponse {
@@ -142,6 +146,26 @@ message SetDriverOfflineResponse {
   bool kicked = 3;
 }
 
+message DriverListenPreference {
+  int64 driver_id = 1;
+  bool accept_realtime = 2;
+  bool accept_reservation = 3;
+  int64 updated_at = 4;
+}
+
+message SetDriverListenPreferenceRequest {
+  int64 driver_id = 1;
+  bool accept_realtime = 2;
+  bool accept_reservation = 3;
+}
+
+message GetDriverListenPreferenceRequest {
+  int64 driver_id = 1;
+}
+
+message DriverListenPreferenceResponse {
+  DriverListenPreference preference = 1;
+}
 message ReportLocationRequest {
   int64 driver_id = 1;
   string device_id = 2;

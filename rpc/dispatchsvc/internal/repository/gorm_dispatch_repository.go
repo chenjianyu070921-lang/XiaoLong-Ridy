@@ -78,8 +78,9 @@ func (r *gormDispatchRepository) ListByDriver(ctx context.Context, driverID uint
 // RejectByOrderAndDriver 将指定司机对该订单的待派单记录置为已拒绝。
 func (r *gormDispatchRepository) RejectByOrderAndDriver(ctx context.Context, orderID, driverID uint64, reason string) (*model.DispatchRecord, error) {
 	updates := map[string]interface{}{
-		"status": constants.DispatchStatusRejected,
-		"remark": reason,
+		"status":        constants.DispatchStatusRejected,
+		"remark":        reason,
+		"reject_reason": reason,
 	}
 	res := r.db.WithContext(ctx).Model(&model.DispatchRecord{}).
 		Where("order_id = ? AND driver_id = ? AND status = ?", orderID, driverID, constants.DispatchStatusPending).

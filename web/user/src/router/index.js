@@ -4,23 +4,7 @@ import { useUserStore } from '@/stores/user'
 const routes = [
   {
     path: '/',
-    redirect: '/driver/login'
-  },
-  {
-    path: '/driver',
-    redirect: '/driver/home'
-  },
-  {
-    path: '/driver/login',
-    name: 'DriverLogin',
-    component: () => import('@/views/driver/DriverLogin.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
-    path: '/driver/home',
-    name: 'DriverHome',
-    component: () => import('@/views/driver/DriverHome.vue'),
-    meta: { requiresDriverAuth: true }
+    redirect: '/splash'
   },
   {
     path: '/splash',
@@ -150,16 +134,10 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫
+// 璺敱瀹堝崼
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
-  const driverToken = localStorage.getItem('driverToken') || ''
-  
-  if (to.meta.requiresDriverAuth && !driverToken) {
-    next('/driver/login')
-  } else if (to.path === '/driver/login' && driverToken) {
-    next('/driver/home')
-  } else if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+  if (to.meta.requiresAuth && !userStore.isLoggedIn) {
     next('/login')
   } else if ((to.path === '/login' || to.path === '/splash') && userStore.isLoggedIn) {
     next('/home')
@@ -169,4 +147,7 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
+
+
+
 

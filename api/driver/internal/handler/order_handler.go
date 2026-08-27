@@ -10,12 +10,12 @@ import (
 )
 
 // AcceptOrderHandler POST /api/driver/v1/orders/accept
-// 当前登录司机接单。需携带有效 JWT。
+// Current driver accepts an order. Requires a valid JWT.
 func AcceptOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.AcceptOrderRequest
@@ -23,7 +23,7 @@ func AcceptOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.OrderID <= 0 {
-			writeError(w, http.StatusBadRequest, 50000, "orderId 不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid orderId")
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).AcceptOrder(int64(claims.AccountID), req.OrderID)
@@ -36,12 +36,12 @@ func AcceptOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // CancelOrderHandler POST /api/driver/v1/orders/cancel
-// 当前登录司机取消已接单但未开始的订单。需携带有效 JWT。
+// Current driver cancels an accepted order before trip start.
 func CancelOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.CancelOrderRequest
@@ -49,7 +49,7 @@ func CancelOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.OrderID <= 0 {
-			writeError(w, http.StatusBadRequest, 50000, "orderId 不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid orderId")
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).CancelOrder(int64(claims.AccountID), &req)
@@ -62,12 +62,12 @@ func CancelOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // StartTripHandler POST /api/driver/v1/orders/start-trip
-// 当前登录司机开始行程。需携带有效 JWT。
+// Current driver starts the trip.
 func StartTripHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.StartTripRequest
@@ -75,7 +75,7 @@ func StartTripHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.OrderID <= 0 {
-			writeError(w, http.StatusBadRequest, 50000, "orderId 不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid orderId")
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).StartTrip(int64(claims.AccountID), req.OrderID)
@@ -88,12 +88,12 @@ func StartTripHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // FinishTripHandler POST /api/driver/v1/orders/finish-trip
-// 当前登录司机结束行程并上报实际里程/时长/金额。需携带有效 JWT。
+// Current driver finishes the trip and reports final trip metrics.
 func FinishTripHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.FinishTripRequest
@@ -101,7 +101,7 @@ func FinishTripHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.OrderID <= 0 {
-			writeError(w, http.StatusBadRequest, 50000, "orderId 不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid orderId")
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).FinishTrip(int64(claims.AccountID), &req)
@@ -114,12 +114,12 @@ func FinishTripHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // ConfirmArriveHandler POST /api/driver/v1/orders/confirm-arrive
-// 当前登录司机确认已到达上车点。需携带有效 JWT。
+// Current driver confirms arrival at pickup point.
 func ConfirmArriveHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.ConfirmArriveRequest
@@ -127,7 +127,7 @@ func ConfirmArriveHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.OrderID <= 0 {
-			writeError(w, http.StatusBadRequest, 50000, "orderId 不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid orderId")
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).ConfirmArrive(int64(claims.AccountID), req.OrderID)
@@ -140,12 +140,12 @@ func ConfirmArriveHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // RejectOrderHandler POST /api/driver/v1/orders/reject
-// 当前登录司机拒绝派单。
+// Current driver rejects a dispatched order.
 func RejectOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.RejectOrderRequest
@@ -153,7 +153,7 @@ func RejectOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.OrderID <= 0 {
-			writeError(w, http.StatusBadRequest, 50000, "orderId 不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid orderId")
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).RejectOrder(int64(claims.AccountID), &req)
@@ -166,12 +166,12 @@ func RejectOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // ListMyDispatchesHandler POST /api/driver/v1/orders/dispatches
-// 查询当前登录司机的派单列表。
+// Lists dispatch records for the current driver.
 func ListMyDispatchesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.ListMyDispatchesRequest
@@ -179,7 +179,7 @@ func ListMyDispatchesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.Page < 0 || req.PageSize < 0 || req.Status < 0 {
-			writeError(w, http.StatusBadRequest, 50000, "分页或状态参数不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid dispatch query parameters")
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).ListMyDispatches(
@@ -197,12 +197,12 @@ func ListMyDispatchesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // ListAvailableOrdersHandler POST /api/driver/v1/orders/available
-// 查询当前可抢的待接单订单，不按当前司机过滤。
+// Lists nearby WAIT_ACCEPT orders for the current driver.
 func ListAvailableOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.ListMyOrdersRequest
@@ -210,10 +210,10 @@ func ListAvailableOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.Page < 0 || req.PageSize < 0 {
-			writeError(w, http.StatusBadRequest, 50000, "订单查询参数不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid order query parameters")
 			return
 		}
-		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).ListAvailableOrders(req.Page, req.PageSize)
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).ListAvailableOrders(int64(claims.AccountID), req.Page, req.PageSize)
 		if err != nil {
 			writeParamError(w, err)
 			return
@@ -223,12 +223,12 @@ func ListAvailableOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // ListMyOrdersHandler POST /api/driver/v1/orders/list
-// 直接从 ordersvc 查询当前登录司机的订单列表。
+// Lists orders assigned to the current driver.
 func ListMyOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
 		var req types.ListMyOrdersRequest
@@ -236,7 +236,7 @@ func ListMyOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		if req.Page < 0 || req.PageSize < 0 || req.Status < 0 || req.Status > 6 {
-			writeError(w, http.StatusBadRequest, 50000, "订单查询参数不合法")
+			writeError(w, http.StatusBadRequest, 50000, "invalid order query parameters")
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).ListMyOrders(

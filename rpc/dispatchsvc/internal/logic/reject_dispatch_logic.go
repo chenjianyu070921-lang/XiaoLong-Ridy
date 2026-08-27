@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/repository"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/svc"
@@ -30,7 +31,7 @@ func (l *RejectDispatchLogic) RejectDispatch(in *proto.RejectDispatchRequest) (*
 	if in.OrderId <= 0 || in.DriverId <= 0 {
 		return nil, ErrInvalidOrderParams
 	}
-	reason := in.Reason
+	reason := strings.TrimSpace(in.Reason)
 	if reason == "" {
 		reason = "司机拒单"
 	}

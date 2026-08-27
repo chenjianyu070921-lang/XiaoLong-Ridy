@@ -2,7 +2,7 @@ package proto
 
 import "testing"
 
-func TestDriversvcExternalRPCMethodsAreUniqueAndRegistered(t *testing.T) {
+func TestDriverServiceExternalRPCMethodsAreUniqueAndRegistered(t *testing.T) {
 	required := map[string]bool{
 		"CreateDriver":        false,
 		"RegisterDriver":      false,
@@ -19,15 +19,16 @@ func TestDriversvcExternalRPCMethodsAreUniqueAndRegistered(t *testing.T) {
 		"GetVehicle":          false,
 		"ListNearbyDrivers":   false,
 		"GetDriverAiScore":    false,
+		"LoginBySms":          false,
 		"UploadCertification": false,
 		"GetCertification":    false,
 		"CreateWithdraw":      false,
 		"ListWithdraws":       false,
 	}
-	seen := make(map[string]struct{}, len(Driversvc_ServiceDesc.Methods))
-	for _, method := range Driversvc_ServiceDesc.Methods {
+	seen := make(map[string]struct{}, len(DriverService_ServiceDesc.Methods))
+	for _, method := range DriverService_ServiceDesc.Methods {
 		if _, ok := seen[method.MethodName]; ok {
-			t.Fatalf("duplicate driversvc RPC method %q", method.MethodName)
+			t.Fatalf("duplicate driver RPC method %q", method.MethodName)
 		}
 		seen[method.MethodName] = struct{}{}
 		if _, ok := required[method.MethodName]; ok {
@@ -36,7 +37,7 @@ func TestDriversvcExternalRPCMethodsAreUniqueAndRegistered(t *testing.T) {
 	}
 	for method, found := range required {
 		if !found {
-			t.Fatalf("driversvc RPC method %q is not registered", method)
+			t.Fatalf("driver RPC method %q is not registered", method)
 		}
 	}
 }

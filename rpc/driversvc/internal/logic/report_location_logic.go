@@ -62,7 +62,11 @@ func (l *ReportLocationLogic) ReportLocation(in *proto.ReportLocationRequest) (*
 			return nil, err
 		}
 		if onlineStatus == int32(DriverOnline) {
-			if err := syncDispatchDriverOnline(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude()); err != nil {
+			pref, err := resolveDriverListenPreference(l.ctx, l.svcCtx, in.GetDriverId(), nil, nil)
+			if err != nil {
+				return nil, err
+			}
+			if err := syncDispatchDriverOnlineWithPreference(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude(), pref); err != nil {
 				return nil, err
 			}
 		} else if onlineStatus == int32(DriverOffline) {
