@@ -3,7 +3,6 @@ package svc
 import (
 	"context"
 	"fmt"
-	"github.com/zeromicro/go-zero/core/conf"
 	"os"
 	"strings"
 	"time"
@@ -19,6 +18,8 @@ import (
 	userlocal "XiaoLong-Ridy/rpc/usersvc/client"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
 
+	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc"
 )
 
@@ -232,7 +233,9 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 // newLocalServiceContext 创建显式 local 模式下的本地客户端集合，仅用于测试和无下游依赖的本地演示。
 func newLocalServiceContext(cfg RuntimeConfig) *ServiceContext {
 	return NewServiceContext(
-		userlocal.NewLocalClient(cfg.TokenSigningKey, nil),
+		userlocal.NewLocalClient(cfg.TokenSigningKey, func(phone, code string) {
+			logx.Infof("[LOCAL SMS] 手机号=%s 验证码=%s（local 模式不会真实发送短信）", phone, code)
+		}),
 		WithOrderClient(orderlocal.NewLocalClient()),
 		WithPriceClient(priceclient.NewLocalClient()),
 		WithPayClient(newLocalPayClient(paylocal.NewLocalClient())),
