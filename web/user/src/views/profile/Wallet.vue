@@ -10,7 +10,7 @@
     <!-- 余额卡片 -->
     <div class="balance-card">
       <p class="label">账户余额（元）</p>
-      <h1 class="balance">{{ walletInfo.balance }}</h1>
+      <h1 class="balance">{{ walletInfo.balance ?? '--' }}</h1>
       
       <div class="actions">
         <button class="btn-recharge" @click="showRecharge = true">充值</button>
@@ -24,19 +24,19 @@
       <div class="asset-list">
         <div class="asset-item">
           <span class="label">可用余额</span>
-          <span class="value green">+{{ walletInfo.balance }}</span>
+          <span class="value green">{{ walletInfo.balance ?? '--' }}</span>
         </div>
         <div class="asset-item">
           <span class="label">行程待付</span>
-          <span class="value red">-{{ walletInfo.pending }}</span>
+          <span class="value red">{{ walletInfo.pending ?? '--' }}</span>
         </div>
         <div class="asset-item">
           <span class="label">优惠券抵扣</span>
-          <span class="value orange">-{{ walletInfo.couponDiscount }}</span>
+          <span class="value orange">{{ walletInfo.couponDiscount ?? '--' }}</span>
         </div>
         <div class="asset-item">
           <span class="label">充值</span>
-          <span class="value blue">+{{ walletInfo.recharged }}</span>
+          <span class="value blue">{{ walletInfo.recharged ?? '--' }}</span>
         </div>
       </div>
     </div>
@@ -119,7 +119,7 @@
       @confirm="handleWithdraw"
     >
       <div class="withdraw-content">
-        <p>可提现余额：¥{{ walletInfo.balance }}</p>
+        <p>可提现余额：¥{{ walletInfo.balance ?? '--' }}</p>
         <input 
           v-model="withdrawAmount" 
           type="number" 
@@ -141,47 +141,15 @@ const router = useRouter()
 
 // 钱包信息
 const walletInfo = ref({
-  balance: '68.0',
-  pending: '20.6',
-  couponDiscount: '5.0',
-  recharged: '50.0'
+  // 余额由后端钱包接口提供，未加载到真实数据前不预置演示金额。
+  balance: null,
+  pending: null,
+  couponDiscount: null,
+  recharged: null
 })
 
-// 交易记录
-const transactions = ref([
-  {
-    type: 'expense',
-    icon: 'car-o',
-    color: '#7C3AED',
-    title: '支付车费 - 快车',
-    time: '2024-01-20 11:06',
-    amount: -20.6
-  },
-  {
-    type: 'income',
-    icon: 'credit-pay',
-    color: '#10B981',
-    title: '充值',
-    time: '2024-01-18 15:30',
-    amount: 50.0
-  },
-  {
-    type: 'expense',
-    icon: 'coupon-o',
-    color: '#F59E0B',
-    title: '优惠券抵扣',
-    time: '2024-01-16 10:25',
-    amount: -5.0
-  },
-  {
-    type: 'refund',
-    icon: 'refund-o',
-    color: '#3B82F6',
-    title: '订单退款',
-    time: '2024-01-14 18:00',
-    amount: 18.5
-  }
-])
+// 交易记录由后端接口提供，未加载真实数据前保持为空，避免展示演示记录。
+const transactions = ref([])
 
 // 充值相关
 const showRecharge = ref(false)
@@ -217,7 +185,7 @@ const handleRecharge = async () => {
     showRecharge.value = false
     
     // 更新余额
-    walletInfo.value.balance = (parseFloat(walletInfo.value.balance) + parseFloat(rechargeAmount.value)).toFixed(2)
+    walletInfo.value.balance = (Number(walletInfo.value.balance || 0) + parseFloat(rechargeAmount.value)).toFixed(2)
     rechargeAmount.value = ''
   } catch (error) {
     console.error(error)
@@ -233,7 +201,7 @@ const handleWithdraw = async () => {
     return false
   }
 
-  if (parseFloat(withdrawAmount.value) > parseFloat(walletInfo.value.balance)) {
+  if (parseFloat(withdrawAmount.value) > Number(walletInfo.value.balance || 0)) {
     showToast('余额不足')
     return false
   }
@@ -252,7 +220,7 @@ const handleWithdraw = async () => {
     showToast('提现申请已提交')
     
     // 更新余额
-    walletInfo.value.balance = (parseFloat(walletInfo.value.balance) - parseFloat(withdrawAmount.value)).toFixed(2)
+    walletInfo.value.balance = (Number(walletInfo.value.balance || 0) - parseFloat(withdrawAmount.value)).toFixed(2)
     withdrawAmount.value = ''
     return true
   } catch (error) {

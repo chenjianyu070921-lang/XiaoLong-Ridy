@@ -18,8 +18,8 @@ import (
 	userlocal "XiaoLong-Ridy/rpc/usersvc/client"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
 
+	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
-
 	"google.golang.org/grpc"
 )
 
@@ -123,22 +123,45 @@ func NewServiceContext(userClient UserClient, opts ...Option) *ServiceContext {
 	return ctx
 }
 
-// LoadRuntimeConfigFromEnv 从环境变量加载 passenger API 配置。
+// LoadRuntimeConfig 从 YAML 配置文件加载 passenger API 配置，再叠加环境变量覆盖。
+// 配置文件不存在时返回明确错误，避免手动启动时悄悄漏掉 JWT 密钥或 RPC 地址。
+func LoadRuntimeConfig(configFile string) (RuntimeConfig, error) {
+	var cfg RuntimeConfig
+	if err := conf.LoadConfig(configFile, &cfg); err != nil {
+		return RuntimeConfig{}, err
+	}
+	return applyRuntimeDefaults(applyRuntimeEnvOverrides(cfg)), nil
+}
+
+// LoadRuntimeConfigFromEnv 从环境变量加载 passenger API 配置，主要供单元测试或临时脚本复用。
 // PASSENGER_* 变量缺省时使用本地默认 gRPC 地址，确保启动后连接真实微服务。
 func LoadRuntimeConfigFromEnv() RuntimeConfig {
-	cfg := RuntimeConfig{
-		HTTPAddr:        strings.TrimSpace(os.Getenv("PASSENGER_HTTP_ADDR")),
-		TokenSigningKey: strings.TrimSpace(os.Getenv("PASSENGER_TOKEN_SIGNING_KEY")),
-		UserRPCAddr:     strings.TrimSpace(os.Getenv("PASSENGER_USERSVC_ADDR")),
-		OrderRPCAddr:    strings.TrimSpace(os.Getenv("PASSENGER_ORDERSVC_ADDR")),
-		PriceRPCAddr:    strings.TrimSpace(os.Getenv("PASSENGER_PRICESVC_ADDR")),
-		PayRPCAddr:      strings.TrimSpace(os.Getenv("PASSENGER_PAYSVC_ADDR")),
-		DispatchRPCAddr: strings.TrimSpace(os.Getenv("PASSENGER_DISPATCHSVC_ADDR")),
-		ClientMode:      strings.TrimSpace(os.Getenv("PASSENGER_CLIENT_MODE")),
-		PriceCityCode:   strings.TrimSpace(os.Getenv("PASSENGER_PRICE_CITY_CODE")),
-		MysqlDSN:        strings.TrimSpace(os.Getenv("PASSENGER_MYSQL_DSN")),
+	return applyRuntimeDefaults(applyRuntimeEnvOverrides(RuntimeConfig{}))
+}
+
+// applyRuntimeEnvOverrides 使用环境变量覆盖 YAML 配置，便于本地临时切换端口或下游 RPC 地址。
+func applyRuntimeEnvOverrides(cfg RuntimeConfig) RuntimeConfig {
+	cfg.HTTPAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_HTTP_ADDR"), cfg.HTTPAddr)
+	cfg.TokenSigningKey = firstNonEmptyRuntime(os.Getenv("PASSENGER_TOKEN_SIGNING_KEY"), cfg.TokenSigningKey)
+	cfg.UserRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_USERSVC_ADDR"), cfg.UserRPCAddr)
+	cfg.OrderRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_ORDERSVC_ADDR"), cfg.OrderRPCAddr)
+	cfg.PriceRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_PRICESVC_ADDR"), cfg.PriceRPCAddr)
+	cfg.PayRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_PAYSVC_ADDR"), cfg.PayRPCAddr)
+	cfg.DispatchRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_DISPATCHSVC_ADDR"), cfg.DispatchRPCAddr)
+	cfg.ClientMode = firstNonEmptyRuntime(os.Getenv("PASSENGER_CLIENT_MODE"), cfg.ClientMode)
+	cfg.PriceCityCode = firstNonEmptyRuntime(os.Getenv("PASSENGER_PRICE_CITY_CODE"), cfg.PriceCityCode)
+	cfg.MysqlDSN = firstNonEmptyRuntime(os.Getenv("PASSENGER_MYSQL_DSN"), cfg.MysqlDSN)
+	return cfg
+}
+
+// firstNonEmptyRuntime 返回第一个非空配置值，并统一清理首尾空白。
+func firstNonEmptyRuntime(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
 	}
-	return applyRuntimeDefaults(cfg)
+	return ""
 }
 
 // NewServiceContextFromConfig 按配置创建 ServiceContext。
@@ -251,8 +274,7 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 		cfg.DispatchRPCAddr = defaultDispatchRPCAddr
 	}
 	if cfg.ClientMode == "" {
-		// 默认使用真实 gRPC 下游，避免联调或验收环境误用本地内存客户端。
-		// 如需无依赖运行单元测试或临时演示，必须显式设置 PASSENGER_CLIENT_MODE=local。
+		// 乘客端 API 默认必须调用真实 usersvc gRPC，避免验证码接口只写入本地内存而没有真正发送短信。
 		cfg.ClientMode = clientModeGRPC
 	}
 	if cfg.PriceCityCode == "" {

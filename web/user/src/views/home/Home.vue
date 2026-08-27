@@ -5,7 +5,7 @@
         <img src="/logo.png" alt="花小龙" />
         <div><strong>花小龙出行</strong><span>便捷 · 安心 · 省心</span></div>
       </div>
-      <button class="city-switch" type="button" aria-label="选择城市" @click="router.push('/city/select')"><van-icon name="location" size="16" />{{ selectedCity?.name || currentCityName || '定位中' }}<van-icon name="arrow-down" size="12" /></button>
+      <button class="city-switch" type="button" aria-label="选择城市" @click="router.push('/city/select')"><van-icon name="location" size="16" />{{ selectedCity?.name || currentCityName || '暂未定位' }}<van-icon name="arrow-down" size="12" /></button>
       <div class="header-actions">
         <van-icon name="qr" size="22" @click="showToast('扫一扫功能开发中')" />
         <van-icon name="ellipsis" size="22" @click="showToast('更多功能开发中')" />
@@ -110,7 +110,7 @@ import AMapLoader from '@amap/amap-jsapi-loader'
 import { showToast } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { getOrders } from '@/api/order'
-import { readSelectedCity, saveSelectedCity } from '@/data/cities'
+import { normalizeCityCode, readCurrentCity, readSelectedCity, saveCurrentCity, saveSelectedCity } from '@/data/cities'
 
 
 const router = useRouter()
@@ -139,14 +139,16 @@ const activeTab = ref('home')
 const currentPoint = ref({ lat: null, lng: null, address: '' })
 // 当前定位所属行政区编码，优先使用 adcode 精确限制 POI 搜索范围。
 const selectedCity = ref(localStorage.getItem('passenger-manual-city') === '1' ? readSelectedCity() : null)
-// 历史版本可能保存了“当前位置”占位值，不能把它当作真实城市展示。
+// 历史版本可能保存了"当前位置"占位值，不能把它当作真实城市展示。
 if (selectedCity.value?.name === '当前位置') {
   selectedCity.value = null
   localStorage.removeItem('passenger-selected-city')
   localStorage.removeItem('passenger-manual-city')
 }
-const currentCityName = ref('')
-const currentCityCode = ref(selectedCity.value?.adcode || '')
+const currentLocationCity = readCurrentCity()
+// 先显示最近一次定位城市，新的定位完成后再用实时结果覆盖。
+const currentCityName = ref(selectedCity.value?.name || currentLocationCity?.name || '')
+const currentCityCode = ref(normalizeCityCode(selectedCity.value?.adcode || currentLocationCity?.adcode || ''))
 
 // 根据当前城市编码重建 POI 搜索实例，确保 city 和 citylimit 同时生效。
 function configurePlaceSearch(cityCode = '') {
@@ -198,7 +200,7 @@ async function initMap() {
   }
   try {
     if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
-    const AMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.Geolocation', 'AMap.PlaceSearch', 'AMap.CitySearch', 'AMap.Geocoder'] })
+    const AMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.Geolocation', 'AMap.PlaceSearch', 'AMap.CitySearch', 'AMap.Geocoder', 'AMap.InputTips', 'AMap.AutoComplete'] })
     AMapSDK.value = AMap
     // 未获取到用户位置时不指定重庆等固定城市，保持地图为通用初始视图，等待定位结果后再居中。
     mapInstance.value = new AMap.Map('map-container', { zoom: 4, viewMode: '2D' })
@@ -242,12 +244,13 @@ function reverseGeocode(lng, lat) {
 async function resolveCityCode(lng, lat) {
   const result = await reverseGeocode(lng, lat)
   if (result.adcode) {
+    // 逆地理返回的可能是区县编码，必须先归一化到地级市再限制 POI 搜索。
+    result.adcode = normalizeCityCode(result.adcode)
     currentCityCode.value = result.adcode
     configurePlaceSearch(result.adcode)
   }
   return result
 }
-
 function updateCurrentMarker(lng, lat) {
   if (!mapInstance.value || !AMapSDK.value) return
   const position = [Number(lng), Number(lat)]
@@ -265,16 +268,16 @@ async function applyCurrentLocation({ lng, lat, address, name, addressComponent 
   if (!Number.isFinite(normalizedLng) || !Number.isFinite(normalizedLat)) return markLocationFailure('定位坐标异常，请重新定位')
   // 定位结果可能只有坐标或占位文字，优先通过逆地理获取详细地址。
   let text = address || ''
-  let resolvedAdcode = addressComponent?.adcode || ''
+  let resolvedAdcode = normalizeCityCode(addressComponent?.adcode || '')
   let resolvedCityName = addressComponent?.city || addressComponent?.province || ''
-  if (!text || ['当前位置', '我的位置', '当前城市'].includes(text)) {
+  // 高德精确定位常常只返回 formattedAddress，未同时返回 city/adcode。
+  // 即使详细地址已经存在，只要城市名称或编码缺失，也必须逆地理补齐，不能直接显示“当前城市”。
+  const shouldResolveCity = !resolvedCityName || !resolvedAdcode
+  if (!text || ['当前位置', '我的位置', '当前城市'].includes(text) || shouldResolveCity) {
     const reverseResult = await reverseGeocode(normalizedLng, normalizedLat)
-    text = reverseResult.address
-    resolvedAdcode = resolvedAdcode || reverseResult.adcode
+    text = text && !['当前位置', '我的位置', '当前城市'].includes(text) ? text : reverseResult.address
+    resolvedAdcode = resolvedAdcode || normalizeCityCode(reverseResult.adcode)
     resolvedCityName = resolvedCityName || reverseResult.cityName
-  }
-  if (!text || ['当前位置', '我的位置', '当前城市'].includes(text)) {
-    return markLocationFailure('无法解析当前位置详细地址，请重新定位')
   }
   locationFailed.value = false
   currentPoint.value = { lng: normalizedLng, lat: normalizedLat, address: text }
@@ -283,14 +286,19 @@ async function applyCurrentLocation({ lng, lat, address, name, addressComponent 
     if (resolvedAdcode) {
       currentCityCode.value = resolvedAdcode
       currentCityName.value = resolvedCityName || '当前城市'
+      // 保存真实定位城市，供城市选择页展示，并让后续页面复用同一城市上下文。
+      saveCurrentCity({ name: currentCityName.value, adcode: currentCityCode.value })
       configurePlaceSearch(currentCityCode.value)
     } else {
       // 浏览器定位或高德定位未返回 adcode 时，通过坐标逆地理编码补齐行政区编码。
       const cityResult = await resolveCityCode(normalizedLng, normalizedLat)
       currentCityName.value = cityResult.cityName || currentCityName.value
+      if (cityResult.cityName && cityResult.adcode) {
+        saveCurrentCity({ name: cityResult.cityName, adcode: cityResult.adcode })
+      }
     }
   } else {
-    currentCityCode.value = selectedCity.value.adcode
+    currentCityCode.value = normalizeCityCode(selectedCity.value.adcode)
     currentCityName.value = selectedCity.value.name
     configurePlaceSearch(currentCityCode.value)
   }
@@ -308,8 +316,8 @@ async function applyCurrentLocation({ lng, lat, address, name, addressComponent 
 async function applySelectedCity(city) {
   if (!city?.name || !city?.adcode || !geocoder.value || !mapInstance.value) return
   currentCityName.value = city.name
-  currentCityCode.value = city.adcode
-  configurePlaceSearch(city.adcode)
+  currentCityCode.value = normalizeCityCode(city.adcode)
+  configurePlaceSearch(currentCityCode.value)
   await new Promise(resolve => {
     geocoder.value.getLocation(city.name, (status, result) => {
       const location = result?.geocodes?.[0]?.location
@@ -411,39 +419,119 @@ function handleSearchResult(sequence, status, result) {
   searchResults.value = (result.poiList?.pois || []).map(normalizePOI).filter(Boolean)
 }
 
+// 双通道搜索：InputTips（关键词提示）+ PlaceSearch（POI详情）
+// 核心策略：严格按名称匹配关键词 + 城市限制
 function searchByKeyword(value) {
   const sequence = ++searchSequence
-  if (!placeSearch.value) return Object.assign(searchLoading, { value: false })
+  if (!AMapSDK.value) return Object.assign(searchLoading, { value: false })
   searchLoading.value = true
   searchMessage.value = ''
-  placeSearch.value.setType('')
+
   const normalizedKeyword = value.replace(/\s+/g, '').replace(/市$/, '')
   const cityName = (currentCityName.value || selectedCity.value?.name || '').replace(/市$/, '')
-  const cityKeyword = cityName && !normalizedKeyword.startsWith(cityName) ? cityName + normalizedKeyword : value
-  const isRelevant = item => {
-    const text = (item.name + item.address).replace(/\s+/g, '')
-    return text.includes(normalizedKeyword) || normalizedKeyword.includes(item.name.replace(/\s+/g, ''))
+  // 剥离城市前缀，例如"宿迁宝龙"→"宝龙"
+  const localKeyword = cityName && normalizedKeyword.startsWith(cityName)
+    ? normalizedKeyword.slice(cityName.length)
+    : normalizedKeyword
+  // 搜索关键词：优先用剥离后的短词，保留原始输入作为备选
+  const searchKeyword = localKeyword || normalizedKeyword
+  const cityCode = currentCityCode.value || ''
+
+  // ====== 关键词过滤：名称必须包含用户输入的关键词 ======
+  const isNameMatch = (name) => {
+    if (!name) return false
+    const cleanName = name.replace(/\s+/g, '')
+    // 精确匹配：名称包含完整关键词
+    if (cleanName.includes(searchKeyword)) return true
+    // 宽松匹配：原始输入也尝试匹配
+    if (searchKeyword !== value && cleanName.includes(value.replace(/\s+/g, ''))) return true
+    return false
   }
-  const finish = (status, result) => {
-    const relevant = (result?.poiList?.pois || []).map(normalizePOI).filter(Boolean).filter(isRelevant)
+
+  // 结果去重与合并
+  const resultsById = new Map()
+  const mergedResults = []
+  const addItem = item => {
+    if (!item || !isNameMatch(item.name)) return  // 关键词过滤
+    const key = item.id || `${item.lng},${item.lat}`
+    if (!resultsById.has(key)) {
+      resultsById.set(key, item)
+      mergedResults.push(item)
+    }
+  }
+
+  let completedChannels = 0
+  const totalChannels = 2  // InputTips + PlaceSearch
+
+  const finish = () => {
     if (sequence !== searchSequence) return
     searchLoading.value = false
-    searchResults.value = relevant
-    searchMessage.value = relevant.length ? '' : '当前城市未找到匹配地点，请换个关键词试试'
+    searchResults.value = mergedResults
+    searchMessage.value = mergedResults.length ? '' : '未找到相关地点，请换个关键词试试'
   }
-  // 优先将当前城市拼入关键词，避免高德把“宝龙广场”误匹配到全国其他城市的弱相关地点。
-  const citySearch = new AMapSDK.value.PlaceSearch({ pageSize: 50, pageIndex: 1, extensions: 'base', city: currentCityCode.value || cityName || undefined, citylimit: Boolean(currentCityCode.value || cityName) })
-  citySearch.setType('')
-  citySearch.search(cityKeyword, (status, result) => {
-    const pois = result?.poiList?.pois || []
-    if (status === 'complete' && pois.length) {
-      finish(status, result)
-      return
-    }
-    placeSearch.value.search(value, finish)
-  })
-}
 
+  // ====== 通道1: InputTips（高德关键词提示API）======
+  try {
+    const tipsSearch = new AMapSDK.value.InputTips({
+      city: cityCode || cityName || undefined,
+      citylimit: Boolean(cityCode || cityName),  // 限定城市避免无关结果
+      pageSize: 25
+    })
+    tipsSearch.search(value, (status, result) => {
+      if (sequence !== searchSequence) return
+      if (status === 'complete' && Array.isArray(result?.tips)) {
+        for (const tip of result.tips) {
+          if (!tip.location || !tip.name) continue
+          if (!isNameMatch(tip.name)) continue  // 关键词过滤
+          const lng = typeof tip.location.getLng === 'function' ? tip.location.getLng() : Number(tip.location.lng)
+          const lat = typeof tip.location.getLat === 'function' ? tip.location.getLat() : Number(tip.location.lat)
+          if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+          const prefix = [tip.district, tip.adname].filter(Boolean).join('')
+          const address = [prefix, tip.address || ''].filter(Boolean).join('') || tip.district || ''
+          addItem({
+            id: tip.id || `${lng},${lat}`,
+            name: tip.name,
+            address: address,
+            displayAddress: address,
+            lng, lat,
+            distanceText: ''
+          })
+        }
+      }
+      completedChannels += 1
+      if (completedChannels >= totalChannels) finish()
+    })
+  } catch (e) {
+    console.warn('InputTips 搜索失败:', e)
+    completedChannels += 1
+    if (completedChannels >= totalChannels) finish()
+  }
+
+  // ====== 通道2: PlaceSearch（POI搜索）======
+  if (placeSearch.value) {
+    const poiSearch = new AMapSDK.value.PlaceSearch({
+      pageSize: 50,
+      pageIndex: 1,
+      extensions: 'all',
+      city: cityCode || undefined,
+      citylimit: Boolean(cityCode)
+    })
+    poiSearch.setType('')
+    poiSearch.search(searchKeyword, (status, result) => {
+      if (sequence !== searchSequence) return
+      if (status === 'complete' && result?.poiList?.pois) {
+        for (const poi of result.poiList.pois) {
+          addItem(normalizePOI(poi))
+        }
+      }
+      completedChannels += 1
+      if (completedChannels >= totalChannels) finish()
+    })
+  } else {
+    completedChannels += 1
+    if (completedChannels >= totalChannels) finish()
+  }
+}
 function searchNearby() {
   if (!placeSearch.value || currentPoint.value.lng == null || currentPoint.value.lat == null) {
     searchResults.value = []

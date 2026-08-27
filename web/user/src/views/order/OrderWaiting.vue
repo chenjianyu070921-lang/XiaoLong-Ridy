@@ -48,8 +48,8 @@
 
     <!-- 底部操作 -->
     <div class="bottom-actions safe-area-bottom">
-      <button class="btn-cancel" @click="showCancelDialog = true">
-        取消订单
+      <button class="btn-cancel" :disabled="isCancelling" @click="showCancelDialog = true">
+        {{ isCancelling ? '正在取消...' : '取消订单' }}
       </button>
       <p class="tip">预计匹配时间：{{ estimatedWaitTime }}分钟</p>
     </div>
@@ -73,6 +73,16 @@
             <van-radio name="other">其他原因</van-radio>
           </van-radio-group>
         </div>
+        <van-field
+          v-if="cancelReason === 'other'"
+          v-model="otherCancelReason"
+          class="other-reason-field"
+          type="textarea"
+          rows="3"
+          maxlength="100"
+          show-word-limit
+          placeholder="请告诉我们取消的原因"
+        />
       </div>
     </van-dialog>
   </div>
@@ -95,6 +105,11 @@ const backToHome = () => router.replace('/home')
 const waitTime = ref(0)
 const showCancelDialog = ref(false)
 const cancelReason = ref('change_plan')
+const otherCancelReason = ref('')
+const isCancelling = ref(false)
+
+// 将预设原因或用户填写的其他原因转换为提交给订单服务的文本。
+const submittedCancelReason = computed(() => cancelReason.value === 'other' ? otherCancelReason.value.trim() : cancelReason.value)
 const orderStatus = ref(1)
 let timer = null
 let pollTimer = null
@@ -139,26 +154,30 @@ const pollStatus = async () => {
 
 // 取消订单
 const handleCancel = async () => {
+  // 防止确认弹窗重复触发时并发提交多个取消请求。
+  if (isCancelling.value) return
+  isCancelling.value = true
+  if (!submittedCancelReason.value) {
+    isCancelling.value = false
+    showToast('请先填写取消原因')
+    return
+  }
   try {
-    const toast = showLoadingToast({
-      message: '正在取消...',
-      forbidClick: true,
-      duration: 0
-    })
-
+    showLoadingToast({ message: '正在取消...', forbidClick: true, duration: 0 })
     if (orderStore.currentOrder?.orderId) {
-      await cancelOrder(orderStore.currentOrder.orderId, cancelReason.value)
+      await cancelOrder(orderStore.currentOrder.orderId, submittedCancelReason.value)
     }
-
     closeToast()
     showToast('订单已取消')
-    
-    // 重置订单状态并返回首页
     orderStore.resetOrderParams()
     orderStore.setCurrentOrder(null)
     router.replace('/home')
   } catch (error) {
     console.error('Cancel error:', error)
+    closeToast()
+    showToast(error?.response?.data?.message || '取消订单失败，请稍后重试')
+  } finally {
+    isCancelling.value = false
   }
 }
 
@@ -229,6 +248,9 @@ onUnmounted(() => {
 }
 
 .status-card {
+  /* 通过层级覆盖地图背景，避免负外边距区域被地图遮挡。 */
+  position: relative;
+  z-index: 2;
   margin: -40px 16px 20px;
   background: white;
   border-radius: 16px;
@@ -319,7 +341,8 @@ onUnmounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px 20px;
+  /* 底部操作区预留安全区，避免全面屏设备遮挡按钮和提示。 */
+  padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
   background: white;
   text-align: center;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
@@ -348,18 +371,35 @@ onUnmounted(() => {
 }
 
 .cancel-content {
-  padding: 20px 0;
+  padding: 8px 0 4px;
 }
 
 .cancel-content > p {
+  padding: 0 4px;
   font-size: 15px;
   color: var(--text-primary);
   margin-bottom: 20px;
 }
 
 .cancel-reasons {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+.other-reason-field {
+  margin-top: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+}
 </style>
+
+
+
+
+
+
+

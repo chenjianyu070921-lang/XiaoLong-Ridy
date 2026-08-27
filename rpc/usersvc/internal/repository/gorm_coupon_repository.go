@@ -85,6 +85,8 @@ func (r *gormCouponRepository) Claim(ctx context.Context, userID, couponID uint6
 }
 
 // ListByUser 查询用户优惠券列表，status 为 0 时返回全部状态。
+// 排序字段 received_at, id 与迁移 12 的索引 idx_user_status_received 顺序一致，
+// 使 WHERE user_id=? AND status=? 过滤与 ORDER BY 都走索引，避免 filesort。
 func (r *gormCouponRepository) ListByUser(ctx context.Context, userID uint64, status int8) ([]*UserCouponWithTemplate, error) {
 	var rows []couponListRow
 	query := r.db.WithContext(ctx).
@@ -98,6 +100,8 @@ func (r *gormCouponRepository) ListByUser(ctx context.Context, userID uint64, st
 	if status > 0 {
 		query = query.Where("uc.status = ?", status)
 	}
+	// 列表查询无需返回全部历史，限制条数避免大结果集导致的回表与传输开销。
+	query = query.Limit(200)
 	if err := query.Scan(&rows).Error; err != nil {
 		return nil, err
 	}

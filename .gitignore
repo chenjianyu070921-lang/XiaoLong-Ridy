@@ -61,3 +61,4 @@ web/admin/dist-admin-preview/
 rpc/adminsvc/.tmp-admin-exports/
 .gotmp-restore.zip
 .tmp-gocache-review/
+.gocache/
