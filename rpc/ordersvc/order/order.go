@@ -6,45 +6,45 @@ package order
 import (
 	"context"
 
-	__proto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	"XiaoLong-Ridy/rpc/ordersvc/proto"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	AcceptOrderRequest          = __proto.AcceptOrderRequest
-	AcceptOrderResponse         = __proto.AcceptOrderResponse
-	CancelOrderRequest          = __proto.CancelOrderRequest
-	CancelOrderResponse         = __proto.CancelOrderResponse
-	ConfirmArriveRequest        = __proto.ConfirmArriveRequest
-	ConfirmArriveResponse       = __proto.ConfirmArriveResponse
-	ConfirmPaidRequest          = __proto.ConfirmPaidRequest
-	ConfirmPaidResponse         = __proto.ConfirmPaidResponse
-	CreateOrderRequest          = __proto.CreateOrderRequest
-	CreateOrderResponse         = __proto.CreateOrderResponse
-	FinishTripRequest           = __proto.FinishTripRequest
-	FinishTripResponse          = __proto.FinishTripResponse
-	ForceRefundOrderRequest     = __proto.ForceRefundOrderRequest
-	ForceRefundOrderResponse    = __proto.ForceRefundOrderResponse
-	GetOrderRequest             = __proto.GetOrderRequest
-	GetOrderResponse            = __proto.GetOrderResponse
-	ListOrderStatusLogsRequest  = __proto.ListOrderStatusLogsRequest
-	ListOrderStatusLogsResponse = __proto.ListOrderStatusLogsResponse
-	ListOrdersRequest           = __proto.ListOrdersRequest
-	ListOrdersResponse          = __proto.ListOrdersResponse
-	ListTimeoutOrdersRequest    = __proto.ListTimeoutOrdersRequest
-	ListTimeoutOrdersResponse   = __proto.ListTimeoutOrdersResponse
-	OrderStatusLog              = __proto.OrderStatusLog
-	OrderSummary                = __proto.OrderSummary
-	RedispatchOrderRequest      = __proto.RedispatchOrderRequest
-	RedispatchOrderResponse     = __proto.RedispatchOrderResponse
-	RefundOrderRequest          = __proto.RefundOrderRequest
-	RefundOrderResponse         = __proto.RefundOrderResponse
-	StartTripRequest            = __proto.StartTripRequest
-	StartTripResponse           = __proto.StartTripResponse
-	TimeoutCancelRequest        = __proto.TimeoutCancelRequest
-	TimeoutCancelResponse       = __proto.TimeoutCancelResponse
+	AcceptOrderRequest          = proto.AcceptOrderRequest
+	AcceptOrderResponse         = proto.AcceptOrderResponse
+	CancelOrderRequest          = proto.CancelOrderRequest
+	CancelOrderResponse         = proto.CancelOrderResponse
+	ConfirmArriveRequest        = proto.ConfirmArriveRequest
+	ConfirmArriveResponse       = proto.ConfirmArriveResponse
+	ConfirmPaidRequest          = proto.ConfirmPaidRequest
+	ConfirmPaidResponse         = proto.ConfirmPaidResponse
+	CreateOrderRequest          = proto.CreateOrderRequest
+	CreateOrderResponse         = proto.CreateOrderResponse
+	FinishTripRequest           = proto.FinishTripRequest
+	FinishTripResponse          = proto.FinishTripResponse
+	ForceRefundOrderRequest     = proto.ForceRefundOrderRequest
+	ForceRefundOrderResponse    = proto.ForceRefundOrderResponse
+	GetOrderRequest             = proto.GetOrderRequest
+	GetOrderResponse            = proto.GetOrderResponse
+	ListOrderStatusLogsRequest  = proto.ListOrderStatusLogsRequest
+	ListOrderStatusLogsResponse = proto.ListOrderStatusLogsResponse
+	ListOrdersRequest           = proto.ListOrdersRequest
+	ListOrdersResponse          = proto.ListOrdersResponse
+	ListTimeoutOrdersRequest    = proto.ListTimeoutOrdersRequest
+	ListTimeoutOrdersResponse   = proto.ListTimeoutOrdersResponse
+	OrderStatusLog              = proto.OrderStatusLog
+	OrderSummary                = proto.OrderSummary
+	RedispatchOrderRequest      = proto.RedispatchOrderRequest
+	RedispatchOrderResponse     = proto.RedispatchOrderResponse
+	RefundOrderRequest          = proto.RefundOrderRequest
+	RefundOrderResponse         = proto.RefundOrderResponse
+	StartTripRequest            = proto.StartTripRequest
+	StartTripResponse           = proto.StartTripResponse
+	TimeoutCancelRequest        = proto.TimeoutCancelRequest
+	TimeoutCancelResponse       = proto.TimeoutCancelResponse
 
 	Order interface {
 		CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderResponse, error)
@@ -76,76 +76,76 @@ func NewOrder(cli zrpc.Client) Order {
 }
 
 func (m *defaultOrder) CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.CreateOrder(ctx, in, opts...)
 }
 
 func (m *defaultOrder) CancelOrder(ctx context.Context, in *CancelOrderRequest, opts ...grpc.CallOption) (*CancelOrderResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.CancelOrder(ctx, in, opts...)
 }
 
 func (m *defaultOrder) GetOrder(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*GetOrderResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.GetOrder(ctx, in, opts...)
 }
 
 func (m *defaultOrder) ListOrders(ctx context.Context, in *ListOrdersRequest, opts ...grpc.CallOption) (*ListOrdersResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.ListOrders(ctx, in, opts...)
 }
 
 func (m *defaultOrder) AcceptOrder(ctx context.Context, in *AcceptOrderRequest, opts ...grpc.CallOption) (*AcceptOrderResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.AcceptOrder(ctx, in, opts...)
 }
 
 func (m *defaultOrder) ConfirmArrive(ctx context.Context, in *ConfirmArriveRequest, opts ...grpc.CallOption) (*ConfirmArriveResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.ConfirmArrive(ctx, in, opts...)
 }
 
 func (m *defaultOrder) StartTrip(ctx context.Context, in *StartTripRequest, opts ...grpc.CallOption) (*StartTripResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.StartTrip(ctx, in, opts...)
 }
 
 func (m *defaultOrder) FinishTrip(ctx context.Context, in *FinishTripRequest, opts ...grpc.CallOption) (*FinishTripResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.FinishTrip(ctx, in, opts...)
 }
 
 func (m *defaultOrder) ConfirmPaid(ctx context.Context, in *ConfirmPaidRequest, opts ...grpc.CallOption) (*ConfirmPaidResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.ConfirmPaid(ctx, in, opts...)
 }
 
 func (m *defaultOrder) RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.RefundOrder(ctx, in, opts...)
 }
 
 func (m *defaultOrder) TimeoutCancel(ctx context.Context, in *TimeoutCancelRequest, opts ...grpc.CallOption) (*TimeoutCancelResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.TimeoutCancel(ctx, in, opts...)
 }
 
 func (m *defaultOrder) ListTimeoutOrders(ctx context.Context, in *ListTimeoutOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutOrdersResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.ListTimeoutOrders(ctx, in, opts...)
 }
 
 func (m *defaultOrder) ListOrderStatusLogs(ctx context.Context, in *ListOrderStatusLogsRequest, opts ...grpc.CallOption) (*ListOrderStatusLogsResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.ListOrderStatusLogs(ctx, in, opts...)
 }
 
 func (m *defaultOrder) RedispatchOrder(ctx context.Context, in *RedispatchOrderRequest, opts ...grpc.CallOption) (*RedispatchOrderResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.RedispatchOrder(ctx, in, opts...)
 }
 
 func (m *defaultOrder) ForceRefundOrder(ctx context.Context, in *ForceRefundOrderRequest, opts ...grpc.CallOption) (*ForceRefundOrderResponse, error) {
-	client := __proto.NewOrderClient(m.cli.Conn())
+	client := proto.NewOrderClient(m.cli.Conn())
 	return client.ForceRefundOrder(ctx, in, opts...)
 }

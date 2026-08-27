@@ -83,6 +83,15 @@ func (m *mockOrder) ListTimeoutOrders(ctx context.Context, in *order.ListTimeout
 func (m *mockOrder) ListOrderStatusLogs(ctx context.Context, in *order.ListOrderStatusLogsRequest, opts ...grpc.CallOption) (*order.ListOrderStatusLogsResponse, error) {
 	return &order.ListOrderStatusLogsResponse{}, nil
 }
+func (m *mockOrder) RefundOrder(ctx context.Context, in *order.RefundOrderRequest, opts ...grpc.CallOption) (*order.RefundOrderResponse, error) {
+	return &order.RefundOrderResponse{}, nil
+}
+func (m *mockOrder) RedispatchOrder(ctx context.Context, in *order.RedispatchOrderRequest, opts ...grpc.CallOption) (*order.RedispatchOrderResponse, error) {
+	return &order.RedispatchOrderResponse{}, nil
+}
+func (m *mockOrder) ForceRefundOrder(ctx context.Context, in *order.ForceRefundOrderRequest, opts ...grpc.CallOption) (*order.ForceRefundOrderResponse, error) {
+	return &order.ForceRefundOrderResponse{}, nil
+}
 
 // newTestConsumer 构造测试用 OrderConsumer：Redis 用 miniredis 模拟，RPC 用 mock。
 func newTestConsumer(t *testing.T) (*OrderConsumer, *mockDispatch, *mockOrder, *miniredis.Miniredis) {

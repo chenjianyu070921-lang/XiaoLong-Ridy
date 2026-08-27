@@ -8,12 +8,12 @@ import (
 
 	"XiaoLong-Ridy/rpc/ordersvc/internal/logic"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
-	__proto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	"XiaoLong-Ridy/rpc/ordersvc/proto"
 )
 
 type OrderServer struct {
 	svcCtx *svc.ServiceContext
-	__proto.UnimplementedOrderServer
+	proto.UnimplementedOrderServer
 }
 
 func NewOrderServer(svcCtx *svc.ServiceContext) *OrderServer {
@@ -22,77 +22,77 @@ func NewOrderServer(svcCtx *svc.ServiceContext) *OrderServer {
 	}
 }
 
-func (s *OrderServer) CreateOrder(ctx context.Context, in *__proto.CreateOrderRequest) (*__proto.CreateOrderResponse, error) {
+func (s *OrderServer) CreateOrder(ctx context.Context, in *proto.CreateOrderRequest) (*proto.CreateOrderResponse, error) {
 	l := logic.NewCreateOrderLogic(ctx, s.svcCtx)
 	return l.CreateOrder(in)
 }
 
-func (s *OrderServer) CancelOrder(ctx context.Context, in *__proto.CancelOrderRequest) (*__proto.CancelOrderResponse, error) {
+func (s *OrderServer) CancelOrder(ctx context.Context, in *proto.CancelOrderRequest) (*proto.CancelOrderResponse, error) {
 	l := logic.NewCancelOrderLogic(ctx, s.svcCtx)
 	return l.CancelOrder(in)
 }
 
-func (s *OrderServer) GetOrder(ctx context.Context, in *__proto.GetOrderRequest) (*__proto.GetOrderResponse, error) {
+func (s *OrderServer) GetOrder(ctx context.Context, in *proto.GetOrderRequest) (*proto.GetOrderResponse, error) {
 	l := logic.NewGetOrderLogic(ctx, s.svcCtx)
 	return l.GetOrder(in)
 }
 
-func (s *OrderServer) ListOrders(ctx context.Context, in *__proto.ListOrdersRequest) (*__proto.ListOrdersResponse, error) {
+func (s *OrderServer) ListOrders(ctx context.Context, in *proto.ListOrdersRequest) (*proto.ListOrdersResponse, error) {
 	l := logic.NewListOrdersLogic(ctx, s.svcCtx)
 	return l.ListOrders(in)
 }
 
-func (s *OrderServer) AcceptOrder(ctx context.Context, in *__proto.AcceptOrderRequest) (*__proto.AcceptOrderResponse, error) {
+func (s *OrderServer) AcceptOrder(ctx context.Context, in *proto.AcceptOrderRequest) (*proto.AcceptOrderResponse, error) {
 	l := logic.NewAcceptOrderLogic(ctx, s.svcCtx)
 	return l.AcceptOrder(in)
 }
 
-func (s *OrderServer) ConfirmArrive(ctx context.Context, in *__proto.ConfirmArriveRequest) (*__proto.ConfirmArriveResponse, error) {
+func (s *OrderServer) ConfirmArrive(ctx context.Context, in *proto.ConfirmArriveRequest) (*proto.ConfirmArriveResponse, error) {
 	l := logic.NewConfirmArriveLogic(ctx, s.svcCtx)
 	return l.ConfirmArrive(in)
 }
 
-func (s *OrderServer) StartTrip(ctx context.Context, in *__proto.StartTripRequest) (*__proto.StartTripResponse, error) {
+func (s *OrderServer) StartTrip(ctx context.Context, in *proto.StartTripRequest) (*proto.StartTripResponse, error) {
 	l := logic.NewStartTripLogic(ctx, s.svcCtx)
 	return l.StartTrip(in)
 }
 
-func (s *OrderServer) FinishTrip(ctx context.Context, in *__proto.FinishTripRequest) (*__proto.FinishTripResponse, error) {
+func (s *OrderServer) FinishTrip(ctx context.Context, in *proto.FinishTripRequest) (*proto.FinishTripResponse, error) {
 	l := logic.NewFinishTripLogic(ctx, s.svcCtx)
 	return l.FinishTrip(in)
 }
 
-func (s *OrderServer) ConfirmPaid(ctx context.Context, in *__proto.ConfirmPaidRequest) (*__proto.ConfirmPaidResponse, error) {
+func (s *OrderServer) ConfirmPaid(ctx context.Context, in *proto.ConfirmPaidRequest) (*proto.ConfirmPaidResponse, error) {
 	l := logic.NewConfirmPaidLogic(ctx, s.svcCtx)
 	return l.ConfirmPaid(in)
 }
 
-func (s *OrderServer) RefundOrder(ctx context.Context, in *__proto.RefundOrderRequest) (*__proto.RefundOrderResponse, error) {
+func (s *OrderServer) RefundOrder(ctx context.Context, in *proto.RefundOrderRequest) (*proto.RefundOrderResponse, error) {
 	l := logic.NewRefundOrderLogic(ctx, s.svcCtx)
 	return l.RefundOrder(in)
 }
 
-func (s *OrderServer) TimeoutCancel(ctx context.Context, in *__proto.TimeoutCancelRequest) (*__proto.TimeoutCancelResponse, error) {
+func (s *OrderServer) TimeoutCancel(ctx context.Context, in *proto.TimeoutCancelRequest) (*proto.TimeoutCancelResponse, error) {
 	l := logic.NewTimeoutCancelLogic(ctx, s.svcCtx)
 	return l.TimeoutCancel(in)
 }
 
-func (s *OrderServer) ListTimeoutOrders(ctx context.Context, in *__proto.ListTimeoutOrdersRequest) (*__proto.ListTimeoutOrdersResponse, error) {
+func (s *OrderServer) ListTimeoutOrders(ctx context.Context, in *proto.ListTimeoutOrdersRequest) (*proto.ListTimeoutOrdersResponse, error) {
 	l := logic.NewListTimeoutOrdersLogic(ctx, s.svcCtx)
 	return l.ListTimeoutOrders(in)
 }
 
-func (s *OrderServer) ListOrderStatusLogs(ctx context.Context, in *__proto.ListOrderStatusLogsRequest) (*__proto.ListOrderStatusLogsResponse, error) {
+func (s *OrderServer) ListOrderStatusLogs(ctx context.Context, in *proto.ListOrderStatusLogsRequest) (*proto.ListOrderStatusLogsResponse, error) {
 	l := logic.NewListOrderStatusLogsLogic(ctx, s.svcCtx)
 	return l.ListOrderStatusLogs(in)
 }
 
-func (s *OrderServer) RedispatchOrder(ctx context.Context, in *__proto.RedispatchOrderRequest) (*__proto.RedispatchOrderResponse, error) {
+func (s *OrderServer) RedispatchOrder(ctx context.Context, in *proto.RedispatchOrderRequest) (*proto.RedispatchOrderResponse, error) {
 	l := logic.NewRedispatchOrderLogic(ctx, s.svcCtx)
 	return l.RedispatchOrder(in)
 }
 
-func (s *OrderServer) ForceRefundOrder(ctx context.Context, in *__proto.ForceRefundOrderRequest) (*__proto.ForceRefundOrderResponse, error) {
+func (s *OrderServer) ForceRefundOrder(ctx context.Context, in *proto.ForceRefundOrderRequest) (*proto.ForceRefundOrderResponse, error) {
 	l := logic.NewForceRefundOrderLogic(ctx, s.svcCtx)
 	return l.ForceRefundOrder(in)
 }
