@@ -63,6 +63,7 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const phone = ref(String(route.query.phone || '').trim())
+const debugCode = ref(String(route.query.debugCode || '').trim())
 const code = ref('')
 const codeInput = ref(null)
 const countdown = ref(60)
@@ -215,6 +216,13 @@ onUnmounted(() => {
   font-size: 22px;
   font-weight: 800;
   color: #111827;
+}
+
+.debug-code {
+  margin-top: 10px;
+  color: #7c3aed;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .code-grid {

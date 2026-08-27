@@ -38,7 +38,7 @@ func (r *gormOrderRepository) Create(ctx context.Context, order *model.RideOrder
 	return err
 }
 
-// GetByID 查询未删除的订单。
+// GetByID 查询未删除的订单完整信息。
 func (r *gormOrderRepository) GetByID(ctx context.Context, id uint64) (*model.RideOrder, error) {
 	var order model.RideOrder
 	err := r.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&order).Error

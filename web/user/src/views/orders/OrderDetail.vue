@@ -120,9 +120,22 @@
       </div>
     </div>
 
+    <!-- 取消订单弹窗：预设原因直接提交，其他原因要求填写说明。 -->
+    <van-dialog v-model:show="showCancelDialog" title="取消订单" show-cancel-button confirm-button-text="确定取消" cancel-button-text="再等等" :before-close="onCancelDialogClose" @confirm="confirmCancel">
+      <div class="cancel-dialog-content">
+        <p class="cancel-dialog-hint">请选择取消原因，帮助我们优化服务</p>
+        <van-radio-group v-model="cancelReason" class="cancel-reasons">
+          <van-radio name="行程有变，暂时不需要了">行程有变，暂时不需要了</van-radio>
+          <van-radio name="等待时间太长">等待时间太长</van-radio>
+          <van-radio name="价格太高">价格太高</van-radio>
+          <van-radio name="other">其他原因</van-radio>
+        </van-radio-group>
+        <van-field v-if="cancelReason === 'other'" v-model="otherCancelReason" class="other-reason-field" type="textarea" rows="3" maxlength="100" show-word-limit placeholder="请填写取消原因" />
+      </div>
+    </van-dialog>
     <!-- 底部操作 -->
     <div class="bottom-bar safe-area-bottom" v-if="showActions || canCancel">
-      <button v-if="canCancel" class="btn-cancel" @click="cancelCurrentOrder">取消订单</button>
+      <button v-if="canCancel" class="btn-cancel" :disabled="isCancelling" @click="cancelCurrentOrder">{{ isCancelling ? '正在取消...' : '取消订单' }}</button>
       <button 
         v-if="order.status === 'PENDING_PAYMENT'" 
         class="btn-primary"
@@ -163,7 +176,8 @@ const orderId = Number(route.params.id)
 const order = ref({ id: orderId, status: 'SEARCHING', createTime: '--', arriveTime: '', fromAddress: '加载中...', toAddress: '加载中...', distance: '', duration: '', totalPrice: '0.00', driverName: '', driverAvatar: '', plateNumber: '', carModel: '', driverRating: 0, orderNo: '', payMethod: '', payTime: '', couponAmount: '', rated: false, feeDetail: [] })
 
 // 将后端数字状态转换成详情页展示状态。
-const normalizeStatus = (status) => ({ 1: 'SEARCHING', 2: 'ACCEPTED', 3: 'PICKING_UP', 4: 'IN_PROGRESS', 5: 'PENDING_PAYMENT', 6: 'CANCELLED', 7: 'COMPLETED' })[status] || status
+// 后端状态：1待接单 2已接单 3行程中 4待支付 5已完成 6已取消
+const normalizeStatus = (status) => ({ 1: 'SEARCHING', 2: 'ACCEPTED', 3: 'IN_PROGRESS', 4: 'PENDING_PAYMENT', 5: 'COMPLETED', 6: 'CANCELLED' })[status] || status
 
 // 将订单详情接口字段转换为页面展示模型。
 const mapOrderDetail = (item) => {
@@ -186,7 +200,11 @@ const mapOrderDetail = (item) => {
 }
 
 // 是否显示操作按钮
-const canCancel = computed(() => ['SEARCHING', 'ACCEPTED'].includes(order.value.status))
+const isCancelling = ref(false)
+const showCancelDialog = ref(false)
+const cancelReason = ref('行程有变，暂时不需要了')
+const otherCancelReason = ref('')
+const canCancel = computed(() => !isCancelling.value && ['SEARCHING', 'ACCEPTED'].includes(order.value.status))
 
 const showActions = computed(() => {
   return ['PENDING_PAYMENT', 'COMPLETED', 'CANCELLED'].includes(order.value.status)
@@ -220,18 +238,44 @@ const callDriver = () => showDialog({ title: '联系司机', message: '是否拨
 const goToPay = () => router.push(`/order/payment?orderId=${orderId}`)
 const goToRate = () => router.push(`/order/success?orderId=${orderId}`)
 const reOrder = () => router.push('/order/create')
-// 取消未进入行程的订单，后端会释放该订单锁定的优惠券。
-const cancelCurrentOrder = async () => {
+// 点击"取消订单"按钮：打开取消原因选择弹窗。
+const cancelCurrentOrder = () => {
+  if (isCancelling.value || !canCancel.value) return
+  cancelReason.value = '行程有变，暂时不需要了'
+  otherCancelReason.value = ''
+  showCancelDialog.value = true
+}
+
+// 弹窗关闭前校验：选择"其他原因"时必须填写说明，否则阻止关闭。
+const onCancelDialogClose = (action) => {
+  if (action !== 'confirm') return true
+  if (cancelReason.value === 'other' && !otherCancelReason.value.trim()) {
+    showToast('请填写取消原因')
+    return false
+  }
+  return true
+}
+
+// 确定取消：预设原因直接提交对应文本，其他原因提交输入框内容。
+const confirmCancel = async () => {
+  if (isCancelling.value) return
+  const reason = cancelReason.value === 'other' ? otherCancelReason.value.trim() : cancelReason.value
+  if (!reason) {
+    showToast('请填写取消原因')
+    return
+  }
+  isCancelling.value = true
+  showLoadingToast({ message: '正在取消...', forbidClick: true, duration: 0 })
   try {
-    await showDialog({ title: '取消订单', message: '取消后已使用的优惠券会返还。', showCancelButton: true })
-    showLoadingToast({ message: '正在取消...', forbidClick: true, duration: 0 })
-    await cancelOrder(orderId, '用户主动取消')
+    await cancelOrder(orderId, reason)
     closeToast()
     order.value.status = 'CANCELLED'
     showToast('订单已取消，优惠券已返还')
   } catch (error) {
     closeToast()
-    if (error?.message !== 'cancel') showToast(error?.response?.data?.message || '取消订单失败')
+    showToast(error?.response?.data?.message || '取消订单失败')
+  } finally {
+    isCancelling.value = false
   }
 }
 
@@ -536,3 +580,4 @@ onMounted(async () => {
   cursor: pointer;
 }
 </style>
+

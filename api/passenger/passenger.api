@@ -279,7 +279,6 @@ type AddressInfo {
 	Longitude float64 `json:"longitude"`
 	Latitude float64 `json:"latitude"`
 	IsDefault bool `json:"isDefault"`
-	Sort int `json:"sort"`
 }
 
 type CreateAddressRequest {
@@ -290,7 +289,6 @@ type CreateAddressRequest {
 	Longitude float64 `json:"longitude"`
 	Latitude float64 `json:"latitude"`
 	IsDefault bool `json:"isDefault"`
-	Sort int `json:"sort"`
 }
 
 type ListAddressesRequest {}
@@ -308,7 +306,6 @@ type UpdateAddressRequest {
 	Longitude float64 `json:"longitude"`
 	Latitude float64 `json:"latitude"`
 	IsDefault bool `json:"isDefault"`
-	Sort int `json:"sort"`
 }
 
 type DeleteAddressRequest {
