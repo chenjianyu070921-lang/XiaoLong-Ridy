@@ -199,6 +199,9 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 		method string
 		path   string
 	}{
+		{http.MethodGet, "/api/driver/v1/img-captcha?phone=13800000000"},
+		{http.MethodPost, "/api/driver/v1/img-captcha/verify"},
+		{http.MethodPost, "/api/driver/v1/img-captcha/invalidate"},
 		{http.MethodPost, "/api/driver/v1/auth/send-sms-code"},
 		{http.MethodPost, "/api/driver/v1/auth/login-by-password"},
 		{http.MethodPost, "/api/driver/v1/auth/login-by-sms"},
@@ -383,5 +386,44 @@ func TestDriverPushWebSocketForwardsRedisMessages(t *testing.T) {
 	}
 	if got != payload {
 		t.Fatalf("ws payload = %s, want %s", got, payload)
+	}
+}
+
+func TestImgCaptchaGenerateRefreshAndInvalidate(t *testing.T) {
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "captcha-test-key"})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/driver/v1/img-captcha?phone=13800000000", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			UUID      string `json:"uuid"`
+			ImgBase64 string `json:"imgBase64"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Code != 0 || body.Data.UUID == "" || body.Data.ImgBase64 == "" {
+		t.Fatalf("unexpected captcha response: %s", response.Body.String())
+	}
+
+	refreshRequest := httptest.NewRequest(http.MethodGet, "/api/driver/v1/img-captcha?phone=13800000000", nil)
+	refreshResponse := httptest.NewRecorder()
+	handler.ServeHTTP(refreshResponse, refreshRequest)
+	if refreshResponse.Code != http.StatusOK {
+		t.Fatalf("refresh status = %d, body = %s", refreshResponse.Code, refreshResponse.Body.String())
+	}
+
+	verifyOld := httptest.NewRequest(http.MethodPost, "/api/driver/v1/img-captcha/verify", bytes.NewBufferString(fmt.Sprintf(`{"phone":"13800000000","uuid":%q,"userInputCode":"0000"}`, body.Data.UUID)))
+	verifyOldResponse := httptest.NewRecorder()
+	handler.ServeHTTP(verifyOldResponse, verifyOld)
+	if verifyOldResponse.Code != http.StatusBadRequest {
+		t.Fatalf("old captcha status = %d, want 400: %s", verifyOldResponse.Code, verifyOldResponse.Body.String())
 	}
 }

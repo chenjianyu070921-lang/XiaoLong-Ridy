@@ -203,10 +203,9 @@ func TestFinishTripForwardsTripMetrics(t *testing.T) {
 	driverClient := &fakeDriverClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client, DriverClient: driverClient})
 	req := &types.FinishTripRequest{
-		OrderID:          1001,
-		ActualDistanceM:  12500,
-		ActualDurationS:  1800,
-		ActualPriceCents: 3200,
+		OrderID:         1001,
+		ActualDistanceM: 12500,
+		ActualDurationS: 1800,
 	}
 
 	resp, err := logic.FinishTrip(25, req)
@@ -217,8 +216,7 @@ func TestFinishTripForwardsTripMetrics(t *testing.T) {
 		t.Fatalf("FinishTrip() response = %+v", resp)
 	}
 	if client.finishRequest.GetDriverId() != 25 || client.finishRequest.GetOrderId() != 1001 ||
-		client.finishRequest.GetActualDistanceM() != 12500 || client.finishRequest.GetActualDurationS() != 1800 ||
-		client.finishRequest.GetActualPriceCents() != 0 {
+		client.finishRequest.GetActualDistanceM() != 12500 || client.finishRequest.GetActualDurationS() != 1800 {
 		t.Fatalf("FinishTrip() request = %+v", client.finishRequest)
 	}
 	if len(driverClient.serviceStatusRequests) != 1 ||
@@ -246,9 +244,6 @@ func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 	}
 	if _, err := logic.FinishTrip(25, &types.FinishTripRequest{OrderID: 1001, ActualDistanceM: -1}); err != ErrInvalidParam {
 		t.Fatalf("FinishTrip(negative distance) error = %v, want %v", err, ErrInvalidParam)
-	}
-	if _, err := logic.FinishTrip(25, &types.FinishTripRequest{OrderID: 1001, ActualDistanceM: 1, ActualDurationS: 1, ActualPriceCents: -1}); err != nil {
-		t.Fatalf("FinishTrip(negative reported price) error = %v, want success", err)
 	}
 }
 

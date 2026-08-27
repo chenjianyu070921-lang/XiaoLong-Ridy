@@ -99,6 +99,22 @@ type DeleteResponse {
 	Success bool  `json:"success"`
 }
 
+type ImgCaptchaResponse {
+	UUID      string `json:"uuid"`
+	ImgBase64 string `json:"imgBase64"`
+}
+
+type VerifyImgCaptchaRequest {
+	Phone         string `json:"phone"`
+	UUID          string `json:"uuid"`
+	UserInputCode string `json:"userInputCode"`
+}
+
+type InvalidateImgCaptchaRequest {
+	Phone string `json:"phone"`
+	UUID  string `json:"uuid"`
+}
+
 type SendSMSCodeRequest {
 	Phone string `json:"phone"`
 }
@@ -446,10 +462,9 @@ type StartTripResponse {
 }
 
 type FinishTripRequest {
-	OrderID          int64 `json:"orderId"`
-	ActualDistanceM  int64 `json:"actualDistanceM"`
-	ActualDurationS  int64 `json:"actualDurationS"`
-	ActualPriceCents int64 `json:"actualPriceCents"`
+	OrderID         int64 `json:"orderId"`
+	ActualDistanceM int64 `json:"actualDistanceM"`
+	ActualDurationS int64 `json:"actualDurationS"`
 }
 
 type FinishTripResponse {
@@ -614,6 +629,15 @@ type AgentChatResponse {
 }
 
 service driver-api {
+	@handler ImgCaptchaHandler
+	get /api/driver/v1/img-captcha returns (ImgCaptchaResponse)
+
+	@handler VerifyImgCaptchaHandler
+	post /api/driver/v1/img-captcha/verify (VerifyImgCaptchaRequest) returns (CommonResponse)
+
+	@handler InvalidateImgCaptchaHandler
+	post /api/driver/v1/img-captcha/invalidate (InvalidateImgCaptchaRequest) returns (CommonResponse)
+
 	@handler SendSMSCodeHandler
 	post /api/driver/v1/auth/send-sms-code (SendSMSCodeRequest) returns (SendSMSCodeResponse)
 

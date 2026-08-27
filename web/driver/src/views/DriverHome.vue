@@ -1,46 +1,81 @@
 <template>
   <main class="driver-home-page">
-    <section class="h5-status-hero">
-      <div class="driver-profile-row">
-        <img v-if="driverStore.driver.avatarUrl" :src="driverStore.driver.avatarUrl" alt="司机头像" />
-        <span v-else>{{ driverStore.displayName.slice(0, 1) }}</span>
-        <div>
-          <p>{{ statusLabel }}</p>
-          <h1>{{ driverStore.displayName }}</h1>
-          <small>{{ driverStore.driver.phone || '--' }}</small>
+    <section class="driver-hero">
+      <div class="hero-topline">
+        <div class="driver-profile-row">
+          <img v-if="driverStore.driver.avatarUrl" :src="driverStore.driver.avatarUrl" alt="司机头像" />
+          <span v-else class="avatar-fallback">{{ driverStore.displayName.slice(0, 1) || '--' }}</span>
+          <div class="driver-copy">
+            <p>{{ statusLabel }}</p>
+            <h1>{{ driverStore.displayName || '--' }}</h1>
+            <small>{{ driverStore.driver.phone ? String(driverStore.driver.phone).slice(0, 3) + '****' + String(driverStore.driver.phone).slice(-4) : '--' }}</small>
+          </div>
         </div>
-        <button type="button" class="icon-button" @click="logoutDriver">
+        <button type="button" class="hero-icon-button" aria-label="退出登录" @click="logoutDriver">
           <van-icon name="revoke" />
         </button>
       </div>
 
-      <div class="online-control-card">
-        <div>
-          <small>当前模式</small>
-          <strong>{{ phaseLabel }}</strong>
-        </div>
-        <div class="quick-action-grid">
-          <button type="button" class="go-online" :disabled="workLoading || driverStore.onlineStatus === 1" @click="setOnline">
-            上线
-          </button>
-          <button type="button" class="go-offline" :disabled="workLoading || driverStore.onlineStatus === 0" @click="setOffline">
-            下线
-          </button>
-        </div>
+      <div class="hero-income">
+        <span>今日收入</span>
+        <strong>{{ formatPrice(todayIncome.incomeCents ?? todayIncome.totalIncomeCents) }}</strong>
+        <small>{{ phaseLabel || '--' }}</small>
+      </div>
+    </section>
+
+    <section class="hero-metric-row">
+      <div class="hero-metric-card">
+        <span>今日完单</span>
+        <strong>{{ todayIncome.completedOrders ?? incomeSummary.todayCompletedOrders ?? '--' }}</strong>
+      </div>
+      <div class="hero-metric-card">
+        <span>还可拒单</span>
+        <strong>--</strong>
+      </div>
+      <div class="hero-metric-card">
+        <span>服务指标</span>
+        <strong>{{ serviceScore || '--' }}</strong>
+      </div>
+    </section>
+
+    <section class="quick-entry-row">
+      <button type="button"><span><van-icon name="fire-o" /></span><b>热力图</b></button>
+      <button type="button"><span><van-icon name="service-o" /></span><b>听单检测</b></button>
+      <button type="button"><span><van-icon name="gift-o" /></span><b>司机福利社</b></button>
+      <button type="button"><span><van-icon name="friends-o" /></span><b>长期伙伴</b></button>
+    </section>
+
+    <section class="work-action-card">
+      <div>
+        <span>当前状态</span>
+        <strong>{{ phaseLabel || '--' }}</strong>
+      </div>
+      <div class="work-action-buttons">
+        <button type="button" class="go-online" :disabled="workLoading || driverStore.onlineStatus === 1" @click="setOnline">上线接单</button>
+        <button type="button" class="go-offline" :disabled="workLoading || driverStore.onlineStatus === 0" @click="setOffline">下线休息</button>
       </div>
     </section>
 
     <section class="mini-stat-grid">
-      <div><span>服务分</span><strong>{{ serviceScore }}</strong></div>
-      <div><span>订单</span><strong>{{ driverStore.currentOrderId || '--' }}</strong></div>
-      <div><span>车辆</span><strong>{{ driverStore.vehicleId || '--' }}</strong></div>
+      <div><span>服务分</span><strong>{{ serviceScore || '--' }}</strong></div>
+      <div><span>当前订单</span><strong>{{ driverStore.currentOrderId || '--' }}</strong></div>
+      <div><span>车辆</span><strong>{{ driverStore.vehicle?.plateNo || driverStore.vehicleId || '--' }}</strong></div>
     </section>
 
     <section class="tab-panel-scroll">
       <section v-show="activeTab === 0" class="h5-panel">
         <div class="section-title">
-          <h2>当前行程</h2>
-          <van-tag type="primary">{{ phaseLabel }}</van-tag>
+          <h2>工作台</h2>
+          <button type="button" @click="loadDashboardData">刷新</button>
+        </div>
+        <div class="current-trip-card">
+          <div class="section-subtitle">
+            <strong>当前行程</strong>
+            <van-tag type="primary">{{ formatOrderStatus(driverStore.currentOrder?.status) }}</van-tag>
+          </div>
+          <p><b>上车点</b><span>{{ driverStore.currentOrder?.fromAddress || '--' }}</span></p>
+          <p><b>目的地</b><span>{{ driverStore.currentOrder?.toAddress || '--' }}</span></p>
+          <p><b>订单号</b><span>{{ driverStore.currentOrder?.orderNo || driverStore.currentOrderId || '--' }}</span></p>
         </div>
         <div class="map-surface">
           <span class="road road-a"></span>
@@ -49,22 +84,20 @@
           <span class="pin order"></span>
           <p>接单区域</p>
         </div>
-        <div class="route-card">
-          <p><b>上车点</b><span>{{ driverStore.currentOrder?.fromAddress || '--' }}</span></p>
-          <p><b>目的地</b><span>{{ driverStore.currentOrder?.toAddress || '--' }}</span></p>
-          <p><b>状态</b><span>{{ formatOrderStatus(driverStore.currentOrder?.status) }}</span></p>
-        </div>
-        <button type="button" class="secondary-action" @click="loadDashboardData">刷新工作台</button>
       </section>
 
       <section v-show="activeTab === 1" class="h5-panel">
+        <div class="section-title">
+          <h2>订单</h2>
+          <button type="button" @click="loadOrders(orderPage)">刷新</button>
+        </div>
         <div class="filter-bar">
           <van-dropdown-menu>
             <van-dropdown-item v-model="orderMode" :options="orderModeOptions" @change="loadOrders(1)" />
             <van-dropdown-item v-model="orderStatus" :options="orderStatusOptions" @change="loadOrders(1)" />
           </van-dropdown-menu>
         </div>
-        <div v-if="orders.length === 0" class="empty-state">等待后端返回订单</div>
+        <div v-if="orders.length === 0" class="empty-state">--</div>
         <article v-for="order in orders" :key="String(order.source || 'order') + '-' + String(order.orderId)" class="order-card">
           <div class="order-heading">
             <strong>{{ order.orderNo || '订单 ' + order.orderId }}</strong>
@@ -93,10 +126,7 @@
       </section>
 
       <section v-show="activeTab === 2" class="h5-panel">
-        <div class="section-title">
-          <h2>车辆</h2>
-          <button type="button" @click="loadVehicle()">查询</button>
-        </div>
+        <div class="section-title"><h2>车辆</h2><button type="button" @click="loadVehicle()">查询</button></div>
         <div class="info-list">
           <p><b>车辆ID</b><span>{{ driverStore.vehicle?.id || '--' }}</span></p>
           <p><b>车牌号</b><span>{{ driverStore.vehicle?.plateNo || '--' }}</span></p>
@@ -114,17 +144,11 @@
           <van-field v-model="vehicleForm.insuranceExpireAt" type="date" label="保险到期" />
           <button class="primary-action" type="submit">提交车辆</button>
         </van-form>
-        <div class="two-actions">
-          <button type="button" @click="submitVehicleUpdate">更新</button>
-          <button type="button" class="danger" @click="removeVehicle">删除</button>
-        </div>
+        <div class="two-actions"><button type="button" @click="submitVehicleUpdate">更新</button><button type="button" class="danger" @click="removeVehicle">删除</button></div>
       </section>
 
       <section v-show="activeTab === 3" class="h5-panel">
-        <div class="section-title">
-          <h2>认证</h2>
-          <button type="button" @click="loadCertification()">查询</button>
-        </div>
+        <div class="section-title"><h2>认证</h2><button type="button" @click="loadCertification()">查询</button></div>
         <div class="info-list">
           <p><b>认证ID</b><span>{{ driverStore.certification?.id || '--' }}</span></p>
           <p><b>车辆ID</b><span>{{ driverStore.certification?.vehicleId || driverStore.vehicleId || '--' }}</span></p>
@@ -144,84 +168,38 @@
       </section>
 
       <section v-show="activeTab === 4" class="h5-panel">
-        <div class="section-title">
-          <h2>钱包</h2>
-          <button type="button" @click="loadIncome()">刷新</button>
-        </div>
-        <div class="wallet-card">
-          <p>累计收入</p>
-          <strong>{{ formatPrice(incomeSummary.totalIncomeCents || walletSummary.balanceCents) }}</strong>
-          <span>已完成订单 {{ incomeSummary.completedOrders ?? '--' }}</span>
-        </div>
+        <div class="section-title"><h2>钱包</h2><button type="button" @click="loadIncome()">刷新</button></div>
+        <div class="wallet-card"><span>累计收入</span><strong>{{ formatPrice(incomeSummary.totalIncomeCents ?? walletSummary.balanceCents) }}</strong><p>已完成订单 {{ incomeSummary.completedOrders ?? '--' }}</p></div>
         <div class="income-grid">
-          <div><span>今日</span><strong>{{ formatPrice(todayIncome.incomeCents || todayIncome.totalIncomeCents) }}</strong></div>
-          <div><span>本周</span><strong>{{ formatPrice(weekIncome.incomeCents || weekIncome.totalIncomeCents) }}</strong></div>
+          <div><span>今日</span><strong>{{ formatPrice(todayIncome.incomeCents ?? todayIncome.totalIncomeCents) }}</strong></div>
+          <div><span>本周</span><strong>{{ formatPrice(weekIncome.incomeCents ?? weekIncome.totalIncomeCents) }}</strong></div>
         </div>
-        <div v-if="incomeBills.length === 0" class="empty-state">等待后端返回收入账单</div>
-        <article v-for="bill in incomeBills" :key="bill.id || bill.orderId" class="compact-card">
-          <strong>{{ bill.orderNo || '订单 ' + bill.orderId }}</strong>
-          <span>{{ formatPrice(bill.incomeCents) }} · {{ formatTime(bill.createdAt) }}</span>
-        </article>
+        <div v-if="incomeBills.length === 0" class="empty-state">--</div>
+        <article v-for="bill in incomeBills" :key="bill.id || bill.orderId" class="compact-card"><strong>{{ bill.orderNo || '订单 ' + bill.orderId }}</strong><span>{{ formatPrice(bill.incomeCents) }} · {{ formatTime(bill.createdAt) }}</span></article>
       </section>
 
       <section v-show="activeTab === 5" class="h5-panel">
-        <div class="section-title">
-          <h2>评价</h2>
-          <button type="button" @click="loadReviews()">刷新</button>
-        </div>
-        <div v-if="reviews.length === 0" class="empty-state">等待后端返回评价</div>
-        <article v-for="review in reviews" :key="review.id || review.reviewId || review.orderId" class="compact-card">
-          <strong>订单 {{ review.orderId || '--' }} · {{ review.rating || '--' }} 分</strong>
-          <span>{{ review.comment || '未填写评价' }}</span>
-          <small>{{ formatTime(review.createdAt) }}</small>
-        </article>
+        <div class="section-title"><h2>评价</h2><button type="button" @click="loadReviews()">刷新</button></div>
+        <div v-if="reviews.length === 0" class="empty-state">--</div>
+        <article v-for="review in reviews" :key="review.id || review.reviewId || review.orderId" class="compact-card"><strong>订单 {{ review.orderId || '--' }} · {{ review.rating || '--' }} 分</strong><span>{{ review.comment || '--' }}</span><small>{{ formatTime(review.createdAt) }}</small></article>
       </section>
 
       <section v-show="activeTab === 6" class="h5-panel">
-        <div class="section-title">
-          <h2>轨迹</h2>
-        </div>
-        <div class="trajectory-form">
-          <van-field v-model.number="trajectoryOrderId" type="number" label="订单ID" placeholder="输入订单ID" />
-          <p v-if="trajectoryError" class="trajectory-error">{{ trajectoryError }}</p>
-          <button class="primary-action trajectory-action" type="button" @click="loadTrajectory">查询轨迹</button>
-        </div>
-        <div v-if="trajectoryPoints.length === 0" class="empty-state">暂无轨迹点</div>
-        <article
-          v-for="point in trajectoryPoints"
-          :key="String(point.longitude) + '-' + String(point.latitude) + '-' + String(point.createdAt)"
-          class="compact-card"
-        >
-          <strong>{{ point.longitude }}, {{ point.latitude }}</strong>
-          <span>速度 {{ point.speedKmh || 0 }} km/h · 方向 {{ point.heading || 0 }}</span>
-          <small>{{ formatTime(point.createdAt) }}</small>
-        </article>
+        <div class="section-title"><h2>轨迹</h2></div>
+        <div class="trajectory-form"><van-field v-model.number="trajectoryOrderId" type="number" label="订单ID" placeholder="输入订单ID" /><p v-if="trajectoryError" class="trajectory-error">{{ trajectoryError }}</p><button class="primary-action" type="button" @click="loadTrajectory">查询轨迹</button></div>
+        <div v-if="trajectoryPoints.length === 0" class="empty-state">--</div>
+        <article v-for="point in trajectoryPoints" :key="point.id || point.reportTime || point.createdAt" class="compact-card"><strong>{{ point.latitude || '--' }}, {{ point.longitude || '--' }}</strong><span>速度 {{ point.speedKmh ?? '--' }} km/h · {{ formatTime(point.reportTime || point.createdAt) }}</span></article>
       </section>
 
       <section v-show="activeTab === 7" class="h5-panel">
-        <div class="section-title">
-          <h2>我的</h2>
-          <button type="button" @click="refreshProfile">刷新</button>
-        </div>
-        <div class="info-list">
-          <p><b>手机号</b><span>{{ driverStore.driver.phone || '--' }}</span></p>
-          <p><b>驾驶证号</b><span>{{ driverStore.driver.driverLicenseNo || '--' }}</span></p>
-          <p><b>账号状态</b><span>{{ formatDriverStatus(driverStore.driver.status) }}</span></p>
-          <p><b>司机ID</b><span>{{ driverStore.driverId || '--' }}</span></p>
-        </div>
-        <van-form class="form-stack" @submit="submitProfile">
-          <van-field v-model="profileForm.realName" label="姓名" placeholder="司机姓名" />
-          <van-field v-model="profileForm.avatarUrl" label="头像地址" placeholder="头像 URL" />
-          <van-field v-model="profileForm.driverLicenseNo" label="驾驶证号" placeholder="驾驶证号" />
-          <button class="primary-action" type="submit">保存资料</button>
-        </van-form>
+        <div class="section-title"><h2>我的</h2><button type="button" @click="loadDashboardData">刷新</button></div>
+        <div class="info-list"><p><b>司机ID</b><span>{{ driverStore.driverId || '--' }}</span></p><p><b>手机号</b><span>{{ driverStore.driver.phone || '--' }}</span></p><p><b>状态</b><span>{{ formatDriverStatus(driverStore.driver.status) }}</span></p></div>
+        <van-form class="form-stack" @submit="submitProfile"><van-field v-model="profileForm.realName" label="姓名" placeholder="司机姓名" /><van-field v-model="profileForm.avatarUrl" label="头像地址" placeholder="头像 URL" /><van-field v-model="profileForm.driverLicenseNo" label="驾驶证号" placeholder="驾驶证号" /><button class="primary-action" type="submit">保存资料</button></van-form>
       </section>
     </section>
 
     <van-tabbar v-model="activeTab" class="driver-tabbar" fixed safe-area-inset-bottom>
-      <van-tabbar-item v-for="item in tabItems" :key="item.title" :icon="item.icon">
-        {{ item.title }}
-      </van-tabbar-item>
+      <van-tabbar-item v-for="item in tabItems" :key="item.title" :icon="item.icon">{{ item.title }}</van-tabbar-item>
     </van-tabbar>
 
     <van-popup v-model:show="finishVisible" round position="bottom">
@@ -230,7 +208,6 @@
         <van-form @submit="submitFinishTrip">
           <van-field v-model.number="finishForm.actualDistanceM" type="number" label="实际里程(米)" />
           <van-field v-model.number="finishForm.actualDurationS" type="number" label="实际时长(秒)" />
-          <van-field v-model.number="finishForm.actualPriceCents" type="number" label="实际金额(分)" />
           <button class="primary-action" type="submit">确认结束</button>
         </van-form>
       </section>
@@ -336,7 +313,7 @@ const vehicleForm = reactive({
 })
 const certificationForm = reactive({ vehicleId: 0, idCardFront: '', idCardBack: '', driverLicense: '', vehicleLicense: '' })
 const profileForm = reactive({ realName: '', avatarUrl: '', driverLicenseNo: '' })
-const finishForm = reactive({ actualDistanceM: 0, actualDurationS: 0, actualPriceCents: 0 })
+const finishForm = reactive({ actualDistanceM: 0, actualDurationS: 0 })
 
 let heartbeatTimer = null
 let locationTimer = null
@@ -594,6 +571,7 @@ function canAccept(order) {
   return Number(order.status) === 1
 }
 
+
 async function handleOrderAction(action, order) {
   const orderId = Number(order?.orderId || 0)
   if (!orderId) {
@@ -654,17 +632,23 @@ async function submitFinishTrip() {
     return
   }
 
-  await finishTrip({
-    orderId,
-    actualDistanceM: Number(finishForm.actualDistanceM || 0),
-    actualDurationS: Number(finishForm.actualDurationS || 0),
-    actualPriceCents: Number(finishForm.actualPriceCents || 0)
-  })
-  finishVisible.value = false
-  driverStore.setCurrentOrder(null, 'idle')
-  if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
-  showToast('行程已结束')
-  await loadOrders(orderPage.value)
+  try {
+    const res = await finishTrip({
+      orderId,
+      actualDistanceM: Number(finishForm.actualDistanceM || 0),
+      actualDurationS: Number(finishForm.actualDurationS || 0)
+    })
+    finishVisible.value = false
+    driverStore.setCurrentOrder(null, 'idle')
+    if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
+    showToast('行程已结束，应收' + formatPrice(res?.payableAmountCents))
+    await loadOrders(orderPage.value)
+  } catch (error) {
+    showDialog({
+      title: '结束行程失败',
+      message: apiErrorMessage(error, '结束行程失败')
+    }).catch(() => {})
+  }
 }
 
 async function loadVehicle(config = {}) {
@@ -756,18 +740,31 @@ async function readCertFile(event, field) {
 }
 
 async function loadIncome(config = {}) {
-  const [summary, wallet, today, week, bills] = await Promise.allSettled([
-    getIncomeSummary(config),
-    getWalletSummary(config),
-    getTodayIncome(config),
-    getWeekIncome(config),
-    listIncomeBills({ page: 1, pageSize: 20 }, config)
-  ])
+  const incomeRequests = [
+    { label: '收入汇总', task: () => getIncomeSummary(config) },
+    { label: '钱包余额', task: () => getWalletSummary(config) },
+    { label: '今日收入', task: () => getTodayIncome(config) },
+    { label: '本周收入', task: () => getWeekIncome(config) },
+    { label: '收入明细', task: () => listIncomeBills({ page: 1, pageSize: 20 }, config) }
+  ]
+  const [summary, wallet, today, week, bills] = await Promise.allSettled(incomeRequests.map((item) => item.task()))
   incomeSummary.value = summary.status === 'fulfilled' ? summary.value : {}
   walletSummary.value = wallet.status === 'fulfilled' ? wallet.value : {}
   todayIncome.value = today.status === 'fulfilled' ? today.value : {}
   weekIncome.value = week.status === 'fulfilled' ? week.value : {}
   incomeBills.value = bills.status === 'fulfilled' && Array.isArray(bills.value.list) ? bills.value.list : []
+
+  const failures = [summary, wallet, today, week, bills]
+    .map((result, index) => result.status === 'rejected' ? incomeRequests[index].label + ': ' + apiErrorMessage(result.reason, '请求失败') : '')
+    .filter(Boolean)
+  if (failures.length) showIncomeLoadFailure(failures)
+}
+
+function showIncomeLoadFailure(failures) {
+  showDialog({
+    title: '收入数据加载失败',
+    message: failures.join('\n')
+  }).catch(() => {})
 }
 
 async function loadReviews(config = {}) {
@@ -900,495 +897,72 @@ function deviceId() {
 </script>
 
 <style scoped>
-.driver-home-page {
-  min-height: 100vh;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
-  background: #eef2f7;
-  color: #111827;
-}
-
-.h5-status-hero {
-  padding: 14px 12px 28px;
-  border-radius: 0 0 24px 24px;
-  background: linear-gradient(160deg, #6d4aff 0%, #4b2bc5 100%);
-  color: #fff;
-}
-
-.driver-profile-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.driver-profile-row img,
-.driver-profile-row > span {
-  width: 48px;
-  height: 48px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border: 2px solid rgba(255, 255, 255, .7);
-  border-radius: 50%;
-  background: #fff;
-  color: #6d4aff;
-  font-size: 21px;
-  font-weight: 900;
-  object-fit: cover;
-}
-
-.driver-profile-row div {
-  min-width: 0;
-  flex: 1;
-}
-
-.driver-profile-row p,
-.driver-profile-row small {
-  margin: 0;
-  color: rgba(255, 255, 255, .76);
-  font-size: 12px;
-}
-
-.driver-profile-row h1 {
-  margin: 3px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 20px;
-  line-height: 1.15;
-  letter-spacing: 0;
-}
-
-.icon-button {
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, .16);
-  color: #fff;
-}
-
-.online-control-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, .14);
-}
-
-.online-control-card small {
-  display: block;
-  color: rgba(255, 255, 255, .72);
-  font-size: 12px;
-}
-
-.online-control-card strong {
-  display: block;
-  margin-top: 3px;
-  font-size: 22px;
-  line-height: 1.1;
-}
-
-.quick-action-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  min-width: 148px;
-}
-
-.quick-action-grid button {
-  min-height: 44px;
-  border: 0;
-  border-radius: 10px;
-  font-weight: 900;
-}
-
-.quick-action-grid .go-online {
-  background: #ffbe2e;
-  color: #3f2b00;
-}
-
-.quick-action-grid .go-offline {
-  background: #fff;
-  color: #4b2bc5;
-}
-
-.mini-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: -18px 12px 10px;
-}
-
-.mini-stat-grid div {
-  min-width: 0;
-  padding: 10px 8px;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 10px 26px rgba(77, 48, 160, .11);
-  text-align: center;
-}
-
-.mini-stat-grid span {
-  display: block;
-  color: #667085;
-  font-size: 11px;
-}
-
-.mini-stat-grid strong {
-  display: block;
-  margin-top: 5px;
-  overflow-wrap: anywhere;
-  font-size: 15px;
-}
-
-.tab-panel-scroll {
-  min-height: 0;
-}
-
-.h5-panel {
-  display: grid;
-  gap: 10px;
-  padding: 2px 12px 12px;
-}
-
-.section-title,
-.order-heading,
-.meta-row,
-.pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.section-title h2 {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.2;
-  letter-spacing: 0;
-}
-
-.section-title button,
-.secondary-action,
-.pager button,
-.order-actions button,
-.two-actions button {
-  min-height: 38px;
-  border: 1px solid #d8deea;
-  border-radius: 10px;
-  background: #fff;
-  color: #6d4aff;
-  font-weight: 800;
-}
-
-.map-surface {
-  position: relative;
-  min-height: 156px;
-  overflow: hidden;
-  border: 1px solid #ded6ff;
-  border-radius: 14px;
-  background-color: #f1edff;
-  background-image:
-    linear-gradient(24deg, transparent 46%, rgba(255, 255, 255, .9) 47%, rgba(255, 255, 255, .9) 51%, transparent 52%),
-    linear-gradient(112deg, transparent 42%, rgba(255, 255, 255, .72) 43%, rgba(255, 255, 255, .72) 47%, transparent 48%);
-}
-
-.map-surface p {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  margin: 0;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .9);
-  color: #6d4aff;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.road {
-  position: absolute;
-  height: 7px;
-  border-radius: 999px;
-  background: rgba(109, 74, 255, .18);
-}
-
-.road-a {
-  top: 42%;
-  left: -8%;
-  width: 62%;
-  transform: rotate(-18deg);
-}
-
-.road-b {
-  top: 66%;
-  right: -8%;
-  width: 70%;
-  transform: rotate(19deg);
-}
-
-.pin {
-  position: absolute;
-  width: 15px;
-  height: 15px;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 4px 12px rgba(77, 48, 160, .2);
-}
-
-.pin.current {
-  top: 50%;
-  left: 31%;
-  background: #6d4aff;
-}
-
-.pin.order {
-  top: 29%;
-  right: 23%;
-  background: #ffbe2e;
-}
-
-.route-card,
-.order-card,
-.compact-card,
-.info-list,
-.wallet-card,
-.income-grid > div,
-.trajectory-form {
-  padding: 12px;
-  border: 1px solid #e6eaf2;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.route-card,
-.info-list {
-  display: grid;
-  gap: 9px;
-}
-
-.route-card p,
-.info-list p {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0;
-}
-
-.route-card span,
-.info-list span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  color: #475467;
-  text-align: right;
-}
-
-.filter-bar {
-  overflow: hidden;
-  border-radius: 12px;
-}
-
-.driver-home-page :deep(.van-dropdown-menu) {
-  box-shadow: none;
-}
-
-.driver-home-page :deep(.van-field) {
-  --van-field-label-width: 74px;
-  overflow: hidden;
-  border-radius: 10px;
-}
-
-.order-card,
-.compact-card {
-  display: grid;
-  gap: 8px;
-}
-
-.order-heading strong,
-.compact-card strong {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.route-line,
-.meta-row,
-.compact-card span,
-.compact-card small {
-  margin: 0;
-  color: #667085;
-  font-size: 12px;
-}
-
-.order-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.order-actions button {
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-.order-actions .primary,
-.primary-action {
-  border: 0;
-  background: #6d4aff;
-  color: #fff;
-}
-
-.primary-action {
-  width: 100%;
-  min-height: 48px;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.secondary-action {
-  width: 100%;
-}
-
-.empty-state {
-  min-height: 92px;
-  display: grid;
-  place-items: center;
-  border: 1px dashed #d9d2ee;
-  border-radius: 12px;
-  background: #fbfaff;
-  color: #667085;
-  font-size: 13px;
-}
-
-.form-stack {
-  display: grid;
-  gap: 8px;
-}
-
-.two-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.two-actions .danger {
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-.file-grid {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.file-grid label {
-  display: grid;
-  gap: 8px;
-  color: #475467;
-  font-size: 12px;
-}
-
-.wallet-card {
-  background: #4b2bc5;
-  color: #fff;
-}
-
-.wallet-card p {
-  margin: 0;
-  color: rgba(255, 255, 255, .72);
-  font-size: 12px;
-}
-
-.wallet-card strong {
-  display: block;
-  margin-top: 6px;
-  font-size: 30px;
-  line-height: 1.1;
-}
-
-.wallet-card span {
-  display: block;
-  margin-top: 6px;
-  color: rgba(255, 255, 255, .76);
-  font-size: 12px;
-}
-
-.income-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.income-grid span {
-  color: #667085;
-  font-size: 12px;
-}
-
-.income-grid strong {
-  display: block;
-  margin-top: 5px;
-  font-size: 18px;
-}
-
-.trajectory-form {
-  display: grid;
-  gap: 8px;
-}
-
-.trajectory-error {
-  margin: 0;
-  color: #dc2626;
-  font-size: 13px;
-  word-break: break-word;
-}
-
-.finish-panel {
-  padding: 14px 12px 18px;
-}
-
-.finish-panel h2 {
-  margin: 0 0 12px;
-  font-size: 17px;
-  text-align: center;
-}
-
-.driver-tabbar {
-  left: 50%;
-  right: auto;
-  width: min(100vw, 390px);
-  height: calc(60px + env(safe-area-inset-bottom));
-  border-top: 1px solid #e6eaf2;
-  box-shadow: 0 -8px 24px rgba(15, 23, 42, .08);
-  transform: translateX(-50%);
-  --van-tabbar-item-active-color: #6d4aff;
-}
-
-.driver-tabbar :deep(.van-tabbar-item) {
-  min-width: 0;
-  padding: 5px 0 4px;
-  color: #667085;
-  font-size: 10px;
-}
-
-.driver-tabbar :deep(.van-tabbar-item__icon) {
-  margin-bottom: 2px;
-  font-size: 18px;
-}
-
-button:disabled {
-  opacity: .55;
-}
-
-@media (max-width: 430px) {
-  .driver-tabbar {
-    width: 100vw;
-  }
-}
+.driver-home-page { min-height: 100vh; padding: 0 12px 86px; background: #f6f7fb; color: #172033; }
+.driver-hero { margin: 0 -12px; padding: 18px 18px 72px; border-radius: 0 0 28px 28px; background: linear-gradient(135deg, #7B61FF 0%, #5B5CFF 100%); color: #fff; }
+.hero-topline, .driver-profile-row, .work-action-card, .section-title, .section-subtitle, .order-heading, .meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.driver-profile-row { justify-content: flex-start; min-width: 0; }
+.driver-profile-row img, .avatar-fallback { width: 52px; height: 52px; flex: 0 0 52px; border: 2px solid rgba(255,255,255,.72); border-radius: 50%; background: rgba(255,255,255,.22); object-fit: cover; }
+.avatar-fallback { display: grid; place-items: center; color: #fff; font-size: 22px; font-weight: 800; }
+.driver-copy { min-width: 0; }
+.driver-copy p, .driver-copy h1, .driver-copy small, .hero-income span, .hero-income small, .wallet-card span, .wallet-card p { margin: 0; }
+.driver-copy p, .driver-copy small, .hero-income span, .hero-income small { color: rgba(255,255,255,.78); }
+.driver-copy h1 { margin: 4px 0; overflow: hidden; font-size: 20px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.hero-icon-button { width: 38px; height: 38px; flex: 0 0 38px; border: 0; border-radius: 50%; background: rgba(255,255,255,.18); color: #fff; font-size: 20px; }
+.hero-income { margin-top: 26px; }
+.hero-income strong { display: block; margin: 6px 0; font-size: 38px; line-height: 1; letter-spacing: 0; }
+.hero-metric-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: -46px; }
+.hero-metric-card, .quick-entry-row, .work-action-card, .mini-stat-grid, .h5-panel, .current-trip-card, .order-card, .info-list, .wallet-card, .compact-card, .trajectory-form { border-radius: 18px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,42,.07); }
+.hero-metric-card { min-height: 84px; padding: 14px 10px; text-align: center; }
+.hero-metric-card span, .mini-stat-grid span, .work-action-card span, .income-grid span, .meta-row, .compact-card span, .compact-card small { color: #7a8496; font-size: 12px; }
+.hero-metric-card strong, .mini-stat-grid strong, .income-grid strong { display: block; margin-top: 8px; color: #172033; font-size: 20px; line-height: 1.1; }
+.quick-entry-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding: 16px 10px; }
+.quick-entry-row button { min-width: 0; border: 0; background: transparent; color: #344054; font-size: 12px; font-weight: 700; }
+.quick-entry-row span { display: grid; width: 46px; height: 46px; margin: 0 auto 8px; place-items: center; border-radius: 50%; background: #f0efff; color: #5B5CFF; font-size: 23px; }
+.quick-entry-row b { display: block; overflow-wrap: anywhere; font-weight: 700; line-height: 1.2; }
+.work-action-card, .mini-stat-grid, .tab-panel-scroll { margin-top: 12px; }
+.work-action-card { padding: 16px; }
+.work-action-card strong { display: block; margin-top: 4px; font-size: 18px; }
+.work-action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; max-width: 210px; }
+.go-online, .go-offline, .primary-action, .secondary-action, .order-actions button, .pager button, .section-title button, .two-actions button { min-height: 40px; border-radius: 999px; font-weight: 800; }
+.go-online { border: 0; background: #ffb72c; color: #fff; box-shadow: 0 8px 16px rgba(255,183,44,.28); }
+.go-offline, .secondary-action, .pager button, .section-title button, .two-actions button, .order-actions button { border: 1px solid #d7dce5; background: #fff; color: #344054; }
+.mini-stat-grid, .income-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mini-stat-grid div, .income-grid div { min-width: 0; padding: 14px 10px; border-radius: 16px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,42,.06); text-align: center; }
+.h5-panel { display: grid; gap: 12px; padding: 14px; }
+.section-title h2 { margin: 0; font-size: 18px; }
+.current-trip-card, .info-list, .order-card, .compact-card, .trajectory-form { display: grid; gap: 10px; padding: 14px; }
+.current-trip-card p, .info-list p { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-size: 14px; }
+.current-trip-card span, .info-list span { min-width: 0; color: #667085; overflow-wrap: anywhere; text-align: right; }
+.map-surface { position: relative; min-height: 138px; overflow: hidden; border-radius: 20px; background: linear-gradient(135deg, #f4f2ff, #ffffff); }
+.map-surface p { position: absolute; left: 14px; bottom: 14px; margin: 0; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.9); color: #5B5CFF; font-weight: 800; }
+.road { position: absolute; height: 16px; border-radius: 999px; background: rgba(91,92,255,.16); }
+.road-a { left: -24px; right: 32px; top: 46px; transform: rotate(-14deg); }
+.road-b { left: 40px; right: -20px; top: 90px; transform: rotate(18deg); }
+.pin { position: absolute; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 6px 14px rgba(15,23,42,.18); }
+.pin.current { left: 70px; top: 52px; background: #5B5CFF; }
+.pin.order { right: 72px; top: 92px; background: #ffb72c; }
+.filter-bar { overflow: hidden; border-radius: 14px; }
+.driver-home-page :deep(.van-dropdown-menu) { box-shadow: none; }
+.driver-home-page :deep(.van-cell) { border-radius: 12px; background: #f8fafc; }
+.route-line, .order-heading strong, .compact-card strong { margin: 0; overflow-wrap: anywhere; }
+.order-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.order-actions button { padding: 0 12px; }
+.order-actions .primary, .primary-action { border: 0; background: #5B5CFF; color: #fff; }
+.primary-action { width: 100%; min-height: 46px; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 10px; color: #667085; }
+.empty-state { min-height: 92px; display: grid; place-items: center; border-radius: 18px; background: #fff; color: #98a2b3; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
+.form-stack, .file-grid { display: grid; gap: 10px; }
+.two-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.two-actions .danger { border-color: #fecaca; color: #dc2626; }
+.file-grid label { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: #fff; color: #344054; font-weight: 700; }
+.wallet-card { padding: 18px; color: #fff; background: linear-gradient(135deg, #7B61FF 0%, #5B5CFF 100%); }
+.wallet-card span, .wallet-card p { color: rgba(255,255,255,.78); }
+.wallet-card strong { display: block; margin: 8px 0; font-size: 32px; line-height: 1; }
+.income-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.trajectory-error { margin: 0; color: #dc2626; font-size: 13px; }
+.finish-panel { padding: 18px 14px 22px; background: #f6f7fb; }
+.finish-panel h2 { margin: 0 0 14px; text-align: center; }
+.driver-tabbar { left: 50%; right: auto; width: min(100vw, 430px); height: calc(60px + env(safe-area-inset-bottom)); border-top: 1px solid #e6eaf2; box-shadow: 0 -8px 24px rgba(15,23,42,.08); transform: translateX(-50%); --van-tabbar-item-active-color: #5B5CFF; --van-tabbar-item-text-color: #98a2b3; }
+button:disabled { opacity: .48; }
+@media (max-width: 360px) { .driver-home-page { padding-inline: 10px; } .driver-hero { margin-inline: -10px; } .hero-income strong { font-size: 32px; } .quick-entry-row { gap: 4px; } .work-action-card { display: grid; } .work-action-buttons { max-width: none; width: 100%; } }
 </style>

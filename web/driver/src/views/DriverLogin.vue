@@ -33,7 +33,7 @@
         <van-field v-model="smsForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" clearable />
         <van-field v-model="smsForm.code" name="code" type="tel" label="验证码" placeholder="请输入验证码" clearable>
           <template #button>
-            <van-button size="small" type="primary" :disabled="smsCountdown > 0" @click="sendCode">
+            <van-button size="small" type="primary" native-type="button" :disabled="smsCountdown > 0" @click="sendCode">
               {{ smsCountdown > 0 ? smsCountdown + 's' : '发送' }}
             </van-button>
           </template>
@@ -55,6 +55,11 @@
         </button>
       </van-form>
     </section>
+    <ImgCaptchaDialog
+      v-model:show="imgCaptchaVisible"
+      :phone="smsForm.phone"
+      @confirm="handleImgCaptchaConfirm"
+    />
   </main>
 </template>
 
@@ -62,7 +67,8 @@
 import { onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { closeToast, showLoadingToast, showToast } from 'vant'
-import { sendDriverSMSCode } from '@/api/driver'
+import ImgCaptchaDialog from '@/components/ImgCaptchaDialog.vue'
+import { sendDriverSMSCode, verifyImgCaptcha } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
 
 const router = useRouter()
@@ -77,6 +83,7 @@ const authTabs = [
 const activeTab = ref(0)
 const loading = ref(false)
 const smsCountdown = ref(0)
+const imgCaptchaVisible = ref(false)
 let smsTimer = null
 
 const passwordForm = reactive({ phone: '', password: '' })
@@ -103,12 +110,17 @@ async function sendCode() {
     showToast('请输入正确的手机号')
     return
   }
+  imgCaptchaVisible.value = true
+}
 
+async function handleImgCaptchaConfirm(payload) {
   try {
-    await sendDriverSMSCode(smsForm.phone, { silentError: true })
+    await verifyImgCaptcha(payload, { silentError: true })
+    await sendDriverSMSCode(payload.phone, { silentError: true })
+    imgCaptchaVisible.value = false
     showToast('验证码已发送')
   } catch (error) {
-    showToast(apiErrorMessage(error, '验证码发送失败'))
+    showToast(apiErrorMessage(error, '图形验证码校验失败'))
     return
   }
 

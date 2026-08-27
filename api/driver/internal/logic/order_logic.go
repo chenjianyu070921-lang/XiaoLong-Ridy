@@ -142,11 +142,10 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 		return nil, err
 	}
 	resp, err := client.FinishTrip(l.ctx, &orderproto.FinishTripRequest{
-		OrderId:          req.OrderID,
-		DriverId:         driverID,
-		ActualDistanceM:  req.ActualDistanceM,
-		ActualDurationS:  req.ActualDurationS,
-		ActualPriceCents: 0,
+		OrderId:         req.OrderID,
+		DriverId:        driverID,
+		ActualDistanceM: req.ActualDistanceM,
+		ActualDurationS: req.ActualDurationS,
 	})
 	if err != nil {
 		return nil, err

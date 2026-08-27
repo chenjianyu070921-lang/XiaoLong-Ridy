@@ -120,6 +120,9 @@ func envOr(key, fallback string) string {
 func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("/api/driver/v1/img-captcha", methodSwitch("GET", handler.ImgCaptchaHandler(svcCtx)))
+	mux.HandleFunc("/api/driver/v1/img-captcha/verify", methodSwitch("POST", handler.VerifyImgCaptchaHandler(svcCtx)))
+	mux.HandleFunc("/api/driver/v1/img-captcha/invalidate", methodSwitch("POST", handler.InvalidateImgCaptchaHandler(svcCtx)))
 	mux.HandleFunc("/api/driver/v1/auth/send-sms-code", methodSwitch("POST", handler.SendSMSCodeHandler(svcCtx)))
 	mux.HandleFunc("/api/driver/v1/auth/login-by-password", methodSwitch("POST", handler.LoginByPasswordHandler(svcCtx)))
 	mux.HandleFunc("/api/driver/v1/auth/login-by-sms", methodSwitch("POST", handler.LoginBySMSHandler(svcCtx)))

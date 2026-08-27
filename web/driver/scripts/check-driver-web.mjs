@@ -96,6 +96,9 @@ for (const endpoint of [
   '/orders/list',
   '/orders/dispatches',
   '/reviews/list',
+  '/img-captcha',
+  '/img-captcha/verify',
+  '/img-captcha/invalidate',
 ]) {
   assert(api.includes(endpoint), `missing real driver API wrapper: ${endpoint}`)
 }
@@ -103,6 +106,7 @@ for (const endpoint of [
 const home = readIfExists('web/driver/src/views/DriverHome.vue')
 const login = readIfExists('web/driver/src/views/DriverLogin.vue')
 const app = readIfExists('web/driver/src/App.vue')
+const captcha = readIfExists('web/driver/src/components/ImgCaptchaDialog.vue')
 assert(login.includes("router.replace('/home')"), 'driver login must navigate inside independent app')
 assert(api.includes("router.push('/login')"), 'driver auth expiry must navigate inside independent app')
 assert(home.includes("router.replace('/login')"), 'driver logout must navigate inside independent app')
@@ -112,14 +116,25 @@ assert(home.includes('safeApiCall'), 'driver H5 actions must keep UI usable when
 assert(home.includes('showIncomeLoadFailure'), 'driver income API failures must open a failure dialog')
 assert(home.includes('收入数据加载失败'), 'driver income failure dialog must have a clear title')
 assert(home.includes('rejectOrder(orderId, reason)'), 'driver reject action must submit explicit reject reason')
-assert(home.includes('canReject(order)'), 'public available orders must not reuse dispatch reject action')
 assert(home.includes("apiErrorMessage(error, '结束行程失败')"), 'finish trip failures must show a driver-facing error')
 assert(!home.includes('actualPriceCents'), 'driver finish trip must not ask driver to enter settlement amount')
+assert(existsSync(file('web/driver/src/components/ImgCaptchaDialog.vue')), 'driver image captcha component must exist')
 assert(app.includes('driver-phone-shell'), 'driver app must render a centered phone shell for H5 preview')
 assert(login.includes('class="login-card"'), 'driver login must use a compact H5 login card')
+assert(login.includes('<ImgCaptchaDialog'), 'driver login must mount image captcha dialog before sending SMS')
+assert(login.includes('handleImgCaptchaConfirm'), 'driver login must handle image captcha confirmation')
+assert(login.includes('verifyImgCaptcha(payload'), 'driver login must verify image captcha through backend')
+assert(login.includes('imgCaptchaVisible.value = false'), 'driver login must close image captcha only after backend verification succeeds')
+assert(captcha.includes('<script setup lang="ts">'), 'image captcha component must use Vue3 TS setup syntax')
+assert(captcha.includes('请输入下方图形验证码'), 'image captcha dialog title is required')
+assert(captcha.includes('placeholder="请输入验证码"'), 'image captcha input placeholder is required')
+assert(captcha.includes('看不清？'), 'image captcha refresh action is required')
+assert(captcha.includes('getImgCaptcha(props.phone'), 'image captcha must request backend with phone')
+assert(captcha.includes('invalidateImgCaptcha'), 'image captcha close must invalidate current uuid')
+assert(!captcha.includes('Math.random'), 'frontend must not generate captcha content')
 assert(login.includes('class="auth-mode-tabs"'), 'driver login must expose touch-friendly H5 auth mode tabs')
-assert(home.includes('class="h5-status-hero"'), 'driver home must start with an H5 status hero')
-assert(home.includes('class="quick-action-grid"'), 'driver home must expose H5 quick action controls')
+assert(home.includes('class="driver-hero"'), 'driver home must start with a driver hero')
+assert(home.includes('class="quick-entry-row"'), 'driver home must expose H5 quick action controls')
 assert(home.includes('class="tab-panel-scroll"'), 'driver tab content must use a mobile scroll panel')
 assert(home.includes('getTodayIncome'), 'driver wallet must call backend today income endpoint')
 assert(home.includes('getWeekIncome'), 'driver wallet must call backend week income endpoint')

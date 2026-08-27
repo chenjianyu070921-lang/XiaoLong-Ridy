@@ -119,6 +119,22 @@ type DeleteResponse struct {
 	Success bool  `json:"success"`
 }
 
+type ImgCaptchaResponse struct {
+	UUID      string `json:"uuid"`
+	ImgBase64 string `json:"imgBase64"`
+}
+
+type VerifyImgCaptchaRequest struct {
+	Phone         string `json:"phone"`
+	UUID          string `json:"uuid"`
+	UserInputCode string `json:"userInputCode"`
+}
+
+type InvalidateImgCaptchaRequest struct {
+	Phone string `json:"phone"`
+	UUID  string `json:"uuid"`
+}
+
 type SendSMSCodeRequest struct {
 	Phone string `json:"phone"`
 }
@@ -480,10 +496,9 @@ type StartTripResponse struct {
 }
 
 type FinishTripRequest struct {
-	OrderID          int64 `json:"orderId"`
-	ActualDistanceM  int64 `json:"actualDistanceM"`
-	ActualDurationS  int64 `json:"actualDurationS"`
-	ActualPriceCents int64 `json:"actualPriceCents"`
+	OrderID         int64 `json:"orderId"`
+	ActualDistanceM int64 `json:"actualDistanceM"`
+	ActualDurationS int64 `json:"actualDurationS"`
 }
 
 type FinishTripResponse struct {

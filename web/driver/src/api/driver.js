@@ -58,6 +58,19 @@ function clearDriverSession() {
   }
 }
 
+export function getImgCaptcha(phone, config = {}) {
+  // 图形验证码由司机后端生成，前端只负责展示后端返回的 base64 图片和 uuid。
+  return driverRequest.get('/img-captcha', { ...config, params: { phone, ...(config.params || {}) } })
+}
+
+export function verifyImgCaptcha(data, config = {}) {
+  return driverRequest.post('/img-captcha/verify', data, config)
+}
+
+export function invalidateImgCaptcha(data, config = {}) {
+  return driverRequest.post('/img-captcha/invalidate', data, config)
+}
+
 export function sendDriverSMSCode(phone, config = {}) {
   return driverRequest.post('/auth/send-sms-code', { phone }, config)
 }
