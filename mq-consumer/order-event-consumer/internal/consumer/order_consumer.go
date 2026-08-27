@@ -8,16 +8,29 @@ import (
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/svc"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // OrderCreatedEvent 与 ordersvc 发布的事件字段保持一致。
 type OrderCreatedEvent struct {
-	OrderId       int64   `json:"order_id"`
-	OrderNo       string  `json:"order_no"`
-	FromLongitude float64 `json:"from_longitude"`
-	FromLatitude  float64 `json:"from_latitude"`
-	CarType       int32   `json:"car_type"`
-	CityCode      string  `json:"city_code"`
+	OrderId          int64   `json:"order_id"`
+	OrderNo          string  `json:"order_no"`
+	FromLongitude    float64 `json:"from_longitude"`
+	FromLatitude     float64 `json:"from_latitude"`
+	CarType          int32   `json:"car_type"`
+	CityCode         string  `json:"city_code"`
+	ExcludeDriverIds []int64 `json:"exclude_driver_ids"` // 改派/重派时排除的司机
+}
+
+// OrderRefundedEvent 与 ordersvc 发布的 order.refunded 事件字段保持一致。
+type OrderRefundedEvent struct {
+	OrderId      int64  `json:"order_id"`
+	OrderNo      string `json:"order_no"`
+	RefundNo     string `json:"refund_no"`
+	RefundCents  int64  `json:"refund_cents"`
+	OperatorId   int64  `json:"operator_id"`
+	OperatorType string `json:"operator_type"`
 }
 
 // OrderPaidEvent 对齐 paysvc 支付成功后发布的 order.paid 事件载荷。
@@ -44,7 +57,7 @@ func NewOrderConsumer(svcCtx *svc.ServiceContext) *OrderConsumer {
 func (c *OrderConsumer) Start(ctx context.Context) error {
 	const group = "orderclient-event-consumer"
 	return c.svcCtx.EventBus.Consume(ctx, group, c.dispatchHandler,
-		constants.TopicOrderCreated, constants.TopicDispatchNew, constants.TopicOrderPaid)
+		constants.TopicOrderCreated, constants.TopicDispatchNew, constants.TopicOrderPaid, constants.TopicOrderRefunded)
 }
 
 // dispatchHandler 按 topic 分发到对应事件处理函数；未知 topic 直接忽略（不阻塞消费）。
@@ -56,6 +69,8 @@ func (c *OrderConsumer) dispatchHandler(ctx context.Context, topic string, paylo
 		return c.handleDispatchNew(ctx, payload)
 	case constants.TopicOrderPaid:
 		return c.handleOrderPaid(ctx, payload)
+	case constants.TopicOrderRefunded:
+		return c.handleOrderRefunded(ctx, payload)
 	default:
 		return nil
 	}
@@ -67,13 +82,26 @@ func (c *OrderConsumer) handleOrderCreated(ctx context.Context, payload []byte) 
 		return err
 	}
 	_, err := c.svcCtx.DispatchClient.DispatchOrder(ctx, &dispatch.DispatchOrderRequest{
-		OrderId:       evt.OrderId,
-		FromLongitude: evt.FromLongitude,
-		FromLatitude:  evt.FromLatitude,
-		CarType:       evt.CarType,
-		CityCode:      evt.CityCode,
+		OrderId:          evt.OrderId,
+		FromLongitude:    evt.FromLongitude,
+		FromLatitude:     evt.FromLatitude,
+		CarType:          evt.CarType,
+		CityCode:         evt.CityCode,
+		ExcludeDriverIds: evt.ExcludeDriverIds,
 	})
 	return err
+}
+
+// handleOrderRefunded 处理退款成功事件：pay 服务未到位时仅记录日志，
+// 待支付模块接入后在此触发真实支付通道回款。
+func (c *OrderConsumer) handleOrderRefunded(ctx context.Context, payload []byte) error {
+	var evt OrderRefundedEvent
+	if err := json.Unmarshal(payload, &evt); err != nil {
+		return err
+	}
+	logx.Infof("order.refunded received: order=%d refundNo=%s cents=%d operator=%s(%d)",
+		evt.OrderId, evt.RefundNo, evt.RefundCents, evt.OperatorType, evt.OperatorId)
+	return nil
 }
 
 func (c *OrderConsumer) handleOrderPaid(ctx context.Context, payload []byte) error {

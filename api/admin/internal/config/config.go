@@ -11,7 +11,9 @@ import (
 
 // Config 定义管理后台 HTTP 服务、Redis、鉴权和 adminsvc RPC 客户端配置。
 type Config struct {
-	HTTPAddr string             `json:"http_addr"`
+	HTTPAddr string `json:"http_addr"`
+	// Redis 为兼容保留字段；当前 api/admin 不直接连接 Redis，
+	// 会话与登录凭据统一由 adminsvc 通过环境变量管理，此处不保存任何密码。
 	Redis    RedisConfig        `json:"redis"`
 	Auth     AuthConfig         `json:"auth"`
 	AdminRPC zrpc.RpcClientConf `json:"admin_rpc"`

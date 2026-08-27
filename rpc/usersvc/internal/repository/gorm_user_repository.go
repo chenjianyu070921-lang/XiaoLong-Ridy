@@ -89,6 +89,29 @@ func (r *gormUserRepository) Update(ctx context.Context, user *model.User) error
 	return err
 }
 
+// ListPage 按状态分页查询未删除用户，返回用户副本和总数。
+func (r *gormUserRepository) ListPage(ctx context.Context, status, page, pageSize int) ([]*model.User, int64, error) {
+	query := r.db.WithContext(ctx).Model(&model.User{})
+	if status > 0 {
+		query = query.Where("status = ?", status)
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	users := make([]*model.User, 0)
+	if err := query.Order("id DESC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+	return users, total, nil
+}
+
 // isDuplicateUserKey 判断 MySQL 返回值是否为唯一键冲突。
 func isDuplicateUserKey(err error) bool {
 	var mysqlErr *mysql.MySQLError

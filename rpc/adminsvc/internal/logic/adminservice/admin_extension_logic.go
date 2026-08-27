@@ -63,6 +63,13 @@ type couponIssueTargetConfig struct {
 	UserIDs []int64 `json:"user_ids"`
 }
 
+// promotionTargetConfig 表示活动发布时的灰度目标配置。
+// 当前活动没有独立人群包表，因此仅校验前端和文档已经约定的显式用户与城市编码。
+type promotionTargetConfig struct {
+	UserIDs   []int64  `json:"user_ids"`
+	CityCodes []string `json:"city_codes"`
+}
+
 // IssueCouponLogic 处理优惠券发放任务创建和同步发券。
 type IssueCouponLogic struct {
 	ctx    context.Context
@@ -251,6 +258,9 @@ func NewListPromotionActivitiesLogic(ctx context.Context, svcCtx *svc.ServiceCon
 
 // ListPromotionActivities 查询活动配置列表。
 func (l *ListPromotionActivitiesLogic) ListPromotionActivities(in *adminsvc.PromotionActivityListRequest) (*adminsvc.PromotionActivityListResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	where, args := buildPromotionWhere(in)
 	var total int64
 	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM promotion_activity `+where, args...).Scan(&total); err != nil {
@@ -292,6 +302,9 @@ func NewCreatePromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceCon
 
 // CreatePromotionActivity 新增活动配置草稿或待开始活动。
 func (l *CreatePromotionActivityLogic) CreatePromotionActivity(in *adminsvc.PromotionActivityRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	if err := validatePromotionActivity(in); err != nil {
 		return nil, err
 	}
@@ -330,6 +343,9 @@ func NewUpdatePromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceCon
 
 // UpdatePromotionActivity 更新活动配置。
 func (l *UpdatePromotionActivityLogic) UpdatePromotionActivity(in *adminsvc.PromotionActivityRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	if in.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "活动ID不能为空")
 	}
@@ -374,13 +390,13 @@ func NewPublishPromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceCo
 
 // PublishPromotionActivity 将活动状态置为运行中，并写入操作日志。
 func (l *PublishPromotionActivityLogic) PublishPromotionActivity(in *adminsvc.PromotionActivityActionRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1); err != nil {
+		return nil, err
+	}
 	if err := validatePromotionAction(in, true); err != nil {
 		return nil, err
 	}
-	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 1, 2); err != nil {
-		return nil, err
-	}
-	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "publish", "promotion_activity", in.GetId(), fmt.Sprintf("发布活动，范围：%s，配置：%s", in.GetPublishScope(), in.GetTargetConfig()), in.GetIp()); err != nil {
+	if err := changePromotionStatusWithAudit(l.ctx, l.svcCtx, in.GetId(), 1, 2, in.GetAdminId(), "publish", fmt.Sprintf("发布活动，范围：%s，配置：%s", normalizePromotionPublishScope(in.GetPublishScope()), in.GetTargetConfig()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -399,13 +415,13 @@ func NewRollbackPromotionActivityLogic(ctx context.Context, svcCtx *svc.ServiceC
 
 // RollbackPromotionActivity 将活动回滚为未开始状态，并写入操作日志。
 func (l *RollbackPromotionActivityLogic) RollbackPromotionActivity(in *adminsvc.PromotionActivityActionRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1); err != nil {
+		return nil, err
+	}
 	if err := validatePromotionAction(in, false); err != nil {
 		return nil, err
 	}
-	if err := changePromotionStatus(l.ctx, l.svcCtx, in.GetId(), 2, 1); err != nil {
-		return nil, err
-	}
-	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "promotion", "rollback", "promotion_activity", in.GetId(), fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp()); err != nil {
+	if err := changePromotionStatusWithAudit(l.ctx, l.svcCtx, in.GetId(), 2, 1, in.GetAdminId(), "rollback", fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -470,19 +486,29 @@ func (l *GetOrderStatisticsLogic) GetOrderStatistics(in *adminsvc.StatisticsRequ
 	if strings.TrimSpace(in.GetCityCode()) != "" {
 		return nil, status.Error(codes.FailedPrecondition, "当前订单与支付表未保存城市编码，暂不支持按城市统计")
 	}
-	where, args := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
+	// 超时记录和支付记录本身的创建时间不代表订单统计时间。
+	// 统一通过订单主表的 created_at 过滤，保证五项指标使用同一订单时间范围。
+	where, args := buildCreatedAtWhere("ro.created_at", in.GetStartTime(), in.GetEndTime())
 	resp := &adminsvc.OrderStatisticsResponse{}
-	queryArgs := make([]any, 0, len(args)*3)
+	queryArgs := make([]any, 0, len(args)*5)
+	queryArgs = append(queryArgs, args...)
+	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, args...)
 	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
 		SELECT
-			(SELECT COUNT(1) FROM ride_order `+where+`),
-			(SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 5")+`),
-			(SELECT COUNT(1) FROM ride_order `+appendWhere(where, "status = 6")+`),
-			(SELECT COUNT(1) FROM dispatch_record WHERE status = 4),
-			(SELECT COUNT(1) FROM payment WHERE status = 3)
+			(SELECT COUNT(1) FROM ride_order ro `+where+`),
+			(SELECT COUNT(1) FROM ride_order ro `+appendWhere(where, "ro.status = 5")+`),
+			(SELECT COUNT(1) FROM ride_order ro `+appendWhere(where, "ro.status = 6")+`),
+			(SELECT COUNT(1)
+			 FROM dispatch_record dr
+			 JOIN ride_order ro ON ro.id = dr.order_id
+			 `+appendWhere(where, "dr.status = 4")+`),
+			(SELECT COUNT(1)
+			 FROM payment p
+			 JOIN ride_order ro ON ro.id = p.order_id
+			 `+appendWhere(where, "p.status = 3")+`)
 	`, queryArgs...).Scan(&resp.OrderCount, &resp.CompletedOrderCount, &resp.CanceledOrderCount,
 		&resp.TimeoutOrderCount, &resp.PaymentAbnormalCount)
 	if err != nil {
@@ -490,6 +516,122 @@ func (l *GetOrderStatisticsLogic) GetOrderStatistics(in *adminsvc.StatisticsRequ
 	}
 	resp.CompletionRate = percentText(resp.CompletedOrderCount, resp.OrderCount)
 	resp.CancelRate = percentText(resp.CanceledOrderCount, resp.OrderCount)
+	return resp, nil
+}
+
+// GetDriverStatisticsLogic 处理司机经营统计。
+type GetDriverStatisticsLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+// NewGetDriverStatisticsLogic 创建司机经营统计逻辑对象。
+func NewGetDriverStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetDriverStatisticsLogic {
+	return &GetDriverStatisticsLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+// GetDriverStatistics 汇总司机入驻、审核、完单、收入、提现和服务质量指标。
+// 当前数据库没有司机在线状态和独立接单事件表，因此本接口只返回可由现有表可靠统计的字段，避免伪造运营数据。
+func (l *GetDriverStatisticsLogic) GetDriverStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.DriverStatisticsResponse, error) {
+	if strings.TrimSpace(in.GetCityCode()) != "" {
+		return nil, status.Error(codes.FailedPrecondition, "当前司机、订单与结算表未保存城市编码，暂不支持按城市统计")
+	}
+	driverWhere, driverArgs := buildCreatedAtWhere("d.created_at", in.GetStartTime(), in.GetEndTime())
+	certWhere, certArgs := buildCreatedAtWhere("dc.created_at", in.GetStartTime(), in.GetEndTime())
+	orderWhere, orderArgs := buildCreatedAtWhere("ro.created_at", in.GetStartTime(), in.GetEndTime())
+	settlementWhere, settlementArgs := buildCreatedAtWhere("s.created_at", in.GetStartTime(), in.GetEndTime())
+	withdrawWhere, withdrawArgs := buildCreatedAtWhere("dw.created_at", in.GetStartTime(), in.GetEndTime())
+	scoreWhere, scoreArgs := buildCreatedAtWhere("ds.updated_at", in.GetStartTime(), in.GetEndTime())
+
+	resp := &adminsvc.DriverStatisticsResponse{}
+	// 将司机报表各指标放在同一条 SQL 中读取，减少多次查询带来的快照不一致。
+	args := make([]any, 0, len(driverArgs)+len(certArgs)*2+len(orderArgs)+len(settlementArgs)+len(withdrawArgs)*3+len(scoreArgs)*2)
+	args = append(args, driverArgs...)
+	args = append(args, certArgs...)
+	args = append(args, certArgs...)
+	args = append(args, orderArgs...)
+	args = append(args, settlementArgs...)
+	args = append(args, withdrawArgs...)
+	args = append(args, withdrawArgs...)
+	args = append(args, withdrawArgs...)
+	args = append(args, scoreArgs...)
+	args = append(args, scoreArgs...)
+	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+		SELECT
+			(SELECT COUNT(1) FROM driver WHERE deleted_at IS NULL),
+			(SELECT COUNT(1) FROM driver d `+appendWhere(driverWhere, "d.deleted_at IS NULL")+`),
+			(SELECT COUNT(1) FROM driver_certification dc `+appendWhere(certWhere, "dc.audit_status = 1")+`),
+			(SELECT COUNT(1) FROM driver_certification dc `+appendWhere(certWhere, "dc.audit_status = 2")+`),
+			(SELECT COUNT(1) FROM ride_order ro `+appendWhere(orderWhere, "ro.status = 5 AND ro.driver_id > 0")+`),
+			(SELECT COALESCE(SUM(s.driver_income), 0) FROM settlement s `+appendWhere(settlementWhere, "s.status = 2")+`),
+			(SELECT COALESCE(SUM(dw.amount), 0) FROM driver_withdraw dw `+appendWhere(withdrawWhere, "dw.status = 1")+`),
+			(SELECT COALESCE(SUM(dw.amount), 0) FROM driver_withdraw dw `+appendWhere(withdrawWhere, "dw.status = 2")+`),
+			(SELECT COUNT(1) FROM driver_withdraw dw `+appendWhere(withdrawWhere, "dw.status = 3")+`),
+			(SELECT COALESCE(AVG(ds.score), 0) FROM driver_score ds `+scoreWhere+`),
+			(SELECT COALESCE(SUM(ds.month_complaint_count), 0) FROM driver_score ds `+scoreWhere+`)
+	`, args...).Scan(&resp.DriverTotal, &resp.NewDriverCount, &resp.PendingAuditCount,
+		&resp.ApprovedDriverCount, &resp.CompletedOrderCount, &resp.DriverIncome,
+		&resp.WithdrawPendingAmount, &resp.WithdrawSuccessAmount, &resp.WithdrawFailedCount,
+		&resp.AverageScore, &resp.TotalComplaintCount)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetFinanceStatisticsLogic 处理后台财务统计。
+type GetFinanceStatisticsLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+// NewGetFinanceStatisticsLogic 创建财务统计逻辑对象。
+func NewGetFinanceStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetFinanceStatisticsLogic {
+	return &GetFinanceStatisticsLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+// GetFinanceStatistics 汇总支付、退款、结算、平台抽佣、司机收入和平台补贴指标。
+// 金额字段以字符串返回，保持 MySQL DECIMAL 精度，不在 Go 层转为浮点数。
+func (l *GetFinanceStatisticsLogic) GetFinanceStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.FinanceStatisticsResponse, error) {
+	if strings.TrimSpace(in.GetCityCode()) != "" {
+		return nil, status.Error(codes.FailedPrecondition, "当前支付、结算与价格表未保存城市编码，暂不支持按城市统计")
+	}
+	paymentWhere, paymentArgs := buildCreatedAtWhere("p.created_at", in.GetStartTime(), in.GetEndTime())
+	settlementWhere, settlementArgs := buildCreatedAtWhere("s.created_at", in.GetStartTime(), in.GetEndTime())
+	priceWhere, priceArgs := buildCreatedAtWhere("op.created_at", in.GetStartTime(), in.GetEndTime())
+
+	resp := &adminsvc.FinanceStatisticsResponse{}
+	// 财务报表按业务记录创建时间分别统计，避免支付、结算和补贴明细被订单时间错误截断。
+	args := make([]any, 0, len(paymentArgs)*5+len(settlementArgs)*4+len(priceArgs))
+	args = append(args, paymentArgs...)
+	args = append(args, paymentArgs...)
+	args = append(args, paymentArgs...)
+	args = append(args, paymentArgs...)
+	args = append(args, paymentArgs...)
+	args = append(args, settlementArgs...)
+	args = append(args, settlementArgs...)
+	args = append(args, settlementArgs...)
+	args = append(args, settlementArgs...)
+	args = append(args, priceArgs...)
+	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+		SELECT
+			(SELECT COUNT(1) FROM payment p `+appendWhere(paymentWhere, "p.status = 2")+`),
+			(SELECT COALESCE(SUM(p.amount), 0) FROM payment p `+appendWhere(paymentWhere, "p.status = 2")+`),
+			(SELECT COUNT(1) FROM payment p `+appendWhere(paymentWhere, "p.refund_amount > 0")+`),
+			(SELECT COALESCE(SUM(p.refund_amount), 0) FROM payment p `+appendWhere(paymentWhere, "p.refund_amount > 0")+`),
+			(SELECT COUNT(1) FROM payment p `+appendWhere(paymentWhere, "p.status = 3")+`),
+			(SELECT COUNT(1) FROM settlement s `+appendWhere(settlementWhere, "s.status = 2")+`),
+			(SELECT COALESCE(SUM(s.total_amount), 0) FROM settlement s `+appendWhere(settlementWhere, "s.status = 2")+`),
+			(SELECT COALESCE(SUM(s.platform_commission), 0) FROM settlement s `+appendWhere(settlementWhere, "s.status = 2")+`),
+			(SELECT COALESCE(SUM(s.driver_income), 0) FROM settlement s `+appendWhere(settlementWhere, "s.status = 2")+`),
+			(SELECT COALESCE(SUM(op.platform_subsidy), 0) FROM order_price op `+priceWhere+`)
+	`, args...).Scan(&resp.PaymentOrderCount, &resp.PaidAmount, &resp.RefundOrderCount,
+		&resp.RefundAmount, &resp.PaymentFailedCount, &resp.SettlementOrderCount,
+		&resp.SettlementTotalAmount, &resp.PlatformCommission, &resp.DriverIncome,
+		&resp.PlatformSubsidy)
+	if err != nil {
+		return nil, err
+	}
 	return resp, nil
 }
 
@@ -659,6 +801,9 @@ func NewListBlacklistsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Li
 
 // ListBlacklists 查询风控黑名单列表。
 func (l *ListBlacklistsLogic) ListBlacklists(in *adminsvc.BlacklistListRequest) (*adminsvc.BlacklistListResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	where, args := buildBlacklistWhere(in)
 	var total int64
 	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM blacklist `+where, args...).Scan(&total); err != nil {
@@ -700,8 +845,16 @@ func NewAddBlacklistLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AddB
 
 // AddBlacklist 新增或重新激活风控黑名单。
 func (l *AddBlacklistLogic) AddBlacklist(in *adminsvc.BlacklistRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1); err != nil {
+		return nil, err
+	}
 	if err := validateBlacklistRequest(in, false); err != nil {
 		return nil, err
+	}
+	if exists, err := activeBlacklistExists(l.ctx, l.svcCtx, in.GetTargetType(), in.GetTargetId()); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, status.Error(codes.AlreadyExists, "目标已在生效黑名单中")
 	}
 	res, err := l.svcCtx.MySQL.ExecContext(l.ctx, `
 		INSERT INTO blacklist (target_type, target_id, reason, operator_id, status)
@@ -730,6 +883,9 @@ func NewReleaseBlacklistLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 
 // ReleaseBlacklist 将黑名单状态置为已解除。
 func (l *ReleaseBlacklistLogic) ReleaseBlacklist(in *adminsvc.BlacklistRequest) (*adminsvc.CommonResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1); err != nil {
+		return nil, err
+	}
 	if err := validateBlacklistRequest(in, true); err != nil {
 		return nil, err
 	}
@@ -759,6 +915,9 @@ func NewListRiskHitRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 
 // ListRiskHitRecords 查询风控黑名单命中记录。
 func (l *ListRiskHitRecordsLogic) ListRiskHitRecords(in *adminsvc.RiskHitRecordListRequest) (*adminsvc.RiskHitRecordListResponse, error) {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2); err != nil {
+		return nil, err
+	}
 	where, args := buildRiskHitWhere(in)
 	var total int64
 	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM risk_blacklist_hit_record `+where, args...).Scan(&total); err != nil {
@@ -787,6 +946,133 @@ func (l *ListRiskHitRecordsLogic) ListRiskHitRecords(in *adminsvc.RiskHitRecordL
 	return &adminsvc.RiskHitRecordListResponse{List: list, Total: total, Page: normalizePage(in.GetPage()), PageSize: limit}, rows.Err()
 }
 
+// HandleRiskHitRecordsLogic 处理风控命中记录人工处置。
+type HandleRiskHitRecordsLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+// NewHandleRiskHitRecordsLogic 创建风控命中处置逻辑对象。
+func NewHandleRiskHitRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *HandleRiskHitRecordsLogic {
+	return &HandleRiskHitRecordsLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+// HandleRiskHitRecords 对风控命中记录执行复核通过、加入黑名单或转工单。
+// risk_blacklist_hit_record 当前没有处理状态字段，因此复核通过只写操作日志；
+// 拉黑和转工单会写入对应业务表，并在同一事务中记录审计，形成可追溯闭环。
+func (l *HandleRiskHitRecordsLogic) HandleRiskHitRecords(in *adminsvc.RiskHitActionRequest) (*adminsvc.RiskHitActionResponse, error) {
+	allowedRoles := []int32{1, 2}
+	if in.GetAction() == "add_blacklist" {
+		allowedRoles = []int32{1}
+	}
+	if err := requireAdminRoles(l.ctx, l.svcCtx, allowedRoles...); err != nil {
+		return nil, err
+	}
+	if err := validateRiskHitActionRequest(in); err != nil {
+		return nil, err
+	}
+	resp := &adminsvc.RiskHitActionResponse{}
+	for _, id := range uniquePositiveIDs(in.GetIds()) {
+		workOrderID, err := l.handleOneRiskHit(id, in)
+		if err != nil {
+			resp.FailCount++
+			resp.FailureReasons = append(resp.FailureReasons, fmt.Sprintf("命中记录%d：%s", id, err.Error()))
+			continue
+		}
+		resp.SuccessCount++
+		if workOrderID > 0 {
+			resp.WorkOrderIds = append(resp.WorkOrderIds, workOrderID)
+		}
+	}
+	return resp, nil
+}
+
+// handleOneRiskHit 在独立事务中处置单条命中记录，避免批量操作部分失败时回滚已成功记录。
+func (l *HandleRiskHitRecordsLogic) handleOneRiskHit(id int64, in *adminsvc.RiskHitActionRequest) (int64, error) {
+	tx, err := l.svcCtx.MySQL.BeginTx(l.ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	hit, err := scanRiskHitRecordRow(tx.QueryRowContext(l.ctx, `
+		SELECT id, blacklist_id, target_type, target_id, scene, risk_level, hit_reason, request_id, created_at
+		FROM risk_blacklist_hit_record
+		WHERE id = ?
+		FOR UPDATE
+	`, id))
+	if err != nil {
+		return 0, err
+	}
+	var workOrderID int64
+	switch in.GetAction() {
+	case "review_pass":
+		if err = createOperationLogTx(l.ctx, tx, in.GetAdminId(), "risk", "review_pass", "risk_hit_record", id, riskHitLogDetail(hit, in.GetReason()), in.GetIp()); err != nil {
+			return 0, err
+		}
+	case "add_blacklist":
+		if exists, err := activeBlacklistExistsTx(l.ctx, tx, hit.GetTargetType(), hit.GetTargetId()); err != nil {
+			return 0, err
+		} else if exists {
+			return 0, status.Error(codes.AlreadyExists, "目标已在生效黑名单中")
+		}
+		res, err := tx.ExecContext(l.ctx, `
+			INSERT INTO blacklist (target_type, target_id, reason, operator_id, status)
+			VALUES (?, ?, ?, ?, 1)
+		`, hit.GetTargetType(), hit.GetTargetId(), strings.TrimSpace(in.GetReason()), in.GetAdminId())
+		if err != nil {
+			return 0, err
+		}
+		blacklistID, _ := res.LastInsertId()
+		if err = createOperationLogTx(l.ctx, tx, in.GetAdminId(), "risk", "hit_add_blacklist", "blacklist", blacklistID, riskHitLogDetail(hit, in.GetReason()), in.GetIp()); err != nil {
+			return 0, err
+		}
+	case "create_work_order":
+		workOrderID, err = insertRiskHitWorkOrderTx(l.ctx, tx, hit, in)
+		if err != nil {
+			return 0, err
+		}
+		if err = createOperationLogTx(l.ctx, tx, in.GetAdminId(), "risk", "hit_create_work_order", "work_order", workOrderID, riskHitLogDetail(hit, in.GetReason()), in.GetIp()); err != nil {
+			return 0, err
+		}
+	default:
+		return 0, status.Error(codes.InvalidArgument, "风控处置动作不合法")
+	}
+	return workOrderID, tx.Commit()
+}
+
+// insertRiskHitWorkOrderTx 将高风险命中转为后台工单，供运营继续仲裁、补证和结案。
+func insertRiskHitWorkOrderTx(ctx context.Context, tx *sql.Tx, hit *adminsvc.RiskHitRecord, in *adminsvc.RiskHitActionRequest) (int64, error) {
+	title := strings.TrimSpace(in.GetWorkOrderTitle())
+	if title == "" {
+		title = fmt.Sprintf("风控命中复核：%s/%d", hit.GetTargetType(), hit.GetTargetId())
+	}
+	priority := normalizeRiskWorkOrderPriority(in.GetPriority(), hit.GetRiskLevel())
+	userID, driverID := int64(0), int64(0)
+	if hit.GetTargetType() == "user" {
+		userID = hit.GetTargetId()
+	}
+	if hit.GetTargetType() == "driver" {
+		driverID = hit.GetTargetId()
+	}
+	content := strings.TrimSpace(in.GetReason())
+	if content == "" {
+		content = hit.GetHitReason()
+	}
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO admin_complaint_work_order
+			(work_order_no, work_order_type, source_type, source_id, order_id, user_id, driver_id, title, content, priority, status, created_by)
+		VALUES (?, 3, ?, ?, 0, ?, ?, ?, ?, ?, 1, ?)
+	`, newAdminTaskNo("WO"), hit.GetTargetType(), hit.GetTargetId(), userID, driverID, title, content, priority, in.GetAdminId())
+	if err != nil {
+		return 0, err
+	}
+	id, _ := res.LastInsertId()
+	if _, err = tx.ExecContext(ctx, `INSERT INTO admin_work_order_flow (work_order_id, from_status, to_status, action, operator_id, content) VALUES (?, 0, 1, 'create_from_risk', ?, ?)`, id, in.GetAdminId(), content); err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
 // parseCouponIssueTarget 解析发券目标配置。
 func parseCouponIssueTarget(targetType, targetConfig string) (*couponIssueTargetConfig, error) {
 	if targetType != "user" && targetType != "batch" && targetType != "crowd" {
@@ -810,8 +1096,8 @@ func validatePromotionActivity(in *adminsvc.PromotionActivityRequest) error {
 	if in.GetType() < 1 || in.GetType() > 3 || in.GetStatus() < 1 || in.GetStatus() > 3 {
 		return status.Error(codes.InvalidArgument, "活动类型或状态不合法")
 	}
-	if !json.Valid([]byte(in.GetConfig())) {
-		return status.Error(codes.InvalidArgument, "活动配置必须是合法JSON")
+	if err := validatePromotionConfig(in.GetType(), in.GetConfig()); err != nil {
+		return err
 	}
 	start, err := time.ParseInLocation(couponTimeLayout, in.GetStartAt(), time.Local)
 	if err != nil {
@@ -832,13 +1118,125 @@ func validatePromotionAction(in *adminsvc.PromotionActivityActionRequest, publis
 	if in.GetId() <= 0 || in.GetAdminId() <= 0 {
 		return status.Error(codes.InvalidArgument, "活动ID和管理员ID不能为空")
 	}
-	if publish && in.GetPublishScope() != "gray" && in.GetPublishScope() != "full" {
-		return status.Error(codes.InvalidArgument, "活动发布范围仅支持gray或full")
+	scope := normalizePromotionPublishScope(in.GetPublishScope())
+	if publish && scope != "gray" && scope != "all" {
+		return status.Error(codes.InvalidArgument, "活动发布范围仅支持all或gray")
 	}
-	if !json.Valid([]byte(in.GetTargetConfig())) {
-		return status.Error(codes.InvalidArgument, "活动目标配置必须是合法JSON")
+	if err := validatePromotionTargetConfig(scope, in.GetTargetConfig()); err != nil {
+		return err
 	}
 	return nil
+}
+
+// validatePromotionConfig 按活动类型校验活动规则 JSON，避免空壳活动被发布到运营侧。
+func validatePromotionConfig(activityType int32, raw string) error {
+	var cfg map[string]any
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return status.Error(codes.InvalidArgument, "活动配置必须是合法JSON对象")
+	}
+	if cfg == nil {
+		return status.Error(codes.InvalidArgument, "活动配置不能为空")
+	}
+	switch activityType {
+	case 1:
+		if !positiveJSONNumber(cfg["coupon_id"]) && !positiveJSONNumber(cfg["reward_coupon_id"]) {
+			return status.Error(codes.InvalidArgument, "拉新活动配置必须包含coupon_id或reward_coupon_id")
+		}
+	case 2:
+		if !positiveJSONDecimal(cfg["discount"]) {
+			return status.Error(codes.InvalidArgument, "折扣活动配置必须包含大于0的discount")
+		}
+	case 3:
+		if !positiveJSONDecimal(cfg["amount"]) && !positiveJSONDecimal(cfg["face_value"]) {
+			return status.Error(codes.InvalidArgument, "立减活动配置必须包含amount或face_value")
+		}
+	}
+	return nil
+}
+
+// normalizePromotionPublishScope 兼容历史 full 与接口文档 all，两者都表示全量发布。
+func normalizePromotionPublishScope(scope string) string {
+	scope = strings.TrimSpace(scope)
+	if scope == "" || scope == "full" {
+		return "all"
+	}
+	return scope
+}
+
+// validatePromotionTargetConfig 校验活动发布目标配置。
+// 全量发布允许空对象；灰度发布必须明确用户 ID 或城市编码，避免误把空配置当成灰度范围。
+func validatePromotionTargetConfig(scope, raw string) error {
+	if strings.TrimSpace(raw) == "" {
+		raw = "{}"
+	}
+	var cfg promotionTargetConfig
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return status.Error(codes.InvalidArgument, "活动目标配置必须是合法JSON对象")
+	}
+	if scope != "gray" {
+		return nil
+	}
+	for _, userID := range cfg.UserIDs {
+		if userID > 0 {
+			return nil
+		}
+	}
+	for _, cityCode := range cfg.CityCodes {
+		if strings.TrimSpace(cityCode) != "" {
+			return nil
+		}
+	}
+	return status.Error(codes.InvalidArgument, "灰度发布必须指定user_ids或city_codes")
+}
+
+// positiveJSONNumber 判断 JSON 数值字段是否为正整数。
+func positiveJSONNumber(value any) bool {
+	switch v := value.(type) {
+	case float64:
+		return v > 0 && v == float64(int64(v))
+	case string:
+		n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		return err == nil && n > 0
+	default:
+		return false
+	}
+}
+
+// positiveJSONDecimal 判断 JSON 金额或折扣字段是否为正数。
+func positiveJSONDecimal(value any) bool {
+	switch v := value.(type) {
+	case float64:
+		return v > 0
+	case string:
+		n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return err == nil && n > 0
+	default:
+		return false
+	}
+}
+
+// changePromotionStatusWithAudit 在同一事务内完成活动状态流转和审计日志写入。
+// 任一步失败都会回滚，避免活动已经发布但审计缺失，或审计成功但状态未变化。
+func changePromotionStatusWithAudit(ctx context.Context, svcCtx *svc.ServiceContext, id int64, expectedStatus, targetStatus int32, adminID int64, action, detail, ip string) error {
+	if id <= 0 {
+		return status.Error(codes.InvalidArgument, "活动ID不能为空")
+	}
+	tx, err := svcCtx.MySQL.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `UPDATE promotion_activity SET status = ? WHERE id = ? AND status = ?`, targetStatus, id, expectedStatus)
+	if err != nil {
+		return err
+	}
+	if affected, _ := res.RowsAffected(); affected == 0 {
+		return status.Error(codes.FailedPrecondition, "活动当前状态不允许执行该操作")
+	}
+	if err := createOperationLogTx(ctx, tx, adminID, "promotion", action, "promotion_activity", id, detail, ip); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // changePromotionStatus 通过源状态限制更新，保证发布和回滚不会越过活动状态机。
@@ -854,6 +1252,38 @@ func changePromotionStatus(ctx context.Context, svcCtx *svc.ServiceContext, id i
 		return status.Error(codes.FailedPrecondition, "活动当前状态不允许执行该操作")
 	}
 	return nil
+}
+
+// requireAdminRoles 根据 gRPC metadata 中的真实管理员会话做服务端 RBAC 校验。
+// 旧单元测试和少量本地兼容路径没有初始化 Redis 时直接放行；生产 ServiceContext 一定包含 Redis 和 MySQL，会严格校验 token、账号状态和角色。
+func requireAdminRoles(ctx context.Context, svcCtx *svc.ServiceContext, roles ...int32) error {
+	if svcCtx == nil || svcCtx.Redis == nil || svcCtx.MySQL == nil {
+		return nil
+	}
+	admin, err := ValidateAdminTokenFromContext(ctx, svcCtx)
+	if err != nil {
+		return err
+	}
+	for _, role := range roles {
+		if admin.Role == role {
+			return nil
+		}
+	}
+	return status.Error(codes.PermissionDenied, "当前管理员无权执行该操作")
+}
+
+// activeBlacklistExists 查询目标是否已经存在生效黑名单。
+func activeBlacklistExists(ctx context.Context, svcCtx *svc.ServiceContext, targetType string, targetID int64) (bool, error) {
+	var count int64
+	err := svcCtx.MySQL.QueryRowContext(ctx, `SELECT COUNT(1) FROM blacklist WHERE target_type = ? AND target_id = ? AND status = 1`, targetType, targetID).Scan(&count)
+	return count > 0, err
+}
+
+// activeBlacklistExistsTx 在风控命中处置事务内检查重复黑名单，保证批量拉黑时单条操作具备一致性。
+func activeBlacklistExistsTx(ctx context.Context, tx *sql.Tx, targetType string, targetID int64) (bool, error) {
+	var count int64
+	err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM blacklist WHERE target_type = ? AND target_id = ? AND status = 1`, targetType, targetID).Scan(&count)
+	return count > 0, err
 }
 
 // buildIssueTaskWhere 组装发券任务筛选条件。
@@ -1171,8 +1601,22 @@ func scanBlacklist(rows *sql.Rows) (*adminsvc.Blacklist, error) {
 	return &item, nil
 }
 
-// scanRiskHitRecord 扫描风控命中记录行。
+// scanRiskHitRecord 扫描风控命中记录列表行。
 func scanRiskHitRecord(rows *sql.Rows) (*adminsvc.RiskHitRecord, error) {
+	return scanRiskHitRecordScanner(rows)
+}
+
+// scanRiskHitRecordRow 扫描单条风控命中记录，并将空结果转换为业务 NotFound。
+func scanRiskHitRecordRow(row *sql.Row) (*adminsvc.RiskHitRecord, error) {
+	item, err := scanRiskHitRecordScanner(row)
+	if err == sql.ErrNoRows {
+		return nil, status.Error(codes.NotFound, "风控命中记录不存在")
+	}
+	return item, err
+}
+
+// scanRiskHitRecordScanner 兼容 sql.Rows 和 sql.Row，避免列表和处置接口重复扫描字段。
+func scanRiskHitRecordScanner(rows interface{ Scan(...any) error }) (*adminsvc.RiskHitRecord, error) {
 	var item adminsvc.RiskHitRecord
 	var createdAt sql.NullTime
 	if err := rows.Scan(&item.Id, &item.BlacklistId, &item.TargetType, &item.TargetId, &item.Scene, &item.RiskLevel,
@@ -1181,6 +1625,47 @@ func scanRiskHitRecord(rows *sql.Rows) (*adminsvc.RiskHitRecord, error) {
 	}
 	item.CreatedAt = formatNullTime(createdAt)
 	return &item, nil
+}
+
+// uniquePositiveIDs 对批量请求中的 ID 去重并丢弃非正数，防止重复执行同一业务动作。
+func uniquePositiveIDs(ids []int64) []int64 {
+	seen := make(map[int64]struct{}, len(ids))
+	result := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result
+}
+
+// normalizeRiskWorkOrderPriority 将风控风险等级映射为工单优先级，同时允许运营手动指定合法优先级。
+func normalizeRiskWorkOrderPriority(priority, riskLevel int32) int32 {
+	if priority >= 1 && priority <= 4 {
+		return priority
+	}
+	switch riskLevel {
+	case 3:
+		return 4
+	case 2:
+		return 3
+	default:
+		return 2
+	}
+}
+
+// riskHitLogDetail 生成风控命中处置审计详情，保留命中场景、对象和处置原因。
+func riskHitLogDetail(hit *adminsvc.RiskHitRecord, reason string) string {
+	detail := fmt.Sprintf("处置风控命中：%s/%d，场景：%s，原因：%s", hit.GetTargetType(), hit.GetTargetId(), hit.GetScene(), hit.GetHitReason())
+	if strings.TrimSpace(reason) != "" {
+		detail += "，处置说明：" + strings.TrimSpace(reason)
+	}
+	return detail
 }
 
 // nullableJSON 将空筛选条件写成 SQL NULL，非空条件按 JSON 字符串写入。
@@ -1396,6 +1881,27 @@ func validateBlacklistRequest(in *adminsvc.BlacklistRequest, release bool) error
 		return status.Error(codes.InvalidArgument, "黑名单目标ID和原因不能为空")
 	}
 	return nil
+}
+
+// validateRiskHitActionRequest 校验风控命中处置请求，避免空批量或未知动作进入事务。
+func validateRiskHitActionRequest(in *adminsvc.RiskHitActionRequest) error {
+	if in.GetAdminId() <= 0 || len(uniquePositiveIDs(in.GetIds())) == 0 {
+		return status.Error(codes.InvalidArgument, "命中记录ID列表和管理员ID不能为空")
+	}
+	switch in.GetAction() {
+	case "review_pass":
+		return nil
+	case "add_blacklist", "create_work_order":
+		if strings.TrimSpace(in.GetReason()) == "" {
+			return status.Error(codes.InvalidArgument, "处置原因不能为空")
+		}
+		if in.GetPriority() < 0 || in.GetPriority() > 4 {
+			return status.Error(codes.InvalidArgument, "工单优先级不合法")
+		}
+		return nil
+	default:
+		return status.Error(codes.InvalidArgument, "风控处置动作不合法")
+	}
 }
 
 // couponIssueStatusText 将发券任务状态码转换成前端可读文本。

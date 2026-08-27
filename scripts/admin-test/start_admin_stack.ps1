@@ -1,5 +1,5 @@
 # Starts the admin HTTP/RPC test stack for the admin module:
-#   driversvc (8080) -> adminsvc (8084) -> api/admin (8083)
+#   driversvc (8080) -> adminsvc (8084) -> api/admin (8717)
 #   dummy ordersvc placeholder (15051) keeps adminsvc startup dial happy
 #
 # NOTE: rpc/ordersvc is intentionally NOT started. Its Config struct has a
@@ -183,10 +183,10 @@ $dummy = Start-ServiceProcess -Name "dummygrpc" -Exe (Join-Path $binDir "dummygr
 Start-Sleep -Seconds 1
 
 $driversvc = Start-ServiceProcess -Name "driversvc" -Exe (Join-Path $binDir "driversvc.exe") `
-    -ArgList @("-f", ".gotmp\driversvc-admin-test.yaml") -WorkingDir $RepoRoot
+    -ArgList @("-f", (Join-Path $RepoRoot "rpc\driversvc\etc\driversvc.yaml")) -WorkingDir $RepoRoot
 
-Write-Host "Waiting for driversvc:8080 ..."
-if (-not (Wait-TcpPort -Port 8080)) { Write-Host "ERROR: driversvc did not start. See $logDir\driversvc.err.log" }
+Write-Host "Waiting for driversvc:5055 ..."
+if (-not (Wait-TcpPort -Port 5055)) { Write-Host "ERROR: driversvc did not start. See $logDir\driversvc.err.log" }
 
 $adminsvc = Start-ServiceProcess -Name "adminsvc" -Exe (Join-Path $binDir "adminsvc.exe") `
     -ArgList @("-f", ".gotmp\adminsvc-admin-test.yaml") -WorkingDir $RepoRoot
@@ -197,14 +197,14 @@ if (-not (Wait-TcpPort -Port 8084)) { Write-Host "ERROR: adminsvc did not start.
 $adminApi = Start-ServiceProcess -Name "admin-api" -Exe (Join-Path $binDir "admin-api.exe") `
     -ArgList @() -WorkingDir (Join-Path $RepoRoot "api\admin")
 
-Write-Host "Waiting for api/admin:8083 ..."
-if (-not (Wait-TcpPort -Port 8083)) { Write-Host "ERROR: api/admin did not start. See $logDir\admin-api.err.log" }
+Write-Host "Waiting for api/admin:8717 ..."
+if (-not (Wait-TcpPort -Port 8717)) { Write-Host "ERROR: api/admin did not start. See $logDir\admin-api.err.log" }
 
 Write-Host ""
 Write-Host "Admin test stack is up:"
-Write-Host "  api/admin   http://127.0.0.1:8083"
+Write-Host "  api/admin   http://127.0.0.1:8717"
 Write-Host "  adminsvc    grpc 127.0.0.1:8084"
-Write-Host "  driversvc   grpc 127.0.0.1:8080"
+Write-Host "  driversvc   grpc 127.0.0.1:5055"
 Write-Host "  dummygrpc   grpc 127.0.0.1:15051 (ordersvc placeholder)"
 Write-Host ""
 Write-Host "Next: .\scripts\admin-test\admin_api_test.ps1"

@@ -67,6 +67,11 @@ func (s *OrderServer) ConfirmPaid(ctx context.Context, in *__proto.ConfirmPaidRe
 	return l.ConfirmPaid(in)
 }
 
+func (s *OrderServer) RefundOrder(ctx context.Context, in *__proto.RefundOrderRequest) (*__proto.RefundOrderResponse, error) {
+	l := logic.NewRefundOrderLogic(ctx, s.svcCtx)
+	return l.RefundOrder(in)
+}
+
 func (s *OrderServer) TimeoutCancel(ctx context.Context, in *__proto.TimeoutCancelRequest) (*__proto.TimeoutCancelResponse, error) {
 	l := logic.NewTimeoutCancelLogic(ctx, s.svcCtx)
 	return l.TimeoutCancel(in)
@@ -80,4 +85,14 @@ func (s *OrderServer) ListTimeoutOrders(ctx context.Context, in *__proto.ListTim
 func (s *OrderServer) ListOrderStatusLogs(ctx context.Context, in *__proto.ListOrderStatusLogsRequest) (*__proto.ListOrderStatusLogsResponse, error) {
 	l := logic.NewListOrderStatusLogsLogic(ctx, s.svcCtx)
 	return l.ListOrderStatusLogs(in)
+}
+
+func (s *OrderServer) RedispatchOrder(ctx context.Context, in *__proto.RedispatchOrderRequest) (*__proto.RedispatchOrderResponse, error) {
+	l := logic.NewRedispatchOrderLogic(ctx, s.svcCtx)
+	return l.RedispatchOrder(in)
+}
+
+func (s *OrderServer) ForceRefundOrder(ctx context.Context, in *__proto.ForceRefundOrderRequest) (*__proto.ForceRefundOrderResponse, error) {
+	l := logic.NewForceRefundOrderLogic(ctx, s.svcCtx)
+	return l.ForceRefundOrder(in)
 }

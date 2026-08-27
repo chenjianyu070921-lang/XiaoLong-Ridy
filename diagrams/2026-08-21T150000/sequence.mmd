@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant A as 司机旧设备
+    participant B as 司机新设备
+    participant G as 网关
+    participant R as RPC服务
+    participant D as Redis
+
+    A->>G: 登录请求
+    G->>R: 调用登录接口
+    R->>D: 存储Token A
+    D-->>R: 存储成功
+    R-->>G: 返回Token A
+    G-->>A: 登录成功
+
+    B->>G: 登录请求
+    G->>R: 调用登录接口
+    R->>D: 覆盖为Token B
+    D-->>R: 存储成功
+    R-->>G: 返回Token B
+    G-->>B: 登录成功
+
+    A->>G: 业务请求(Token A)
+    G->>D: 比对当前有效Token
+    D-->>G: Token不匹配
+    G-->>A: 返回账号在其他设备登录

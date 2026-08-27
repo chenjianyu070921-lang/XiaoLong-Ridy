@@ -95,16 +95,20 @@ func (r *Router) routes() {
 
 	r.mux.HandleFunc("/admin/v1/statistics/overview", r.authRequired(r.handleStatisticsOverview))
 	r.mux.HandleFunc("/admin/v1/statistics/orders", r.authRequired(r.handleStatisticsOrders))
+	r.mux.HandleFunc("/admin/v1/statistics/drivers", r.authRequired(r.handleStatisticsDrivers))
+	r.mux.HandleFunc("/admin/v1/statistics/revenue", r.authRequired(r.handleStatisticsRevenue))
 	r.mux.HandleFunc("/admin/v1/statistics/coupons", r.authRequired(r.handleStatisticsCoupons))
 
 	r.mux.HandleFunc("/admin/v1/export-tasks", r.authRequired(r.handleExportTasks))
 	r.mux.HandleFunc("/admin/v1/export-tasks/", r.authRequired(r.handleExportTaskByNo))
 	r.mux.HandleFunc("/admin/v1/work-orders", r.authRequired(r.handleWorkOrders))
+	r.mux.HandleFunc("/admin/v1/work-orders/batch-actions", r.authRequired(r.handleWorkOrderBatchActions))
 	r.mux.HandleFunc("/admin/v1/work-orders/", r.authRequired(r.handleWorkOrderByID))
 
 	r.mux.HandleFunc("/admin/v1/blacklist", r.authRequired(r.handleBlacklists))
 	r.mux.HandleFunc("/admin/v1/blacklist/", r.authRequired(r.handleBlacklistByID))
 	r.mux.HandleFunc("/admin/v1/risk/hit-records", r.authRequired(r.handleRiskHitRecords))
+	r.mux.HandleFunc("/admin/v1/risk/hit-records/actions", r.authRequired(r.handleRiskHitRecordActions))
 
 	r.mux.HandleFunc("/admin/v1/orders", r.authRequired(r.handleOrders))
 	r.mux.HandleFunc("/admin/v1/orders/abnormal", r.authRequired(r.handleAbnormalOrders))
@@ -903,6 +907,34 @@ func (r *Router) handleStatisticsOrders(w http.ResponseWriter, req *http.Request
 	writeSuccess(w, resp)
 }
 
+// handleStatisticsDrivers 查询司机经营统计。
+func (r *Router) handleStatisticsDrivers(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewStatisticsLogic(r.ctx).Drivers(req.Context(), statisticsRequestFromQuery(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleStatisticsRevenue 查询财务收入统计。
+func (r *Router) handleStatisticsRevenue(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewStatisticsLogic(r.ctx).Revenue(req.Context(), statisticsRequestFromQuery(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
 // handleStatisticsCoupons 查询优惠券统计。
 func (r *Router) handleStatisticsCoupons(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
@@ -1027,6 +1059,34 @@ func (r *Router) handleWorkOrders(w http.ResponseWriter, req *http.Request) {
 	default:
 		writeMethodNotAllowed(w)
 	}
+}
+
+// handleWorkOrderBatchActions 处理后台工单批量分配、跟进、仲裁、结案和重开。
+func (r *Router) handleWorkOrderBatchActions(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body types.WorkOrderBatchActionRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	session := sessionFromContext(req.Context())
+	resp, err := r.ctx.AdminSvc.BatchActWorkOrders(req.Context(), &adminclient.WorkOrderBatchActionRequest{
+		Ids:               body.IDs,
+		Action:            body.Action,
+		AssigneeId:        body.AssigneeID,
+		Content:           body.Content,
+		ArbitrationResult: body.ArbitrationResult,
+		AdminId:           session.AdminID,
+		Ip:                clientIP(req),
+	})
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
 }
 
 // handleWorkOrderByID 处理工单详情、流转与证据索引接口。
@@ -1158,10 +1218,33 @@ func (r *Router) handleRiskHitRecords(w http.ResponseWriter, req *http.Request) 
 	writeSuccess(w, resp)
 }
 
+// handleRiskHitRecordActions 处理风控命中记录复核、拉黑和转工单。
+func (r *Router) handleRiskHitRecordActions(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body types.RiskHitActionRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	resp, err := logic.NewRiskLogic(r.ctx).HandleRiskHitRecords(req.Context(), body, sessionFromContext(req.Context()), clientIP(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
 // authRequired 是后台通用鉴权中间件。
 // 它只从 Authorization 头中读取 token，并调用 adminsvc 校验会话，Redis 访问统一收敛在 adminsvc。
 func (r *Router) authRequired(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		if err := validateNumericQueryParams(req); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, err.Error())
+			return
+		}
 		token := bearerToken(req.Header.Get("Authorization"))
 		if token == "" {
 			writeError(w, http.StatusUnauthorized, 40004, "token missing")
@@ -1193,11 +1276,11 @@ func (r *Router) writeAuthError(w http.ResponseWriter, err error) {
 	case status.Code(err) == codes.InvalidArgument:
 		writeError(w, http.StatusBadRequest, 40001, "bad request")
 	case status.Code(err) == codes.FailedPrecondition:
-		writeError(w, http.StatusBadRequest, 40001, "bad request")
+		writeError(w, http.StatusBadRequest, 40001, preconditionMessage(err))
 	case status.Code(err) == codes.NotFound:
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case status.Code(err) == codes.PermissionDenied:
-		writeError(w, http.StatusForbidden, 40003, "forbidden")
+		writeError(w, http.StatusForbidden, 40003, permissionDeniedMessage(err))
 	case status.Code(err) == codes.Unauthenticated:
 		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
 	default:
@@ -1215,16 +1298,40 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 	case status.Code(err) == codes.InvalidArgument:
 		writeError(w, http.StatusBadRequest, 40001, "bad request")
 	case status.Code(err) == codes.FailedPrecondition:
-		writeError(w, http.StatusBadRequest, 40001, "bad request")
+		writeError(w, http.StatusBadRequest, 40001, preconditionMessage(err))
 	case status.Code(err) == codes.NotFound:
 		writeError(w, http.StatusNotFound, 40401, "resource not found")
 	case status.Code(err) == codes.PermissionDenied:
-		writeError(w, http.StatusForbidden, 40003, "forbidden")
+		writeError(w, http.StatusForbidden, 40003, permissionDeniedMessage(err))
 	case status.Code(err) == codes.Unauthenticated:
 		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
 	default:
 		writeError(w, http.StatusInternalServerError, 50000, "system error")
 	}
+}
+
+// permissionDeniedMessage 提取 gRPC PermissionDenied 的服务端原因。
+// 返回空或非 gRPC 错误时使用通用文案，保证 403 响应始终给出可读原因。
+func permissionDeniedMessage(err error) string {
+	if err != nil {
+		s := status.Convert(err)
+		if s.Code() == codes.PermissionDenied && s.Message() != "" {
+			return s.Message()
+		}
+	}
+	return "forbidden"
+}
+
+// preconditionMessage 提取 gRPC FailedPrecondition 的服务端原因。
+// 返回空或非 gRPC 错误时使用通用文案，保证 400 响应给出可读原因。
+func preconditionMessage(err error) string {
+	if err != nil {
+		s := status.Convert(err)
+		if s.Code() == codes.FailedPrecondition && s.Message() != "" {
+			return s.Message()
+		}
+	}
+	return "bad request"
 }
 
 // sessionContextKey 用于在 request context 中保存管理员会话。
@@ -1263,6 +1370,46 @@ func intQuery(req *http.Request, key string, defaultValue int) int {
 		return defaultValue
 	}
 	return parsed
+}
+
+// validateNumericQueryParams 统一校验后台接口中的数字查询参数。
+// 缺省值仍由各业务 handler 处理；一旦调用方显式传入非法数字或越界分页参数，直接返回参数错误，
+// 避免把拼写错误静默转换成无筛选查询。
+func validateNumericQueryParams(req *http.Request) error {
+	query := req.URL.Query()
+	for _, key := range []string{"page", "page_size", "role", "status", "admin_id", "target_id", "user_id", "driver_id", "audit_status", "type", "coupon_id", "car_type", "assignee_id", "work_order_type", "risk_level"} {
+		value, exists := query[key]
+		if !exists || len(value) == 0 || strings.TrimSpace(value[0]) == "" {
+			continue
+		}
+		// 发券任务状态使用 pending/processing/success/failed 字符串枚举，
+		// 不能套用其他列表接口的数字状态校验。
+		if key == "status" && strings.HasPrefix(req.URL.Path, "/admin/v1/coupon-issue-tasks") {
+			switch value[0] {
+			case "pending", "processing", "success", "failed":
+				continue
+			}
+		}
+		parsed, err := strconv.ParseInt(strings.TrimSpace(value[0]), 10, 64)
+		if err != nil {
+			return errors.New("invalid numeric query parameter: " + key)
+		}
+		switch key {
+		case "page":
+			if parsed < 1 {
+				return errors.New("page must be greater than zero")
+			}
+		case "page_size":
+			if parsed < 1 || parsed > 100 {
+				return errors.New("page_size must be between 1 and 100")
+			}
+		default:
+			if parsed < 0 {
+				return errors.New(key + " must not be negative")
+			}
+		}
+	}
+	return nil
 }
 
 // int32Query 读取 int32 查询参数。
@@ -1323,14 +1470,10 @@ func idAndActionFromPath(path, prefix string) (int64, string, bool) {
 	return 0, "", false
 }
 
-// clientIP 获取客户端 IP。
+// clientIP 获取客户端直连地址。
+// 当前服务未配置可信反向代理列表，因此不信任客户端可直接伪造的转发请求头，
+// 避免后台操作审计记录被伪造。部署层如接入可信代理，应在代理层完成地址标准化。
 func clientIP(req *http.Request) string {
-	if ip := req.Header.Get("X-Forwarded-For"); ip != "" {
-		return strings.TrimSpace(strings.Split(ip, ",")[0])
-	}
-	if ip := req.Header.Get("X-Real-IP"); ip != "" {
-		return strings.TrimSpace(ip)
-	}
 	host := req.RemoteAddr
 	if idx := strings.LastIndex(host, ":"); idx > 0 {
 		return host[:idx]

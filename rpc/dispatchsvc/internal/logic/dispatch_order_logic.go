@@ -126,6 +126,24 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 		return nil, err
 	}
 
+	// 改派/重派：排除指定司机（如原司机、已拒单司机），避免重复派给同一人。
+	exclude := make(map[uint64]struct{}, len(in.ExcludeDriverIds))
+	for _, id := range in.ExcludeDriverIds {
+		if id > 0 {
+			exclude[uint64(id)] = struct{}{}
+		}
+	}
+	if len(exclude) > 0 {
+		filtered := candidates[:0]
+		for _, c := range candidates {
+			if _, blocked := exclude[c.DriverID]; blocked {
+				continue
+			}
+			filtered = append(filtered, c)
+		}
+		candidates = filtered
+	}
+
 	list := make([]*proto.DispatchRecord, 0, len(candidates))
 	driverIDs := make([]int64, 0, len(candidates))
 	for _, candidate := range candidates {

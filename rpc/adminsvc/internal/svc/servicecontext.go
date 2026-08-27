@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/rpc/adminsvc/internal/config"
+	dispatchsvcproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversvcproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	ordersvcproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	pricesvcproto "XiaoLong-Ridy/rpc/pricesvc/price"
@@ -22,14 +23,16 @@ type ServiceContext struct {
 	MySQL  *sql.DB
 	Redis  *redis.Client
 
-	OrdersRPCClient  zrpc.Client
-	OrdersSvc        ordersvcproto.OrderClient
-	UsersRPCClient   zrpc.Client
-	UsersSvc         usersvcproto.UserClient
-	DriversRPCClient zrpc.Client
-	DriversSvc       driversvcproto.DriversvcClient
-	PricesRPCClient  zrpc.Client
-	PricesSvc        pricesvcproto.Price
+	OrdersRPCClient   zrpc.Client
+	OrdersSvc         ordersvcproto.OrderClient
+	DispatchRPCClient zrpc.Client
+	DispatchSvc       dispatchsvcproto.DispatchClient
+	UsersRPCClient    zrpc.Client
+	UsersSvc          usersvcproto.UserClient
+	DriversRPCClient  zrpc.Client
+	DriversSvc        driversvcproto.DriversvcClient
+	PricesRPCClient   zrpc.Client
+	PricesSvc         pricesvcproto.Price
 }
 
 // NewServiceContext 初始化 MySQL、Redis 以及下游 RPC 客户端。
@@ -54,14 +57,19 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		c.Session.TokenPrefix = "admin:sess:"
 	}
 
-	var ordersClient, usersClient, driversClient, pricesClient zrpc.Client
+	var ordersClient, dispatchClient, usersClient, driversClient, pricesClient zrpc.Client
 	var ordersSvc ordersvcproto.OrderClient
+	var dispatchSvc dispatchsvcproto.DispatchClient
 	var usersSvc usersvcproto.UserClient
 	var driversSvc driversvcproto.DriversvcClient
 	var pricesSvc pricesvcproto.Price
 	// 本地最小服务集无需预建不可达下游连接；默认配置仍完整初始化全部下游 RPC 客户端。
 	if !c.DisableDownstreamRPC {
 		ordersClient, ordersSvc, err = newOrdersRPCClient(c.OrdersRPC)
+		if err != nil {
+			panic(err)
+		}
+		dispatchClient, dispatchSvc, err = newDispatchRPCClient(c.DispatchRPC)
 		if err != nil {
 			panic(err)
 		}
@@ -80,18 +88,32 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	return &ServiceContext{
-		Config:           c,
-		MySQL:            db,
-		Redis:            redisClient,
-		OrdersRPCClient:  ordersClient,
-		OrdersSvc:        ordersSvc,
-		UsersRPCClient:   usersClient,
-		UsersSvc:         usersSvc,
-		DriversRPCClient: driversClient,
-		DriversSvc:       driversSvc,
-		PricesRPCClient:  pricesClient,
-		PricesSvc:        pricesSvc,
+		Config:            c,
+		MySQL:             db,
+		Redis:             redisClient,
+		OrdersRPCClient:   ordersClient,
+		OrdersSvc:         ordersSvc,
+		DispatchRPCClient: dispatchClient,
+		DispatchSvc:       dispatchSvc,
+		UsersRPCClient:    usersClient,
+		UsersSvc:          usersSvc,
+		DriversRPCClient:  driversClient,
+		DriversSvc:        driversSvc,
+		PricesRPCClient:   pricesClient,
+		PricesSvc:         pricesSvc,
 	}
+}
+
+// newDispatchRPCClient 初始化 dispatchsvc 客户端，供后台订单详情查询真实派单记录。
+func newDispatchRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, dispatchsvcproto.DispatchClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:8083"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, dispatchsvcproto.NewDispatchClient(client.Conn()), nil
 }
 
 // newUsersRPCClient 初始化 usersvc 客户端，供后台只读查询用户优惠券历史。
@@ -131,7 +153,7 @@ func newOrdersRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, ordersvcproto.Orde
 // newDriversRPCClient 初始化 driversvc 客户端。
 func newDriversRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, driversvcproto.DriversvcClient, error) {
 	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
-		cfg.Target = "127.0.0.1:8080"
+		cfg.Target = "127.0.0.1:5055"
 	}
 	client, err := zrpc.NewClient(cfg)
 	if err != nil {

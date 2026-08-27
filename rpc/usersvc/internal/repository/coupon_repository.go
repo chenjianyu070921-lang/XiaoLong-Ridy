@@ -28,6 +28,7 @@ type UserCouponWithTemplate struct {
 type CouponRepository interface {
 	Claim(ctx context.Context, userID, couponID uint64) (*UserCouponWithTemplate, error)
 	ListByUser(ctx context.Context, userID uint64, status int8) ([]*UserCouponWithTemplate, error)
+	ListByUserPage(ctx context.Context, userID uint64, status int8, page, pageSize int) ([]*UserCouponWithTemplate, int64, error)
 	Lock(ctx context.Context, userID, userCouponID, orderID uint64, carType int8, cityCode string) (*UserCouponWithTemplate, error)
 	Release(ctx context.Context, userID, userCouponID, orderID uint64) error
 	ReleaseByOrder(ctx context.Context, userID, orderID uint64) error

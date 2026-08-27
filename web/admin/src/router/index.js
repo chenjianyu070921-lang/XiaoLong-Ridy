@@ -57,7 +57,7 @@ const routes = [
       {
         path: 'orders/:id',
         name: 'OrderDetail',
-        component: () => import('../views/console/index.vue'),
+        component: () => import('../views/order/detail.vue'),
         meta: { title: '订单详情', requiresAuth: true },
       },
       {

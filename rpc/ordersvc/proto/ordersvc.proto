@@ -14,9 +14,12 @@ service Order {
   rpc StartTrip(StartTripRequest) returns (StartTripResponse);
   rpc FinishTrip(FinishTripRequest) returns (FinishTripResponse);
   rpc ConfirmPaid(ConfirmPaidRequest) returns (ConfirmPaidResponse);
+  rpc RefundOrder(RefundOrderRequest) returns (RefundOrderResponse);
   rpc TimeoutCancel(TimeoutCancelRequest) returns (TimeoutCancelResponse);
   rpc ListTimeoutOrders(ListTimeoutOrdersRequest) returns (ListTimeoutOrdersResponse);
   rpc ListOrderStatusLogs(ListOrderStatusLogsRequest) returns (ListOrderStatusLogsResponse);
+  rpc RedispatchOrder(RedispatchOrderRequest) returns (RedispatchOrderResponse); // 人工改派
+  rpc ForceRefundOrder(ForceRefundOrderRequest) returns (ForceRefundOrderResponse); // 管理员强制退款
 }
 
 enum OrderStatus {
@@ -27,6 +30,7 @@ enum OrderStatus {
   ORDER_STATUS_WAIT_PAY = 4;    // 待支付
   ORDER_STATUS_COMPLETED = 5;   // 已完成
   ORDER_STATUS_CANCELLED = 6;   // 已取消
+  ORDER_STATUS_REFUNDED = 7;   // 已退款
 }
 
 // 添加订单：乘客叫车后创建一笔订单，状态初始为待接单。
@@ -43,6 +47,8 @@ message CreateOrderRequest {
   int64 estimated_duration_s = 10; // 预估时长（秒）
   int64 estimated_price_cents = 11; // 预估价格（分）
   string city_code = 12; // 城市编码（行政区划码），空时按默认城市计价
+  int64 coupon_id = 13; // 锁定的优惠券 ID，0 表示未使用优惠券
+  int64 discount_cents = 14; // 优惠金额（分），由服务端计价/校验后回填
 }
 
 message CreateOrderResponse {
@@ -51,6 +57,9 @@ message CreateOrderResponse {
   int64 estimated_price_cents = 3;
   OrderStatus status = 4;
   int64 created_at = 5; // Unix 秒
+  int64 coupon_id = 6; // 锁定的优惠券 ID
+  int64 discount_cents = 7; // 优惠金额（分）
+  int64 payable_cents = 8; // 实付金额（分）
 }
 
 // 取消订单：乘客/司机/系统/管理员取消，订单进入已取消状态。
@@ -91,6 +100,11 @@ message GetOrderResponse {
   string cancel_by = 17;
   int64 created_at = 18; // Unix 秒
   int64 updated_at = 19; // Unix 秒
+  int64 coupon_id = 20; // 锁定的优惠券 ID
+  int64 discount_cents = 21; // 优惠金额（分）
+  int64 payable_cents = 22; // 实付金额（分）
+  int64 paid_cents = 23; // 已支付金额（分）
+  int64 refund_cents = 24; // 已退款金额（分）
 }
 
 // 分页查询订单列表。
@@ -110,6 +124,18 @@ message OrderSummary {
   OrderStatus status = 5;
   int64 estimated_price_cents = 6;
   int64 created_at = 7; // Unix 秒
+  int64 user_id = 8;
+  int64 driver_id = 9;
+  int32 car_type = 10;
+  double from_longitude = 11;
+  double from_latitude = 12;
+  double to_longitude = 13;
+  double to_latitude = 14;
+  int64 estimated_distance_m = 15;
+  int64 estimated_duration_s = 16;
+  string cancel_reason = 17;
+  string cancel_by = 18;
+  int64 updated_at = 19; // Unix 秒
 }
 
 message ListOrdersResponse {
@@ -221,11 +247,56 @@ message ListOrderStatusLogsResponse {
 message ConfirmPaidRequest {
   int64 order_id = 1;
   string payment_no = 2;
-  int64 amount_cents = 3;
+  int64 amount_cents = 3; // 实付金额（分），由支付结果回填，避免前端篡改
   int64 paid_at = 4; // Unix 秒
 }
 
 message ConfirmPaidResponse {
   int64 order_id = 1;
   OrderStatus status = 2;
+  int64 paid_cents = 3; // 已支付金额（分）
+}
+
+// 退款：已完成订单退回款项，订单进入已退款终态。
+message RefundOrderRequest {
+  int64 order_id = 1;
+  int64 user_id = 2;
+  string refund_no = 3; // 退款单号（幂等键）
+  int64 refund_amount_cents = 4; // 退款金额（分），0 表示全额退款
+  string reason = 5;
+}
+
+message RefundOrderResponse {
+  int64 order_id = 1;
+  OrderStatus status = 2;
+  int64 refund_cents = 3; // 实际退款金额（分）
+}
+
+// 人工改派：解除原司机绑定，订单回到待接单并重新进入派单队列（排除原司机）。
+message RedispatchOrderRequest {
+  int64 order_id = 1;
+  int64 new_driver_id = 2; // 指定新司机（0 表示仅释放回自动派单池）
+  int64 operator_id = 3;   // 操作人（管理员）
+  string reason = 4;
+}
+
+message RedispatchOrderResponse {
+  int64 order_id = 1;
+  OrderStatus status = 2;
+  int64 driver_id = 3; // 改派后的司机（指定改派时为 new_driver_id，否则 0）
+}
+
+// 管理员强制退款：可从更多终态（含已支付/行程中异常）发起，记录 operator=admin。
+message ForceRefundOrderRequest {
+  int64 order_id = 1;
+  int64 operator_id = 2;    // 操作管理员
+  string refund_no = 3;     // 退款单号（幂等键）
+  int64 refund_amount_cents = 4; // 退款金额（分），0 表示按已支付金额全额退款
+  string reason = 5;
+}
+
+message ForceRefundOrderResponse {
+  int64 order_id = 1;
+  OrderStatus status = 2;
+  int64 refund_cents = 3; // 实际退款金额（分）
 }

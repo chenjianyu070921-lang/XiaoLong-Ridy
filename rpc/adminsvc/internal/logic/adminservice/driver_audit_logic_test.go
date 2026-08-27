@@ -10,6 +10,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // fakeDriversClient 是 adminsvc 司机审核联调用例中的 driversvc 假客户端。
@@ -69,6 +71,26 @@ func TestApproveDriverCertification_CallsDriversvcAndWritesAuditLog(t *testing.T
 	}
 	if driverClient.approveReq.GetCertificationId() != 3001 || driverClient.approveReq.GetOperatorId() != 9001 || driverClient.approveReq.GetRemark() != "资料齐全" || driverClient.approveReq.GetIp() != "127.0.0.1" {
 		t.Fatalf("driversvc approve request = %#v, want certification/operator/remark/ip", driverClient.approveReq)
+	}
+}
+
+// TestApproveDriverCertification_DownstreamDisabled 验证本地最小服务集未初始化
+// driversvc 客户端时，审核接口返回明确错误而不是空指针 panic。
+func TestApproveDriverCertification_DownstreamDisabled(t *testing.T) {
+	svcCtx, _, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	// 保持 DriversSvc 为 nil，模拟 DisableDownstreamRPC 的本地最小服务集。
+	svcCtx.DriversSvc = nil
+
+	_, err := NewApproveDriverCertificationLogic(context.Background(), svcCtx).ApproveDriverCertification(&adminsvc.AuditDriverCertificationRequest{
+		Id:      3001,
+		AdminId: 9001,
+	})
+	if err == nil {
+		t.Fatal("expected error when driversvc client is nil")
+	}
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("want FailedPrecondition, got %v", status.Code(err))
 	}
 }
 

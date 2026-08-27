@@ -18,6 +18,8 @@ var (
 	ErrInvalidOrderParams       = errors.New("invalid orderclient params")
 	ErrCancelReasonRequired     = errors.New("cancel reason required")
 	ErrOrderStatusNotCancelable = errors.New("orderclient status not cancelable")
+	ErrInvalidOrderStatus       = errors.New("orderclient status transition not allowed")
+	ErrRefundDuplicate          = errors.New("refund request duplicated")
 	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this orderclient")
 	ErrOrderStatusNotAllowed    = errors.New("orderclient status not allowed")
 	ErrDriverNotMatched         = errors.New("driver not matched")

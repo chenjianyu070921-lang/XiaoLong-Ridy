@@ -110,6 +110,18 @@ func (l *WorkOrderLogic) ActWorkOrder(in *adminsvc.WorkOrderActionRequest) (*adm
 	if err != nil {
 		return nil, err
 	}
+	// RPC 拦截器只校验方法级权限；这里根据当前会话中的真实角色再次校验具体动作，
+	// 防止调用方利用 ActWorkOrder 入口执行超出角色职责范围的状态流转。
+	admin, err := ValidateAdminTokenFromContext(l.ctx, l.svcCtx)
+	if err != nil {
+		return nil, err
+	}
+	if admin.ID != in.GetAdminId() {
+		return nil, status.Error(codes.PermissionDenied, "请求操作者与管理员会话不一致")
+	}
+	if err := validateWorkOrderActionRole(admin.Role, in.GetAction()); err != nil {
+		return nil, err
+	}
 	tx, err := l.svcCtx.MySQL.BeginTx(l.ctx, nil)
 	if err != nil {
 		return nil, err
@@ -150,6 +162,96 @@ func (l *WorkOrderLogic) ActWorkOrder(in *adminsvc.WorkOrderActionRequest) (*adm
 		return nil, err
 	}
 	return l.GetWorkOrder(&adminsvc.WorkOrderDetailRequest{Id: in.GetId()})
+}
+
+// BatchActWorkOrders 批量执行工单分配、跟进、仲裁、结案或重开。
+// 批量入口不要求前端提交每条记录的 version，但每条工单仍在事务内 FOR UPDATE 加锁读取当前状态，
+// 并逐条写入流转记录和审计日志，避免批量操作绕过状态机和审计约束。
+func (l *WorkOrderLogic) BatchActWorkOrders(in *adminsvc.WorkOrderBatchActionRequest) (*adminsvc.WorkOrderBatchActionResponse, error) {
+	if len(in.GetIds()) == 0 || in.GetAdminId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "工单ID列表和管理员ID不能为空")
+	}
+	to, err := workOrderTargetStatus(&adminsvc.WorkOrderActionRequest{
+		Action:            in.GetAction(),
+		AssigneeId:        in.GetAssigneeId(),
+		Content:           in.GetContent(),
+		ArbitrationResult: in.GetArbitrationResult(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	admin, err := ValidateAdminTokenFromContext(l.ctx, l.svcCtx)
+	if err != nil {
+		return nil, err
+	}
+	if admin.ID != in.GetAdminId() {
+		return nil, status.Error(codes.PermissionDenied, "请求操作者与管理员会话不一致")
+	}
+	if err := validateWorkOrderActionRole(admin.Role, in.GetAction()); err != nil {
+		return nil, err
+	}
+	resp := &adminsvc.WorkOrderBatchActionResponse{}
+	for _, id := range uniquePositiveIDs(in.GetIds()) {
+		if err := l.batchActOneWorkOrder(id, to, in); err != nil {
+			resp.FailCount++
+			resp.FailureReasons = append(resp.FailureReasons, fmt.Sprintf("工单%d：%s", id, err.Error()))
+			continue
+		}
+		resp.SuccessCount++
+	}
+	return resp, nil
+}
+
+// batchActOneWorkOrder 在独立事务内处理单个工单，保证批量操作部分失败时不影响其他工单。
+func (l *WorkOrderLogic) batchActOneWorkOrder(id int64, to int32, in *adminsvc.WorkOrderBatchActionRequest) error {
+	tx, err := l.svcCtx.MySQL.BeginTx(l.ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var from int32
+	if err = tx.QueryRowContext(l.ctx, "SELECT status FROM admin_complaint_work_order WHERE id = ? FOR UPDATE", id).Scan(&from); err == sql.ErrNoRows {
+		return status.Error(codes.NotFound, "工单不存在")
+	}
+	if err != nil {
+		return err
+	}
+	if !validWorkOrderTransition(from, to, in.GetAction()) {
+		return status.Error(codes.FailedPrecondition, "工单状态不允许执行该动作")
+	}
+	closedAt := any(nil)
+	if in.GetAction() == "close" {
+		closedAt = time.Now()
+	}
+	if _, err = tx.ExecContext(l.ctx, `UPDATE admin_complaint_work_order SET status=?, assignee_id=CASE WHEN ? > 0 THEN ? ELSE assignee_id END, arbitration_result=CASE WHEN ? <> '' THEN ? ELSE arbitration_result END, remark=CASE WHEN ? <> '' THEN ? ELSE remark END, closed_at=?, version=version+1 WHERE id=?`, to, in.GetAssigneeId(), in.GetAssigneeId(), in.GetArbitrationResult(), in.GetArbitrationResult(), in.GetContent(), in.GetContent(), closedAt, id); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(l.ctx, `INSERT INTO admin_work_order_flow (work_order_id, from_status, to_status, action, operator_id, content) VALUES (?, ?, ?, ?, ?, ?)`, id, from, to, in.GetAction(), in.GetAdminId(), strings.TrimSpace(in.GetContent())); err != nil {
+		return err
+	}
+	if err = createOperationLogTx(l.ctx, tx, in.GetAdminId(), "work_order", "batch_"+in.GetAction(), "work_order", id, fmt.Sprintf("批量工单状态：%d->%d", from, to), in.GetIp()); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// validateWorkOrderActionRole 校验管理员角色是否可以执行指定工单动作。
+// 角色权限严格遵循工单设计：超管拥有全部动作权限，运营仅可分配和跟进，
+// 客服仅可跟进；仲裁、结案和重开只能由超级管理员执行。
+func validateWorkOrderActionRole(role int32, action string) error {
+	switch role {
+	case 1:
+		return nil
+	case 2:
+		if action == "assign" || action == "follow" {
+			return nil
+		}
+	case 3:
+		if action == "follow" {
+			return nil
+		}
+	}
+	return status.Error(codes.PermissionDenied, "当前管理员无权执行该工单动作")
 }
 
 // AddWorkOrderEvidence 保存已存在资源或文本的证据索引，不处理文件上传。

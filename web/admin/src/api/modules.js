@@ -49,12 +49,15 @@ export const workOrdersApi = {
   detail: (id) => request.get(`/work-orders/${id}`),
   create: (data) => request.post('/work-orders', data),
   action: (id, data) => request.post(`/work-orders/${id}/actions`, data),
+  batchAction: (data) => request.post('/work-orders/batch-actions', data),
   evidence: (id, data) => request.post(`/work-orders/${id}/evidence`, data),
   evidenceList: (id, params) => list(`/work-orders/${id}/evidence`, params),
 }
 export const statisticsApi = {
   overview: (params) => list('/statistics/overview', params),
   orders: (params) => list('/statistics/orders', params),
+  drivers: (params) => list('/statistics/drivers', params),
+  revenue: (params) => list('/statistics/revenue', params),
   coupons: (params) => list('/statistics/coupons', params),
   exports: (params) => list('/export-tasks', params),
   createExport: (data) => request.post('/export-tasks', data),
@@ -66,6 +69,7 @@ export const riskApi = {
   add: (data) => request.post('/blacklist', data),
   release: (id, data) => request.post(`/blacklist/${id}/release`, data),
   hits: (params) => list('/risk/hit-records', params),
+  handleHits: (data) => request.post('/risk/hit-records/actions', data),
 }
 export const logsApi = { list: (params) => list('/operation-logs', params) }
 

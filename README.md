@@ -2,11 +2,11 @@
 
 基于 Go 微服务架构的花小猪打车仿制项目，采用 go-zero/goctl 风格的目录组织，由六位组员按六个模块协作开发。
 
-> 当前状态：工程骨架。目录已按微服务拆分完毕，具体接口、数据模型和业务代码待各模块逐步补齐。
+> 当前状态：各模块已按微服务拆分并逐步实现业务；管理后台本地最小服务集启动方式见 `scripts/admin-local/start.ps1`。
 
 ## 技术栈（规划）
 
-- 语言：Go 1.26（`go.mod` 当前声明 `go 1.26.5`）
+- 语言：Go 1.25（`go.mod` 当前声明 `go 1.25.0`）
 - 框架：go-zero 风格网关 + gRPC 微服务
 - 存储：MySQL、Redis
 - 中间件：etcd（服务注册发现）、Kafka / RabbitMQ（消息队列）
@@ -75,7 +75,9 @@ XiaoLong-Ridy
 
 ## 本地运行
 
-当前为骨架阶段，尚未生成可执行入口；各服务补全 `main` 入口后：
+管理后台模块可直接使用本地启动脚本：`.\scripts\admin-local\start.ps1`
+（需先设置环境变量 `ADMINSVC_MYSQL_DSN` 与 `ADMINSVC_REDIS_PASSWORD`）。
+完整多服务启动参考：
 
 ```bash
 # 1. 安装依赖

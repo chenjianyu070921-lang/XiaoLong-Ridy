@@ -95,7 +95,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		DB:                      client,
 		Redis:                   redisClient,
 		EventBus:                eventBus,
-		OrderRepository:         repository.NewGormOrderRepository(client),
+		OrderRepository:         repository.NewGormOrderRepository(client, repository.NewGormCouponConsumer(client)),
 		CouponConsumer:          repository.NewGormCouponConsumer(client),
 		RiskBlacklistRepository: repository.NewGormRiskBlacklistRepository(client),
 		DispatchClient:          dispatch.NewDispatch(dispatchClient),

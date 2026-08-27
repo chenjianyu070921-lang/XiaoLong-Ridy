@@ -11,7 +11,7 @@
 # disable / release them so the database stays in a sane state.
 
 param(
-    [string]$BaseUrl = "http://127.0.0.1:8083",
+    [string]$BaseUrl = "http://127.0.0.1:8717",
     [string]$Username = "admin",
     [string]$Password = "123456",
     [switch]$WriteOps,

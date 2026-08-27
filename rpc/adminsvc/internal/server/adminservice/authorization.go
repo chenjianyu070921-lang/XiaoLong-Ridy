@@ -20,6 +20,39 @@ const (
 	adminRoleCS    = int32(3)
 )
 
+// operatorIdentityMethods 是需要校验"操作者身份一致性"的写 RPC 方法集合。
+// 这些方法请求消息中的 admin_id 语义为"操作者本人"，必须与已验证会话的管理员 ID 一致，
+// 防止 RPC 客户端伪造操作者身份以污染审计记录。
+// 其余请求（如 Me/Menus 的查询目标、OperationLogListRequest 的筛选条件）中的 admin_id
+// 不属于操作者身份，不参与一致性校验，避免合法读请求被误判为伪造身份。
+var operatorIdentityMethods = map[string]struct{}{
+	"/adminsvc.AdminService/FreezeUser":                 {},
+	"/adminsvc.AdminService/UnfreezeUser":               {},
+	"/adminsvc.AdminService/ApproveDriverCertification": {},
+	"/adminsvc.AdminService/RejectDriverCertification":  {},
+	"/adminsvc.AdminService/CancelOrder":                {},
+	"/adminsvc.AdminService/CreateCoupon":               {},
+	"/adminsvc.AdminService/UpdateCoupon":               {},
+	"/adminsvc.AdminService/DisableCoupon":              {},
+	"/adminsvc.AdminService/IssueCoupon":                {},
+	"/adminsvc.AdminService/CreatePriceRule":            {},
+	"/adminsvc.AdminService/UpdatePriceRule":            {},
+	"/adminsvc.AdminService/EnablePriceRule":            {},
+	"/adminsvc.AdminService/DisablePriceRule":           {},
+	"/adminsvc.AdminService/CreatePromotionActivity":    {},
+	"/adminsvc.AdminService/UpdatePromotionActivity":    {},
+	"/adminsvc.AdminService/PublishPromotionActivity":   {},
+	"/adminsvc.AdminService/RollbackPromotionActivity":  {},
+	"/adminsvc.AdminService/CreateExportTask":           {},
+	"/adminsvc.AdminService/CreateWorkOrder":            {},
+	"/adminsvc.AdminService/ActWorkOrder":               {},
+	"/adminsvc.AdminService/BatchActWorkOrders":         {},
+	"/adminsvc.AdminService/AddWorkOrderEvidence":       {},
+	"/adminsvc.AdminService/AddBlacklist":               {},
+	"/adminsvc.AdminService/ReleaseBlacklist":           {},
+	"/adminsvc.AdminService/HandleRiskHitRecords":       {},
+}
+
 // NewAuthorizationInterceptor 创建 adminsvc 的服务端授权拦截器。
 // 除登录、首次注册和会话校验外，所有后台 RPC 都必须携带由 HTTP 网关透传的管理员 token。
 func NewAuthorizationInterceptor(svcCtx *svc.ServiceContext) grpc.UnaryServerInterceptor {
@@ -31,7 +64,7 @@ func NewAuthorizationInterceptor(svcCtx *svc.ServiceContext) grpc.UnaryServerInt
 		if err != nil {
 			return nil, err
 		}
-		if !requestAdminIDMatches(req, admin.ID) {
+		if !requestAdminIDMatches(info.FullMethod, req, admin.ID) {
 			return nil, status.Error(codes.PermissionDenied, "请求操作者与管理员会话不一致")
 		}
 		if !roleAllowed(info.FullMethod, admin.Role) {
@@ -41,9 +74,13 @@ func NewAuthorizationInterceptor(svcCtx *svc.ServiceContext) grpc.UnaryServerInt
 	}
 }
 
-// requestAdminIDMatches 验证写请求中的 admin_id 与已认证会话一致。
-// 使用 protobuf 反射覆盖所有已定义 admin_id 字段的请求，避免新增接口遗漏身份一致性校验。
-func requestAdminIDMatches(req any, authenticatedAdminID int64) bool {
+// requestAdminIDMatches 验证操作者身份类写请求中的 admin_id 与已认证会话一致。
+// 仅对 operatorIdentityMethods 中的方法生效；使用 protobuf 反射读取请求字段，
+// 避免在方法实现中逐一手写字段比对，也避免把查询过滤类 admin_id 误当作操作者身份。
+func requestAdminIDMatches(method string, req any, authenticatedAdminID int64) bool {
+	if _, ok := operatorIdentityMethods[method]; !ok {
+		return true
+	}
 	message, ok := req.(interface{ ProtoReflect() protoreflect.Message })
 	if !ok {
 		return true
@@ -80,7 +117,9 @@ func roleAllowed(method string, role int32) bool {
 			"/adminsvc.AdminService/ListOperationLogs", "/adminsvc.AdminService/ListUsers", "/adminsvc.AdminService/GetUser",
 			"/adminsvc.AdminService/ListDriverCertifications", "/adminsvc.AdminService/GetDriverCertification",
 			"/adminsvc.AdminService/ListOrders", "/adminsvc.AdminService/GetOrder", "/adminsvc.AdminService/ListAbnormalOrders",
-			"/adminsvc.AdminService/CancelOrder", "/adminsvc.AdminService/ListWorkOrders", "/adminsvc.AdminService/GetWorkOrder", "/adminsvc.AdminService/ActWorkOrder", "/adminsvc.AdminService/AddWorkOrderEvidence", "/adminsvc.AdminService/ListWorkOrderEvidence":
+			"/adminsvc.AdminService/CancelOrder", "/adminsvc.AdminService/ListWorkOrders", "/adminsvc.AdminService/GetWorkOrder",
+			"/adminsvc.AdminService/ActWorkOrder", "/adminsvc.AdminService/BatchActWorkOrders",
+			"/adminsvc.AdminService/AddWorkOrderEvidence", "/adminsvc.AdminService/ListWorkOrderEvidence":
 			return true
 		default:
 			return false
@@ -93,7 +132,10 @@ func roleAllowed(method string, role int32) bool {
 		"/adminsvc.AdminService/CreatePriceRule", "/adminsvc.AdminService/UpdatePriceRule",
 		"/adminsvc.AdminService/EnablePriceRule", "/adminsvc.AdminService/DisablePriceRule",
 		"/adminsvc.AdminService/PublishPromotionActivity", "/adminsvc.AdminService/RollbackPromotionActivity",
-		"/adminsvc.AdminService/AddBlacklist", "/adminsvc.AdminService/ReleaseBlacklist", "/adminsvc.AdminService/ActWorkOrder":
+		"/adminsvc.AdminService/AddBlacklist", "/adminsvc.AdminService/ReleaseBlacklist":
+		return false
+	case "/adminsvc.AdminService/HandleRiskHitRecords":
+		// 风控命中处置可能新增黑名单、创建工单并写入审计，统一收归超管。
 		return false
 	default:
 		return true

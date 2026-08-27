@@ -15,7 +15,10 @@ func CanTransit(from, to int8) bool {
 		return to == constants.OrderStatusWaitPay
 	case constants.OrderStatusWaitPay:
 		return to == constants.OrderStatusCompleted
-	case constants.OrderStatusCompleted, constants.OrderStatusCancelled:
+	case constants.OrderStatusCompleted:
+		// 已完成订单支持退款，进入已退款终态（P1-订单-3）。
+		return to == constants.OrderStatusRefunded
+	case constants.OrderStatusCancelled, constants.OrderStatusRefunded:
 		return false
 	default:
 		return false

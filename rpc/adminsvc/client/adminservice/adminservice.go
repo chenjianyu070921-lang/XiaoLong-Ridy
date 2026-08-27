@@ -43,6 +43,8 @@ type (
 	CouponListResponse               = adminsvc.CouponListResponse
 	CouponRequest                    = adminsvc.CouponRequest
 	CouponStatisticsResponse         = adminsvc.CouponStatisticsResponse
+	DriverStatisticsResponse         = adminsvc.DriverStatisticsResponse
+	FinanceStatisticsResponse        = adminsvc.FinanceStatisticsResponse
 	PriceRule                        = adminsvc.PriceRule
 	PriceRuleDetailRequest           = adminsvc.PriceRuleDetailRequest
 	PriceRuleListRequest             = adminsvc.PriceRuleListRequest
@@ -68,6 +70,8 @@ type (
 	WorkOrderListResponse            = adminsvc.WorkOrderListResponse
 	WorkOrderDetailRequest           = adminsvc.WorkOrderDetailRequest
 	WorkOrderActionRequest           = adminsvc.WorkOrderActionRequest
+	WorkOrderBatchActionRequest      = adminsvc.WorkOrderBatchActionRequest
+	WorkOrderBatchActionResponse     = adminsvc.WorkOrderBatchActionResponse
 	WorkOrderEvidence                = adminsvc.WorkOrderEvidence
 	WorkOrderEvidenceRequest         = adminsvc.WorkOrderEvidenceRequest
 	WorkOrderEvidenceListRequest     = adminsvc.WorkOrderEvidenceListRequest
@@ -98,6 +102,8 @@ type (
 	PromotionActivityRequest         = adminsvc.PromotionActivityRequest
 	RegisterRequest                  = adminsvc.RegisterRequest
 	RiskHitRecord                    = adminsvc.RiskHitRecord
+	RiskHitActionRequest             = adminsvc.RiskHitActionRequest
+	RiskHitActionResponse            = adminsvc.RiskHitActionResponse
 	RiskHitRecordListRequest         = adminsvc.RiskHitRecordListRequest
 	RiskHitRecordListResponse        = adminsvc.RiskHitRecordListResponse
 	Settlement                       = adminsvc.Settlement
@@ -192,6 +198,10 @@ type (
 		GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error)
 		// 查询订单统计。
 		GetOrderStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*OrderStatisticsResponse, error)
+		// 查询司机统计。
+		GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error)
+		// 查询财务统计。
+		GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error)
 		// 查询优惠券统计。
 		GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
 		// 创建导出任务。
@@ -205,6 +215,7 @@ type (
 		ListWorkOrders(ctx context.Context, in *WorkOrderListRequest, opts ...grpc.CallOption) (*WorkOrderListResponse, error)
 		GetWorkOrder(ctx context.Context, in *WorkOrderDetailRequest, opts ...grpc.CallOption) (*WorkOrder, error)
 		ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+		BatchActWorkOrders(ctx context.Context, in *WorkOrderBatchActionRequest, opts ...grpc.CallOption) (*WorkOrderBatchActionResponse, error)
 		AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error)
 		ListWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceListRequest, opts ...grpc.CallOption) (*WorkOrderEvidenceListResponse, error)
 		// 查询风控黑名单列表。
@@ -215,6 +226,8 @@ type (
 		ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询风控命中记录。
 		ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
+		// 处置风控命中记录。
+		HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
 	}
 
 	defaultAdminService struct {
@@ -481,6 +494,18 @@ func (m *defaultAdminService) GetOrderStatistics(ctx context.Context, in *Statis
 	return client.GetOrderStatistics(ctx, in, opts...)
 }
 
+// 查询司机统计。
+func (m *defaultAdminService) GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetDriverStatistics(ctx, in, opts...)
+}
+
+// 查询财务统计。
+func (m *defaultAdminService) GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetFinanceStatistics(ctx, in, opts...)
+}
+
 // 查询优惠券统计。
 func (m *defaultAdminService) GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
@@ -520,6 +545,9 @@ func (m *defaultAdminService) GetWorkOrder(ctx context.Context, in *WorkOrderDet
 func (m *defaultAdminService) ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
 	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ActWorkOrder(ctx, in, opts...)
 }
+func (m *defaultAdminService) BatchActWorkOrders(ctx context.Context, in *WorkOrderBatchActionRequest, opts ...grpc.CallOption) (*WorkOrderBatchActionResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).BatchActWorkOrders(ctx, in, opts...)
+}
 func (m *defaultAdminService) AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error) {
 	return adminsvc.NewAdminServiceClient(m.cli.Conn()).AddWorkOrderEvidence(ctx, in, opts...)
 }
@@ -549,4 +577,10 @@ func (m *defaultAdminService) ReleaseBlacklist(ctx context.Context, in *Blacklis
 func (m *defaultAdminService) ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListRiskHitRecords(ctx, in, opts...)
+}
+
+// 处置风控命中记录。
+func (m *defaultAdminService) HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.HandleRiskHitRecords(ctx, in, opts...)
 }

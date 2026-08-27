@@ -9,8 +9,8 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
-	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
+	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

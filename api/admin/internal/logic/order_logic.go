@@ -96,7 +96,7 @@ func (l *OrderLogic) Detail(ctx context.Context, id int64) (*types.OrderDetailDT
 	if err != nil {
 		return nil, err
 	}
-	detail := &types.OrderDetailDTO{Order: orderPBToDTO(resp.Order)}
+	detail := &types.OrderDetailDTO{Order: orderPBToDTO(resp.Order), Degraded: resp.GetDegraded()}
 	for _, item := range resp.StatusLogs {
 		detail.StatusLogs = append(detail.StatusLogs, types.OrderStatusLog{
 			ID: item.Id, OrderID: item.OrderId, FromStatus: item.FromStatus, ToStatus: item.ToStatus,
@@ -143,10 +143,11 @@ func (l *OrderLogic) Cancel(ctx context.Context, id int64, req types.OrderCancel
 		reason = "后台取消订单"
 	}
 	_, err := l.ctx.AdminSvc.CancelOrder(ctx, &adminclient.AdminCancelOrderRequest{
-		OrderId: id,
-		Reason:  reason,
-		AdminId: session.AdminID,
-		Ip:      ip,
+		OrderId:   id,
+		Reason:    reason,
+		AdminId:   session.AdminID,
+		Ip:        ip,
+		RequestId: strings.TrimSpace(req.RequestID),
 	})
 	return err
 }

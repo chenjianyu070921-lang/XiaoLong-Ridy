@@ -1,7 +1,8 @@
 ﻿# 管理后台最小本地服务集启动脚本。
 #
 # 本脚本仅启动管理 RPC、管理 HTTP API 与管理前端，不启动订单、司机、价格等下游服务，
-# 以降低本地开发时的常驻内存。数据库凭据只能由 ADMINSVC_MYSQL_DSN 环境变量注入。
+# 以降低本地开发时的常驻内存。数据库与 Redis 凭据只能由
+# ADMINSVC_MYSQL_DSN、ADMINSVC_REDIS_PASSWORD 环境变量注入，脚本不保存任何明文密码。
 
 param(
     [string]$RepoRoot = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
@@ -96,6 +97,9 @@ if ($Stop) {
 if ([string]::IsNullOrWhiteSpace($env:ADMINSVC_MYSQL_DSN)) {
     throw "缺少 ADMINSVC_MYSQL_DSN，拒绝在脚本中保存数据库凭据。"
 }
+if ([string]::IsNullOrWhiteSpace($env:ADMINSVC_REDIS_PASSWORD)) {
+    throw "缺少 ADMINSVC_REDIS_PASSWORD，拒绝在脚本中保存 Redis 凭据。"
+}
 
 foreach ($path in @($adminSvcExecutable, $adminAPIExecutable, $viteExecutable)) {
     if (-not (Test-Path -LiteralPath $path)) {
@@ -121,11 +125,71 @@ MySQL:
   DSN: ""
 Cache:
   Host: 115.191.16.159:6379
-  Password: ""
+  Password: "$env:ADMINSVC_REDIS_PASSWORD"
   DB: 0
 Session:
   SessionTTLHours: 24
   TokenPrefix: "admin:sess:"
+MenuRoles:
+  1:
+  - Name: 管理员
+    Path: /admins
+    Icon: Shield
+    Perm: admin:manage
+  - Name: 用户管理
+    Path: /users
+    Icon: User
+    Perm: user:list
+  - Name: 司机审核
+    Path: /driver-certifications
+    Icon: BadgeCheck
+    Perm: driver:audit
+  - Name: 订单监控
+    Path: /orders
+    Icon: ClipboardList
+    Perm: order:list
+  - Name: 操作日志
+    Path: /operation-logs
+    Icon: ScrollText
+    Perm: log:list
+  2:
+  - Name: 用户管理
+    Path: /users
+    Icon: User
+    Perm: user:list
+  - Name: 司机审核
+    Path: /driver-certifications
+    Icon: BadgeCheck
+    Perm: driver:audit
+  - Name: 订单监控
+    Path: /orders
+    Icon: ClipboardList
+    Perm: order:list
+  - Name: 操作日志
+    Path: /operation-logs
+    Icon: ScrollText
+    Perm: log:list
+  3:
+  - Name: 用户管理
+    Path: /users
+    Icon: User
+    Perm: user:list
+  - Name: 司机审核
+    Path: /driver-certifications
+    Icon: BadgeCheck
+    Perm: driver:audit
+  - Name: 订单监控
+    Path: /orders
+    Icon: ClipboardList
+    Perm: order:list
+  - Name: 操作日志
+    Path: /operation-logs
+    Icon: ScrollText
+    Perm: log:list
+  - Name: 投诉与申诉工单
+    Path: /work-orders
+    Icon: Document
+    Perm: work-order:list
 OrdersRPC:
   Target: 127.0.0.1:50051
   NonBlock: true
@@ -136,7 +200,7 @@ PricesRPC:
   Target: 127.0.0.1:50053
   NonBlock: true
 DisableDownstreamRPC: true
-"@ | Set-Content -LiteralPath $adminSvcConfigPath -Encoding ASCII
+"@ | Set-Content -LiteralPath $adminSvcConfigPath -Encoding UTF8
 
 # Go 运行时限制空闲堆保留；Node 堆上限为 384 MB，保留 Vite 编译所需余量。
 $env:GOMEMLIMIT = "256MiB"

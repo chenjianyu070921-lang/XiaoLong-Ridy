@@ -21,4 +21,6 @@ type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error
 	// Update 保存用户资料变更，当前用于个人中心和实名信息更新。
 	Update(ctx context.Context, user *model.User) error
+	// ListPage 按状态分页查询未删除用户，供管理后台只读查询。
+	ListPage(ctx context.Context, status, page, pageSize int) (users []*model.User, total int64, err error)
 }

@@ -49,10 +49,17 @@ func main() {
 		log.Fatal("rpc ListenOn is empty")
 	}
 	log.Printf("adminsvc config loaded")
-	// RPC 服务只允许通过环境变量注入真实数据库凭据，配置文件仅保留非敏感结构。
+	// RPC 服务只允许通过环境变量注入真实凭据，配置文件仅保留非敏感结构。
+	// 数据库连接串与 Redis 密码均以环境变量为准，避免明文凭据进入仓库。
 	if dsn := strings.TrimSpace(os.Getenv("ADMINSVC_MYSQL_DSN")); dsn != "" {
 		c.MySQL.DSN = dsn
 	}
+	if redisPassword := strings.TrimSpace(os.Getenv("ADMINSVC_REDIS_PASSWORD")); redisPassword != "" {
+		c.Cache.Password = redisPassword
+	}
+	// 统一补齐 MySQL 驱动参数：缺少 parseTime 时 DATETIME 列无法扫描为 time.Time，
+	// 会导致优惠券、用户、订单等列表接口在本地启动场景下报扫描错误（500）。
+	c.MySQL.DSN = normalizeMySQLDSN(c.MySQL.DSN)
 	if strings.TrimSpace(c.MySQL.DSN) == "" {
 		panic("mysql dsn is empty: set ADMINSVC_MYSQL_DSN")
 	}
@@ -75,4 +82,32 @@ func main() {
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	s.Start()
+}
+
+// normalizeMySQLDSN 为 MySQL DSN 补齐驱动连接参数，保证时间与编码语义一致。
+// 缺失 charset 时补充 utf8mb4；缺失 parseTime 时补充 parseTime=True；
+// 缺失 loc 时补充 loc=Local，与仓库内既有 DSN 示例保持等价。
+// 入参为原始 DSN，返回规范化后的 DSN；空串原样返回。
+func normalizeMySQLDSN(dsn string) string {
+	if strings.TrimSpace(dsn) == "" {
+		return dsn
+	}
+	params := make([]string, 0, 3)
+	if !strings.Contains(dsn, "charset=") {
+		params = append(params, "charset=utf8mb4")
+	}
+	if !strings.Contains(dsn, "parseTime=") {
+		params = append(params, "parseTime=True")
+	}
+	if !strings.Contains(dsn, "loc=") {
+		params = append(params, "loc=Local")
+	}
+	if len(params) == 0 {
+		return dsn
+	}
+	separator := "?"
+	if strings.Contains(dsn, "?") {
+		separator = "&"
+	}
+	return dsn + separator + strings.Join(params, "&")
 }

@@ -97,6 +97,10 @@ service AdminService {
   rpc GetStatisticsOverview(StatisticsRequest) returns (StatisticsOverviewResponse);
   // 查询订单统计。
   rpc GetOrderStatistics(StatisticsRequest) returns (OrderStatisticsResponse);
+  // 查询司机统计。
+  rpc GetDriverStatistics(StatisticsRequest) returns (DriverStatisticsResponse);
+  // 查询财务统计。
+  rpc GetFinanceStatistics(StatisticsRequest) returns (FinanceStatisticsResponse);
   // 查询优惠券统计。
   rpc GetCouponStatistics(StatisticsRequest) returns (CouponStatisticsResponse);
   // 创建导出任务。
@@ -117,6 +121,8 @@ service AdminService {
   rpc GetWorkOrder(WorkOrderDetailRequest) returns (WorkOrder);
   // 执行后台工单流转动作。
   rpc ActWorkOrder(WorkOrderActionRequest) returns (WorkOrder);
+  // 批量执行后台工单流转动作。
+  rpc BatchActWorkOrders(WorkOrderBatchActionRequest) returns (WorkOrderBatchActionResponse);
   // 新增工单证据索引。
   rpc AddWorkOrderEvidence(WorkOrderEvidenceRequest) returns (WorkOrderEvidence);
   // 查询工单证据列表。
@@ -129,6 +135,8 @@ service AdminService {
   rpc ReleaseBlacklist(BlacklistRequest) returns (CommonResponse);
   // 查询风控命中记录。
   rpc ListRiskHitRecords(RiskHitRecordListRequest) returns (RiskHitRecordListResponse);
+  // 处置风控命中记录。
+  rpc HandleRiskHitRecords(RiskHitActionRequest) returns (RiskHitActionResponse);
 }
 
 message Admin {
@@ -441,6 +449,7 @@ message AdminCancelOrderRequest {
   string reason = 2;
   int64 admin_id = 3;
   string ip = 4;
+  string request_id = 5;
 }
 
 message Order {
@@ -538,6 +547,7 @@ message OrderDetail {
   OrderPrice price = 4;
   Payment payment = 5;
   Settlement settlement = 6;
+  repeated string degraded = 7;
 }
 
 message OrderListResponse {
@@ -842,6 +852,54 @@ message CouponStatisticsResponse {
   string use_rate = 6;
 }
 
+message DriverStatisticsResponse {
+  // 当前未删除司机总数。
+  int64 driver_total = 1;
+  // 统计时间范围内新增司机数。
+  int64 new_driver_count = 2;
+  // 统计时间范围内待审核认证数。
+  int64 pending_audit_count = 3;
+  // 统计时间范围内审核通过认证数。
+  int64 approved_driver_count = 4;
+  // 统计时间范围内司机完单数。
+  int64 completed_order_count = 5;
+  // 统计时间范围内已结算司机收入。
+  string driver_income = 6;
+  // 统计时间范围内申请中提现金额。
+  string withdraw_pending_amount = 7;
+  // 统计时间范围内打款成功提现金额。
+  string withdraw_success_amount = 8;
+  // 统计时间范围内打款失败提现单数。
+  int64 withdraw_failed_count = 9;
+  // 统计时间范围内更新的平均服务分。
+  string average_score = 10;
+  // 统计时间范围内评分记录中的月投诉数合计。
+  int64 total_complaint_count = 11;
+}
+
+message FinanceStatisticsResponse {
+  // 统计时间范围内支付成功订单数。
+  int64 payment_order_count = 1;
+  // 统计时间范围内支付成功金额。
+  string paid_amount = 2;
+  // 统计时间范围内发生退款的订单数。
+  int64 refund_order_count = 3;
+  // 统计时间范围内退款金额。
+  string refund_amount = 4;
+  // 统计时间范围内支付失败订单数。
+  int64 payment_failed_count = 5;
+  // 统计时间范围内已结算订单数。
+  int64 settlement_order_count = 6;
+  // 统计时间范围内已结算订单总金额。
+  string settlement_total_amount = 7;
+  // 统计时间范围内平台抽佣金额。
+  string platform_commission = 8;
+  // 统计时间范围内司机收入金额。
+  string driver_income = 9;
+  // 统计时间范围内平台补贴金额。
+  string platform_subsidy = 10;
+}
+
 message ExportTaskRequest {
   string export_type = 1;
   string filters = 2;
@@ -935,6 +993,32 @@ message WorkOrderActionRequest {
   int32 version = 6;
   int64 admin_id = 7;
   string ip = 8;
+}
+
+message WorkOrderBatchActionRequest {
+  // 待批量流转的工单 ID 列表。
+  repeated int64 ids = 1;
+  // 流转动作：assign/follow/arbitrate/close/reopen。
+  string action = 2;
+  // 分配目标管理员 ID，仅 assign 时必填。
+  int64 assignee_id = 3;
+  // 处理内容或批量备注。
+  string content = 4;
+  // 仲裁结论，仅 arbitrate 时必填。
+  string arbitration_result = 5;
+  // 当前操作管理员 ID。
+  int64 admin_id = 6;
+  // 操作来源 IP。
+  string ip = 7;
+}
+
+message WorkOrderBatchActionResponse {
+  // 本次批量请求中成功处理的工单数量。
+  int64 success_count = 1;
+  // 本次批量请求中未处理的工单数量。
+  int64 fail_count = 2;
+  // 未处理原因，按工单 ID 汇总，便于前端提示运营人员。
+  repeated string failure_reasons = 3;
 }
 
 message WorkOrderEvidenceRequest {
@@ -1060,4 +1144,32 @@ message RiskHitRecordListResponse {
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;
+}
+
+message RiskHitActionRequest {
+  // 待处置的风控命中记录 ID，支持单条和批量。
+  repeated int64 ids = 1;
+  // 处置动作：review_pass/add_blacklist/create_work_order。
+  string action = 2;
+  // 处置原因、拉黑原因或转工单说明。
+  string reason = 3;
+  // 转工单标题；为空时由服务端根据命中记录生成。
+  string work_order_title = 4;
+  // 转工单优先级，1低 2中 3高 4紧急；为空或 0 时由风险等级映射。
+  int32 priority = 5;
+  // 当前操作管理员 ID。
+  int64 admin_id = 6;
+  // 操作来源 IP。
+  string ip = 7;
+}
+
+message RiskHitActionResponse {
+  // 本次处置成功的命中记录数量。
+  int64 success_count = 1;
+  // 本次处置失败的命中记录数量。
+  int64 fail_count = 2;
+  // 转工单动作创建出的工单 ID 列表。
+  repeated int64 work_order_ids = 3;
+  // 未处理原因，按命中记录 ID 汇总。
+  repeated string failure_reasons = 4;
 }

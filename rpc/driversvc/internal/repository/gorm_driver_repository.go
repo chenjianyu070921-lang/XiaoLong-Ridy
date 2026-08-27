@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 
@@ -154,12 +155,65 @@ func (r *gormDriverRepository) ListNearbyDrivers(ctx context.Context, filter Nea
 	if err := r.db.WithContext(ctx).
 		Raw(sql,
 			filter.Longitude, filter.Latitude, filter.Latitude, // SELECT haversine
-			model.LocationOnline,                  // online_status 过滤
+			model.LocationOnline,                               // online_status 过滤
 			filter.Longitude, filter.Latitude, filter.Latitude, // WHERE haversine
-			radius,  // 半径
-			limit,   // 条数
+			radius, // 半径
+			limit,  // 条数
 		).Scan(&locations).Error; err != nil {
 		return nil, err
 	}
 	return locations, nil
+}
+
+// UpsertLocation writes the latest driver location, creating the row when needed.
+func (r *gormDriverRepository) UpsertLocation(ctx context.Context, location *model.DriverLocation) error {
+	if location == nil {
+		return nil
+	}
+
+	updates := map[string]interface{}{
+		"longitude":     location.Longitude,
+		"latitude":      location.Latitude,
+		"heading":       location.Heading,
+		"speed_kmh":     location.SpeedKmh,
+		"online_status": location.OnlineStatus,
+		"report_time":   location.ReportTime,
+	}
+	result := r.db.WithContext(ctx).
+		Model(&model.DriverLocation{}).
+		Where("driver_id = ?", location.DriverID).
+		Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Create(location).Error
+}
+
+// UpdateLocationStatus updates the cached location row status for a driver.
+func (r *gormDriverRepository) UpdateLocationStatus(ctx context.Context, driverID uint64, status int8) error {
+	return r.db.WithContext(ctx).
+		Model(&model.DriverLocation{}).
+		Where("driver_id = ?", driverID).
+		Updates(map[string]interface{}{
+			"online_status": status,
+			"report_time":   time.Now(),
+		}).Error
+}
+
+// GetDriverScore returns the driver's scoring metrics.
+func (r *gormDriverRepository) GetDriverScore(ctx context.Context, driverID uint64) (*model.DriverScore, error) {
+	var score model.DriverScore
+	err := r.db.WithContext(ctx).
+		Where("driver_id = ?", driverID).
+		First(&score).Error
+	if err != nil {
+		if errorsIsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &score, nil
 }

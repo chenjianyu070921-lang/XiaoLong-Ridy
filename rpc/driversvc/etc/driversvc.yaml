@@ -1,9 +1,23 @@
 Name: driversvc.rpc
-ListenOn: 0.0.0.0:8080
+ListenOn: 0.0.0.0:5055
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+# 本地联调 JWT 签名密钥，需与 api/driver 端保持一致以便互相校验。
+signingKey: local-development-signing-key
+# Redis：维护司机在线状态与多端互踢（deviceID 绑定）。
+driverRedis:
+  host: 127.0.0.1:6379
+  password: ""
+  db: 0
+# MinIO：司机资质图片（身份证/驾驶证/行驶证）对象存储。
+minio:
+  endpoint: 127.0.0.1:9000
+  accessKey: minioadmin
+  secretKey: minioadmin
+  bucket: driver-cert
+  useSSL: false
 kafka:
   brokers:
-    - 115.191.16.159:9092
-  topic: orderclient.created
-  group: orderclient-event-consumer
+    - 127.0.0.1:9092
+  topic: order.created
+  group: order-event-consumer

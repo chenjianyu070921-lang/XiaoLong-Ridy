@@ -295,6 +295,86 @@ func (r *MemoryOrderRepository) ListStatusLogs(_ context.Context, orderID uint64
 	return out, total, nil
 }
 
+// Refund 内存版：已完成订单退款为已退款终态并累加退款金额。
+func (r *MemoryOrderRepository) Refund(_ context.Context, orderID uint64, refundCents int64, statusLog *model.OrderStatusLog) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	order, ok := r.orders[orderID]
+	if !ok {
+		return false, ErrOrderNotFound
+	}
+	if order.Status != constants.OrderStatusCompleted {
+		return false, nil
+	}
+	now := time.Now()
+	order.Status = constants.OrderStatusRefunded
+	order.RefundCents += refundCents
+	order.UpdatedAt = now
+	r.appendLogLocked(orderID, statusLog, now)
+	return true, nil
+}
+
+// Redispatch 人工改派：解除司机绑定、订单回到待接单；指定 newDriverID 时直接绑定新司机。
+func (r *MemoryOrderRepository) Redispatch(_ context.Context, orderID, newDriverID uint64, allowStatuses []int8, statusLog *model.OrderStatusLog) (uint64, bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	order, ok := r.orders[orderID]
+	if !ok {
+		return 0, false, ErrOrderNotFound
+	}
+	if !containsStatus(allowStatuses, order.Status) {
+		return 0, false, nil
+	}
+	now := time.Now()
+	order.Status = constants.OrderStatusWaitAccept
+	order.DriverId = 0
+	order.UpdatedAt = now
+	var finalDriver uint64
+	if newDriverID > 0 {
+		order.Status = constants.OrderStatusAccepted
+		order.DriverId = newDriverID
+		finalDriver = newDriverID
+	}
+	r.appendLogLocked(orderID, statusLog, now)
+	return finalDriver, true, nil
+}
+
+// ForceRefund 管理员强制退款：从允许终态或已退款态累加退款金额。
+func (r *MemoryOrderRepository) ForceRefund(_ context.Context, orderID uint64, refundCents int64, statusLog *model.OrderStatusLog) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	order, ok := r.orders[orderID]
+	if !ok {
+		return false, ErrOrderNotFound
+	}
+	if order.Status == constants.OrderStatusRefunded {
+		// 已退款：仅累加金额（重复退款场景）。
+		now := time.Now()
+		order.RefundCents += refundCents
+		order.UpdatedAt = now
+		r.appendLogLocked(orderID, statusLog, now)
+		return true, nil
+	}
+	allowed := []int8{constants.OrderStatusCompleted, constants.OrderStatusWaitPay, constants.OrderStatusOnTrip}
+	if !containsStatus(allowed, order.Status) {
+		return false, nil
+	}
+	now := time.Now()
+	order.Status = constants.OrderStatusRefunded
+	order.RefundCents += refundCents
+	order.UpdatedAt = now
+	r.appendLogLocked(orderID, statusLog, now)
+	return true, nil
+}
+
+// ReleaseCoupon 内存版：仅记录调用，不做真实释放。
+func (r *MemoryOrderRepository) ReleaseCoupon(_ context.Context, _ uint64, _ uint64) error {
+	return nil
+}
+
 // appendLogLocked 在持有写锁时追加日志并分配 ID 和时间。
 func (r *MemoryOrderRepository) appendLogLocked(orderID uint64, statusLog *model.OrderStatusLog, now time.Time) {
 	logCopied := *statusLog

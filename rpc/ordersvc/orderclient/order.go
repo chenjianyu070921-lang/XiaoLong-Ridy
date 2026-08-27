@@ -35,6 +35,14 @@ type (
 	ListTimeoutOrdersResponse   = __proto.ListTimeoutOrdersResponse
 	OrderStatusLog              = __proto.OrderStatusLog
 	OrderSummary                = __proto.OrderSummary
+	RefundOrderRequest          = __proto.RefundOrderRequest
+	RefundOrderResponse         = __proto.RefundOrderResponse
+	// 人工改派请求/响应（模块四：订单与派单）
+	RedispatchOrderRequest      = __proto.RedispatchOrderRequest
+	RedispatchOrderResponse     = __proto.RedispatchOrderResponse
+	// 管理员强制退款请求/响应（模块四：订单与派单）
+	ForceRefundOrderRequest     = __proto.ForceRefundOrderRequest
+	ForceRefundOrderResponse    = __proto.ForceRefundOrderResponse
 	StartTripRequest            = __proto.StartTripRequest
 	StartTripResponse           = __proto.StartTripResponse
 	TimeoutCancelRequest        = __proto.TimeoutCancelRequest
@@ -53,6 +61,11 @@ type (
 		TimeoutCancel(ctx context.Context, in *TimeoutCancelRequest, opts ...grpc.CallOption) (*TimeoutCancelResponse, error)
 		ListTimeoutOrders(ctx context.Context, in *ListTimeoutOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutOrdersResponse, error)
 		ListOrderStatusLogs(ctx context.Context, in *ListOrderStatusLogsRequest, opts ...grpc.CallOption) (*ListOrderStatusLogsResponse, error)
+		RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error)
+		// RedispatchOrder 人工改派：解除原司机绑定并重新进入派单队列（排除原司机）。
+		RedispatchOrder(ctx context.Context, in *RedispatchOrderRequest, opts ...grpc.CallOption) (*RedispatchOrderResponse, error)
+		// ForceRefundOrder 管理员强制退款：可从更多终态发起，状态改为已退款。
+		ForceRefundOrder(ctx context.Context, in *ForceRefundOrderRequest, opts ...grpc.CallOption) (*ForceRefundOrderResponse, error)
 	}
 
 	defaultOrder struct {
@@ -124,4 +137,21 @@ func (m *defaultOrder) ListTimeoutOrders(ctx context.Context, in *ListTimeoutOrd
 func (m *defaultOrder) ListOrderStatusLogs(ctx context.Context, in *ListOrderStatusLogsRequest, opts ...grpc.CallOption) (*ListOrderStatusLogsResponse, error) {
 	client := __proto.NewOrderClient(m.cli.Conn())
 	return client.ListOrderStatusLogs(ctx, in, opts...)
+}
+
+func (m *defaultOrder) RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error) {
+	client := __proto.NewOrderClient(m.cli.Conn())
+	return client.RefundOrder(ctx, in, opts...)
+}
+
+// RedispatchOrder 调用 ordersvc 人工改派接口。
+func (m *defaultOrder) RedispatchOrder(ctx context.Context, in *RedispatchOrderRequest, opts ...grpc.CallOption) (*RedispatchOrderResponse, error) {
+	client := __proto.NewOrderClient(m.cli.Conn())
+	return client.RedispatchOrder(ctx, in, opts...)
+}
+
+// ForceRefundOrder 调用 ordersvc 管理员强制退款接口。
+func (m *defaultOrder) ForceRefundOrder(ctx context.Context, in *ForceRefundOrderRequest, opts ...grpc.CallOption) (*ForceRefundOrderResponse, error) {
+	client := __proto.NewOrderClient(m.cli.Conn())
+	return client.ForceRefundOrder(ctx, in, opts...)
 }

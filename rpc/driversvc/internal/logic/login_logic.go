@@ -87,3 +87,45 @@ func (l *LoginLogic) Login(in *proto.LoginRequest) (*proto.LoginResponse, error)
 		},
 	}, nil
 }
+
+// LoginBySMS signs a driver token after the API layer has verified the SMS code.
+func (l *LoginLogic) LoginBySMS(in *proto.LoginBySMSRequest) (*proto.LoginResponse, error) {
+	d, err := l.svcCtx.DriverRepository.GetByPhone(l.ctx, in.GetPhone())
+	if err != nil {
+		return nil, ErrLoginAccountNotFound
+	}
+	if d.Status == int8(proto.DriverStatus_DRIVER_STATUS_FROZEN) ||
+		d.Status == int8(proto.DriverStatus_DRIVER_STATUS_CANCELLED) {
+		return nil, ErrLoginAccountBlocked
+	}
+
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     uint64(d.Id),
+		AccountType:   "driver",
+		AccountStatus: int(d.Status),
+		Phone:         d.Phone,
+		Role:          "driver",
+		Issuer:        "driversvc",
+		TTL:           loginTokenTTL,
+	}, l.svcCtx.Config.SigningKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.LoginResponse{
+		Token:    token,
+		ExpireIn: int64(loginTokenTTL.Seconds()),
+		Driver: &proto.Driver{
+			Id:              int64(d.Id),
+			Phone:           d.Phone,
+			RealName:        d.RealName,
+			IdCardNo:        d.IdCardNo,
+			DriverLicenseNo: d.DriverLicenseNo,
+			AvatarUrl:       d.AvatarUrl,
+			Status:          proto.DriverStatus(d.Status),
+			OnlineStatus:    int32(d.OnlineStatus),
+			CreatedAt:       d.CreatedAt.Unix(),
+			UpdatedAt:       d.UpdatedAt.Unix(),
+		},
+	}, nil
+}

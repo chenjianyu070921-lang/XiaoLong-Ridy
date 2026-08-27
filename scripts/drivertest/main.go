@@ -13,9 +13,9 @@ import (
 )
 
 // 测试客户端：直接调用 driversvc gRPC 司机接口，插入示例数据并保留在库中，方便核查。
-// 运行：go run ./scripts/drivertest  （需 driversvc 已在 127.0.0.1:8080 运行）
+// 运行：go run ./scripts/drivertest  （需 driversvc 已在 127.0.0.1:5055 运行）
 func main() {
-	addr := "127.0.0.1:8080"
+	addr := "127.0.0.1:5055"
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Println("连接失败:", err)
@@ -42,8 +42,8 @@ func main() {
 	}
 
 	driverIDs := make([]int64, 0, len(drivers))
-	for i, d := range drivers {
-		r, e := c.CreateDriver(ctx, &d)
+	for i := range drivers {
+		r, e := c.CreateDriver(ctx, &drivers[i])
 		log(fmt.Sprintf("CreateDriver-%d", i+1), r, e)
 		if r != nil {
 			driverIDs = append(driverIDs, r.Id)
