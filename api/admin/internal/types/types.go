@@ -121,6 +121,33 @@ type UserDTO struct {
 	UpdatedAt      string `json:"updated_at"`
 }
 
+// DriverListRequest 表示司机基础资料列表查询条件。
+type DriverListRequest struct {
+	Page     int
+	PageSize int
+	Keyword  string
+	Status   int32
+}
+
+// DriverDTO 表示管理后台司机基础资料。
+type DriverDTO struct {
+	ID              int64  `json:"id"`
+	Phone           string `json:"phone"`
+	RealName        string `json:"real_name"`
+	IDCardNo        string `json:"id_card_no"`
+	DriverLicenseNo string `json:"driver_license_no"`
+	AvatarURL       string `json:"avatar_url"`
+	Status          int32  `json:"status"`
+	OnlineStatus    int32  `json:"online_status"`
+	VehicleID       int64  `json:"vehicle_id"`
+	PlateNo         string `json:"plate_no"`
+	VehicleStatus   int32  `json:"vehicle_status"`
+	CertificationID int64  `json:"certification_id"`
+	AuditStatus     int32  `json:"audit_status"`
+	AuditRemark     string `json:"audit_remark"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
+}
 // DriverCertificationListRequest 表示司机审核列表查询条件。
 type DriverCertificationListRequest struct {
 	Page        int

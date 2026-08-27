@@ -13,7 +13,7 @@ type Candidate struct {
 
 // DispatchEngine 定义候选司机匹配接口。
 type DispatchEngine interface {
-	FindCandidates(ctx context.Context, orderID uint64, fromLongitude, fromLatitude float64, carType int32, cityCode string) ([]Candidate, error)
+	FindCandidates(ctx context.Context, orderID uint64, fromLongitude, fromLatitude float64, carType int32, cityCode string, orderType int32) ([]Candidate, error)
 }
 
 type mockDispatchEngine struct {
@@ -28,7 +28,7 @@ func NewMockDispatchEngine() DispatchEngine {
 }
 
 // FindCandidates 返回固定候选司机，并用 mock 距离计算匹配分。
-func (e *mockDispatchEngine) FindCandidates(_ context.Context, _ uint64, fromLongitude, fromLatitude float64, _ int32, _ string) ([]Candidate, error) {
+func (e *mockDispatchEngine) FindCandidates(_ context.Context, _ uint64, fromLongitude, fromLatitude float64, _ int32, _ string, _ int32) ([]Candidate, error) {
 	candidates := make([]Candidate, 0, len(e.driverIDs))
 	for i, driverID := range e.driverIDs {
 		// mock 距离：以起点为中心按索引错开 0.8km，仅用于生成可排序的匹配分。

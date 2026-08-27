@@ -1,9 +1,11 @@
 <template>
-  <router-view v-slot="{ Component }">
-    <transition name="fade" mode="out-in">
-      <component :is="Component" />
-    </transition>
-  </router-view>
+  <div class="driver-phone-shell">
+    <router-view v-slot="{ Component }">
+      <transition name="fade" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
+  </div>
 </template>
 
 <script setup>
@@ -19,75 +21,47 @@ onMounted(() => {
 
 <style>
 :root {
-  --primary-color: #7c3aed;
-  --primary-light: #8b5cf6;
-  --primary-dark: #6d28d9;
-  --secondary-color: #10b981;
-  --warning-color: #f59e0b;
-  --danger-color: #ef4444;
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-light: #9ca3af;
-  --bg-color: #f5f7fb;
-  --bg-white: #ffffff;
-  --border-color: #e5e7eb;
+  --driver-primary: #6d4aff;
+  --driver-primary-dark: #4b2bc5;
+  --driver-accent: #ffbe2e;
+  --driver-success: #16a34a;
+  --driver-danger: #dc2626;
+  --driver-ink: #111827;
+  --driver-muted: #667085;
+  --driver-line: #e6eaf2;
+  --driver-bg: #eef2f7;
+  --driver-card: #ffffff;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html, body, #app {
-  width: 100%;
-  min-height: 100%;
-}
-
+* { box-sizing: border-box; }
+html, body, #app { width: 100%; min-height: 100%; margin: 0; }
 body {
+  min-height: 100vh;
   display: flex;
   justify-content: center;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background: #d9dee8;
-  color: var(--text-primary);
+  color: var(--driver-ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-#app {
-  width: min(100vw, 375px);
+button, input, textarea { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; text-decoration: none; }
+#app { width: 100%; min-height: 100vh; display: flex; justify-content: center; }
+.driver-phone-shell {
+  position: relative;
+  width: min(100vw, 390px);
   min-height: 100vh;
   margin: 0 auto;
-  background: var(--bg-color);
-  box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.08), 0 18px 48px rgba(17, 24, 39, 0.12);
   overflow-x: hidden;
+  background: var(--driver-bg);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08), 0 24px 60px rgba(15, 23, 42, 0.18);
 }
-
-button, input, textarea {
-  font: inherit;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.btn-primary {
-  border: 0;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.24);
+.fade-enter-active, .fade-leave-active { transition: opacity .16s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+@media (max-width: 430px) {
+  body { background: var(--driver-bg); }
+  .driver-phone-shell { width: 100vw; box-shadow: none; }
 }
 </style>

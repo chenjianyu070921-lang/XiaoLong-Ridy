@@ -1,42 +1,28 @@
-# 司机位置上报接口文档
+# Driver Location Report
 
-## 1. 接口说明
+## Endpoint
 
-| 项 | 值 |
-| --- | --- |
-| 请求方法 | `POST` |
-| 请求路径 | `/api/driver/v1/drivers/location/report` |
-| 是否登录 | 是 |
-| 当前状态 | 已实现 |
-| 下游 RPC | `driversvc.ReportLocation` |
+`POST /api/driver/v1/drivers/location/report`
 
-## 2. 请求参数
+Requires `Authorization: Bearer <JWT>`. The driver id always comes from JWT.
 
-同 [司机上线接口](10-driver-online.md)。
-
-## 3. 请求示例
+## Body
 
 ```json
-{"deviceId":"dev-001","longitude":116.40,"latitude":39.90}
+{
+  "deviceId": "dev-001",
+  "longitude": 116.397,
+  "latitude": 39.908,
+  "heading": 90,
+  "speedKmh": 36.5,
+  "orderId": 1001
+}
 ```
 
-## 4. 响应字段
+`deviceId`, `longitude`, and `latitude` are required. `heading`, `speedKmh`, and `orderId` are optional extension fields for locationsvc and trip trajectory.
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `driverId` | int64 | 当前司机 ID |
-| `onlineStatus` | int | 当前在线状态 |
-| `kicked` | bool | 是否被其他设备顶替 |
-| `reportTime` | int64 | 上报处理时间，Unix 秒 |
+## Behavior
 
-## 5. 异常用例
+The reusable core is `driversvc.ReportLocation`, so other driver-side entry points can call the same path. It refreshes online heartbeat/device binding, upserts `driver_location`, updates `driver.online_status`, writes Redis GEO `driver:geo:<city>`, writes online set `driver:online`, and writes latest snapshot `driver:pos:<driver_id>`.
 
-| 用例编号 | 场景 | 预期 |
-| --- | --- | --- |
-| DRIVER-LOC-E01 | 未登录 | HTTP 401 |
-| DRIVER-LOC-E02 | deviceId 为空 | HTTP 400 |
-| DRIVER-LOC-E03 | 经纬度越界 | HTTP 400 |
-
-## 6. 处理链路
-
-`api/driver -> LocationLogic.ReportLocation -> driversvc.ReportLocation -> OnlineStore/driver_location`。
+A kicked old device returns `kicked=true` and does not update location storage. Location heartbeats preserve the driver's saved listen preference.

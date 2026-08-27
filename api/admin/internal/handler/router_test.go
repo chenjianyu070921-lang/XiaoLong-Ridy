@@ -203,6 +203,15 @@ func (f *fakeAdminService) UnfreezeUser(ctx context.Context, in *adminclient.Cha
 	return &adminclient.CommonResponse{Message: "ok"}, nil
 }
 
+// ListDrivers returns driver base records for route smoke tests.
+func (f *fakeAdminService) ListDrivers(ctx context.Context, in *adminclient.DriverListRequest, opts ...grpc.CallOption) (*adminclient.DriverListResponse, error) {
+	return &adminclient.DriverListResponse{List: []*adminclient.Driver{{Id: 10, Phone: "13900000000", RealName: "司机", Status: 2, PlateNo: "京A12345", AuditStatus: 2}}, Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize()}, nil
+}
+
+// GetDriver returns driver base detail for route smoke tests.
+func (f *fakeAdminService) GetDriver(ctx context.Context, in *adminclient.DriverDetailRequest, opts ...grpc.CallOption) (*adminclient.Driver, error) {
+	return &adminclient.Driver{Id: in.GetId(), Phone: "13900000000", RealName: "司机", Status: 2, PlateNo: "京A12345", AuditStatus: 2}, nil
+}
 // ListDriverCertifications 返回司机审核列表，用于验证司机审核列表路由。
 func (f *fakeAdminService) ListDriverCertifications(ctx context.Context, in *adminclient.DriverCertificationListRequest, opts ...grpc.CallOption) (*adminclient.DriverCertificationListResponse, error) {
 	return &adminclient.DriverCertificationListResponse{List: []*adminclient.DriverCertification{{Id: 1, DriverId: 10, DriverPhone: "13900000000", DriverName: "司机", AuditStatus: 1}}, Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize()}, nil
@@ -744,6 +753,8 @@ func TestRouter_AllImplementedAdminRoutesSmoke(t *testing.T) {
 		{name: "user detail", method: http.MethodGet, path: "/admin/v1/users/1", token: true},
 		{name: "user freeze", method: http.MethodPost, path: "/admin/v1/users/1/freeze", body: `{"reason":"risk","remark":"冻结测试"}`, token: true},
 		{name: "user unfreeze", method: http.MethodPost, path: "/admin/v1/users/1/unfreeze", body: `{"reason":"ok","remark":"解封测试"}`, token: true},
+		{name: "drivers list", method: http.MethodGet, path: "/admin/v1/drivers?page=1&page_size=20&keyword=139&status=2", token: true},
+		{name: "driver detail", method: http.MethodGet, path: "/admin/v1/drivers/10", token: true},
 		{name: "driver cert list", method: http.MethodGet, path: "/admin/v1/driver-certifications?page=1&page_size=20&audit_status=1", token: true},
 		{name: "driver cert detail", method: http.MethodGet, path: "/admin/v1/driver-certifications/1", token: true},
 		{name: "driver cert approve", method: http.MethodPost, path: "/admin/v1/driver-certifications/1/approve", body: `{"remark":"通过"}`, token: true},

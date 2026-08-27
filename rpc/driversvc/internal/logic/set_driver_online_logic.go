@@ -11,12 +11,9 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-// DriverOnlineStatus 司机上下线状态值。
 const (
-	// DriverOffline 表示司机离线（不接单）。
 	DriverOffline int8 = 0
-	// DriverOnline 表示司机在线（可接单）。
-	DriverOnline int8 = 1
+	DriverOnline  int8 = 1
 )
 
 type SetDriverOnlineLogic struct {
@@ -33,7 +30,6 @@ func NewSetDriverOnlineLogic(ctx context.Context, svcCtx *svc.ServiceContext) *S
 	}
 }
 
-// SetDriverOnline 将司机听单状态置为在线（1）。
 func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest) (*proto.SetDriverOnlineResponse, error) {
 	if in == nil || in.GetDriverId() <= 0 {
 		return nil, errInvalidDriverID
@@ -44,9 +40,17 @@ func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest)
 	if !validLongitudeLatitude(in.GetLongitude(), in.GetLatitude()) {
 		return nil, errInvalidLongitudeLatitude
 	}
-	// 先校验司机存在（软删不可见）。
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.DriverId)); err != nil {
 		return nil, err
+	}
+	pref, err := resolveDriverListenPreference(l.ctx, l.svcCtx, in.GetDriverId(), in.AcceptRealtime, in.AcceptReservation)
+	if err != nil {
+		return nil, err
+	}
+	if in.AcceptRealtime != nil || in.AcceptReservation != nil {
+		if err := saveDriverListenPreference(l.ctx, l.svcCtx, in.GetDriverId(), pref); err != nil {
+			return nil, err
+		}
 	}
 	if err := l.svcCtx.OnlineStore.SetOnline(l.ctx, in.GetDriverId(), in.GetDeviceId(), in.GetLongitude(), in.GetLatitude()); err != nil {
 		return nil, err
@@ -65,7 +69,7 @@ func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest)
 	if err := l.svcCtx.DriverRepository.Update(l.ctx, uint64(in.DriverId), updates); err != nil {
 		return nil, err
 	}
-	if err := syncDispatchDriverOnline(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude()); err != nil {
+	if err := syncDispatchDriverOnlineWithPreference(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude(), pref); err != nil {
 		return nil, err
 	}
 	return &proto.SetDriverOnlineResponse{

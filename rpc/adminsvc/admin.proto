@@ -43,6 +43,10 @@ service AdminService {
   rpc FreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
   // 解封用户。
   rpc UnfreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
+  // 查询司机基础资料列表。
+  rpc ListDrivers(DriverListRequest) returns (DriverListResponse);
+  // 查询司机基础资料详情。
+  rpc GetDriver(DriverDetailRequest) returns (Driver);
   // 查询司机审核列表。
   rpc ListDriverCertifications(DriverCertificationListRequest) returns (DriverCertificationListResponse);
   // 查询司机审核详情。
@@ -381,6 +385,42 @@ message UserListResponse {
   int32 page_size = 4;
 }
 
+message DriverListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 status = 4;
+}
+
+message DriverDetailRequest {
+  int64 id = 1;
+}
+
+message Driver {
+  int64 id = 1;
+  string phone = 2;
+  string real_name = 3;
+  string id_card_no = 4;
+  string driver_license_no = 5;
+  string avatar_url = 6;
+  int32 status = 7;
+  int32 online_status = 8;
+  int64 vehicle_id = 9;
+  string plate_no = 10;
+  int32 vehicle_status = 11;
+  int64 certification_id = 12;
+  int32 audit_status = 13;
+  string audit_remark = 14;
+  string created_at = 15;
+  string updated_at = 16;
+}
+
+message DriverListResponse {
+  repeated Driver list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
 message DriverCertificationListRequest {
   int32 page = 1;
   int32 page_size = 2;

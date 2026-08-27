@@ -2,6 +2,10 @@ package logic
 
 import (
 	"context"
+	"fmt"
+	"math"
+	"sort"
+	"strconv"
 	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
@@ -12,18 +16,15 @@ import (
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 )
 
-// OrderLogic 封装司机接单与行程相关业务逻辑。
 type OrderLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
-// NewOrderLogic 构造订单业务逻辑处理器。
 func NewOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *OrderLogic {
 	return &OrderLogic{ctx: ctx, svcCtx: svcCtx}
 }
 
-// AcceptOrder 当前登录司机接单。driverID 由鉴权中间件从 JWT 解析得到，orderID 来自请求体。
 func (l *OrderLogic) AcceptOrder(driverID, orderID int64) (*types.AcceptOrderResponse, error) {
 	if driverID <= 0 || orderID <= 0 {
 		return nil, ErrInvalidParam
@@ -45,14 +46,13 @@ func (l *OrderLogic) AcceptOrder(driverID, orderID int64) (*types.AcceptOrderRes
 	}, nil
 }
 
-// CancelOrder 当前登录司机取消已接单但未开始的订单。
 func (l *OrderLogic) CancelOrder(driverID int64, req *types.CancelOrderRequest) (*types.CancelOrderResponse, error) {
 	if driverID <= 0 || req == nil || req.OrderID <= 0 {
 		return nil, ErrInvalidParam
 	}
 	reason := strings.TrimSpace(req.Reason)
 	if reason == "" {
-		reason = "司机取消订单"
+		reason = "鍙告満鍙栨秷璁㈠崟"
 	}
 	client, err := l.orderClient()
 	if err != nil {
@@ -82,7 +82,6 @@ func (l *OrderLogic) CancelOrder(driverID int64, req *types.CancelOrderRequest) 
 	}, nil
 }
 
-// StartTrip 当前登录司机开始行程。
 func (l *OrderLogic) StartTrip(driverID, orderID int64) (*types.StartTripResponse, error) {
 	if driverID <= 0 || orderID <= 0 {
 		return nil, ErrInvalidParam
@@ -113,7 +112,6 @@ func (l *OrderLogic) StartTrip(driverID, orderID int64) (*types.StartTripRespons
 	}, nil
 }
 
-// ConfirmArrive 当前登录司机确认已到达乘客上车点。
 func (l *OrderLogic) ConfirmArrive(driverID, orderID int64) (*types.ConfirmArriveResponse, error) {
 	if driverID <= 0 || orderID <= 0 {
 		return nil, ErrInvalidParam
@@ -135,7 +133,6 @@ func (l *OrderLogic) ConfirmArrive(driverID, orderID int64) (*types.ConfirmArriv
 	}, nil
 }
 
-// FinishTrip 当前登录司机结束行程，并上报实际里程/时长/金额。
 func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*types.FinishTripResponse, error) {
 	if driverID <= 0 || req == nil || req.OrderID <= 0 || req.ActualDistanceM < 0 || req.ActualDurationS < 0 {
 		return nil, ErrInvalidParam
@@ -174,6 +171,10 @@ func (l *OrderLogic) RejectOrder(driverID int64, req *types.RejectOrderRequest) 
 	if driverID <= 0 || req == nil || req.OrderID <= 0 {
 		return nil, ErrInvalidParam
 	}
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.dispatchClient()
 	if err != nil {
 		return nil, err
@@ -181,7 +182,7 @@ func (l *OrderLogic) RejectOrder(driverID int64, req *types.RejectOrderRequest) 
 	resp, err := client.RejectDispatch(l.ctx, &dispatchproto.RejectDispatchRequest{
 		OrderId:  req.OrderID,
 		DriverId: driverID,
-		Reason:   req.Reason,
+		Reason:   reason,
 	})
 	if err != nil {
 		return nil, err
@@ -226,6 +227,7 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 				Status:       record.GetStatus(),
 				MatchScore:   record.GetMatchScore(),
 				Remark:       record.GetRemark(),
+				RejectReason: record.GetRemark(),
 				CreatedAt:    record.GetCreatedAt(),
 				UpdatedAt:    record.GetUpdatedAt(),
 			},
@@ -292,42 +294,130 @@ func (l *OrderLogic) ListMyOrders(driverID int64, page, pageSize, status int32) 
 	}, nil
 }
 
-func (l *OrderLogic) ListAvailableOrders(page, pageSize int32) (*types.ListMyOrdersResponse, error) {
+func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (*types.ListMyOrdersResponse, error) {
+	if driverID <= 0 {
+		return nil, ErrInvalidParam
+	}
+	page, pageSize = clampPage(page, pageSize)
+	if l.svcCtx == nil || l.svcCtx.RedisClient == nil {
+		return emptyOrderList(page, pageSize), nil
+	}
+
+	online, err := l.svcCtx.RedisClient.SIsMember(l.ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Result()
+	if err != nil || !online {
+		return emptyOrderList(page, pageSize), nil
+	}
+	pos, err := l.svcCtx.RedisClient.HGetAll(l.ctx, fmt.Sprintf(constants.RedisDriverPos, driverID)).Result()
+	if err != nil {
+		return emptyOrderList(page, pageSize), nil
+	}
+	driverLongitude, driverLatitude, ok := parseDriverPosition(pos)
+	if !ok {
+		return emptyOrderList(page, pageSize), nil
+	}
+
 	orderClient, err := l.orderClient()
 	if err != nil {
 		return nil, err
 	}
-	page, pageSize = clampPage(page, pageSize)
 	resp, err := orderClient.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
 		Status:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
-		Page:     page,
-		PageSize: pageSize,
+		Page:     1,
+		PageSize: 100,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	items := make([]types.OrderBrief, 0, len(resp.GetList()))
-	for _, order := range resp.GetList() {
+	for _, summary := range resp.GetList() {
+		detail, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: summary.GetOrderId()})
+		if err != nil {
+			return nil, err
+		}
+		if detail.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
+			continue
+		}
+		distance := haversineMeters(driverLongitude, driverLatitude, detail.GetFromLongitude(), detail.GetFromLatitude())
+		if distance > availableOrderRadiusMeters {
+			continue
+		}
 		items = append(items, types.OrderBrief{
-			OrderID:             order.GetOrderId(),
-			OrderNo:             order.GetOrderNo(),
-			FromAddress:         order.GetFromAddress(),
-			ToAddress:           order.GetToAddress(),
-			Status:              int32(order.GetStatus()),
-			EstimatedPriceCents: order.GetEstimatedPriceCents(),
-			CreatedAt:           order.GetCreatedAt(),
+			OrderID:             detail.GetOrderId(),
+			OrderNo:             detail.GetOrderNo(),
+			FromAddress:         detail.GetFromAddress(),
+			ToAddress:           detail.GetToAddress(),
+			Status:              int32(detail.GetStatus()),
+			EstimatedPriceCents: detail.GetEstimatedPriceCents(),
+			DistanceMeters:      int64(math.Round(distance)),
+			CreatedAt:           detail.GetCreatedAt(),
 		})
 	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].DistanceMeters == items[j].DistanceMeters {
+			return items[i].CreatedAt < items[j].CreatedAt
+		}
+		return items[i].DistanceMeters < items[j].DistanceMeters
+	})
+	total := int64(len(items))
+	items = paginateOrderBriefs(items, page, pageSize)
 	return &types.ListMyOrdersResponse{
 		List:     items,
-		Total:    resp.GetTotal(),
-		Page:     resp.GetPage(),
-		PageSize: resp.GetPageSize(),
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
 	}, nil
 }
 
-// orderClient 从服务上下文中安全取出 ordersvc 客户端。
+const availableOrderRadiusMeters = 3000.0
+
+func emptyOrderList(page, pageSize int32) *types.ListMyOrdersResponse {
+	return &types.ListMyOrdersResponse{
+		List:     []types.OrderBrief{},
+		Total:    0,
+		Page:     page,
+		PageSize: pageSize,
+	}
+}
+
+func parseDriverPosition(pos map[string]string) (float64, float64, bool) {
+	longitude, err := strconv.ParseFloat(pos["longitude"], 64)
+	if err != nil {
+		return 0, 0, false
+	}
+	latitude, err := strconv.ParseFloat(pos["latitude"], 64)
+	if err != nil {
+		return 0, 0, false
+	}
+	if longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90 {
+		return 0, 0, false
+	}
+	return longitude, latitude, true
+}
+
+func haversineMeters(lon1, lat1, lon2, lat2 float64) float64 {
+	const earthRadiusMeters = 6371000.0
+	lat1Rad := lat1 * math.Pi / 180
+	lat2Rad := lat2 * math.Pi / 180
+	deltaLat := (lat2 - lat1) * math.Pi / 180
+	deltaLon := (lon2 - lon1) * math.Pi / 180
+	a := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
+		math.Cos(lat1Rad)*math.Cos(lat2Rad)*math.Sin(deltaLon/2)*math.Sin(deltaLon/2)
+	return earthRadiusMeters * 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+}
+
+func paginateOrderBriefs(items []types.OrderBrief, page, pageSize int32) []types.OrderBrief {
+	start := int((page - 1) * pageSize)
+	if start >= len(items) {
+		return []types.OrderBrief{}
+	}
+	end := start + int(pageSize)
+	if end > len(items) {
+		end = len(items)
+	}
+	return items[start:end]
+}
+
 func (l *OrderLogic) GetMyOrderDetail(driverID, orderID int64) (*types.GetMyOrderDetailResponse, error) {
 	if driverID <= 0 || orderID <= 0 {
 		return nil, ErrInvalidParam
@@ -340,7 +430,7 @@ func (l *OrderLogic) GetMyOrderDetail(driverID, orderID int64) (*types.GetMyOrde
 	if err != nil {
 		return nil, err
 	}
-	if order.GetDriverId() != driverID {
+	if !canDriverViewOrder(driverID, order) {
 		return nil, ErrForbiddenDriverResource
 	}
 	return &types.GetMyOrderDetailResponse{Order: types.OrderDetail{
@@ -364,6 +454,16 @@ func (l *OrderLogic) GetMyOrderDetail(driverID, orderID int64) (*types.GetMyOrde
 		CreatedAt:           order.GetCreatedAt(),
 		UpdatedAt:           order.GetUpdatedAt(),
 	}}, nil
+}
+
+func canDriverViewOrder(driverID int64, order *orderproto.GetOrderResponse) bool {
+	if driverID <= 0 || order == nil {
+		return false
+	}
+	if order.GetDriverId() == driverID {
+		return true
+	}
+	return order.GetDriverId() == 0 && order.GetStatus() == orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT
 }
 
 func (l *OrderLogic) orderClient() (svc.OrderClient, error) {

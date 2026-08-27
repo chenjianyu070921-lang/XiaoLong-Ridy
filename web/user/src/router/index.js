@@ -140,7 +140,7 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫
+// 璺敱瀹堝崼
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
@@ -153,4 +153,7 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
+
+
+
 

@@ -174,6 +174,8 @@ func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 		{http.MethodPost, "/api/driver/v1/orders/dispatches"},
 		{http.MethodPost, "/api/driver/v1/orders/list"},
 		{http.MethodGet, "/api/driver/v1/income/summary"},
+		{http.MethodGet, "/api/driver/v1/income/today"},
+		{http.MethodGet, "/api/driver/v1/income/week"},
 		{http.MethodPost, "/api/driver/v1/income/bills"},
 		{http.MethodPost, "/api/driver/v1/reviews/list"},
 		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
@@ -218,6 +220,8 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
 		{http.MethodPost, "/api/driver/v1/reviews/list"},
 		{http.MethodGet, "/api/driver/v1/income/summary"},
+		{http.MethodGet, "/api/driver/v1/income/today"},
+		{http.MethodGet, "/api/driver/v1/income/week"},
 		{http.MethodPost, "/api/driver/v1/income/bills"},
 	}
 	for _, route := range routes {

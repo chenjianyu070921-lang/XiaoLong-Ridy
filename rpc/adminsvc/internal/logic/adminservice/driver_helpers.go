@@ -9,13 +9,13 @@ import (
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
-	driversvcproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// buildCertificationWhere 组装司机审核列表筛选条件。
+// buildCertificationWhere builds filters for the driver certification audit list.
 func buildCertificationWhere(in *adminsvc.DriverCertificationListRequest) (string, []any) {
 	parts := make([]string, 0)
 	args := make([]any, 0)
@@ -42,7 +42,7 @@ func buildCertificationWhere(in *adminsvc.DriverCertificationListRequest) (strin
 	return " WHERE " + strings.Join(parts, " AND "), args
 }
 
-// scanCertificationRows 将司机审核列表行转换为 protobuf 对象。
+// scanCertificationRows converts one driver certification list row.
 func scanCertificationRows(rows *sql.Rows) (*adminsvc.DriverCertification, error) {
 	var item adminsvc.DriverCertification
 	var auditedAt, createdAt, updatedAt sql.NullTime
@@ -62,46 +62,44 @@ func scanCertificationRows(rows *sql.Rows) (*adminsvc.DriverCertification, error
 	return &item, nil
 }
 
-// auditCertification 通过 driversvc 执行司机认证审核。
-// 管理后台只负责鉴权、参数转换和审计留痕，司机认证状态、司机可听单状态、车辆状态由 driversvc 在本地事务中维护。
+// auditCertification routes the admin audit request to driversvc and records the audit trail.
 func auditCertification(ctx context.Context, svcCtx *svc.ServiceContext, in *adminsvc.AuditDriverCertificationRequest, auditStatus int32) error {
 	if in.GetId() <= 0 {
-		return status.Error(codes.InvalidArgument, "审核记录ID不能为空")
+		return status.Error(codes.InvalidArgument, "audit record id cannot be empty")
 	}
 	if in.GetAdminId() <= 0 {
-		return status.Error(codes.InvalidArgument, "管理员ID不能为空")
+		return status.Error(codes.InvalidArgument, "admin id cannot be empty")
 	}
-	// 本地最小服务集（DisableDownstreamRPC）不会创建 driversvc 客户端，
-	// 直接调用会触发空指针 panic 并使整个 adminsvc 进程崩溃，必须显式拦截。
-	if svcCtx == nil || svcCtx.DriversSvc == nil {
-		return status.Error(codes.FailedPrecondition, "司机服务未启动或下游 RPC 已禁用")
+	if svcCtx == nil || svcCtx.DriverSvc == nil {
+		return status.Error(codes.FailedPrecondition, "driver service is not running or downstream RPC is disabled")
 	}
-	rpcReq := &driversvcproto.AuditCertificationRequest{
+
+	rpcReq := &driverproto.AuditCertificationRequest{
 		CertificationId: in.GetId(),
 		Remark:          in.GetRemark(),
 		OperatorId:      in.GetAdminId(),
 		Ip:              in.GetIp(),
 	}
 	action := "reject"
-	detail := "司机认证驳回，已同步 driversvc"
+	detail := "driver certification rejected and synced to driver service"
 	if auditStatus == 2 {
-		if _, err := svcCtx.DriversSvc.ApproveCertification(ctx, rpcReq); err != nil {
+		if _, err := svcCtx.DriverSvc.ApproveCertification(ctx, rpcReq); err != nil {
 			return err
 		}
 		action = "approve"
-		detail = "司机认证通过，已同步 driversvc 并联动司机可听单状态"
+		detail = "driver certification approved and synced to driver service"
 	} else {
-		if _, err := svcCtx.DriversSvc.RejectCertification(ctx, rpcReq); err != nil {
+		if _, err := svcCtx.DriverSvc.RejectCertification(ctx, rpcReq); err != nil {
 			return err
 		}
 	}
 	if err := writeAuditAfterCommitted(ctx, svcCtx, in.GetAdminId(), "driver", action, "driver_certification", in.GetId(), detail, in.GetIp()); err != nil {
-		return fmt.Errorf("司机审核已同步 driversvc，%w", err)
+		return fmt.Errorf("driver certification audit writeback failed: %w", err)
 	}
 	return nil
 }
 
-// scanCertificationRow 处理司机审核详情单行结果。
+// scanCertificationRow converts the driver certification detail row.
 func scanCertificationRow(row *sql.Row) (*adminsvc.DriverCertification, error) {
 	var item adminsvc.DriverCertification
 	var auditedAt, createdAt, updatedAt sql.NullTime
@@ -113,7 +111,7 @@ func scanCertificationRow(row *sql.Row) (*adminsvc.DriverCertification, error) {
 		&item.AuditStatus, &item.AuditRemark, &item.AuditedBy, &auditedAt, &createdAt, &updatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, status.Error(codes.NotFound, "司机审核记录不存在")
+		return nil, status.Error(codes.NotFound, "driver certification record not found")
 	}
 	if err != nil {
 		return nil, fmt.Errorf("scan certification: %w", err)

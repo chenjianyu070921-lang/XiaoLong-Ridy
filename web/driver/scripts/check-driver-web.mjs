@@ -1,11 +1,11 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
-const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+const root = resolve(import.meta.dirname, '..')
+const repoRoot = resolve(root, '..', '..')
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), 'utf8')
+function file(path) {
+  return resolve(repoRoot, path)
 }
 
 function assert(condition, message) {
@@ -14,53 +14,116 @@ function assert(condition, message) {
   }
 }
 
-const requiredFiles = [
-  'package.json',
-  'index.html',
-  'vite.config.js',
-  'src/main.js',
-  'src/App.vue',
-  'src/router/index.js',
-  'src/api/driver.js',
-  'src/stores/driver.js',
-  'src/views/DriverLogin.vue',
-  'src/views/DriverHome.vue'
-]
-
-for (const file of requiredFiles) {
-  assert(fs.existsSync(path.join(root, file)), `missing driver web file: ${file}`)
+function readIfExists(path) {
+  return existsSync(file(path)) ? readFileSync(file(path), 'utf8') : ''
 }
 
-const packageJson = JSON.parse(read('package.json'))
-assert(packageJson.name === 'xiaolong-ridy-driver', 'driver package must be independently named')
-assert(packageJson.scripts?.dev?.includes('5175'), 'driver dev server must use its own port 5175')
+for (const path of [
+  'web/driver/package.json',
+  'web/driver/vite.config.js',
+  'web/driver/index.html',
+  'web/driver/src/main.js',
+  'web/driver/src/App.vue',
+  'web/driver/src/router/index.js',
+  'web/driver/src/api/driver.js',
+  'web/driver/src/stores/driver.js',
+  'web/driver/src/views/DriverLogin.vue',
+  'web/driver/src/views/DriverHome.vue',
+]) {
+  assert(existsSync(file(path)), `missing independent driver frontend file: ${path}`)
+}
 
-const viteConfig = read('vite.config.js')
-assert(viteConfig.includes("target: 'http://localhost:8082'"), 'driver proxy must target driver API 8082')
-assert(!viteConfig.includes('/api/passenger'), 'driver app must not proxy passenger API')
+const userRouter = readIfExists('web/user/src/router/index.js')
+assert(!userRouter.includes("path: '/driver'"), 'passenger H5 must not register /driver route')
+assert(!userRouter.includes("path: '/driver/login'"), 'passenger H5 must not register /driver/login route')
+assert(!userRouter.includes("path: '/driver/home'"), 'passenger H5 must not register /driver/home route')
+assert(!userRouter.includes('requiresDriverAuth'), 'passenger H5 must not contain driver auth guard')
 
-const router = read('src/router/index.js')
-assert(router.includes("path: '/login'"), 'driver app must expose /login')
-assert(router.includes("path: '/home'"), 'driver app must expose /home')
-assert(router.includes('requiresDriverAuth'), 'driver home route must require driver auth')
-assert(!router.includes('/driver/login'), 'driver app must not keep old /driver/login route')
-assert(!router.includes('/driver/home'), 'driver app must not keep old /driver/home route')
-assert(!router.includes('useUserStore'), 'driver router must not depend on passenger user store')
+for (const path of [
+  'web/user/src/api/driver.js',
+  'web/user/src/stores/driver.js',
+  'web/user/src/views/driver/DriverLogin.vue',
+  'web/user/src/views/driver/DriverHome.vue',
+]) {
+  assert(!existsSync(file(path)), `driver code must live under web/driver, not ${path}`)
+}
 
-const api = read('src/api/driver.js')
-assert(api.includes("baseURL: '/api/driver/v1'"), 'driver API must use driver API base URL')
-assert(api.includes("router.push('/login')"), 'driver API auth expiry must route to /login')
-assert(api.includes('listAvailableOrders'), 'driver API must keep available orders API')
-assert(api.includes('listIncomeBills'), 'driver API must keep income bills API')
+const driverRouter = readIfExists('web/driver/src/router/index.js')
+assert(driverRouter.includes("redirect: '/login'"), 'driver frontend root must redirect to /login')
+assert(driverRouter.includes("path: '/login'"), 'driver frontend must expose /login')
+assert(driverRouter.includes("path: '/home'"), 'driver frontend must expose /home')
+assert(driverRouter.includes('requiresDriverAuth'), 'driver frontend must protect /home')
+assert(!driverRouter.includes("'/driver/login'"), 'driver frontend must not depend on passenger /driver/login path')
+assert(!driverRouter.includes("'/driver/home'"), 'driver frontend must not depend on passenger /driver/home path')
 
-const store = read('src/stores/driver.js')
-assert(store.includes("from '@/api/driver'"), 'driver store must use local driver API wrapper')
+const viteConfig = readIfExists('web/driver/vite.config.js')
+assert(viteConfig.includes('5175'), 'driver frontend dev server must use its own port 5175')
+assert(viteConfig.includes("'/api/driver'"), 'driver frontend must proxy driver API')
+assert(viteConfig.includes('8082'), 'driver API proxy must target api/driver on port 8082')
 
-const login = read('src/views/DriverLogin.vue')
-assert(login.includes("router.replace('/home')"), 'driver login success must route to /home')
+const api = readIfExists('web/driver/src/api/driver.js')
+for (const endpoint of [
+  '/auth/send-sms-code',
+  '/auth/login-by-password',
+  '/auth/login-by-sms',
+  '/drivers/register',
+  '/drivers/update',
+  '/drivers/get',
+  '/drivers/ai-score',
+  '/drivers/online',
+  '/drivers/offline',
+  '/drivers/heartbeat',
+  '/drivers/location/report',
+  '/vehicles',
+  '/vehicles/get',
+  '/vehicles/update',
+  '/vehicles/delete',
+  '/drivers/certification/upload',
+  '/drivers/certification',
+  '/income/summary',
+  '/wallet/summary',
+  '/income/today',
+  '/income/week',
+  '/income/bills',
+  '/orders/accept',
+  '/orders/reject',
+  '/orders/confirm-arrive',
+  '/orders/start-trip',
+  '/orders/finish-trip',
+  '/orders/available',
+  '/orders/detail',
+  '/orders/trajectory',
+  '/orders/list',
+  '/orders/dispatches',
+  '/reviews/list',
+]) {
+  assert(api.includes(endpoint), `missing real driver API wrapper: ${endpoint}`)
+}
 
-const home = read('src/views/DriverHome.vue')
-assert(home.includes("router.replace('/login')"), 'driver logout must route to /login')
-assert(!home.includes('realtime-price'), 'driver app must not include realtime price feature')
+const home = readIfExists('web/driver/src/views/DriverHome.vue')
+const login = readIfExists('web/driver/src/views/DriverLogin.vue')
+const app = readIfExists('web/driver/src/App.vue')
+assert(login.includes("router.replace('/home')"), 'driver login must navigate inside independent app')
+assert(api.includes("router.push('/login')"), 'driver auth expiry must navigate inside independent app')
+assert(home.includes("router.replace('/login')"), 'driver logout must navigate inside independent app')
+assert(home.includes('van-tabbar'), 'driver H5 navigation must use fixed mobile bottom tabbar')
+assert(home.includes('workStatusPayload()'), 'online/offline actions must send device and location payload')
+assert(home.includes('safeApiCall'), 'driver H5 actions must keep UI usable when API calls fail')
+assert(home.includes('showIncomeLoadFailure'), 'driver income API failures must open a failure dialog')
+assert(home.includes('收入数据加载失败'), 'driver income failure dialog must have a clear title')
+assert(home.includes('rejectOrder(orderId, reason)'), 'driver reject action must submit explicit reject reason')
+assert(home.includes('canReject(order)'), 'public available orders must not reuse dispatch reject action')
+assert(home.includes("apiErrorMessage(error, '结束行程失败')"), 'finish trip failures must show a driver-facing error')
+assert(!home.includes('actualPriceCents'), 'driver finish trip must not ask driver to enter settlement amount')
+assert(app.includes('driver-phone-shell'), 'driver app must render a centered phone shell for H5 preview')
+assert(login.includes('class="login-card"'), 'driver login must use a compact H5 login card')
+assert(login.includes('class="auth-mode-tabs"'), 'driver login must expose touch-friendly H5 auth mode tabs')
+assert(home.includes('class="h5-status-hero"'), 'driver home must start with an H5 status hero')
+assert(home.includes('class="quick-action-grid"'), 'driver home must expose H5 quick action controls')
+assert(home.includes('class="tab-panel-scroll"'), 'driver tab content must use a mobile scroll panel')
+assert(home.includes('getTodayIncome'), 'driver wallet must call backend today income endpoint')
+assert(home.includes('getWeekIncome'), 'driver wallet must call backend week income endpoint')
+assert(home.includes('/api/driver/v1/ws'), 'driver WebSocket must connect to registered /api/driver/v1/ws route')
+assert(!home.includes('/api/driver/v1/push/ws'), 'driver WebSocket must not use stale /api/driver/v1/push/ws route')
 
-console.log('driver web split checks passed')
+console.log('driver frontend isolation checks passed')

@@ -100,12 +100,27 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			}
 			return
 		}
+		preference := func(ctx context.Context, driverID uint64, orderType int32) bool {
+			member := strconv.FormatUint(driverID, 10)
+			realtime, realtimeErr := redisClient.SIsMember(ctx, constants.RedisDriverPrefRealtime, member).Result()
+			reservation, reservationErr := redisClient.SIsMember(ctx, constants.RedisDriverPrefReservation, member).Result()
+			if realtimeErr != nil || reservationErr != nil {
+				return true
+			}
+			if !realtime && !reservation {
+				return true
+			}
+			if orderType == int32(constants.OrderTypeReservation) {
+				return reservation
+			}
+			return realtime
+		}
 		// 默认城市键从配置读取，消除硬编码 "default"，与 locationsvc 写入的 GEO key 保持对齐（P1-M4-5）。
 		defaultCity := c.DefaultCityCode
 		if defaultCity == "" {
 			defaultCity = "default"
 		}
-		dispatchEngine = engine.NewGeoDispatchEngineWithScoreAndAvailability(redisClient, defaultCity, c.EnableMockDispatch, scoreProvider, availability)
+		dispatchEngine = engine.NewGeoDispatchEngineWithScoreAvailabilityAndPreference(redisClient, defaultCity, c.EnableMockDispatch, scoreProvider, availability, preference)
 	} else {
 		dispatchEngine = engine.NewMockDispatchEngine()
 	}

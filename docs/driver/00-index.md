@@ -31,6 +31,7 @@
 | 司机账号 | `POST /drivers/delete` | [08-driver-delete.md](08-driver-delete.md) |
 | 司机账号 | `GET /drivers/ai-score` | [09-driver-ai-score.md](09-driver-ai-score.md) |
 | 在线状态 | `POST /drivers/online` | [10-driver-online.md](10-driver-online.md) |
+| Driver listen preference | `GET/POST /drivers/listen-preference` | [27-driver-listen-preference.md](27-driver-listen-preference.md) |
 | 在线状态 | `POST /drivers/offline` | [11-driver-offline.md](11-driver-offline.md) |
 | 在线状态 | `POST /drivers/heartbeat` | [12-driver-heartbeat.md](12-driver-heartbeat.md) |
 | 在线状态 | `POST /drivers/location/report` | [13-driver-location-report.md](13-driver-location-report.md) |
@@ -42,6 +43,7 @@
 | 订单行程 | `POST /orders/reject` | [17-order-reject.md](17-order-reject.md) |
 | 订单行程 | `POST /orders/dispatches` | [18-order-dispatches.md](18-order-dispatches.md) |
 | 订单行程 | `POST /orders/list` | [23-order-list.md](23-order-list.md) |
+| 订单/收入 | `POST /orders/available`, `GET /income/today`, `GET /income/week` | [28-driver-market-income.md](28-driver-market-income.md) |
 | 订单行程 | `POST /orders/start-trip` | [19-order-start-trip.md](19-order-start-trip.md) |
 | 订单行程 | `POST /orders/confirm-arrive` | [20-order-confirm-arrive.md](20-order-confirm-arrive.md) |
 | 订单行程 | `POST /orders/finish-trip` | [21-order-finish-trip.md](21-order-finish-trip.md) |

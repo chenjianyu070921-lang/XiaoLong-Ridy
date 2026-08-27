@@ -151,9 +151,11 @@ type LoginResponse struct {
 }
 
 type SetOnlineRequest struct {
-	DeviceID  string  `json:"deviceId"`
-	Longitude float64 `json:"longitude"`
-	Latitude  float64 `json:"latitude"`
+	DeviceID          string  `json:"deviceId"`
+	Longitude         float64 `json:"longitude"`
+	Latitude          float64 `json:"latitude"`
+	AcceptRealtime    *bool   `json:"acceptRealtime,omitempty"`
+	AcceptReservation *bool   `json:"acceptReservation,omitempty"`
 }
 
 type SetOfflineRequest struct {
@@ -166,6 +168,18 @@ type SetOnlineResponse struct {
 	DriverID     int64 `json:"driverId"`
 	OnlineStatus int   `json:"onlineStatus"`
 	Kicked       bool  `json:"kicked"`
+}
+
+type DriverListenPreferenceRequest struct {
+	AcceptRealtime    bool `json:"acceptRealtime"`
+	AcceptReservation bool `json:"acceptReservation"`
+}
+
+type DriverListenPreferenceResponse struct {
+	DriverID          int64 `json:"driverId"`
+	AcceptRealtime    bool  `json:"acceptRealtime"`
+	AcceptReservation bool  `json:"acceptReservation"`
+	UpdatedAt         int64 `json:"updatedAt"`
 }
 
 type SetOfflineResponse struct {
@@ -353,7 +367,7 @@ type CommonResponse struct {
 	Message string `json:"message"`
 }
 
-// ---- 提现相关 ----
+// ---- 閹绘劗骞囬惄绋垮彠 ----
 
 type CreateWithdrawRequest struct {
 	Amount     float64 `json:"amount"`
@@ -398,6 +412,15 @@ type GetIncomeSummaryResponse struct {
 	Source           string `json:"source"`
 }
 
+type PeriodIncomeResponse struct {
+	DriverID         int64  `json:"driverId"`
+	Period           string `json:"period"`
+	CompletedOrders  int64  `json:"completedOrders"`
+	TotalIncomeCents int64  `json:"totalIncomeCents"`
+	StartAt          int64  `json:"startAt"`
+	EndAt            int64  `json:"endAt"`
+	Source           string `json:"source"`
+}
 type ListIncomeBillsRequest struct {
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"pageSize"`
@@ -494,6 +517,7 @@ type DispatchRecord struct {
 	Status       int32   `json:"status"`
 	MatchScore   float64 `json:"matchScore"`
 	Remark       string  `json:"remark"`
+	RejectReason string  `json:"rejectReason"`
 	CreatedAt    int64   `json:"createdAt"`
 	UpdatedAt    int64   `json:"updatedAt"`
 }
@@ -505,9 +529,9 @@ type OrderBrief struct {
 	ToAddress           string `json:"toAddress"`
 	Status              int32  `json:"status"`
 	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
+	DistanceMeters      int64  `json:"distanceMeters"`
 	CreatedAt           int64  `json:"createdAt"`
 }
-
 type MyDispatchItem struct {
 	Dispatch DispatchRecord `json:"dispatch"`
 	Order    OrderBrief     `json:"order"`

@@ -12,10 +12,10 @@ export const usersApi = {
   unfreeze: (id, data) => request.post(`/users/${id}/unfreeze`, data),
 }
 export const driversApi = {
-  // 司机基础资料接口等待 driversvc 模块提供，本轮不发起跨模块请求。
-  unavailable: () => Promise.resolve({ list: [], total: 0 }),
-  list: (params) => list('/driver-certifications', params),
-  detail: (id) => request.get(`/driver-certifications/${id}`),
+  list: (params) => list('/drivers', params),
+  detail: (id) => request.get(`/drivers/${id}`),
+  certifications: (params) => list('/driver-certifications', params),
+  certificationDetail: (id) => request.get(`/driver-certifications/${id}`),
   approve: (id, data) => request.post(`/driver-certifications/${id}/approve`, data),
   reject: (id, data) => request.post(`/driver-certifications/${id}/reject`, data),
 }

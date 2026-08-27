@@ -110,6 +110,7 @@ func (r *MemoryDispatchRepository) RejectByOrderAndDriver(_ context.Context, ord
 			copied := record
 			copied.Status = constants.DispatchStatusRejected
 			copied.Remark = reason
+			copied.RejectReason = reason
 			copied.UpdatedAt = time.Now()
 			r.records[id] = copied
 			target = &copied

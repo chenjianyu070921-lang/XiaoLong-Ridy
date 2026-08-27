@@ -1,57 +1,65 @@
 <template>
-  <div class="driver-login-page">
-    <div class="login-hero">
+  <main class="driver-login-page">
+    <section class="login-hero">
       <img src="/logo.png" alt="花小龙" />
-      <h1>司机端</h1>
-      <p>移动接单工作台</p>
-    </div>
+      <div>
+        <p>花小龙司机端</p>
+        <h1>接单工作台</h1>
+      </div>
+    </section>
 
-    <van-tabs v-model:active="activeTab" shrink class="login-tabs">
-      <van-tab title="密码登录">
-        <van-form @submit="handlePasswordLogin">
-          <van-field v-model="passwordForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" />
-          <van-field v-model="passwordForm.password" name="password" type="password" label="密码" placeholder="请输入密码" />
-          <button class="primary-action" :disabled="loading" type="submit">
-            {{ loading ? '登录中...' : '密码登录' }}
-          </button>
-        </van-form>
-      </van-tab>
+    <section class="login-card">
+      <div class="auth-mode-tabs">
+        <button
+          v-for="item in authTabs"
+          :key="item.value"
+          type="button"
+          :class="{ active: activeTab === item.value }"
+          @click="activeTab = item.value"
+        >
+          {{ item.label }}
+        </button>
+      </div>
 
-      <van-tab title="验证码登录">
-        <van-form @submit="handleSMSLogin">
-          <van-field v-model="smsForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" />
-          <van-field v-model="smsForm.code" name="code" type="tel" label="验证码" placeholder="请输入验证码">
-            <template #button>
-              <van-button size="small" type="primary" :disabled="smsCountdown > 0" @click="sendCode">
-                {{ smsCountdown > 0 ? `${smsCountdown}s` : '发送' }}
-              </van-button>
-            </template>
-          </van-field>
-          <button class="primary-action" :disabled="loading" type="submit">
-            {{ loading ? '登录中...' : '验证码登录' }}
-          </button>
-        </van-form>
-      </van-tab>
+      <van-form v-if="activeTab === 0" class="auth-form" @submit="handlePasswordLogin">
+        <van-field v-model="passwordForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" clearable />
+        <van-field v-model="passwordForm.password" name="password" type="password" label="密码" placeholder="请输入密码" clearable />
+        <button class="primary-action" :disabled="loading" type="submit">
+          {{ loading ? '登录中...' : '密码登录' }}
+        </button>
+      </van-form>
 
-      <van-tab title="注册">
-        <van-form @submit="handleRegister">
-          <van-field v-model="registerForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" />
-          <van-field v-model="registerForm.realName" name="realName" label="姓名" placeholder="请输入真实姓名" />
-          <van-field v-model="registerForm.idCardNo" name="idCardNo" label="身份证号" placeholder="请输入身份证号" />
-          <van-field v-model="registerForm.driverLicenseNo" name="driverLicenseNo" label="驾驶证号" placeholder="请输入驾驶证号" />
-          <van-field v-model="registerForm.avatarUrl" name="avatarUrl" label="头像地址" placeholder="可选" />
-          <van-field v-model="registerForm.password" name="password" type="password" label="密码" placeholder="设置登录密码" />
-          <button class="primary-action" :disabled="loading" type="submit">
-            {{ loading ? '提交中...' : '提交注册' }}
-          </button>
-        </van-form>
-      </van-tab>
-    </van-tabs>
-  </div>
+      <van-form v-else-if="activeTab === 1" class="auth-form" @submit="handleSMSLogin">
+        <van-field v-model="smsForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" clearable />
+        <van-field v-model="smsForm.code" name="code" type="tel" label="验证码" placeholder="请输入验证码" clearable>
+          <template #button>
+            <van-button size="small" type="primary" :disabled="smsCountdown > 0" @click="sendCode">
+              {{ smsCountdown > 0 ? smsCountdown + 's' : '发送' }}
+            </van-button>
+          </template>
+        </van-field>
+        <button class="primary-action" :disabled="loading" type="submit">
+          {{ loading ? '登录中...' : '验证码登录' }}
+        </button>
+      </van-form>
+
+      <van-form v-else class="auth-form" @submit="handleRegister">
+        <van-field v-model="registerForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" clearable />
+        <van-field v-model="registerForm.realName" name="realName" label="姓名" placeholder="请输入真实姓名" clearable />
+        <van-field v-model="registerForm.idCardNo" name="idCardNo" label="身份证号" placeholder="请输入身份证号" clearable />
+        <van-field v-model="registerForm.driverLicenseNo" name="driverLicenseNo" label="驾驶证号" placeholder="请输入驾驶证号" clearable />
+        <van-field v-model="registerForm.avatarUrl" name="avatarUrl" label="头像地址" placeholder="可选" clearable />
+        <van-field v-model="registerForm.password" name="password" type="password" label="密码" placeholder="设置登录密码" clearable />
+        <button class="primary-action" :disabled="loading" type="submit">
+          {{ loading ? '提交中...' : '提交注册' }}
+        </button>
+      </van-form>
+    </section>
+  </main>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { closeToast, showLoadingToast, showToast } from 'vant'
 import { sendDriverSMSCode } from '@/api/driver'
@@ -59,6 +67,12 @@ import { useDriverStore } from '@/stores/driver'
 
 const router = useRouter()
 const driverStore = useDriverStore()
+
+const authTabs = [
+  { label: '密码', value: 0 },
+  { label: '验证码', value: 1 },
+  { label: '注册', value: 2 }
+]
 
 const activeTab = ref(0)
 const loading = ref(false)
@@ -76,6 +90,10 @@ const registerForm = reactive({
   password: ''
 })
 
+onUnmounted(() => {
+  if (smsTimer) window.clearInterval(smsTimer)
+})
+
 function validatePhone(phone) {
   return /^1[3-9]\d{9}$/.test(phone)
 }
@@ -85,6 +103,7 @@ async function sendCode() {
     showToast('请输入正确的手机号')
     return
   }
+
   try {
     await sendDriverSMSCode(smsForm.phone, { silentError: true })
     showToast('验证码已发送')
@@ -92,7 +111,9 @@ async function sendCode() {
     showToast(apiErrorMessage(error, '验证码发送失败'))
     return
   }
+
   smsCountdown.value = 60
+  if (smsTimer) window.clearInterval(smsTimer)
   smsTimer = window.setInterval(() => {
     smsCountdown.value -= 1
     if (smsCountdown.value <= 0) {
@@ -139,6 +160,7 @@ async function handleRegister() {
     showToast('请填写完整注册信息')
     return
   }
+
   try {
     loading.value = true
     showLoadingToast({ message: '提交中...', forbidClick: true, duration: 0 })
@@ -162,56 +184,102 @@ function apiErrorMessage(error, fallbackMessage) {
 <style scoped>
 .driver-login-page {
   min-height: 100vh;
-  background: #f5f7fb;
-  padding-bottom: 20px;
+  padding: 18px 12px 24px;
+  background: #eef2f7;
 }
 
 .login-hero {
-  padding: 16px 14px 14px;
-  background: #6d4aff;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 148px;
+  padding: 22px 16px;
+  border-radius: 0 0 22px 22px;
+  background: linear-gradient(135deg, #6d4aff, #4b2bc5);
   color: #fff;
 }
 
 .login-hero img {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  display: block;
-  margin: 6px auto 8px;
-}
-
-.login-hero h1 {
-  text-align: center;
-  font-size: 20px;
-  line-height: 1.2;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #fff;
+  object-fit: cover;
 }
 
 .login-hero p {
-  margin-top: 8px;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.78);
+  margin: 0 0 5px;
+  color: rgba(255, 255, 255, .78);
+  font-size: 13px;
 }
 
-.login-tabs {
-  margin: 10px;
-  overflow: hidden;
-  border-radius: 12px;
+.login-hero h1 {
+  margin: 0;
+  font-size: 25px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.login-card {
+  margin-top: -22px;
+  padding: 12px;
+  border-radius: 14px;
   background: #fff;
+  box-shadow: 0 14px 34px rgba(77, 48, 160, .16);
+}
+
+.auth-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f5fb;
+}
+
+.auth-mode-tabs button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #667085;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.auth-mode-tabs button.active {
+  background: #6d4aff;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(109, 74, 255, .22);
+}
+
+.auth-form {
+  padding-top: 12px;
+}
+
+.driver-login-page :deep(.van-cell) {
+  padding: 12px 4px;
+}
+
+.driver-login-page :deep(.van-field__label) {
+  width: 72px;
+  color: #667085;
+  font-size: 13px;
 }
 
 .primary-action {
-  width: calc(100% - 20px);
-  height: 42px;
-  margin: 12px 10px 14px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 16px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #6d4aff;
   color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .primary-action:disabled {
-  opacity: 0.65;
+  opacity: .62;
 }
 </style>

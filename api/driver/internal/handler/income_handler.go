@@ -25,6 +25,37 @@ func GetIncomeSummaryHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+func GetTodayIncomeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		resp, err := logic.NewIncomeLogic(r.Context(), svcCtx).GetTodayIncome(int64(claims.AccountID))
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
+func GetWeekIncomeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		resp, err := logic.NewIncomeLogic(r.Context(), svcCtx).GetWeekIncome(int64(claims.AccountID))
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
 func ListIncomeBillsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())

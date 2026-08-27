@@ -20,8 +20,8 @@ export default defineConfig({
         path.resolve(__dirname, 'src')
       ]
     },
-    proxy: {
-      '/api/passenger': {
+    proxy: {
+'/api/passenger': {
         target: 'http://localhost:8091',
         changeOrigin: true
       }
@@ -33,3 +33,4 @@ export default defineConfig({
     }
   }
 })
+
