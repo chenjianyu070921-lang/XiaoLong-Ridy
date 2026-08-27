@@ -180,6 +180,32 @@
         />
       </div>
     </van-dialog>
+
+    <!-- 实名认证弹窗：提交真实姓名和身份证号到乘客端实名认证接口。 -->
+    <van-dialog
+      v-model:show="showRealNameDialog"
+      title="实名认证"
+      show-cancel-button
+      confirm-button-text="提交认证"
+      :before-close="onRealNameDialogClose"
+    >
+      <div class="dialog-content realname-dialog">
+        <van-field
+          v-model="realNameForm.realName"
+          label="姓名"
+          placeholder="请输入真实姓名"
+          maxlength="20"
+          clearable
+        />
+        <van-field
+          v-model="realNameForm.idCardNo"
+          label="身份证号"
+          placeholder="请输入身份证号"
+          maxlength="18"
+          clearable
+        />
+      </div>
+    </van-dialog>
   </div>
 </template>
 
@@ -188,6 +214,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showDialog, showLoadingToast, closeToast } from 'vant'
 import { useUserStore } from '@/stores/user'
+import { submitRealName } from '@/api/user'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -195,7 +222,12 @@ const userStore = useUserStore()
 // 状态
 const cacheSize = ref('12.5MB')
 const showChangePhone = ref(false)
+const showRealNameDialog = ref(false)
 const oldPhoneCode = ref('')
+const realNameForm = ref({
+  realName: '',
+  idCardNo: ''
+})
 
 // 设置项
 const settings = ref({
@@ -224,19 +256,74 @@ const maskedPhone = computed(() => {
 const goBack = () => router.back()
 
 const goToPage = (page) => {
-  const routes = {
-    phone: '/settings/phone',
-    realname: '/settings/realname'
-  }
-  
   if (page === 'realname' && realNameStatus.value === 'verified') {
     showToast('您已完成实名认证')
     return
   }
-  
-  if (routes[page]) {
-    // 可以跳转到对应页面或显示弹窗
-    showToast(`${page}功能开发中`)
+  if (page === 'realname') {
+    realNameForm.value = { realName: '', idCardNo: '' }
+    showRealNameDialog.value = true
+    return
+  }
+  if (page === 'phone') {
+    showToast('账号与密码功能开发中')
+  }
+}
+
+// validateRealNameForm 校验实名认证表单，避免无效证件号请求打到后端。
+const validateRealNameForm = () => {
+  const realName = realNameForm.value.realName.trim()
+  const idCardNo = realNameForm.value.idCardNo.trim().toUpperCase()
+  if (!realName) {
+    showToast('请输入真实姓名')
+    return false
+  }
+  if (!/^[\u4e00-\u9fa5·]{2,20}$/.test(realName)) {
+    showToast('姓名格式不正确')
+    return false
+  }
+  if (!/^\d{17}[\dX]$/.test(idCardNo)) {
+    showToast('身份证号格式不正确')
+    return false
+  }
+  realNameForm.value = { realName, idCardNo }
+  return true
+}
+
+// onRealNameDialogClose 在确认关闭前提交实名认证，并把后端返回的用户资料同步到本地状态。
+const onRealNameDialogClose = async (action) => {
+  if (action !== 'confirm') return true
+  if (!validateRealNameForm()) return false
+  const toast = showLoadingToast({
+    message: '认证中...',
+    forbidClick: true,
+    duration: 0
+  })
+  try {
+    const res = await submitRealName(realNameForm.value.realName, realNameForm.value.idCardNo)
+    if (res?.user) {
+      userStore.userInfo = {
+        ...userStore.userInfo,
+        ...res.user,
+        realNameStatus: res.user.realNameStatus || 'verified'
+      }
+      localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
+    } else {
+      userStore.userInfo = {
+        ...userStore.userInfo,
+        realNameStatus: 'verified'
+      }
+      localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
+    }
+    closeToast()
+    showToast('实名认证成功')
+    return true
+  } catch (error) {
+    closeToast()
+    showToast(error?.response?.data?.message || '实名认证失败，请核对信息')
+    return false
+  } finally {
+    toast.close?.()
   }
 }
 
@@ -428,5 +515,10 @@ const handleLogout = () => {
   font-size: 16px;
   text-align: center;
   outline: none;
+}
+
+.realname-dialog {
+  padding: 12px 0;
+  text-align: left;
 }
 </style>

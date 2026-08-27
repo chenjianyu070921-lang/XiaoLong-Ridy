@@ -31,7 +31,6 @@ type UserAddress struct {
 	Longitude    float64        `gorm:"column:longitude;type:decimal(10,6);not null" json:"longitude"`
 	Latitude     float64        `gorm:"column:latitude;type:decimal(10,6);not null" json:"latitude"`
 	IsDefault    int8           `gorm:"column:is_default;not null;default:0;index:idx_user_default,priority:2" json:"isDefault"`
-	Sort         int            `gorm:"column:sort;not null;default:0" json:"sort"`
 	CreatedAt    time.Time      `gorm:"column:created_at;not null;autoCreateTime" json:"createdAt"`
 	UpdatedAt    time.Time      `gorm:"column:updated_at;not null;autoUpdateTime" json:"updatedAt"`
 	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;index" json:"deletedAt"`
