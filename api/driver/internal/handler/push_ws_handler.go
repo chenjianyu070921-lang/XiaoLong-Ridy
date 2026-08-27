@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -143,29 +144,32 @@ func serveDriverPushLoop(conn *websocket.Conn, svcCtx *svc.ServiceContext, drive
 	}
 }
 
+// sendPolledDispatchOrders 轮询兜底：读取 driver:available:%d 集合中派给当前司机的待接单订单，
+// 推送到 WS。替代原 ListOrders(driver_id+WAIT_ACCEPT) 恒为空的查询（D2 修复）。
 func sendPolledDispatchOrders(conn *websocket.Conn, svcCtx *svc.ServiceContext, driverID int64, seen map[int64]struct{}) bool {
 	if svcCtx == nil || svcCtx.OrderClient == nil || driverID <= 0 {
 		return true
 	}
-	pageSize := svcCtx.PushPollPageSize
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = pushPollPageSize
-	}
-	resp, err := svcCtx.OrderClient.ListOrders(conn.Request().Context(), &orderproto.ListOrdersRequest{
-		DriverId: driverID,
-		Status:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
-		Page:     1,
-		PageSize: pageSize,
-	})
+	// 读取派给当前司机的订单 ID 集合
+	availableKey := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
+	orderIDStrs, err := svcCtx.RedisClient.SMembers(conn.Request().Context(), availableKey).Result()
 	if err != nil {
 		return sendWSJSON(conn, wsEnvelope{Type: "push_poll_error", Degraded: true, Message: err.Error(), ServerTime: time.Now().Unix()}) == nil
 	}
-	for _, order := range resp.GetList() {
-		orderID := order.GetOrderId()
-		if orderID <= 0 {
+	for _, idStr := range orderIDStrs {
+		orderID, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil || orderID <= 0 {
 			continue
 		}
 		if _, ok := seen[orderID]; ok {
+			continue
+		}
+		order, err := svcCtx.OrderClient.GetOrder(conn.Request().Context(), &orderproto.GetOrderRequest{OrderId: orderID})
+		if err != nil {
+			continue
+		}
+		// 只推送仍处于待接单状态的订单
+		if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
 			continue
 		}
 		seen[orderID] = struct{}{}

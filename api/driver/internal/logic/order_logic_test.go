@@ -355,7 +355,9 @@ func TestListMyOrdersUsesOrderService(t *testing.T) {
 	}
 }
 
-func TestListAvailableOrdersUsesWaitAcceptWithoutDriverFilter(t *testing.T) {
+// TestListAvailableOrdersReadsAvailableSetAndGetOrder 验证 D3/D8 修复后：
+// ListAvailableOrders 读 driver:available:%d 集合 + GetOrder，而非全局 ListOrders。
+func TestListAvailableOrdersReadsAvailableSetAndGetOrder(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	ctx := context.Background()
@@ -368,6 +370,10 @@ func TestListAvailableOrdersUsesWaitAcceptWithoutDriverFilter(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
+	// 派单消费者写入的 available 集合
+	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, 25), "1001").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
 	client := &fakeOrderClient{getOrderResponseStatus: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT}
 	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
 
@@ -378,11 +384,12 @@ func TestListAvailableOrdersUsesWaitAcceptWithoutDriverFilter(t *testing.T) {
 	if resp.Total != 1 || len(resp.List) != 1 || resp.List[0].OrderNo != "NO-1001" {
 		t.Fatalf("ListAvailableOrders() response = %+v", resp)
 	}
-	if client.listOrdersRequest.GetDriverId() != 0 ||
-		client.listOrdersRequest.GetPage() != 1 ||
-		client.listOrdersRequest.GetPageSize() != 100 ||
-		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
-		t.Fatalf("ListAvailableOrders() request = %+v", client.listOrdersRequest)
+	// 新逻辑不调用 ListOrders，而是读 available 集合 + GetOrder
+	if client.listOrdersRequest != nil {
+		t.Fatalf("ListAvailableOrders() should not call ListOrders, got %+v", client.listOrdersRequest)
+	}
+	if client.getOrderRequest == nil || client.getOrderRequest.GetOrderId() != 1001 {
+		t.Fatalf("ListAvailableOrders() should GetOrder(1001), got %+v", client.getOrderRequest)
 	}
 }
 
@@ -404,6 +411,7 @@ func TestListAvailableOrdersReturnsEmptyWhenDriverOffline(t *testing.T) {
 	}
 }
 
+// TestListAvailableOrdersFiltersAndSortsByDriverPosition 验证距离过滤与排序仍然生效（新逻辑保留距离计算）。
 func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
@@ -418,17 +426,11 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
+	// 派单消费者写入的 available 集合（3 个订单，其中 1002 距离超过 3km 应被过滤）
+	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, driverID), "1001", "1002", "1003").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
 	client := &fakeOrderClient{
-		listOrdersResponse: &orderproto.ListOrdersResponse{
-			List: []*orderproto.OrderSummary{
-				{OrderId: 1001, OrderNo: "far-but-in-range", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 3000, CreatedAt: 100},
-				{OrderId: 1002, OrderNo: "too-far", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 5000, CreatedAt: 101},
-				{OrderId: 1003, OrderNo: "nearest", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 2800, CreatedAt: 102},
-			},
-			Total:    3,
-			Page:     1,
-			PageSize: 100,
-		},
 		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
 			1001: availableOrderDetail(1001, "far-but-in-range", 116.415, 39.908),
 			1002: availableOrderDetail(1002, "too-far", 116.520, 39.908),
@@ -450,11 +452,9 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	if resp.List[0].DistanceMeters <= 0 || resp.List[0].DistanceMeters >= resp.List[1].DistanceMeters {
 		t.Fatalf("ListAvailableOrders() distances = %d/%d, want nearest first", resp.List[0].DistanceMeters, resp.List[1].DistanceMeters)
 	}
-	if client.listOrdersRequest.GetDriverId() != 0 ||
-		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT ||
-		client.listOrdersRequest.GetPage() != 1 ||
-		client.listOrdersRequest.GetPageSize() != 100 {
-		t.Fatalf("ListAvailableOrders() request = %+v", client.listOrdersRequest)
+	// 新逻辑不调用 ListOrders
+	if client.listOrdersRequest != nil {
+		t.Fatalf("ListAvailableOrders() should not call ListOrders, got %+v", client.listOrdersRequest)
 	}
 }
 
@@ -477,6 +477,7 @@ func availableOrderDetail(orderID int64, orderNo string, longitude, latitude flo
 		CreatedAt:           100,
 	}
 }
+
 func TestGetMyOrderDetailRequiresOrderOwnedByDriver(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
