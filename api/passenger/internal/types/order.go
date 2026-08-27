@@ -81,6 +81,12 @@ type OrderDetail struct {
 	EstimatedDistanceM  int64   `json:"estimatedDistanceM"`
 	EstimatedDurationS  int64   `json:"estimatedDurationS"`
 	EstimatedPriceCents int64   `json:"estimatedPriceCents"`
+	CouponID            int64   `json:"couponId"`
+	CouponName          string  `json:"couponName"`
+	DiscountCents       int64   `json:"discountCents"`
+	PayableCents        int64   `json:"payableCents"`
+	PaidCents           int64   `json:"paidCents"`
+	RefundCents         int64   `json:"refundCents"`
 	Status              int32   `json:"status"`
 	CancelReason        string  `json:"cancelReason"`
 	CancelBy            string  `json:"cancelBy"`

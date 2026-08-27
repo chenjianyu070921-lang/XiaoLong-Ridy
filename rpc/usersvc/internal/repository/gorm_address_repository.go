@@ -32,12 +32,12 @@ func (r *gormAddressRepository) Create(ctx context.Context, address *model.UserA
 	})
 }
 
-// ListByUser 按默认地址、排序值和 ID 顺序返回乘客未删除的常用地址。
+// ListByUser 按默认地址和 ID 顺序返回乘客未删除的常用地址。
 func (r *gormAddressRepository) ListByUser(ctx context.Context, userID uint64) ([]*model.UserAddress, error) {
 	var list []*model.UserAddress
 	err := r.db.WithContext(ctx).
 		Where("user_id = ?", userID).
-		Order("is_default DESC, sort DESC, id ASC").
+		Order("is_default DESC, id ASC").
 		Find(&list).Error
 	return list, err
 }
@@ -75,7 +75,6 @@ func (r *gormAddressRepository) Update(ctx context.Context, address *model.UserA
 				"longitude":     address.Longitude,
 				"latitude":      address.Latitude,
 				"is_default":    address.IsDefault,
-				"sort":          address.Sort,
 				"updated_at":    time.Now(),
 			})
 		if res.Error != nil {

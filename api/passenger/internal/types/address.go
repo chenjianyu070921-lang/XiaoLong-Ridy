@@ -10,7 +10,6 @@ type AddressInfo struct {
 	Longitude    float64 `json:"longitude"`
 	Latitude     float64 `json:"latitude"`
 	IsDefault    bool    `json:"isDefault"`
-	Sort         int     `json:"sort"`
 }
 
 // CreateAddressRequest 表示新增常用地址请求。
@@ -22,7 +21,6 @@ type CreateAddressRequest struct {
 	Longitude    float64 `json:"longitude"`
 	Latitude     float64 `json:"latitude"`
 	IsDefault    bool    `json:"isDefault"`
-	Sort         int     `json:"sort"`
 }
 
 // ListAddressesRequest 表示查询常用地址列表请求，当前暂不需要额外字段。
@@ -43,7 +41,6 @@ type UpdateAddressRequest struct {
 	Longitude    float64 `json:"longitude"`
 	Latitude     float64 `json:"latitude"`
 	IsDefault    bool    `json:"isDefault"`
-	Sort         int     `json:"sort"`
 }
 
 // DeleteAddressRequest 表示删除常用地址请求。

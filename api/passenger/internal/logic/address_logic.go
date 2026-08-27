@@ -44,7 +44,6 @@ func (l *AddressLogic) CreateAddress(req *types.CreateAddressRequest) (*types.Ad
 		Longitude:    req.Longitude,
 		Latitude:     req.Latitude,
 		IsDefault:    req.IsDefault,
-		Sort:         int32(req.Sort),
 	})
 	if err != nil {
 		return nil, err
@@ -102,7 +101,6 @@ func (l *AddressLogic) UpdateAddress(req *types.UpdateAddressRequest) (*types.Ad
 		Longitude:    req.Longitude,
 		Latitude:     req.Latitude,
 		IsDefault:    req.IsDefault,
-		Sort:         int32(req.Sort),
 	})
 	if err != nil {
 		return nil, err
@@ -166,6 +164,5 @@ func toAPIAddress(address *userproto.AddressInfo) *types.AddressInfo {
 		Longitude:    address.GetLongitude(),
 		Latitude:     address.GetLatitude(),
 		IsDefault:    address.GetIsDefault(),
-		Sort:         int(address.GetSort()),
 	}
 }
