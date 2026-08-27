@@ -1,0 +1,12 @@
+# passenger API 网关本地配置。
+# 测试阶段默认通过 gRPC 调用 usersvc，验证码会由 usersvc 的本地短信日志输出。
+httpAddr: ":8091"
+tokenSigningKey: "local-development-signing-key"
+clientMode: "grpc"
+userRPCAddr: "127.0.0.1:50052"
+orderRPCAddr: "127.0.0.1:50051"
+priceRPCAddr: "127.0.0.1:50053"
+payRPCAddr: "127.0.0.1:50054"
+dispatchRPCAddr: "127.0.0.1:8083"
+priceCityCode: "110000"
+mysqlDSN: ""

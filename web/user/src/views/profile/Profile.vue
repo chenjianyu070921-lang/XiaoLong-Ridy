@@ -116,11 +116,6 @@ const stats = ref({
   totalSpent: 682.50
 })
 
-// 钱包信息
-const wallet = ref({
-  balance: '68.0',
-  frozen: '0.00'
-})
 
 // 菜单项
 const menuItems = ref([
