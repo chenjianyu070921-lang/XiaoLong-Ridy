@@ -122,6 +122,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/addresses',
+    name: 'AddressList',
+    component: () => import('@/views/profile/AddressList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('@/views/profile/Settings.vue'),

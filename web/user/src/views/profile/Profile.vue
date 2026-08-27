@@ -191,7 +191,7 @@ const handleMenuClick = (item) => {
     wallet: () => goToWallet(),
     coupons: () => router.push('/coupons'),
     trips: () => router.push('/orders'),
-    addresses: () => showToast('地址管理功能开发中'),
+    addresses: () => router.push('/addresses'),
     service: () => showToast('客服电话：400-123-4567'),
     settings: () => goToSettings()
   }

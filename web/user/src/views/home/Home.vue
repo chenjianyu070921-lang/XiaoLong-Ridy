@@ -60,19 +60,37 @@
           <span class="cancel-btn" @click="closeLocationSearch">取消</span>
         </div>
 
-        <div v-if="searchMode === 'destination' && !keyword.trim() && recentDestinations.length" class="search-history">
-          <div class="history-title">历史目的地</div>
-          <div class="history-chips">
-            <button v-for="item in recentDestinations.slice(0, 3)" :key="item.id || item.name" type="button" class="history-chip" @click="selectSearchResult(item)">
-              <van-icon name="clock-o" /><span>{{ item.name }}</span>
-            </button>
+        <div v-if="searchMode === 'destination' && !keyword.trim()" class="quick-addresses">
+          <button v-for="item in quickDestinationAddresses" :key="item.tag" type="button" class="quick-address-button" :class="{ 'is-empty': !item.address }" @click="selectQuickDestination(item)">
+            <van-icon :name="item.icon" />
+            <span>{{ item.label }}</span>
+          </button>
+        </div>
+
+        <div v-if="searchMode === 'destination' && !keyword.trim() && groupedRecentDestinations.length" class="search-history">
+          <div class="history-title-row">
+            <span class="history-title">历史目的地</span>
+            <button type="button" class="history-clear" @click="clearRecentDestinations">清空历史</button>
           </div>
+          <section v-for="group in groupedRecentDestinations" :key="group.cityKey" class="history-city">
+            <div class="history-city-title">{{ group.cityName }}</div>
+            <div class="history-list">
+              <button v-for="item in group.items" :key="item.id || `${item.name}-${item.lat}-${item.lng}`" type="button" class="history-row" @click="selectSearchResult(item)">
+                <van-icon name="clock-o" />
+                <span class="history-info">
+                  <span class="history-name">{{ item.name }}</span>
+                  <span class="history-address">{{ item.address || item.name }}</span>
+                </span>
+                <van-icon name="cross" class="history-delete" @click.stop="removeRecentDestination(item)" />
+              </button>
+            </div>
+          </section>
         </div>
 
         <div class="result-section-title">{{ keyword.trim() ? '搜索结果' : searchMode === 'pickup' ? '附近地点' : '热门目的地' }}</div>
         <div v-if="searchLoading" class="search-status"><van-loading size="24px" vertical>正在搜索地点...</van-loading></div>
-        <div v-else-if="searchResults.length" class="search-results">
-          <button v-for="item in searchResults" :key="item.id" type="button" class="result-item" @click="selectSearchResult(item)">
+        <div v-else-if="visibleSearchResults.length" class="search-results">
+          <button v-for="item in visibleSearchResults" :key="item.id" type="button" class="result-item" @click="selectSearchResult(item)">
             <van-icon name="location-o" size="20" color="#7C3AED" />
             <span class="result-info"><span class="name">{{ item.name }}</span><span class="address">{{ item.address }}</span></span>
             <span v-if="item.distanceText" class="result-distance">{{ item.distanceText }}</span>
@@ -109,6 +127,7 @@ import { useRouter } from 'vue-router'
 import AMapLoader from '@amap/amap-jsapi-loader'
 import { showToast } from 'vant'
 import { useOrderStore } from '@/stores/order'
+import { listAddresses } from '@/api/address'
 import { getOrders } from '@/api/order'
 import { normalizeCityCode, readCurrentCity, readSelectedCity, saveCurrentCity, saveSelectedCity } from '@/data/cities'
 
@@ -136,6 +155,8 @@ const searchResults = ref([])
 const searchLoading = ref(false)
 const searchMessage = ref('')
 const activeTab = ref('home')
+const activeOrder = ref(null)
+const commonAddresses = ref([])
 const currentPoint = ref({ lat: null, lng: null, address: '' })
 // 当前定位所属行政区编码，优先使用 adcode 精确限制 POI 搜索范围。
 const selectedCity = ref(localStorage.getItem('passenger-manual-city') === '1' ? readSelectedCity() : null)
@@ -170,23 +191,82 @@ const loginCouponPendingKey = 'passenger-login-coupon-pending'
 const recentDestinationKey = 'passenger-recent-destinations'
 const recentDestinations = ref(loadRecentDestinations())
 const canCallCar = computed(() => Boolean(pickupAddress.value && destinationAddress.value))
+// groupedRecentDestinations 按城市拆分历史目的地，每个城市只展示最近 5 条。
+const groupedRecentDestinations = computed(() => {
+  const groups = []
+  const groupMap = new Map()
+  for (const item of recentDestinations.value) {
+    const cityKey = item.cityCode || item.cityName || 'unknown'
+    const cityName = item.cityName || '未知城市'
+    if (!groupMap.has(cityKey)) {
+      const group = { cityKey, cityName, items: [] }
+      groupMap.set(cityKey, group)
+      groups.push(group)
+    }
+    const group = groupMap.get(cityKey)
+    if (group.items.length < 5) group.items.push(item)
+  }
+  return groups
+})
+// visibleSearchResults 控制选址列表展示数量，热门目的地最多保留 20 条，搜索和上车点列表保持完整。
+const visibleSearchResults = computed(() => {
+  if (searchMode.value === 'destination' && !keyword.value.trim()) return searchResults.value.slice(0, 20)
+  return searchResults.value
+})
+const quickDestinationAddresses = computed(() => [
+  { tag: 'home', label: '家', icon: 'wap-home-o', address: findCommonAddress('home') },
+  { tag: 'work', label: '公司', icon: 'office-o', address: findCommonAddress('work') }
+])
+
+// findCommonAddress 从常用地址列表中取出指定标签的地址，用于终点快捷选择。
+function findCommonAddress(tag) {
+  return commonAddresses.value.find(item => item.tag === tag && Number.isFinite(item.lat) && Number.isFinite(item.lng)) || null
+}
 
 // 从本地缓存读取最近目的地，异常数据会被过滤，避免影响地图搜索。
 function loadRecentDestinations() {
   try {
     const list = JSON.parse(localStorage.getItem(recentDestinationKey) || '[]')
-    return Array.isArray(list) ? list.filter(item => item?.name && Number.isFinite(item.lat) && Number.isFinite(item.lng)).slice(0, 10) : []
+    return Array.isArray(list) ? list.map(normalizeRecentDestination).filter(Boolean).slice(0, 10) : []
   } catch (error) {
     console.warn('读取历史目的地失败:', error)
     return []
   }
 }
 
+// normalizeRecentDestination 兼容旧缓存，并补齐城市分类字段，避免不同城市历史混到同一组。
+function normalizeRecentDestination(item) {
+  if (!item?.name || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lng))) return null
+  const cityCode = item.cityCode || currentCityCode.value || ''
+  const cityName = item.cityName || currentCityName.value || selectedCity.value?.name || '未知城市'
+  return { ...item, lat: Number(item.lat), lng: Number(item.lng), cityCode, cityName }
+}
+
 function rememberDestination(item) {
-  const saved = { id: item.id || '', name: item.name, address: item.address || '', lat: item.lat, lng: item.lng }
+  const saved = {
+    id: item.id || '',
+    name: item.name,
+    address: item.address || '',
+    lat: item.lat,
+    lng: item.lng,
+    cityCode: item.cityCode || currentCityCode.value || '',
+    cityName: item.cityName || currentCityName.value || selectedCity.value?.name || '未知城市'
+  }
   const rest = recentDestinations.value.filter(entry => entry.id !== saved.id && (entry.lat !== saved.lat || entry.lng !== saved.lng))
   recentDestinations.value = [saved, ...rest].slice(0, 10)
   localStorage.setItem(recentDestinationKey, JSON.stringify(recentDestinations.value))
+}
+
+// removeRecentDestination 删除单条历史目的地，保留其他历史记录继续用于快捷选址。
+function removeRecentDestination(item) {
+  recentDestinations.value = recentDestinations.value.filter(entry => entry.id !== item.id && (entry.lat !== item.lat || entry.lng !== item.lng)).slice(0, 10)
+  localStorage.setItem(recentDestinationKey, JSON.stringify(recentDestinations.value))
+}
+
+// clearRecentDestinations 一键清空本机保存的全部历史目的地。
+function clearRecentDestinations() {
+  recentDestinations.value = []
+  localStorage.removeItem(recentDestinationKey)
 }
 
 // 初始化高德地图及定位、地点搜索和逆地理编码服务。
@@ -251,6 +331,25 @@ async function resolveCityCode(lng, lat) {
   }
   return result
 }
+
+// loadCommonAddresses 加载家/公司常用地址，接口失败时不阻断正常 POI 搜索。
+async function loadCommonAddresses() {
+  try {
+    const result = await listAddresses()
+    const list = Array.isArray(result?.list) ? result.list : []
+    commonAddresses.value = list.map(item => ({
+      id: item.id,
+      tag: item.tag,
+      name: item.tag === 'home' ? '家' : item.tag === 'work' ? '公司' : item.address,
+      address: item.address,
+      lat: Number(item.latitude),
+      lng: Number(item.longitude)
+    })).filter(item => item.address && Number.isFinite(item.lat) && Number.isFinite(item.lng))
+  } catch (error) {
+    commonAddresses.value = []
+    console.warn('查询常用地址失败:', error)
+  }
+}
 function updateCurrentMarker(lng, lat) {
   if (!mapInstance.value || !AMapSDK.value) return
   const position = [Number(lng), Number(lat)]
@@ -302,7 +401,7 @@ async function applyCurrentLocation({ lng, lat, address, name, addressComponent 
     currentCityName.value = selectedCity.value.name
     configurePlaceSearch(currentCityCode.value)
   }
-  // 自动定位只更新地图当前位置；只有用户明确选择地点时，才写入订单上车点。
+  // 定位成功后默认写入上车点，用户也可以在选址弹层中手动改成其他地点。
   if (useAsPickup) {
     const pickupName = name || text
     pickupAddress.value = pickupName
@@ -377,7 +476,7 @@ async function locateUser() {
         result = await locateByCity()
       }
     }
-    await applyCurrentLocation(result, false)
+    await applyCurrentLocation(result)
   } catch (error) {
     console.error('所有定位方式均失败:', error)
     markLocationFailure()
@@ -405,7 +504,20 @@ function normalizePOI(poi) {
   const distance = Number(poi.distance)
   // 同时保留 POI 名称和详细地址：名称用于订单展示，详细地址用于搜索结果辅助识别。
   const detailedAddress = [prefix, poi.address].filter(Boolean).join('') || poi.name || '暂无详细地址'
-  return { id: poi.id || `${lng},${lat}`, name: poi.name || '未命名地点', address: detailedAddress, displayAddress: detailedAddress, lng, lat, distanceText: Number.isFinite(distance) ? distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km` : '' }
+  const rawCityName = Array.isArray(poi.cityname) ? '' : poi.cityname
+  const rawAdcode = Array.isArray(poi.adcode) ? '' : poi.adcode
+  return { id: poi.id || `${lng},${lat}`, name: poi.name || '未命名地点', address: detailedAddress, displayAddress: detailedAddress, lng, lat, cityName: rawCityName || poi.pname || '', cityCode: normalizeCityCode(rawAdcode || ''), distanceText: Number.isFinite(distance) ? distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km` : '' }
+}
+
+// resolveDestinationCity 补齐目的地所属城市，历史记录必须按目的地城市归类。
+async function resolveDestinationCity(item) {
+  if (item.cityName || item.cityCode) return item
+  const result = await reverseGeocode(item.lng, item.lat)
+  return {
+    ...item,
+    cityName: result.cityName || '未知城市',
+    cityCode: normalizeCityCode(result.adcode || '')
+  }
 }
 
 function handleSearchResult(sequence, status, result) {
@@ -419,8 +531,8 @@ function handleSearchResult(sequence, status, result) {
   searchResults.value = (result.poiList?.pois || []).map(normalizePOI).filter(Boolean)
 }
 
-// 双通道搜索：InputTips（关键词提示）+ PlaceSearch（POI详情）
-// 核心策略：严格按名称匹配关键词 + 城市限制
+// 双通道搜索：InputTips（关键词提示）+ PlaceSearch（POI详情）。
+// 上车点限定当前城市，目的地允许跨城搜索，兼容城市交界处打到相邻城市的场景。
 function searchByKeyword(value) {
   const sequence = ++searchSequence
   if (!AMapSDK.value) return Object.assign(searchLoading, { value: false })
@@ -436,6 +548,7 @@ function searchByKeyword(value) {
   // 搜索关键词：优先用剥离后的短词，保留原始输入作为备选
   const searchKeyword = localKeyword || normalizedKeyword
   const cityCode = currentCityCode.value || ''
+  const shouldLimitCity = searchMode.value === 'pickup'
 
   // ====== 关键词过滤：名称必须包含用户输入的关键词 ======
   const isNameMatch = (name) => {
@@ -473,8 +586,8 @@ function searchByKeyword(value) {
   // ====== 通道1: InputTips（高德关键词提示API）======
   try {
     const tipsSearch = new AMapSDK.value.InputTips({
-      city: cityCode || cityName || undefined,
-      citylimit: Boolean(cityCode || cityName),  // 限定城市避免无关结果
+      city: shouldLimitCity ? cityCode || cityName || undefined : undefined,
+      citylimit: shouldLimitCity && Boolean(cityCode || cityName),
       pageSize: 25
     })
     tipsSearch.search(value, (status, result) => {
@@ -494,6 +607,8 @@ function searchByKeyword(value) {
             address: address,
             displayAddress: address,
             lng, lat,
+            cityName: tip.district?.split?.('市')?.[0] ? `${tip.district.split('市')[0]}市` : '',
+            cityCode: '',
             distanceText: ''
           })
         }
@@ -513,8 +628,8 @@ function searchByKeyword(value) {
       pageSize: 50,
       pageIndex: 1,
       extensions: 'all',
-      city: cityCode || undefined,
-      citylimit: Boolean(cityCode)
+      city: shouldLimitCity ? cityCode || undefined : undefined,
+      citylimit: shouldLimitCity && Boolean(cityCode)
     })
     poiSearch.setType('')
     poiSearch.search(searchKeyword, (status, result) => {
@@ -575,18 +690,36 @@ async function selectSearchResult(item) {
     closeLocationSearch()
     return
   }
-  destinationAddress.value = item.name
-  orderStore.setOrderParams({ toAddress: item.name, toLat: item.lat, toLng: item.lng, cityCode: currentCityCode.value })
-  rememberDestination(item)
+  const resolvedDestination = await resolveDestinationCity(item)
+  destinationAddress.value = resolvedDestination.name
+  orderStore.setOrderParams({ toAddress: resolvedDestination.name, toLat: resolvedDestination.lat, toLng: resolvedDestination.lng, cityCode: resolvedDestination.cityCode || currentCityCode.value })
+  rememberDestination(resolvedDestination)
   closeLocationSearch()
   if (mapInstance.value) {
-    const position = [item.lng, item.lat]
+    const position = [resolvedDestination.lng, resolvedDestination.lat]
     if (!destinationMarker.value && AMapSDK.value) {
       destinationMarker.value = new AMapSDK.value.Marker({ position })
       mapInstance.value.add(destinationMarker.value)
     } else destinationMarker.value?.setPosition(position)
     mapInstance.value.setCenter(position)
   }
+}
+
+// selectQuickDestination 将家/公司常用地址复用为目的地，保证下单参数和地图标记走统一入口。
+async function selectQuickDestination(item) {
+  if (!item.address) {
+    closeLocationSearch()
+    router.push({ path: '/addresses', query: { mode: 'create', tag: item.tag } })
+    return
+  }
+  await selectSearchResult({
+    id: item.address.id || item.tag,
+    name: item.address.address,
+    address: item.label,
+    displayAddress: item.address.address,
+    lat: item.address.lat,
+    lng: item.address.lng
+  })
 }
 
 function callCar() {
@@ -631,6 +764,8 @@ function openActiveOrder() {
 
 onMounted(() => {
   initMap()
+  loadCommonAddresses()
+  loadActiveOrder()
   if (localStorage.getItem(newUserPendingGiftKey) === '1' && !localStorage.getItem(welcomeCouponKey)) {
     showWelcomeCoupon.value = true
   } else if (localStorage.getItem(loginCouponPendingKey) === '1') {
@@ -649,6 +784,21 @@ onBeforeUnmount(() => {
 /* 首页样式从最近一次可用构建产物恢复，保持地图和底部操作区原有布局。 */
 .home-page{min-height:100vh;background:#eef2f7;position:relative}.city-switch{display:inline-flex;align-items:center;gap:4px;min-width:0;margin-left:2px;padding:8px 10px;border:0;border-radius:18px;background:#ffffffe6;color:#374151;font-size:13px;box-shadow:0 2px 8px #0f172a1f}.brand-mark{display:flex;align-items:center;gap:9px;min-width:0}.brand-mark img{width:34px;height:34px;border-radius:11px;box-shadow:0 4px 12px #7c3aed35}.brand-mark div{display:flex;flex-direction:column;gap:2px}.brand-mark strong{font-size:14px}.brand-mark span{font-size:10px;color:#64748b}.sheet-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.eyebrow{display:block;margin-bottom:4px;color:#7c3aed;font-size:11px;font-weight:700;letter-spacing:1px}.sheet-heading h1{font-size:23px;line-height:1.2;font-weight:800;color:#111827}.safety-entry{display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:1px solid #ede9fe;border-radius:10px;background:#faf5ff;color:#6d28d9;font-size:12px;white-space:nowrap}.service-promises{display:flex;justify-content:space-between;padding:12px 2px 0;color:#94a3b8;font-size:11px}.service-promises span{display:inline-flex;align-items:center;gap:4px}.service-promises .van-icon{color:#10b981}.map-container{position:fixed;top:0;left:0;width:100%;height:100vh;background:#dde7f0;overflow:hidden}.home-header{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;justify-content:flex-start;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;background:linear-gradient(180deg,#ffffffeb,#fff0);color:#1f2937}.home-header .brand-mark{flex-shrink:1}.home-header .city-switch{flex-shrink:0}.header-actions{display:flex;align-items:center;gap:16px;margin-left:auto}.header-actions .van-icon{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#ffffffe6;box-shadow:0 2px 8px #0f172a1f;cursor:pointer}.fallback-map{position:absolute;top:0;right:0;bottom:0;left:0;background:radial-gradient(circle at 28% 26%,rgba(16,185,129,.18),transparent 18%),radial-gradient(circle at 74% 50%,rgba(245,158,11,.16),transparent 20%),linear-gradient(135deg,#e8f3ff,#f8fafc 54%,#ecfdf5)}.fallback-grid{position:absolute;top:0;right:0;bottom:0;left:0;background-image:linear-gradient(rgba(148,163,184,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.16) 1px,transparent 1px);background-size:36px 36px}.fallback-road{position:absolute;background:#ffffffc7;box-shadow:0 0 0 1px #cbd5e1a3}.road-horizontal{width:120%;height:34px;left:-10%;top:42%;transform:rotate(-8deg)}.road-diagonal{width:34px;height:120%;left:58%;top:-12%;transform:rotate(24deg)}.road-vertical{width:28px;height:80%;left:24%;top:6%;transform:rotate(-14deg)}.current-location-marker{position:absolute;left:50%;top:36%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:#7c3aed29;border-radius:50%;transform:translate(-50%,-50%)}.current-location-marker span{width:12px;height:12px;background:#7c3aed;border:3px solid #FFFFFF;border-radius:50%;box-shadow:0 4px 12px #7c3aed52}.relocate-btn{position:absolute;left:50%;top:66%;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;transform:translate(-50%,-50%);border:0;border-radius:22px;background:#ffffffeb;color:#dc2626;font-size:14px;box-shadow:0 6px 18px #0f172a2e;cursor:pointer}.current-location-btn{position:absolute;right:16px;top:calc(60% - 10px);bottom:auto;z-index:26;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;background:#fffffff2;color:#2563eb;box-shadow:0 4px 14px #0f172a2e;cursor:pointer}.current-location-btn:disabled{color:#94a3b8;cursor:not-allowed;opacity:.75}.relocate-btn:disabled{color:#6b7280;cursor:not-allowed;opacity:.78}.bottom-sheet{position:fixed;right:0;bottom:calc(50px + env(safe-area-inset-bottom));left:0;z-index:25;padding:18px 16px 14px;border-radius:18px 18px 0 0;background:#fff;box-shadow:0 -6px 24px #0f172a24}.pickup-bar{display:flex;align-items:center;gap:10px;padding:10px 0}.pickup-dot{width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0}.pickup-label{color:#6b7280;font-size:13px;flex-shrink:0}.pickup-address{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);font-size:15px;font-weight:500}.destination-box{display:flex;align-items:center;gap:8px;margin:6px 0 14px;padding:14px 16px;border-radius:12px;background:#f3f4f6;cursor:text}.destination-placeholder{color:#6b7280;font-size:15px}.search-history{padding-top:16px}.history-title{margin-bottom:8px;color:#6b7280;font-size:13px}.history-item{width:100%;min-height:58px;display:flex;align-items:center;gap:12px;padding:10px 0;border:0;border-bottom:1px solid #F3F4F6;background:transparent;text-align:left;cursor:pointer}.history-info{min-width:0;display:flex;flex:1;flex-direction:column;gap:4px}.history-name{color:var(--text-primary);font-size:15px}.history-address{overflow:hidden;color:#6b7280;font-size:13px;text-overflow:ellipsis;white-space:nowrap}.active-order-link { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; padding: 12px 14px; border: 1px solid #DDD6FE; border-radius: 10px; background: #F5F3FF; color: #6D28D9; font-size: 13px; cursor: pointer; }
 .active-order-link .active-order-route { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4C1D95; }
-.call-car-btn{width:100%;height:48px;font-size:16px;margin-top:16px}.search-popup{padding:16px;height:100%;overflow-y:auto}.search-mode-title{margin-bottom:14px;color:#111827;font-size:18px;font-weight:600;text-align:center}.result-section-title{padding:18px 0 8px;color:#374151;font-size:15px;font-weight:600}.history-chips{display:flex;gap:8px;overflow-x:auto}.history-chip{min-width:0;display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid #E5E7EB;border-radius:6px;background:#fff;color:#374151;white-space:nowrap}.search-header{display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid #F3F4F6}.search-input{flex:1;height:40px;border:none;outline:none;font-size:15px;background:transparent}.cancel-btn{color:var(--primary-color);font-size:14px;cursor:pointer;white-space:nowrap}.search-results{padding-top:16px}.search-status{display:flex;justify-content:center;padding:56px 0;color:#6b7280}.result-item{width:100%;min-height:68px;display:flex;align-items:center;gap:12px;padding:12px 0;border:0;border-bottom:1px solid #F3F4F6;background:transparent;text-align:left;cursor:pointer}.result-info{min-width:0;display:flex;flex:1;flex-direction:column}.result-distance{flex-shrink:0;color:#9ca3af;font-size:12px}.result-info .name{font-size:15px;font-weight:500;color:var(--text-primary);margin-bottom:4px}.result-info .address{font-size:13px;color:#6b7280}.empty-state{text-align:center;padding:60px 0;color:#9ca3af}.coupon-ad-mask{position:fixed;top:0;right:0;bottom:0;left:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:24px;background:#0f172a7a}.coupon-ad{position:relative;width:min(330px,100%);overflow:hidden;border-radius:16px;background:linear-gradient(145deg,#ef4444,#f97316);box-shadow:0 18px 42px #7f1d1d59}.coupon-ad-close{position:absolute;top:10px;right:10px;z-index:1;width:36px;height:36px;border:0;border-radius:50%;color:#fff;background:#7f1d1d47}.login-coupon-ad{width:min(390px,100%);background:#fff}.login-coupon-ad .coupon-ad-body{padding:0}.login-coupon-ad .coupon-gift-image{max-height:calc(100vh - 72px);width:100%;object-fit:contain}.login-coupon-close{top:auto;right:50%;bottom:-52px;transform:translateX(50%);background:#ffffff;color:#6b21a8;box-shadow:0 2px 10px #0003}.coupon-ad-body{display:flex;width:100%;min-height:300px;align-items:center;flex-direction:column;justify-content:center;gap:8px;padding:42px 28px 28px;border:0;color:#fff;background:transparent}.coupon-gift-image{display:block;width:100%;max-height:420px;object-fit:contain}.coupon-ad-kicker{font-size:14px;opacity:.9}.coupon-ad-title{font-size:26px;line-height:1.25}.coupon-ad-subtitle{font-size:15px;opacity:.92}.coupon-ad-amount{margin:8px 0 2px;font-size:52px;font-weight:800;line-height:1}.coupon-ad-action{margin-top:10px;min-width:150px;padding:11px 24px;border-radius:24px;color:#dc2626;background:#fff7ed;font-size:16px;font-weight:700}
+.call-car-btn{width:100%;height:48px;font-size:16px;margin-top:16px}.search-popup{padding:16px;height:100%;overflow-y:auto}.search-mode-title{margin-bottom:14px;color:#111827;font-size:18px;font-weight:600;text-align:center}.result-section-title{padding:18px 0 8px;color:#374151;font-size:15px;font-weight:600}.history-chips{display:flex;gap:8px;overflow-x:auto}.history-chip{min-width:0;display:flex;align-items:center;gap:6px;padding:8px 10px 8px 12px;border:1px solid #E5E7EB;border-radius:6px;background:#fff;color:#374151;white-space:nowrap}.history-chip span{max-width:112px;overflow:hidden;text-overflow:ellipsis}.history-delete{flex-shrink:0;margin-left:2px;padding:2px;color:#9CA3AF}.quick-addresses{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding-top:14px}.quick-address-button{height:42px;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #E5E7EB;border-radius:6px;background:#fff;color:#374151;font-size:14px;font-weight:500}.quick-address-button.is-empty{color:#7C3AED;background:#F5F3FF;border-color:#DDD6FE}.search-header{display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid #F3F4F6}.search-input{flex:1;height:40px;border:none;outline:none;font-size:15px;background:transparent}.cancel-btn{color:var(--primary-color);font-size:14px;cursor:pointer;white-space:nowrap}.search-results{padding-top:16px}.search-status{display:flex;justify-content:center;padding:56px 0;color:#6b7280}.result-item{width:100%;min-height:68px;display:flex;align-items:center;gap:12px;padding:12px 0;border:0;border-bottom:1px solid #F3F4F6;background:transparent;text-align:left;cursor:pointer}.result-info{min-width:0;display:flex;flex:1;flex-direction:column}.result-distance{flex-shrink:0;color:#9ca3af;font-size:12px}.result-info .name{font-size:15px;font-weight:500;color:var(--text-primary);margin-bottom:4px}.result-info .address{font-size:13px;color:#6b7280}.empty-state{text-align:center;padding:60px 0;color:#9ca3af}.coupon-ad-mask{position:fixed;top:0;right:0;bottom:0;left:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:24px;background:#0f172a7a}.coupon-ad{position:relative;width:min(330px,100%);overflow:hidden;border-radius:16px;background:linear-gradient(145deg,#ef4444,#f97316);box-shadow:0 18px 42px #7f1d1d59}.coupon-ad-close{position:absolute;top:10px;right:10px;z-index:1;width:36px;height:36px;border:0;border-radius:50%;color:#fff;background:#7f1d1d47}.login-coupon-ad{width:min(390px,100%);background:#fff}.login-coupon-ad .coupon-ad-body{padding:0}.login-coupon-ad .coupon-gift-image{max-height:calc(100vh - 72px);width:100%;object-fit:contain}.login-coupon-close{top:auto;right:50%;bottom:-52px;transform:translateX(50%);background:#ffffff;color:#6b21a8;box-shadow:0 2px 10px #0003}.coupon-ad-body{display:flex;width:100%;min-height:300px;align-items:center;flex-direction:column;justify-content:center;gap:8px;padding:42px 28px 28px;border:0;color:#fff;background:transparent}.coupon-gift-image{display:block;width:100%;max-height:420px;object-fit:contain}.coupon-ad-kicker{font-size:14px;opacity:.9}.coupon-ad-title{font-size:26px;line-height:1.25}.coupon-ad-subtitle{font-size:15px;opacity:.92}.coupon-ad-amount{margin:8px 0 2px;font-size:52px;font-weight:800;line-height:1}.coupon-ad-action{margin-top:10px;min-width:150px;padding:11px 24px;border-radius:24px;color:#dc2626;background:#fff7ed;font-size:16px;font-weight:700}
+
+/* 历史目的地按城市分组展示，位于家/公司快捷入口下方。 */
+.search-history{padding-top:14px}
+.history-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.history-title{margin:0;color:#374151;font-size:14px;font-weight:600}
+.history-clear{border:0;background:transparent;color:#7C3AED;font-size:13px;white-space:nowrap}
+.history-city{padding:2px 0 8px}
+.history-city-title{padding:6px 0;color:#111827;font-size:14px;font-weight:700}
+.history-list{display:flex;flex-direction:column}
+.history-row{width:100%;min-height:58px;display:flex;align-items:center;gap:10px;padding:10px 0;border:0;border-bottom:1px solid #F3F4F6;background:transparent;text-align:left}
+.history-row>.van-icon:first-child{flex-shrink:0;color:#9CA3AF}
+.history-row .history-info{min-width:0;display:flex;flex:1;flex-direction:column;gap:4px}
+.history-row .history-name{max-width:100%;overflow:hidden;color:#111827;font-size:15px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.history-row .history-address{max-width:100%;overflow:hidden;color:#6B7280;font-size:13px;text-overflow:ellipsis;white-space:nowrap}
+.history-row .history-delete{width:32px;height:32px;display:flex;align-items:center;justify-content:center;margin-left:4px;padding:0;color:#9CA3AF}
 
 </style>

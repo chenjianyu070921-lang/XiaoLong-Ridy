@@ -141,7 +141,6 @@ message AddressInfo {
   double longitude = 7; // 经度
   double latitude = 8; // 纬度
   bool is_default = 9; // 是否默认地址
-  int32 sort = 10; // 排序值
 }
 
 // CreateAddressRequest 新增常用地址请求。
@@ -154,7 +153,6 @@ message CreateAddressRequest {
   double longitude = 6; // 经度
   double latitude = 7; // 纬度
   bool is_default = 8; // 是否默认地址
-  int32 sort = 9; // 排序值
 }
 
 // ListAddressesRequest 查询常用地址列表请求。
@@ -178,7 +176,6 @@ message UpdateAddressRequest {
   double longitude = 7; // 经度
   double latitude = 8; // 纬度
   bool is_default = 9; // 是否默认地址
-  int32 sort = 10; // 排序值
 }
 
 // DeleteAddressRequest 删除常用地址请求。

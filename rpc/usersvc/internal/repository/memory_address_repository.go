@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"sort"
 	"sync"
 	"time"
 
@@ -60,15 +59,6 @@ func (r *MemoryAddressRepository) ListByUser(_ context.Context, userID uint64) (
 		copied := *address
 		list = append(list, &copied)
 	}
-	sort.Slice(list, func(i, j int) bool {
-		if list[i].IsDefault != list[j].IsDefault {
-			return list[i].IsDefault > list[j].IsDefault
-		}
-		if list[i].Sort != list[j].Sort {
-			return list[i].Sort > list[j].Sort
-		}
-		return list[i].ID < list[j].ID
-	})
 	return list, nil
 }
 
@@ -105,7 +95,6 @@ func (r *MemoryAddressRepository) Update(_ context.Context, address *model.UserA
 	current.Longitude = address.Longitude
 	current.Latitude = address.Latitude
 	current.IsDefault = address.IsDefault
-	current.Sort = address.Sort
 	current.UpdatedAt = time.Now()
 
 	copied := *current
