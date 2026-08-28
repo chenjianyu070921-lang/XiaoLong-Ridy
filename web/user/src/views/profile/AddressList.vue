@@ -101,6 +101,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import AMapLoader from '@amap/amap-jsapi-loader'
+import { getAmapConfig } from '@/config/amap'
 import { createAddress, deleteAddress, listAddresses, updateAddress } from '@/api/address'
 
 const router = useRouter()
@@ -141,8 +142,7 @@ const tagText = (tag) => ({ home: '家', work: '公司', other: '其他' })[tag]
 // ensureAMapReady 初始化高德 POI 搜索能力，地址坐标必须来自用户选择的搜索结果。
 const ensureAMapReady = async () => {
   if (AMapSDK.value) return true
-  const key = import.meta.env.VITE_AMAP_KEY || ''
-  const securityCode = import.meta.env.VITE_AMAP_SECURITY_CODE || ''
+  const { key, securityCode } = getAmapConfig()
   if (!key) {
     showToast('未配置高德地图 Key')
     return false

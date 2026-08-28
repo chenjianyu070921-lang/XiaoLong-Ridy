@@ -26,6 +26,8 @@ type UserInfo {
 	Nickname string `json:"nickname"`
 	AvatarURL string `json:"avatarUrl"`
 	RealNameStatus string `json:"realNameStatus"`
+	RealName string `json:"realName"`
+	IDCardNo string `json:"idCardNo"`
 }
 
 type LoginBySMSResponse {

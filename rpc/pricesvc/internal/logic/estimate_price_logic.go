@@ -31,12 +31,17 @@ func NewEstimatePriceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Est
 	}
 }
 
-// 行程价格预估：根据计价规则 + 里程/时长估算费用。
+// EstimatePrice 行程价格预估：根据计价规则 + 里程/时长估算费用。
 func (l *EstimatePriceLogic) EstimatePrice(in *proto.EstimatePriceRequest) (*proto.EstimatePriceResponse, error) {
 	ruleRepo := repository.NewPriceRuleRepo(l.svcCtx.DB)
 
 	// 1. 查询启用的计价规则
 	pr, err := ruleRepo.FindActive(l.ctx, in.CityCode, int8(in.CarType))
+	// 当前种子数据可能只覆盖部分城市；城市没有专属规则时使用默认城市规则，
+	// 避免乘客端因定位城市不同而无法完成价格预估。后续配置中心补齐城市规则后会自动优先使用精确规则。
+	if errors.Is(err, gorm.ErrRecordNotFound) && in.CityCode != "110000" {
+		pr, err = ruleRepo.FindActive(l.ctx, "110000", int8(in.CarType))
+	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrPriceRuleNotFound

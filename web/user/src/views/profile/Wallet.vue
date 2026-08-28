@@ -51,13 +51,13 @@
         </button>
       </div>
 
-      <div class="transaction-list" v-if="transactions.length > 0">
+      <div class="transaction-list" v-if="visibleTransactions.length > 0" @scroll.passive="handleTransactionScroll">
         <div 
-          v-for="(item, index) in transactions" 
+          v-for="(item, index) in visibleTransactions"
           :key="index"
           class="transaction-item"
         >
-          <div class="icon" :class="item.type">
+          <div class="icon" :class="item.displayType">
             <van-icon :name="item.icon" :size="20" :color="item.color" />
           </div>
           <div class="info">
@@ -73,7 +73,17 @@
       <div class="empty-state" v-else>
         <p>暂无交易记录</p>
       </div>
+      <p v-if="visibleTransactions.length > 0" class="load-hint">{{ hasMoreTransactions ? '上滑加载更早流水' : '已展示全部流水' }}</p>
     </div>
+
+    <!-- 分类筛选弹窗：支持查看不同资金变动类型。 -->
+    <van-action-sheet v-model:show="showFilter" title="筛选交易类型">
+      <div class="filter-options">
+        <button v-for="option in filterOptions" :key="option.value" class="filter-option" :class="{ active: activeFilter === option.value }" @click="selectFilter(option.value)">
+          <span>{{ option.label }}</span><van-icon v-if="activeFilter === option.value" name="success" color="#7C3AED" />
+        </button>
+      </div>
+    </van-action-sheet>
 
     <!-- 充值弹窗 -->
     <van-popup v-model:show="showRecharge" position="bottom" round>
@@ -133,9 +143,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
+import { getWalletLedger, recordWalletTransaction } from '@/api/wallet'
 
 const router = useRouter()
 
@@ -150,6 +161,20 @@ const walletInfo = ref({
 
 // 交易记录由后端接口提供，未加载真实数据前保持为空，避免展示演示记录。
 const transactions = ref([])
+// 首屏展示最近一个月，继续滚动时按 20 条一页追溯更早记录。
+const visibleCount = ref(20)
+const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+const recentTransactions = computed(() => transactions.value.filter(item => new Date(item.time).getTime() >= oneMonthAgo))
+const olderTransactions = computed(() => transactions.value.filter(item => new Date(item.time).getTime() < oneMonthAgo))
+const activeFilter = ref('all')
+const filterOptions = [{ value: 'all', label: '全部交易' }, { value: 'recharge', label: '充值' }, { value: 'withdraw', label: '提现' }, { value: 'coupon', label: '优惠券扣减' }, { value: 'order', label: '下单支付' }]
+const filteredTransactions = computed(() => activeFilter.value === 'all' ? transactions.value : transactions.value.filter(item => item.type === activeFilter.value))
+const visibleTransactions = computed(() => {
+  const recent = filteredTransactions.value.filter(item => new Date(item.time).getTime() >= oneMonthAgo)
+  const older = filteredTransactions.value.filter(item => new Date(item.time).getTime() < oneMonthAgo)
+  return [...recent, ...older].slice(0, visibleCount.value)
+})
+const hasMoreTransactions = computed(() => visibleTransactions.value.length < filteredTransactions.value.length)
 
 // 充值相关
 const showRecharge = ref(false)
@@ -177,15 +202,15 @@ const handleRecharge = async () => {
       duration: 0
     })
 
-    // 调用充值接口
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // 记录充值流水；生产环境可将该调用替换为钱包服务 API。
+    recordWalletTransaction({ type: 'recharge', title: '钱包充值', amount: parseFloat(rechargeAmount.value) })
     
     closeToast()
     showToast('充值成功')
     showRecharge.value = false
     
     // 更新余额
-    walletInfo.value.balance = (Number(walletInfo.value.balance || 0) + parseFloat(rechargeAmount.value)).toFixed(2)
+    loadWallet()
     rechargeAmount.value = ''
   } catch (error) {
     console.error(error)
@@ -213,14 +238,13 @@ const handleWithdraw = async () => {
       duration: 0
     })
 
-    // 调用提现接口
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    recordWalletTransaction({ type: 'withdraw', title: '钱包提现', amount: -parseFloat(withdrawAmount.value) })
     
     closeToast()
     showToast('提现申请已提交')
     
     // 更新余额
-    walletInfo.value.balance = (Number(walletInfo.value.balance || 0) - parseFloat(withdrawAmount.value)).toFixed(2)
+    loadWallet()
     withdrawAmount.value = ''
     return true
   } catch (error) {
@@ -231,9 +255,30 @@ const handleWithdraw = async () => {
   }
 }
 
-onMounted(() => {
-  // 加载钱包数据
-})
+// 将账本流水映射为页面展示字段，保证刷新后数据仍然存在。
+const loadWallet = () => {
+  const ledger = getWalletLedger()
+  walletInfo.value = ledger
+  // 保留原始分类 type 供筛选使用，displayType 只负责图标背景样式。
+  transactions.value = ledger.transactions.map(item => ({
+    ...item,
+    icon: item.type === 'recharge' ? 'plus' : item.type === 'withdraw' ? 'refund-o' : item.type === 'coupon' ? 'coupon-o' : 'balance-o',
+    color: item.amount > 0 ? '#059669' : '#7C3AED',
+    time: new Date(item.time).toLocaleString(),
+    displayType: item.amount > 0 ? 'income' : item.type === 'coupon' ? 'expense' : 'refund'
+  }))
+}
+
+// 列表接近底部时追加历史流水，避免一次性渲染大量数据。
+const handleTransactionScroll = event => {
+  const el = event.currentTarget
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40 && hasMoreTransactions.value) visibleCount.value += 20
+}
+
+// 切换分类后重置分页，从最新流水开始展示。
+const selectFilter = value => { activeFilter.value = value; visibleCount.value = 20; showFilter.value = false }
+
+onMounted(loadWallet)
 </script>
 
 <style scoped>
@@ -428,6 +473,18 @@ onMounted(() => {
   padding: 40px 0;
   color: #9CA3AF;
 }
+
+/* 历史流水加载提示，避免用户误以为列表已经结束。 */
+.load-hint {
+  margin: 8px 0 0;
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 12px;
+}
+
+.filter-options { padding: 0 16px 16px; }
+.filter-option { width: 100%; height: 48px; display: flex; align-items: center; justify-content: space-between; border: 0; border-bottom: 1px solid #F3F4F6; background: #fff; color: #374151; font-size: 15px; text-align: left; }
+.filter-option.active { color: #7C3AED; font-weight: 600; }
 
 /* 充值弹窗 */
 .recharge-popup {

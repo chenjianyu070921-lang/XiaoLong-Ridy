@@ -65,6 +65,8 @@ message UserInfo {
   string nickname = 3; // 昵称
   string avatar_url = 4; // 头像地址
   string real_name_status = 5; // 实名认证状态：UNVERIFIED/VERIFIED
+  string real_name = 6; // 脱敏后的实名姓名
+  string id_card_no = 7; // 脱敏后的身份证号
 }
 
 // LoginBySMSResponse 短信验证码登录响应。

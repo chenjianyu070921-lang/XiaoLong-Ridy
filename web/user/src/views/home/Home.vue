@@ -125,6 +125,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AMapLoader from '@amap/amap-jsapi-loader'
+import { getAmapConfig } from '@/config/amap'
 import { showToast } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { listAddresses } from '@/api/address'
@@ -271,8 +272,7 @@ function clearRecentDestinations() {
 
 // 初始化高德地图及定位、地点搜索和逆地理编码服务。
 async function initMap() {
-  const key = import.meta.env.VITE_AMAP_KEY || ''
-  const securityCode = import.meta.env.VITE_AMAP_SECURITY_CODE || ''
+  const { key, securityCode } = getAmapConfig()
   if (!key) {
     locationFailed.value = true
     showToast('未配置高德地图 Key')

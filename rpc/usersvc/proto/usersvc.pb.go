@@ -180,6 +180,8 @@ type UserInfo struct {
 	Nickname       string                 `protobuf:"bytes,3,opt,name=nickname,proto3" json:"nickname,omitempty"`                                     // 昵称
 	AvatarUrl      string                 `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`                  // 头像地址
 	RealNameStatus string                 `protobuf:"bytes,5,opt,name=real_name_status,json=realNameStatus,proto3" json:"real_name_status,omitempty"` // 实名认证状态：UNVERIFIED/VERIFIED
+	RealName       string                 `protobuf:"bytes,6,opt,name=real_name,json=realName,proto3" json:"real_name,omitempty"`                     // 脱敏后的实名姓名
+	IdCardNo       string                 `protobuf:"bytes,7,opt,name=id_card_no,json=idCardNo,proto3" json:"id_card_no,omitempty"`                   // 脱敏后的身份证号
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -245,6 +247,20 @@ func (x *UserInfo) GetAvatarUrl() string {
 func (x *UserInfo) GetRealNameStatus() string {
 	if x != nil {
 		return x.RealNameStatus
+	}
+	return ""
+}
+
+func (x *UserInfo) GetRealName() string {
+	if x != nil {
+		return x.RealName
+	}
+	return ""
+}
+
+func (x *UserInfo) GetIdCardNo() string {
+	if x != nil {
+		return x.IdCardNo
 	}
 	return ""
 }
@@ -2224,14 +2240,17 @@ const file_rpc_usersvc_proto_usersvc_proto_rawDesc = "" +
 	"\texpire_in\x18\x02 \x01(\x03R\bexpireIn\"=\n" +
 	"\x11LoginBySMSRequest\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\"\x9e\x01\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\"\xd9\x01\n" +
 	"\bUserInfo\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x14\n" +
 	"\x05phone\x18\x02 \x01(\tR\x05phone\x12\x1a\n" +
 	"\bnickname\x18\x03 \x01(\tR\bnickname\x12\x1d\n" +
 	"\n" +
 	"avatar_url\x18\x04 \x01(\tR\tavatarUrl\x12(\n" +
-	"\x10real_name_status\x18\x05 \x01(\tR\x0erealNameStatus\"\x96\x01\n" +
+	"\x10real_name_status\x18\x05 \x01(\tR\x0erealNameStatus\x12\x1b\n" +
+	"\treal_name\x18\x06 \x01(\tR\brealName\x12\x1c\n" +
+	"\n" +
+	"id_card_no\x18\a \x01(\tR\bidCardNo\"\x96\x01\n" +
 	"\x12LoginBySMSResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1e\n" +

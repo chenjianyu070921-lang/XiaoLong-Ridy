@@ -22,7 +22,7 @@ sms:
 tokenAuth:
   signingKey: "local-development-signing-key"
 tencentCloud:
-  secretId: "axMeMqAqC7dSjc" # axMeMqAqC7dSjc 腾讯云实名认证id
-  secretKey: "c7yOfdspqwvJLelxUscNXvR3rd0U"  # c7yOfdspqwvJLelxUscNXvR3rd0U 腾讯云实名认证id
+  secretId: "PLgN8xXcqE6MeasD" # PLgN8xXcqE6MeasD 腾讯云实名认证id
+  secretKey: "eTLVnQIoSKKsC1kq0BinF5p3tB0hsRGt"  # eTLVnQIoSKKsC1kq0BinF5p3tB0hsRGt 腾讯云实名认证id
   region: "ap-beijing"  # 地域：ap-beijing / ap-guangzhou / ap-shanghai 等
 
