@@ -323,7 +323,7 @@ Query 参数：
 
 `GET /admin/v1/users/{id}`
 
-Path：`id`（int64）。不存在返回 `404 / 40401`。
+Path：`id`（int64）。Query 可传 `sensitive=1` 显式申请查看完整手机号和身份证号；服务端仅允许超级管理员和运营角色查看，并写操作日志。默认返回脱敏值，不存在返回 `404 / 40401`。
 
 ### 5.3 冻结 / 解冻用户
 
@@ -631,7 +631,9 @@ Body：
 
 Query：`keyword`（名称）、`type`（1/2/3）、`status`（1/2/3）、`start_time`/`end_time`、`page`/`page_size`。
 
-列表项字段：`id`、`name`、`type`、`config`、`start_at`、`end_at`、`status`、`created_by`、`created_at`、`updated_at`。
+列表项字段：`id`、`name`、`type`、`config`、`start_at`、`end_at`、`status`、`created_by`、`created_at`、`updated_at`、`publish_scope`、`target_config`、`published_at`、`rollback_at`。
+
+说明：`publish_scope`、`target_config`、`published_at`、`rollback_at` 由 `admin_operation_log` 中最近一次结构化发布/回滚记录回填；历史文本日志无法解析目标配置时仅返回主表字段和可识别时间。
 
 ### 10.2 新增活动
 
@@ -642,8 +644,8 @@ Body：
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `name` | string | 是 | 活动名称 |
-| `type` | int | 是 | 1/2/3 |
-| `config` | string | 是 | 合法 JSON 字符串，如 `{"city_code":"110000","discount":"8.00"}` |
+| `type` | int | 是 | 1 拉新，2 折扣，3 立减 |
+| `config` | string | 是 | 合法 JSON 字符串；拉新需含 `coupon_id` 或 `reward_coupon_id`，折扣需含大于 0 的 `discount`，立减需含大于 0 的 `amount` 或 `face_value` |
 | `start_at` / `end_at` | string | 是 | 时间范围，结束晚于开始 |
 | `status` | int | 是 | 1 草稿/未开始，2 运行中，3 已结束 |
 
@@ -670,14 +672,14 @@ Body：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `publish_scope` | string | 否 | 发布范围（publish 使用） |
-| `target_config` | string | 否 | 目标配置 JSON 字符串 |
+| `publish_scope` | string | 否 | 发布范围，支持 `all`/`full`/`gray`；空值按 `all` 兼容 |
+| `target_config` | string | 否 | 目标配置 JSON 字符串；灰度发布必须包含非空 `user_ids` 或 `city_codes` |
 
 ```json
 { "publish_scope": "all", "target_config": "{}" }
 ```
 
-发布置状态 2，回滚置状态 1，并写操作日志。不存在返回 `404 / 40401`。
+发布要求活动从状态 1 流转到状态 2，回滚要求活动从状态 2 流转到状态 1，并写入结构化操作日志。状态不满足时返回前置条件错误；不存在或状态不匹配时不改写活动数据。
 
 ---
 
@@ -868,7 +870,9 @@ Body：`reason`（string，可选）。
 
 Query：`target_type`、`target_id`、`scene`（场景）、`risk_level`、`page`/`page_size`。
 
-列表项字段：`id`、`blacklist_id`、`target_type`、`target_id`、`scene`、`risk_level`、`hit_reason`、`request_id`、`created_at`。
+列表项字段：`id`、`blacklist_id`、`target_type`、`target_id`、`scene`、`risk_level`、`hit_reason`、`request_id`、`created_at`、`handle_status`、`handle_action`、`handled_by`、`handled_at`、`work_order_id`。
+
+`handle_status` 取值：`pending`（待处理）、`review_pass`（已复核通过）、`blacklisted`（已拉黑）、`work_order`（已转工单）。当前命中表不新增状态字段，状态由 `admin_operation_log`、`blacklist`、`admin_complaint_work_order` 推导。
 
 说明：风控命中记录依赖 `risk_blacklist_hit_record` 表，联调前需确认业务库已应用对应迁移。
 
@@ -878,7 +882,7 @@ Query：`target_type`、`target_id`、`scene`（场景）、`risk_level`、`page
 
 `POST /admin/v1/risk/hit-records/actions`
 
-仅超级管理员可调用。
+权限：超级管理员可执行 `review_pass`、`add_blacklist`、`create_work_order`；运营可执行 `review_pass`、`create_work_order`；客服无权调用。
 
 ```json
 {
@@ -890,7 +894,7 @@ Query：`target_type`、`target_id`、`scene`（场景）、`risk_level`、`page
 }
 ```
 
-`action` 支持 `review_pass`、`add_blacklist`、`create_work_order`。由于命中表没有处理状态字段，`review_pass` 只写操作日志；其余动作分别写入黑名单或工单及审计记录。响应返回 `success_count`、`fail_count`、`work_order_ids`、`failure_reasons`。
+`action` 支持 `review_pass`、`add_blacklist`、`create_work_order`。重复复核、重复拉黑、重复转工单会按单条失败返回到 `failure_reasons`；响应返回 `success_count`、`fail_count`、`work_order_ids`、`failure_reasons`。
 
 ---
 
@@ -908,5 +912,5 @@ Query：`admin_id`（int64）、`module`、`action`、`target_type`、`target_id
 
 1. **数据库迁移注意**：`admin_coupon_issue_task`、`risk_blacklist_hit_record`、`admin_export_task` 等表需按数据库发布流程应用迁移脚本，代码不会自动修改线上数据库。
 2. **写操作注意**：`freeze/unfreeze`、审核通过/驳回、发券、发布/回滚、拉黑、计价规则新增/编辑/启停等会真实改动业务库并写操作日志，测试时建议使用测试账号/可回滚数据。
-3. **文档规划但未开放的路由**（返回 404）：`GET /drivers`、`GET /drivers/{id}`、`POST /drivers/{id}/freeze`、`GET /orders/{id}/track`、`POST /orders/{id}/redispatch`、`POST /orders/{id}/refund`、`GET /user-coupons`、`GET /dashboard/overview`、`GET /statistics/{revenue,drivers,users}`。
+3. **文档规划但未开放的路由**（返回 404）：`GET /dashboard/overview`、旧路径 `GET /statistics/{revenue,drivers,users}`。`GET /user-coupons` 已开放但必须带 `user_id`，链路为 `api/admin -> adminsvc.ListUserCoupons -> usersvc.ListMyCoupons`；`GET /orders/{id}/track` 已开放，链路为 `api/admin -> adminsvc.GetOrderTrack -> locationsvc.GetOrderTrack`；`POST /orders/{id}/redispatch` 已开放，链路为 `api/admin -> adminsvc.RedispatchOrder -> ordersvc.RedispatchOrder`；`POST /orders/{id}/refund` 已开放，链路为 `api/admin -> adminsvc.RefundOrder -> ordersvc.ForceRefundOrder`，其中 `request_id` 作为退款单号和幂等号。司机列表、司机详情和司机冻结已开放，链路为 `api/admin -> adminsvc -> driversvc`，冻结后由 adminsvc 调用 pushsvc 通知司机；司机详情默认脱敏，`sensitive=1` 仅超级管理员和运营角色可查看完整手机号、身份证号和驾驶证号。push 通知或冻结补偿失败会写入 `admin_audit_outbox`，由 `job` 定时重试；支付通道 MQ 退款补偿流水线仍需后续完善。
 4. **自动化验证**：当前已通过 `go test ./api/admin/... ./rpc/adminsvc/... ./rpc/pricesvc/... ./rpc/driversvc/...`；路由 smoke 用例需继续补齐管理员管理、用户历史、导出下载和工单接口覆盖。

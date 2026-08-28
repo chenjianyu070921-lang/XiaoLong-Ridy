@@ -47,6 +47,8 @@ service AdminService {
   rpc ListDrivers(DriverListRequest) returns (DriverListResponse);
   // 查询司机基础资料详情。
   rpc GetDriver(DriverDetailRequest) returns (Driver);
+  // 冻结司机。
+  rpc FreezeDriver(FreezeDriverRequest) returns (CommonResponse);
   // 查询司机审核列表。
   rpc ListDriverCertifications(DriverCertificationListRequest) returns (DriverCertificationListResponse);
   // 查询司机审核详情。
@@ -59,8 +61,14 @@ service AdminService {
   rpc ListOrders(OrderListRequest) returns (OrderListResponse);
   // 查询订单详情。
   rpc GetOrder(OrderDetailRequest) returns (OrderDetail);
+  // 查询订单轨迹。
+  rpc GetOrderTrack(OrderTrackRequest) returns (OrderTrackResponse);
   // 后台取消订单。
   rpc CancelOrder(AdminCancelOrderRequest) returns (CommonResponse);
+  // 后台人工改派订单。
+  rpc RedispatchOrder(AdminRedispatchOrderRequest) returns (AdminRedispatchOrderResponse);
+  // 后台发起订单退款。
+  rpc RefundOrder(AdminRefundOrderRequest) returns (AdminRefundOrderResponse);
   // 查询异常订单列表。
   rpc ListAbnormalOrders(AbnormalOrderListRequest) returns (AbnormalOrderListResponse);
   // 查询优惠券模板列表。
@@ -107,6 +115,8 @@ service AdminService {
   rpc GetFinanceStatistics(StatisticsRequest) returns (FinanceStatisticsResponse);
   // 查询优惠券统计。
   rpc GetCouponStatistics(StatisticsRequest) returns (CouponStatisticsResponse);
+  // 查询用户统计。
+  rpc GetUserStatistics(StatisticsRequest) returns (UserStatisticsResponse);
   // 创建导出任务。
   rpc CreateExportTask(ExportTaskRequest) returns (ExportTaskResponse);
   // 查询导出任务列表。
@@ -268,6 +278,7 @@ message UserListRequest {
 
 message UserDetailRequest {
   int64 id = 1;
+  bool sensitive = 2;
 }
 
 // AdminListRequest 表示管理员列表查询条件。
@@ -394,6 +405,15 @@ message DriverListRequest {
 
 message DriverDetailRequest {
   int64 id = 1;
+  bool sensitive = 2;
+}
+
+message FreezeDriverRequest {
+  int64 id = 1;
+  string reason = 2;
+  string remark = 3;
+  int64 admin_id = 4;
+  string ip = 5;
 }
 
 message Driver {
@@ -484,12 +504,67 @@ message OrderDetailRequest {
   int64 id = 1;
 }
 
+message OrderTrackRequest {
+  int64 order_id = 1;
+  int64 start_time = 2;
+  int64 end_time = 3;
+  int32 limit = 4;
+}
+
+message OrderTrackPoint {
+  int64 id = 1;
+  int64 order_id = 2;
+  int64 driver_id = 3;
+  string longitude = 4;
+  string latitude = 5;
+  string speed_kmh = 6;
+  int32 direction = 7;
+  string recorded_at = 8;
+}
+
+message OrderTrackResponse {
+  repeated OrderTrackPoint points = 1;
+}
+
 message AdminCancelOrderRequest {
   int64 order_id = 1;
   string reason = 2;
   int64 admin_id = 3;
   string ip = 4;
   string request_id = 5;
+}
+
+message AdminRedispatchOrderRequest {
+  int64 order_id = 1;
+  int64 new_driver_id = 2;
+  string reason = 3;
+  int64 admin_id = 4;
+  string ip = 5;
+  string request_id = 6;
+}
+
+message AdminRedispatchOrderResponse {
+  int64 order_id = 1;
+  int32 status = 2;
+  int64 driver_id = 3;
+  string message = 4;
+}
+
+message AdminRefundOrderRequest {
+  int64 order_id = 1;
+  int64 refund_amount_cents = 2;
+  string reason = 3;
+  int64 admin_id = 4;
+  string ip = 5;
+  string request_id = 6;
+}
+
+message AdminRefundOrderResponse {
+  int64 order_id = 1;
+  int32 status = 2;
+  int64 refund_cents = 3;
+  string refund_no = 4;
+  string message = 5;
 }
 
 message Order {
@@ -847,6 +922,14 @@ message PromotionActivity {
   int64 created_by = 8;
   string created_at = 9;
   string updated_at = 10;
+  // 最近一次发布范围：all/gray；未发布时为空。
+  string publish_scope = 11;
+  // 最近一次发布目标配置 JSON；未发布时为空。
+  string target_config = 12;
+  // 最近一次发布时间。
+  string published_at = 13;
+  // 最近一次回滚时间。
+  string rollback_at = 14;
 }
 
 message PromotionActivityListResponse {
@@ -890,6 +973,27 @@ message CouponStatisticsResponse {
   int64 used_coupon_count = 4;
   int64 expired_coupon_count = 5;
   string use_rate = 6;
+}
+
+message UserStatisticsResponse {
+  // 当前未删除用户总数。
+  int64 user_total = 1;
+  // 统计时间范围内新增用户数。
+  int64 new_user_count = 2;
+  // 统计时间范围内有订单行为的活跃用户数。
+  int64 active_user_count = 3;
+  // 统计时间范围内下单用户数。
+  int64 order_user_count = 4;
+  // 统计时间范围内下单超过 1 单的复购用户数。
+  int64 repeat_order_user_count = 5;
+  // 统计时间范围内投诉或申诉相关用户数。
+  int64 complaint_user_count = 6;
+  // 当前处于有效黑名单的用户数。
+  int64 risk_user_count = 7;
+  // 复购率：repeat_order_user_count / order_user_count。
+  string reorder_rate = 8;
+  // 投诉率：complaint_user_count / active_user_count。
+  string complaint_rate = 9;
 }
 
 message DriverStatisticsResponse {
@@ -1177,6 +1281,16 @@ message RiskHitRecord {
   string hit_reason = 7;
   string request_id = 8;
   string created_at = 9;
+  // 处置状态：pending/review_pass/blacklisted/work_order，基于现有审计、黑名单和工单表推导。
+  string handle_status = 10;
+  // 最近一次处置动作：review_pass/hit_add_blacklist/hit_create_work_order。
+  string handle_action = 11;
+  // 最近一次处置管理员 ID。
+  int64 handled_by = 12;
+  // 最近一次处置时间。
+  string handled_at = 13;
+  // 转工单动作创建的工单 ID；未转工单时为 0。
+  int64 work_order_id = 14;
 }
 
 message RiskHitRecordListResponse {

@@ -263,15 +263,36 @@ func (l *ListPromotionActivitiesLogic) ListPromotionActivities(in *adminsvc.Prom
 	}
 	where, args := buildPromotionWhere(in)
 	var total int64
-	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM promotion_activity `+where, args...).Scan(&total); err != nil {
+	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM promotion_activity p `+where, args...).Scan(&total); err != nil {
 		return nil, err
 	}
 	limit := normalizePageSize(in.GetPageSize())
 	queryArgs := append(args, limit, offset(in.GetPage(), in.GetPageSize()))
 	rows, err := l.svcCtx.MySQL.QueryContext(l.ctx, `
-		SELECT id, name, type, config, start_at, end_at, status, created_by, created_at, updated_at
-		FROM promotion_activity `+where+`
-		ORDER BY id DESC
+		SELECT p.id, p.name, p.type, p.config, p.start_at, p.end_at, p.status, p.created_by, p.created_at, p.updated_at,
+		       COALESCE((
+		         SELECT log.detail
+		         FROM admin_operation_log log
+		         WHERE log.module = 'promotion' AND log.action = 'publish' AND log.target_type = 'promotion_activity' AND log.target_id = p.id
+		         ORDER BY log.id DESC
+		         LIMIT 1
+		       ), '') AS publish_detail,
+		       (
+		         SELECT log.created_at
+		         FROM admin_operation_log log
+		         WHERE log.module = 'promotion' AND log.action = 'publish' AND log.target_type = 'promotion_activity' AND log.target_id = p.id
+		         ORDER BY log.id DESC
+		         LIMIT 1
+		       ) AS published_at,
+		       (
+		         SELECT log.created_at
+		         FROM admin_operation_log log
+		         WHERE log.module = 'promotion' AND log.action = 'rollback' AND log.target_type = 'promotion_activity' AND log.target_id = p.id
+		         ORDER BY log.id DESC
+		         LIMIT 1
+		       ) AS rollback_at
+		FROM promotion_activity p `+where+`
+		ORDER BY p.id DESC
 		LIMIT ? OFFSET ?
 	`, queryArgs...)
 	if err != nil {
@@ -280,7 +301,7 @@ func (l *ListPromotionActivitiesLogic) ListPromotionActivities(in *adminsvc.Prom
 	defer rows.Close()
 	list := make([]*adminsvc.PromotionActivity, 0)
 	for rows.Next() {
-		item, err := scanPromotionActivity(rows)
+		item, err := scanPromotionActivityWithPublishState(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -396,7 +417,7 @@ func (l *PublishPromotionActivityLogic) PublishPromotionActivity(in *adminsvc.Pr
 	if err := validatePromotionAction(in, true); err != nil {
 		return nil, err
 	}
-	if err := changePromotionStatusWithAudit(l.ctx, l.svcCtx, in.GetId(), 1, 2, in.GetAdminId(), "publish", fmt.Sprintf("发布活动，范围：%s，配置：%s", normalizePromotionPublishScope(in.GetPublishScope()), in.GetTargetConfig()), in.GetIp()); err != nil {
+	if err := changePromotionStatusWithAudit(l.ctx, l.svcCtx, in.GetId(), 1, 2, in.GetAdminId(), "publish", promotionActionDetail("publish", normalizePromotionPublishScope(in.GetPublishScope()), in.GetTargetConfig()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -421,7 +442,7 @@ func (l *RollbackPromotionActivityLogic) RollbackPromotionActivity(in *adminsvc.
 	if err := validatePromotionAction(in, false); err != nil {
 		return nil, err
 	}
-	if err := changePromotionStatusWithAudit(l.ctx, l.svcCtx, in.GetId(), 2, 1, in.GetAdminId(), "rollback", fmt.Sprintf("回滚活动，配置：%s", in.GetTargetConfig()), in.GetIp()); err != nil {
+	if err := changePromotionStatusWithAudit(l.ctx, l.svcCtx, in.GetId(), 2, 1, in.GetAdminId(), "rollback", promotionActionDetail("rollback", normalizePromotionPublishScope(in.GetPublishScope()), in.GetTargetConfig()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
@@ -668,6 +689,64 @@ func (l *GetCouponStatisticsLogic) GetCouponStatistics(in *adminsvc.StatisticsRe
 	return resp, nil
 }
 
+// GetUserStatisticsLogic 处理用户增长、下单、复购、投诉和风险统计。
+type GetUserStatisticsLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+// NewGetUserStatisticsLogic 创建用户统计逻辑对象。
+func NewGetUserStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserStatisticsLogic {
+	return &GetUserStatisticsLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+// GetUserStatistics 基于现有用户、订单、工单和黑名单表实时聚合用户运营指标。
+// 当前项目没有独立 App 活跃事件表，因此 active_user_count 使用统计范围内有订单行为的用户数作为可靠口径。
+func (l *GetUserStatisticsLogic) GetUserStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.UserStatisticsResponse, error) {
+	if strings.TrimSpace(in.GetCityCode()) != "" {
+		return nil, status.Error(codes.FailedPrecondition, "当前用户、订单和工单表未保存统一城市编码，暂不支持按城市统计")
+	}
+	userWhere, userArgs := buildCreatedAtWhere("u.created_at", in.GetStartTime(), in.GetEndTime())
+	orderWhere, orderArgs := buildCreatedAtWhere("ro.created_at", in.GetStartTime(), in.GetEndTime())
+	workOrderWhere, workOrderArgs := buildCreatedAtWhere("wo.created_at", in.GetStartTime(), in.GetEndTime())
+
+	resp := &adminsvc.UserStatisticsResponse{}
+	// 所有指标放在同一条 SELECT 中读取，保证报表口径在同一数据库快照内完成计算。
+	args := make([]any, 0, len(userArgs)+len(orderArgs)*3+len(workOrderArgs))
+	args = append(args, userArgs...)
+	args = append(args, orderArgs...)
+	args = append(args, orderArgs...)
+	args = append(args, orderArgs...)
+	args = append(args, workOrderArgs...)
+	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+		SELECT
+			(SELECT COUNT(1) FROM user WHERE deleted_at IS NULL),
+			(SELECT COUNT(1) FROM user u `+appendWhere(userWhere, "u.deleted_at IS NULL")+`),
+			(SELECT COUNT(DISTINCT ro.user_id) FROM ride_order ro `+appendWhere(orderWhere, "ro.user_id > 0")+`),
+			(SELECT COUNT(DISTINCT ro.user_id) FROM ride_order ro `+appendWhere(orderWhere, "ro.user_id > 0")+`),
+			(SELECT COUNT(1)
+			 FROM (
+				SELECT ro.user_id
+				FROM ride_order ro
+				`+appendWhere(orderWhere, "ro.user_id > 0")+`
+				GROUP BY ro.user_id
+				HAVING COUNT(1) > 1
+			 ) repeat_users),
+			(SELECT COUNT(DISTINCT wo.user_id)
+			 FROM admin_complaint_work_order wo
+			 `+appendWhere(workOrderWhere, "wo.user_id > 0")+`),
+			(SELECT COUNT(1) FROM blacklist WHERE target_type = 'user' AND status = 1)
+	`, args...).Scan(&resp.UserTotal, &resp.NewUserCount, &resp.ActiveUserCount,
+		&resp.OrderUserCount, &resp.RepeatOrderUserCount, &resp.ComplaintUserCount,
+		&resp.RiskUserCount)
+	if err != nil {
+		return nil, err
+	}
+	resp.ReorderRate = percentText(resp.RepeatOrderUserCount, resp.OrderUserCount)
+	resp.ComplaintRate = percentText(resp.ComplaintUserCount, resp.ActiveUserCount)
+	return resp, nil
+}
+
 // CreateExportTaskLogic 处理导出任务创建。
 type CreateExportTaskLogic struct {
 	ctx    context.Context
@@ -867,6 +946,11 @@ func (l *AddBlacklistLogic) AddBlacklist(in *adminsvc.BlacklistRequest) (*admins
 	if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, in.GetAdminId(), "risk", "add_blacklist", "blacklist", id, fmt.Sprintf("新增黑名单：%s/%d", in.GetTargetType(), in.GetTargetId()), in.GetIp()); err != nil {
 		return nil, err
 	}
+	if in.GetTargetType() == "driver" {
+		if err := freezeRiskDriverAfterBlacklist(l.ctx, l.svcCtx, in.GetTargetId(), in.GetReason(), in.GetAdminId(), in.GetIp()); err != nil {
+			return nil, err
+		}
+	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
 }
 
@@ -920,15 +1004,50 @@ func (l *ListRiskHitRecordsLogic) ListRiskHitRecords(in *adminsvc.RiskHitRecordL
 	}
 	where, args := buildRiskHitWhere(in)
 	var total int64
-	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM risk_blacklist_hit_record `+where, args...).Scan(&total); err != nil {
+	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM risk_blacklist_hit_record r `+where, args...).Scan(&total); err != nil {
 		return nil, err
 	}
 	limit := normalizePageSize(in.GetPageSize())
 	queryArgs := append(args, limit, offset(in.GetPage(), in.GetPageSize()))
 	rows, err := l.svcCtx.MySQL.QueryContext(l.ctx, `
-		SELECT id, blacklist_id, target_type, target_id, scene, risk_level, hit_reason, request_id, created_at
-		FROM risk_blacklist_hit_record `+where+`
-		ORDER BY id DESC
+		SELECT r.id, r.blacklist_id, r.target_type, r.target_id, r.scene, r.risk_level, r.hit_reason, r.request_id, r.created_at,
+		       COALESCE((
+		         SELECT wo.id
+		         FROM admin_complaint_work_order wo
+		         WHERE wo.source_type = r.target_type AND wo.source_id = r.target_id AND wo.work_order_type = 3
+		         ORDER BY wo.id DESC
+		         LIMIT 1
+		       ), 0) AS work_order_id,
+		       COALESCE((
+		         SELECT bl.id
+		         FROM blacklist bl
+		         WHERE bl.target_type = r.target_type AND bl.target_id = r.target_id AND bl.status = 1
+		         ORDER BY bl.id DESC
+		         LIMIT 1
+		       ), 0) AS active_blacklist_id,
+		       COALESCE((
+		         SELECT log.action
+		         FROM admin_operation_log log
+		         WHERE log.module = 'risk' AND log.target_type = 'risk_hit_record' AND log.target_id = r.id
+		         ORDER BY log.id DESC
+		         LIMIT 1
+		       ), '') AS review_action,
+		       COALESCE((
+		         SELECT log.admin_id
+		         FROM admin_operation_log log
+		         WHERE log.module = 'risk' AND log.target_type = 'risk_hit_record' AND log.target_id = r.id
+		         ORDER BY log.id DESC
+		         LIMIT 1
+		       ), 0) AS review_admin_id,
+		       (
+		         SELECT log.created_at
+		         FROM admin_operation_log log
+		         WHERE log.module = 'risk' AND log.target_type = 'risk_hit_record' AND log.target_id = r.id
+		         ORDER BY log.id DESC
+		         LIMIT 1
+		       ) AS review_at
+		FROM risk_blacklist_hit_record r `+where+`
+		ORDER BY r.id DESC
 		LIMIT ? OFFSET ?
 	`, queryArgs...)
 	if err != nil {
@@ -937,7 +1056,7 @@ func (l *ListRiskHitRecordsLogic) ListRiskHitRecords(in *adminsvc.RiskHitRecordL
 	defer rows.Close()
 	list := make([]*adminsvc.RiskHitRecord, 0)
 	for rows.Next() {
-		item, err := scanRiskHitRecord(rows)
+		item, err := scanRiskHitRecordWithDisposition(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -1003,7 +1122,13 @@ func (l *HandleRiskHitRecordsLogic) handleOneRiskHit(id int64, in *adminsvc.Risk
 	if err != nil {
 		return 0, err
 	}
+	if err := ensureRiskHitActionAllowed(l.ctx, tx, hit, in.GetAction()); err != nil {
+		return 0, err
+	}
 	var workOrderID int64
+	var freezeDriverAfterCommit bool
+	var freezeDriverID int64
+	var freezeReason string
 	switch in.GetAction() {
 	case "review_pass":
 		if err = createOperationLogTx(l.ctx, tx, in.GetAdminId(), "risk", "review_pass", "risk_hit_record", id, riskHitLogDetail(hit, in.GetReason()), in.GetIp()); err != nil {
@@ -1026,6 +1151,9 @@ func (l *HandleRiskHitRecordsLogic) handleOneRiskHit(id int64, in *adminsvc.Risk
 		if err = createOperationLogTx(l.ctx, tx, in.GetAdminId(), "risk", "hit_add_blacklist", "blacklist", blacklistID, riskHitLogDetail(hit, in.GetReason()), in.GetIp()); err != nil {
 			return 0, err
 		}
+		freezeDriverAfterCommit = hit.GetTargetType() == "driver"
+		freezeDriverID = hit.GetTargetId()
+		freezeReason = strings.TrimSpace(in.GetReason())
 	case "create_work_order":
 		workOrderID, err = insertRiskHitWorkOrderTx(l.ctx, tx, hit, in)
 		if err != nil {
@@ -1037,7 +1165,15 @@ func (l *HandleRiskHitRecordsLogic) handleOneRiskHit(id int64, in *adminsvc.Risk
 	default:
 		return 0, status.Error(codes.InvalidArgument, "风控处置动作不合法")
 	}
-	return workOrderID, tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	if freezeDriverAfterCommit {
+		if err := freezeRiskDriverAfterBlacklist(l.ctx, l.svcCtx, freezeDriverID, freezeReason, in.GetAdminId(), in.GetIp()); err != nil {
+			return 0, err
+		}
+	}
+	return workOrderID, nil
 }
 
 // insertRiskHitWorkOrderTx 将高风险命中转为后台工单，供运营继续仲裁、补证和结案。
@@ -1189,6 +1325,43 @@ func validatePromotionTargetConfig(scope, raw string) error {
 	return status.Error(codes.InvalidArgument, "灰度发布必须指定user_ids或city_codes")
 }
 
+// promotionActionLogDetail 表示活动发布/回滚写入审计日志的结构化详情。
+// 结构化 JSON 让列表接口可以可靠回填发布范围和目标人群，避免从中文描述中做脆弱字符串解析。
+type promotionActionLogDetail struct {
+	Action       string `json:"action"`
+	PublishScope string `json:"publish_scope"`
+	TargetConfig string `json:"target_config"`
+}
+
+// promotionActionDetail 生成活动动作审计 JSON；若序列化异常则退回到简单文本，保证主流程不因日志格式化中断。
+func promotionActionDetail(action, scope, targetConfig string) string {
+	if strings.TrimSpace(targetConfig) == "" {
+		targetConfig = "{}"
+	}
+	payload := promotionActionLogDetail{Action: action, PublishScope: scope, TargetConfig: targetConfig}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Sprintf("%s活动，范围：%s，配置：%s", action, scope, targetConfig)
+	}
+	return string(data)
+}
+
+// applyPromotionPublishState 根据最近一次发布/回滚审计日志补齐活动列表展示字段。
+// 历史文本日志无法安全解析目标配置时只返回时间，不影响活动列表主数据。
+func applyPromotionPublishState(item *adminsvc.PromotionActivity, detail string, publishedAt, rollbackAt sql.NullTime) {
+	item.PublishedAt = formatNullTime(publishedAt)
+	item.RollbackAt = formatNullTime(rollbackAt)
+	if strings.TrimSpace(detail) == "" {
+		return
+	}
+	var payload promotionActionLogDetail
+	if err := json.Unmarshal([]byte(detail), &payload); err != nil {
+		return
+	}
+	item.PublishScope = payload.PublishScope
+	item.TargetConfig = payload.TargetConfig
+}
+
 // positiveJSONNumber 判断 JSON 数值字段是否为正整数。
 func positiveJSONNumber(value any) bool {
 	switch v := value.(type) {
@@ -1314,23 +1487,23 @@ func buildPromotionWhere(in *adminsvc.PromotionActivityListRequest) (string, []a
 	parts := []string{"1=1"}
 	args := make([]any, 0)
 	if in.GetKeyword() != "" {
-		parts = append(parts, "name LIKE ?")
+		parts = append(parts, "p.name LIKE ?")
 		args = append(args, "%"+in.GetKeyword()+"%")
 	}
 	if in.GetType() > 0 {
-		parts = append(parts, "type = ?")
+		parts = append(parts, "p.type = ?")
 		args = append(args, in.GetType())
 	}
 	if in.GetStatus() > 0 {
-		parts = append(parts, "status = ?")
+		parts = append(parts, "p.status = ?")
 		args = append(args, in.GetStatus())
 	}
 	if in.GetStartTime() != "" {
-		parts = append(parts, "created_at >= ?")
+		parts = append(parts, "p.created_at >= ?")
 		args = append(args, in.GetStartTime())
 	}
 	if in.GetEndTime() != "" {
-		parts = append(parts, "created_at <= ?")
+		parts = append(parts, "p.created_at <= ?")
 		args = append(args, in.GetEndTime())
 	}
 	return "WHERE " + strings.Join(parts, " AND "), args
@@ -1360,19 +1533,19 @@ func buildRiskHitWhere(in *adminsvc.RiskHitRecordListRequest) (string, []any) {
 	parts := []string{"1=1"}
 	args := make([]any, 0)
 	if in.GetTargetType() != "" {
-		parts = append(parts, "target_type = ?")
+		parts = append(parts, "r.target_type = ?")
 		args = append(args, in.GetTargetType())
 	}
 	if in.GetTargetId() > 0 {
-		parts = append(parts, "target_id = ?")
+		parts = append(parts, "r.target_id = ?")
 		args = append(args, in.GetTargetId())
 	}
 	if in.GetScene() != "" {
-		parts = append(parts, "scene = ?")
+		parts = append(parts, "r.scene = ?")
 		args = append(args, in.GetScene())
 	}
 	if in.GetRiskLevel() > 0 {
-		parts = append(parts, "risk_level = ?")
+		parts = append(parts, "r.risk_level = ?")
 		args = append(args, in.GetRiskLevel())
 	}
 	return "WHERE " + strings.Join(parts, " AND "), args
@@ -1430,6 +1603,24 @@ func scanPromotionActivity(rows *sql.Rows) (*adminsvc.PromotionActivity, error) 
 	item.EndAt = formatNullTime(endAt)
 	item.CreatedAt = formatNullTime(createdAt)
 	item.UpdatedAt = formatNullTime(updatedAt)
+	return &item, nil
+}
+
+// scanPromotionActivityWithPublishState 扫描活动配置和最近发布/回滚审计信息。
+// 发布范围和目标人群不写入 promotion_activity 主表，列表通过结构化操作日志回填，保证不改表也能让后台看见投放闭环。
+func scanPromotionActivityWithPublishState(rows *sql.Rows) (*adminsvc.PromotionActivity, error) {
+	var item adminsvc.PromotionActivity
+	var startAt, endAt, createdAt, updatedAt sql.NullTime
+	var detail sql.NullString
+	var publishedAt, rollbackAt sql.NullTime
+	if err := rows.Scan(&item.Id, &item.Name, &item.Type, &item.Config, &startAt, &endAt, &item.Status, &item.CreatedBy, &createdAt, &updatedAt, &detail, &publishedAt, &rollbackAt); err != nil {
+		return nil, err
+	}
+	item.StartAt = formatNullTime(startAt)
+	item.EndAt = formatNullTime(endAt)
+	item.CreatedAt = formatNullTime(createdAt)
+	item.UpdatedAt = formatNullTime(updatedAt)
+	applyPromotionPublishState(&item, detail.String, publishedAt, rollbackAt)
 	return &item, nil
 }
 
@@ -1606,6 +1797,23 @@ func scanRiskHitRecord(rows *sql.Rows) (*adminsvc.RiskHitRecord, error) {
 	return scanRiskHitRecordScanner(rows)
 }
 
+// scanRiskHitRecordWithDisposition 扫描命中记录及基于现有表推导的处置闭环字段。
+// 项目当前禁止在本轮修改数据库结构，因此处置状态不落新列，而是由工单、黑名单和审计记录共同推导。
+func scanRiskHitRecordWithDisposition(rows *sql.Rows) (*adminsvc.RiskHitRecord, error) {
+	var item adminsvc.RiskHitRecord
+	var createdAt sql.NullTime
+	var workOrderID, activeBlacklistID, reviewAdminID int64
+	var reviewAction sql.NullString
+	var reviewAt sql.NullTime
+	if err := rows.Scan(&item.Id, &item.BlacklistId, &item.TargetType, &item.TargetId, &item.Scene, &item.RiskLevel,
+		&item.HitReason, &item.RequestId, &createdAt, &workOrderID, &activeBlacklistID, &reviewAction, &reviewAdminID, &reviewAt); err != nil {
+		return nil, err
+	}
+	item.CreatedAt = formatNullTime(createdAt)
+	applyRiskHitDisposition(&item, workOrderID, activeBlacklistID, reviewAction.String, reviewAdminID, reviewAt)
+	return &item, nil
+}
+
 // scanRiskHitRecordRow 扫描单条风控命中记录，并将空结果转换为业务 NotFound。
 func scanRiskHitRecordRow(row *sql.Row) (*adminsvc.RiskHitRecord, error) {
 	item, err := scanRiskHitRecordScanner(row)
@@ -1625,6 +1833,53 @@ func scanRiskHitRecordScanner(rows interface{ Scan(...any) error }) (*adminsvc.R
 	}
 	item.CreatedAt = formatNullTime(createdAt)
 	return &item, nil
+}
+
+// applyRiskHitDisposition 将处置来源统一折叠成前端可读状态。
+// 优先级按业务终态排序：已转工单 > 已拉黑 > 已复核 > 待处理。
+func applyRiskHitDisposition(item *adminsvc.RiskHitRecord, workOrderID, activeBlacklistID int64, reviewAction string, reviewAdminID int64, reviewAt sql.NullTime) {
+	item.HandleStatus = "pending"
+	if strings.TrimSpace(reviewAction) != "" {
+		item.HandleStatus = "review_pass"
+		item.HandleAction = reviewAction
+		item.HandledBy = reviewAdminID
+		item.HandledAt = formatNullTime(reviewAt)
+	}
+	if activeBlacklistID > 0 || item.GetBlacklistId() > 0 {
+		item.HandleStatus = "blacklisted"
+		item.HandleAction = "hit_add_blacklist"
+	}
+	if workOrderID > 0 {
+		item.HandleStatus = "work_order"
+		item.HandleAction = "hit_create_work_order"
+		item.WorkOrderId = workOrderID
+	}
+}
+
+// ensureRiskHitActionAllowed 在无状态字段的前提下做重复处置保护。
+// 复核通过依赖 risk_hit_record 审计日志，转工单依赖来源工单，拉黑依赖生效黑名单，避免同一命中记录被反复人工处理。
+func ensureRiskHitActionAllowed(ctx context.Context, tx *sql.Tx, hit *adminsvc.RiskHitRecord, action string) error {
+	switch action {
+	case "review_pass":
+		var count int64
+		err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM admin_operation_log WHERE module = 'risk' AND action = 'review_pass' AND target_type = 'risk_hit_record' AND target_id = ?`, hit.GetId()).Scan(&count)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			return status.Error(codes.AlreadyExists, "命中记录已复核通过")
+		}
+	case "create_work_order":
+		var count int64
+		err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM admin_complaint_work_order WHERE work_order_type = 3 AND source_type = ? AND source_id = ? AND status IN (1,2,3,4)`, hit.GetTargetType(), hit.GetTargetId()).Scan(&count)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			return status.Error(codes.AlreadyExists, "命中目标已存在风控工单")
+		}
+	}
+	return nil
 }
 
 // uniquePositiveIDs 对批量请求中的 ID 去重并丢弃非正数，防止重复执行同一业务动作。

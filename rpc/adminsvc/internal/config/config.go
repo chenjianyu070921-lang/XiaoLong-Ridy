@@ -18,7 +18,11 @@ type Config struct {
 	// UsersRPC 供后台查询用户优惠券历史，数据读取仍由 usersvc 负责。
 	UsersRPC   zrpc.RpcClientConf `json:"UsersRPC,optional" yaml:"UsersRPC"`
 	DriversRPC zrpc.RpcClientConf `json:"DriversRPC,optional" yaml:"DriversRPC"`
-	PricesRPC  zrpc.RpcClientConf `json:"PricesRPC,optional" yaml:"PricesRPC"`
+	// LocationsRPC 供后台订单轨迹回放查询，轨迹点读取仍由 locationsvc 负责。
+	LocationsRPC zrpc.RpcClientConf `json:"LocationsRPC,optional" yaml:"LocationsRPC"`
+	PricesRPC    zrpc.RpcClientConf `json:"PricesRPC,optional" yaml:"PricesRPC"`
+	// PushRPC 供后台司机冻结、审核和风控处置后通知司机端。
+	PushRPC zrpc.RpcClientConf `json:"PushRPC,optional" yaml:"PushRPC"`
 	// DisableDownstreamRPC 仅供本地最小服务集使用。启用后不创建未启动下游服务的 gRPC 客户端，
 	// 避免本地开发时由连接重试占用大量内存；默认 false，线上行为保持不变。
 	DisableDownstreamRPC bool                       `json:"DisableDownstreamRPC,optional" yaml:"DisableDownstreamRPC"`

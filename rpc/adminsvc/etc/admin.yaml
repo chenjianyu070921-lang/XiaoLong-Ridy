@@ -180,6 +180,9 @@ DispatchRPC:
 DriversRPC:
   Target: 127.0.0.1:5055
   NonBlock: true
+LocationsRPC:
+  Target: 127.0.0.1:9001
+  NonBlock: true
 PricesRPC:
   Target: 127.0.0.1:50053
   NonBlock: true

@@ -2,6 +2,7 @@ package adminservicelogic
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -207,6 +210,38 @@ func TestAddBlacklist_CreatesOutboxAndReturnsSuccess(t *testing.T) {
 	}
 }
 
+// TestAddBlacklist_DriverFreezeFailureWritesOutboxAndReturnsSuccess 验证司机拉黑已提交后，
+// driversvc 冻结失败会写入补偿任务，接口仍保持黑名单主处置成功语义。
+func TestAddBlacklist_DriverFreezeFailureWritesOutboxAndReturnsSuccess(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	svcCtx.DriverSvc = &fakeDriversClient{freezeErr: errors.New("driversvc unavailable")}
+
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM blacklist WHERE target_type = \? AND target_id = \? AND status = 1`).
+		WithArgs("driver", int64(2001)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectExec(`INSERT INTO blacklist`).
+		WithArgs("driver", int64(2001), "高危刷单", int64(9001)).
+		WillReturnResult(sqlmock.NewResult(89, 1))
+	mock.ExpectExec(`INSERT INTO admin_operation_log`).
+		WithArgs(int64(9001), "risk", "add_blacklist", "blacklist", int64(89), "新增黑名单：driver/2001", "127.0.0.1").
+		WillReturnResult(sqlmock.NewResult(99, 1))
+	mock.ExpectExec(`INSERT INTO admin_audit_outbox`).
+		WithArgs(sqlmock.AnyArg(), "risk", "freeze_driver", "driver", int64(2001), int64(9001), "风控黑名单联动冻结司机：高危刷单", "127.0.0.1", "driversvc unavailable").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	resp, err := NewAddBlacklistLogic(context.Background(), svcCtx).AddBlacklist(&adminsvc.BlacklistRequest{
+		TargetType: "driver",
+		TargetId:   2001,
+		Reason:     "高危刷单",
+		AdminId:    9001,
+		Ip:         "127.0.0.1",
+	})
+	if err != nil || resp.GetMessage() != "ok" {
+		t.Fatalf("AddBlacklist() = %#v, %v; want blacklist success with freeze outbox", resp, err)
+	}
+}
+
 // TestAddBlacklist_RejectsDuplicateActiveTarget 验证新增黑名单前会拒绝重复生效记录，避免同一目标被多次拉黑。
 func TestAddBlacklist_RejectsDuplicateActiveTarget(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
@@ -224,6 +259,88 @@ func TestAddBlacklist_RejectsDuplicateActiveTarget(t *testing.T) {
 	})
 	if status.Code(err) != codes.AlreadyExists {
 		t.Fatalf("AddBlacklist() error code = %v, want AlreadyExists", status.Code(err))
+	}
+}
+
+// TestListRiskHitRecords_ReturnsDerivedDisposition 验证风控命中列表会返回由审计、黑名单和工单推导出的处置状态。
+// 当前数据库表没有 handle_status 字段，因此这里显式断言服务层聚合字段，避免前端只能看到待处理原始命中。
+func TestListRiskHitRecords_ReturnsDerivedDisposition(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	createdAt := time.Date(2026, 8, 28, 10, 0, 0, 0, time.Local)
+	handledAt := time.Date(2026, 8, 28, 10, 5, 0, 0, time.Local)
+
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM risk_blacklist_hit_record r WHERE 1=1 AND r.target_type = \?`).
+		WithArgs("driver").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT r\.id, r\.blacklist_id, r\.target_type, r\.target_id, r\.scene, r\.risk_level, r\.hit_reason, r\.request_id, r\.created_at,`).
+		WithArgs("driver", int32(20), int32(0)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "blacklist_id", "target_type", "target_id", "scene", "risk_level", "hit_reason", "request_id", "created_at",
+			"work_order_id", "active_blacklist_id", "review_action", "review_admin_id", "review_at",
+		}).AddRow(int64(11), int64(0), "driver", int64(2001), "dispatch", int32(3), "高危派单", "req-1", createdAt, int64(900), int64(88), "review_pass", int64(7001), handledAt))
+
+	resp, err := NewListRiskHitRecordsLogic(context.Background(), svcCtx).ListRiskHitRecords(&adminsvc.RiskHitRecordListRequest{
+		Page: 1, PageSize: 20, TargetType: "driver",
+	})
+	if err != nil {
+		t.Fatalf("ListRiskHitRecords() error = %v", err)
+	}
+	if len(resp.GetList()) != 1 {
+		t.Fatalf("ListRiskHitRecords() list len = %d, want 1", len(resp.GetList()))
+	}
+	item := resp.GetList()[0]
+	if item.GetHandleStatus() != "work_order" || item.GetHandleAction() != "hit_create_work_order" || item.GetWorkOrderId() != 900 {
+		t.Fatalf("RiskHitRecord disposition = %#v, want derived work_order status", item)
+	}
+}
+
+// TestHandleRiskHitRecords_RejectsOpsAddBlacklist 验证运营角色不能执行高危拉黑动作。
+// 风控权限分层保持在 adminsvc 服务端校验，避免客户端绕过 HTTP 菜单或按钮限制。
+func TestHandleRiskHitRecords_RejectsOpsAddBlacklist(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	server := miniredis.RunT(t)
+	defer server.Close()
+	svcCtx.Redis = redis.NewClient(&redis.Options{Addr: server.Addr()})
+	mock.ExpectQuery(`SELECT id, username, password_hash, real_name, role, status\s+FROM admin_user\s+WHERE id = \? AND deleted_at IS NULL`).
+		WithArgs(int64(9002)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password_hash", "real_name", "role", "status"}).
+			AddRow(int64(9002), "ops", "hash", "运营", int32(2), int32(1)))
+
+	_, err := NewHandleRiskHitRecordsLogic(contextWithAdminSession(t, svcCtx, 9002, 2), svcCtx).HandleRiskHitRecords(&adminsvc.RiskHitActionRequest{
+		Ids: []int64{11}, Action: "add_blacklist", Reason: "高危命中", AdminId: 9002,
+	})
+	if status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("HandleRiskHitRecords() code = %v, want PermissionDenied", status.Code(err))
+	}
+}
+
+// TestHandleRiskHitRecords_RejectsDuplicateReviewPass 验证重复复核不会再次写审计。
+// 批量处置采用单条失败汇总语义，因此重复处置会体现在 fail_count 和 failure_reasons 中。
+func TestHandleRiskHitRecords_RejectsDuplicateReviewPass(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	createdAt := time.Date(2026, 8, 28, 10, 0, 0, 0, time.Local)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT id, blacklist_id, target_type, target_id, scene, risk_level, hit_reason, request_id, created_at\s+FROM risk_blacklist_hit_record\s+WHERE id = \?\s+FOR UPDATE`).
+		WithArgs(int64(11)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "blacklist_id", "target_type", "target_id", "scene", "risk_level", "hit_reason", "request_id", "created_at"}).
+			AddRow(int64(11), int64(0), "user", int64(1001), "login", int32(2), "异常登录", "req-1", createdAt))
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM admin_operation_log WHERE module = 'risk' AND action = 'review_pass' AND target_type = 'risk_hit_record' AND target_id = \?`).
+		WithArgs(int64(11)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectRollback()
+
+	resp, err := NewHandleRiskHitRecordsLogic(context.Background(), svcCtx).HandleRiskHitRecords(&adminsvc.RiskHitActionRequest{
+		Ids: []int64{11}, Action: "review_pass", AdminId: 9001,
+	})
+	if err != nil {
+		t.Fatalf("HandleRiskHitRecords() error = %v", err)
+	}
+	if resp.GetSuccessCount() != 0 || resp.GetFailCount() != 1 || len(resp.GetFailureReasons()) != 1 {
+		t.Fatalf("HandleRiskHitRecords() = %#v, want one duplicate failure", resp)
 	}
 }
 
@@ -264,6 +381,52 @@ func TestPromotionActivityValidation_RequiresTypedRule(t *testing.T) {
 	})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("validatePromotionActivity(empty rule) code = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
+// TestListPromotionActivities_ReturnsPublishState 验证活动列表会回填最近一次发布范围、目标配置和回滚时间。
+// 这些字段来自结构化操作日志，不修改 promotion_activity 表结构，便于运营后台确认投放闭环。
+func TestListPromotionActivities_ReturnsPublishState(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	startAt := time.Date(2026, 8, 28, 9, 0, 0, 0, time.Local)
+	endAt := time.Date(2026, 8, 29, 9, 0, 0, 0, time.Local)
+	createdAt := time.Date(2026, 8, 28, 8, 0, 0, 0, time.Local)
+	publishedAt := time.Date(2026, 8, 28, 10, 0, 0, 0, time.Local)
+	rollbackAt := time.Date(2026, 8, 28, 11, 0, 0, 0, time.Local)
+	detail := `{"action":"publish","publish_scope":"gray","target_config":"{\"user_ids\":[1001]}"}`
+
+	mock.ExpectQuery(`SELECT COUNT\(1\) FROM promotion_activity p WHERE 1=1 AND p\.status = \?`).
+		WithArgs(int32(2)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT p\.id, p\.name, p\.type, p\.config, p\.start_at, p\.end_at, p\.status, p\.created_by, p\.created_at, p\.updated_at,`).
+		WithArgs(int32(2), int32(20), int32(0)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "name", "type", "config", "start_at", "end_at", "status", "created_by", "created_at", "updated_at",
+			"publish_detail", "published_at", "rollback_at",
+		}).AddRow(int64(7), "灰度折扣活动", int32(2), `{"discount":"0.85"}`, startAt, endAt, int32(2), int64(9001), createdAt, createdAt, detail, publishedAt, rollbackAt))
+
+	resp, err := NewListPromotionActivitiesLogic(context.Background(), svcCtx).ListPromotionActivities(&adminsvc.PromotionActivityListRequest{
+		Page: 1, PageSize: 20, Status: 2,
+	})
+	if err != nil {
+		t.Fatalf("ListPromotionActivities() error = %v", err)
+	}
+	if len(resp.GetList()) != 1 {
+		t.Fatalf("ListPromotionActivities() list len = %d, want 1", len(resp.GetList()))
+	}
+	item := resp.GetList()[0]
+	if item.GetPublishScope() != "gray" || item.GetTargetConfig() != `{"user_ids":[1001]}` || item.GetPublishedAt() == "" || item.GetRollbackAt() == "" {
+		t.Fatalf("PromotionActivity publish state = %#v, want structured publish state", item)
+	}
+}
+
+// TestPromotionActionDetail_RoundTrip 验证活动动作日志使用可解析 JSON，支撑列表回填投放目标。
+func TestPromotionActionDetail_RoundTrip(t *testing.T) {
+	item := &adminsvc.PromotionActivity{}
+	applyPromotionPublishState(item, promotionActionDetail("publish", "all", `{}`), sql.NullTime{}, sql.NullTime{})
+	if item.GetPublishScope() != "all" || item.GetTargetConfig() != `{}` {
+		t.Fatalf("applyPromotionPublishState() = %#v, want parsed publish detail", item)
 	}
 }
 

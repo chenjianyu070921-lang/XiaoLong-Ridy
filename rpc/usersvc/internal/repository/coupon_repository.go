@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"XiaoLong-Ridy/rpc/usersvc/internal/model"
 )
@@ -24,11 +25,24 @@ type UserCouponWithTemplate struct {
 	Coupon     *model.Coupon
 }
 
+// AdminUserCouponQuery 表示管理后台查询用户券的筛选条件。
+// 所有字段均为只读查询条件，不参与任何券状态修改。
+type AdminUserCouponQuery struct {
+	UserID    uint64
+	CouponID  uint64
+	Status    int8
+	StartTime time.Time
+	EndTime   time.Time
+	Page      int
+	PageSize  int
+}
+
 // CouponRepository 定义优惠券领取和查询仓储契约。
 type CouponRepository interface {
 	Claim(ctx context.Context, userID, couponID uint64) (*UserCouponWithTemplate, error)
 	ListByUser(ctx context.Context, userID uint64, status int8) ([]*UserCouponWithTemplate, error)
 	ListByUserPage(ctx context.Context, userID uint64, status int8, page, pageSize int) ([]*UserCouponWithTemplate, int64, error)
+	ListForAdminPage(ctx context.Context, query AdminUserCouponQuery) ([]*UserCouponWithTemplate, int64, error)
 	Lock(ctx context.Context, userID, userCouponID, orderID uint64, carType int8, cityCode string) (*UserCouponWithTemplate, error)
 	Release(ctx context.Context, userID, userCouponID, orderID uint64) error
 	ReleaseByOrder(ctx context.Context, userID, orderID uint64) error

@@ -53,6 +53,11 @@ func (s *DriverServiceServer) GetDriverByPhone(ctx context.Context, in *__proto.
 	return l.GetDriverByPhone(in)
 }
 
+func (s *DriverServiceServer) FreezeDriver(ctx context.Context, in *__proto.FreezeDriverRequest) (*__proto.CommonResponse, error) {
+	l := logic.NewFreezeDriverLogic(ctx, s.svcCtx)
+	return l.FreezeDriver(in)
+}
+
 func (s *DriverServiceServer) SetDriverOnline(ctx context.Context, in *__proto.SetDriverOnlineRequest) (*__proto.SetDriverOnlineResponse, error) {
 	l := logic.NewSetDriverOnlineLogic(ctx, s.svcCtx)
 	return l.SetDriverOnline(in)

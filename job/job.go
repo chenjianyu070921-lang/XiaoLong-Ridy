@@ -68,6 +68,17 @@ func main() {
 	}()
 
 	go func() {
+		// 管理后台 outbox 补偿：覆盖审计重写、司机冻结重放和 pushsvc 通知重试。
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := h.RetryAdminAuditOutbox(); err != nil {
+				logx.Errorf("RetryAdminAuditOutbox failed: %v", err)
+			}
+		}
+	}()
+
+	go func() {
 		for {
 			now := time.Now()
 			next := time.Date(now.Year(), now.Month(), now.Day()+1, 1, 0, 0, 0, now.Location())
@@ -82,6 +93,7 @@ func main() {
 	logx.Info("定时任务:")
 	logx.Info("  - 每小时: 清理过期位置数据")
 	logx.Info("  - 每10秒: 派单失败补偿重试")
+	logx.Info("  - 每30秒: 管理后台 outbox 补偿重试")
 	logx.Info("  - 每1分钟: 超时未接单订单自动取消")
 	logx.Info("  - 每30秒: 派单超时重派")
 	logx.Info("  - 每日凌晨1点: 生成统计报表")

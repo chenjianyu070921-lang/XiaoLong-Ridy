@@ -39,6 +39,11 @@ func (s *LocationServiceServer) ReportLocation(ctx context.Context, in *location
 	return l.ReportLocation(in)
 }
 
+func (s *LocationServiceServer) GetOrderTrack(ctx context.Context, in *locationsvc.GetOrderTrackReq) (*locationsvc.GetOrderTrackResp, error) {
+	l := logic.NewGetOrderTrackLogic(ctx, s.svcCtx)
+	return l.GetOrderTrack(in)
+}
+
 func (s *LocationServiceServer) NearbyDrivers(ctx context.Context, in *locationsvc.NearbyDriversReq) (*locationsvc.NearbyDriversResp, error) {
 	l := logic.NewNearbyDriversLogic(ctx, s.svcCtx)
 	return l.NearbyDrivers(in)

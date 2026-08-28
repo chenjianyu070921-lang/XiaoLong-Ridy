@@ -39,13 +39,30 @@ func (l *DriverLogic) ListDrivers(ctx context.Context, req types.DriverListReque
 }
 
 // DriverDetail 查询司机基础资料详情。
-func (l *DriverLogic) DriverDetail(ctx context.Context, id int64) (*types.DriverDTO, error) {
-	resp, err := l.ctx.AdminSvc.GetDriver(ctx, &adminclient.DriverDetailRequest{Id: id})
+// sensitive 为 true 时表示后台管理员显式申请查看完整手机号、身份证号和驾驶证号，由 adminsvc 做二次授权与审计。
+func (l *DriverLogic) DriverDetail(ctx context.Context, id int64, sensitive bool) (*types.DriverDTO, error) {
+	resp, err := l.ctx.AdminSvc.GetDriver(ctx, &adminclient.DriverDetailRequest{Id: id, Sensitive: sensitive})
 	if err != nil {
 		return nil, err
 	}
 	item := toDriverDTO(resp)
 	return &item, nil
+}
+
+// FreezeDriver 冻结司机账号，HTTP 层只做参数适配，状态变更由 adminsvc 转发到 driversvc。
+func (l *DriverLogic) FreezeDriver(ctx context.Context, id int64, req types.DriverFreezeRequest, session *model.AdminSession, ip string) error {
+	adminID := int64(0)
+	if session != nil {
+		adminID = session.AdminID
+	}
+	_, err := l.ctx.AdminSvc.FreezeDriver(ctx, &adminclient.FreezeDriverRequest{
+		Id:      id,
+		Reason:  req.Reason,
+		Remark:  req.Remark,
+		AdminId: adminID,
+		Ip:      ip,
+	})
+	return err
 }
 
 func toDriverDTO(item *adminclient.Driver) types.DriverDTO {
@@ -71,6 +88,7 @@ func toDriverDTO(item *adminclient.Driver) types.DriverDTO {
 		UpdatedAt:       item.UpdatedAt,
 	}
 }
+
 // ListCertifications 查询司机审核列表。
 func (l *DriverLogic) ListCertifications(ctx context.Context, req types.DriverCertificationListRequest) (*types.PageResult, error) {
 	resp, err := l.ctx.AdminSvc.ListDriverCertifications(ctx, &adminclient.DriverCertificationListRequest{

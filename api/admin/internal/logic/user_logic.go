@@ -6,7 +6,6 @@ import (
 	"XiaoLong-Ridy/api/admin/internal/model"
 	"XiaoLong-Ridy/api/admin/internal/svc"
 	"XiaoLong-Ridy/api/admin/internal/types"
-	adminpb "XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
 )
 
@@ -18,15 +17,19 @@ type UserLogic struct {
 
 // OrderHistory 查询指定用户的订单历史，并保持后台统一分页响应。
 func (l *UserLogic) OrderHistory(ctx context.Context, id int64, page, pageSize int, status int32) (*types.PageResult, error) {
-	resp, err := adminpb.NewAdminServiceClient(l.ctx.AdminRPCClient.Conn()).ListUserOrders(ctx, &adminpb.UserHistoryRequest{UserId: id, Status: status, Page: int32(page), PageSize: int32(pageSize)})
-	if err != nil { return nil, err }
+	resp, err := l.ctx.AdminSvc.ListUserOrders(ctx, &adminclient.UserHistoryRequest{UserId: id, Status: status, Page: int32(page), PageSize: int32(pageSize)})
+	if err != nil {
+		return nil, err
+	}
 	return &types.PageResult{List: resp.GetList(), Total: resp.GetTotal(), Page: int(resp.GetPage()), PageSize: int(resp.GetPageSize())}, nil
 }
 
 // CouponHistory 查询指定用户的优惠券历史，并保持后台统一分页响应。
 func (l *UserLogic) CouponHistory(ctx context.Context, id int64, page, pageSize int, status int32) (*types.PageResult, error) {
-	resp, err := adminpb.NewAdminServiceClient(l.ctx.AdminRPCClient.Conn()).ListUserCoupons(ctx, &adminpb.UserCouponHistoryRequest{UserId: id, Status: status, Page: int32(page), PageSize: int32(pageSize)})
-	if err != nil { return nil, err }
+	resp, err := l.ctx.AdminSvc.ListUserCoupons(ctx, &adminclient.UserCouponHistoryRequest{UserId: id, Status: status, Page: int32(page), PageSize: int32(pageSize)})
+	if err != nil {
+		return nil, err
+	}
 	return &types.PageResult{List: resp.GetList(), Total: resp.GetTotal(), Page: int(resp.GetPage()), PageSize: int(resp.GetPageSize())}, nil
 }
 
@@ -68,8 +71,9 @@ func (l *UserLogic) List(ctx context.Context, req types.UserListRequest) (*types
 }
 
 // Detail 查询单个用户详情。
-func (l *UserLogic) Detail(ctx context.Context, id int64) (*types.UserDTO, error) {
-	resp, err := l.ctx.AdminSvc.GetUser(ctx, &adminclient.UserDetailRequest{Id: id})
+// sensitive 为 true 时表示后台管理员显式申请查看完整手机号和身份证号，adminsvc 会再次校验权限并写审计。
+func (l *UserLogic) Detail(ctx context.Context, id int64, sensitive bool) (*types.UserDTO, error) {
+	resp, err := l.ctx.AdminSvc.GetUser(ctx, &adminclient.UserDetailRequest{Id: id, Sensitive: sensitive})
 	if err != nil {
 		return nil, err
 	}

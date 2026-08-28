@@ -193,6 +193,16 @@ func (f *fakeAdminService) GetUser(ctx context.Context, in *adminclient.UserDeta
 	return &adminclient.User{Id: in.GetId(), Phone: "13800000000", Nickname: "用户", Status: 1}, nil
 }
 
+// ListUserOrders 返回用户订单历史，用于验证用户详情子资源路由。
+func (f *fakeAdminService) ListUserOrders(ctx context.Context, in *adminclient.UserHistoryRequest, opts ...grpc.CallOption) (*adminclient.OrderListResponse, error) {
+	return &adminclient.OrderListResponse{List: []*adminclient.Order{{Id: 1, OrderNo: "RO202608280001", UserId: in.GetUserId(), Status: in.GetStatus()}}, Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize()}, nil
+}
+
+// ListUserCoupons 返回用户优惠券历史，用于验证用户详情子资源路由。
+func (f *fakeAdminService) ListUserCoupons(ctx context.Context, in *adminclient.UserCouponHistoryRequest, opts ...grpc.CallOption) (*adminclient.UserCouponHistoryResponse, error) {
+	return &adminclient.UserCouponHistoryResponse{List: []*adminclient.UserCouponHistory{{UserCouponId: 11, CouponId: 22, Name: "测试券", Status: in.GetStatus()}}, Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize()}, nil
+}
+
 // FreezeUser 返回冻结成功结果，用于验证用户状态操作路由。
 func (f *fakeAdminService) FreezeUser(ctx context.Context, in *adminclient.ChangeUserStatusRequest, opts ...grpc.CallOption) (*adminclient.CommonResponse, error) {
 	return &adminclient.CommonResponse{Message: "ok"}, nil
@@ -212,6 +222,7 @@ func (f *fakeAdminService) ListDrivers(ctx context.Context, in *adminclient.Driv
 func (f *fakeAdminService) GetDriver(ctx context.Context, in *adminclient.DriverDetailRequest, opts ...grpc.CallOption) (*adminclient.Driver, error) {
 	return &adminclient.Driver{Id: in.GetId(), Phone: "13900000000", RealName: "司机", Status: 2, PlateNo: "京A12345", AuditStatus: 2}, nil
 }
+
 // ListDriverCertifications 返回司机审核列表，用于验证司机审核列表路由。
 func (f *fakeAdminService) ListDriverCertifications(ctx context.Context, in *adminclient.DriverCertificationListRequest, opts ...grpc.CallOption) (*adminclient.DriverCertificationListResponse, error) {
 	return &adminclient.DriverCertificationListResponse{List: []*adminclient.DriverCertification{{Id: 1, DriverId: 10, DriverPhone: "13900000000", DriverName: "司机", AuditStatus: 1}}, Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize()}, nil
@@ -242,9 +253,24 @@ func (f *fakeAdminService) GetOrder(ctx context.Context, in *adminclient.OrderDe
 	return &adminclient.OrderDetail{Order: &adminclient.Order{Id: in.GetId(), OrderNo: "ORD001", UserId: 1001, DriverId: 2002, Status: 4}}, nil
 }
 
+// GetOrderTrack 返回订单轨迹点，用于验证后台轨迹回放路由。
+func (f *fakeAdminService) GetOrderTrack(ctx context.Context, in *adminclient.OrderTrackRequest, opts ...grpc.CallOption) (*adminclient.OrderTrackResponse, error) {
+	return &adminclient.OrderTrackResponse{Points: []*adminclient.OrderTrackPoint{{Id: 1, OrderId: in.GetOrderId(), DriverId: 2002, Longitude: "116.400000", Latitude: "39.900000", SpeedKmh: "20.5", Direction: 90, RecordedAt: "2026-08-28 10:00:00"}}}, nil
+}
+
 // CancelOrder 返回后台取消订单成功结果，用于验证取消路由。
 func (f *fakeAdminService) CancelOrder(ctx context.Context, in *adminclient.AdminCancelOrderRequest, opts ...grpc.CallOption) (*adminclient.CommonResponse, error) {
 	return &adminclient.CommonResponse{Message: "ok"}, nil
+}
+
+// RedispatchOrder 返回后台人工改派成功结果，用于验证改派路由。
+func (f *fakeAdminService) RedispatchOrder(ctx context.Context, in *adminclient.AdminRedispatchOrderRequest, opts ...grpc.CallOption) (*adminclient.AdminRedispatchOrderResponse, error) {
+	return &adminclient.AdminRedispatchOrderResponse{OrderId: in.GetOrderId(), Status: 1, DriverId: in.GetNewDriverId(), Message: "ok"}, nil
+}
+
+// RefundOrder 返回后台退款成功结果，用于验证退款路由。
+func (f *fakeAdminService) RefundOrder(ctx context.Context, in *adminclient.AdminRefundOrderRequest, opts ...grpc.CallOption) (*adminclient.AdminRefundOrderResponse, error) {
+	return &adminclient.AdminRefundOrderResponse{OrderId: in.GetOrderId(), Status: 8, RefundCents: in.GetRefundAmountCents(), RefundNo: in.GetRequestId(), Message: "ok"}, nil
 }
 
 // ListAbnormalOrders 返回异常订单列表，用于验证异常订单路由。
@@ -330,6 +356,11 @@ func (f *fakeAdminService) GetFinanceStatistics(ctx context.Context, in *admincl
 // GetCouponStatistics 返回优惠券统计。
 func (f *fakeAdminService) GetCouponStatistics(ctx context.Context, in *adminclient.StatisticsRequest, opts ...grpc.CallOption) (*adminclient.CouponStatisticsResponse, error) {
 	return &adminclient.CouponStatisticsResponse{CouponCount: 2, IssuedCouponCount: 10, UseRate: "20.00%"}, nil
+}
+
+// GetUserStatistics 返回用户运营统计。
+func (f *fakeAdminService) GetUserStatistics(ctx context.Context, in *adminclient.StatisticsRequest, opts ...grpc.CallOption) (*adminclient.UserStatisticsResponse, error) {
+	return &adminclient.UserStatisticsResponse{UserTotal: 100, NewUserCount: 5, ActiveUserCount: 20, OrderUserCount: 20, RepeatOrderUserCount: 3, ComplaintUserCount: 1, RiskUserCount: 2, ReorderRate: "15.00%", ComplaintRate: "5.00%"}, nil
 }
 
 // CreateExportTask 返回导出任务创建结果。
@@ -751,6 +782,9 @@ func TestRouter_AllImplementedAdminRoutesSmoke(t *testing.T) {
 		{name: "operation logs", method: http.MethodGet, path: "/admin/v1/operation-logs?page=1&page_size=20&module=user", token: true},
 		{name: "users list", method: http.MethodGet, path: "/admin/v1/users?page=1&page_size=20&keyword=138&status=1", token: true},
 		{name: "user detail", method: http.MethodGet, path: "/admin/v1/users/1", token: true},
+		{name: "user order history", method: http.MethodGet, path: "/admin/v1/users/1/orders?page=1&page_size=20&status=5", token: true},
+		{name: "user coupon history", method: http.MethodGet, path: "/admin/v1/users/1/coupons?page=1&page_size=20&status=1", token: true},
+		{name: "user coupons global", method: http.MethodGet, path: "/admin/v1/user-coupons?user_id=1&page=1&page_size=20&status=1", token: true},
 		{name: "user freeze", method: http.MethodPost, path: "/admin/v1/users/1/freeze", body: `{"reason":"risk","remark":"冻结测试"}`, token: true},
 		{name: "user unfreeze", method: http.MethodPost, path: "/admin/v1/users/1/unfreeze", body: `{"reason":"ok","remark":"解封测试"}`, token: true},
 		{name: "drivers list", method: http.MethodGet, path: "/admin/v1/drivers?page=1&page_size=20&keyword=139&status=2", token: true},
@@ -762,7 +796,10 @@ func TestRouter_AllImplementedAdminRoutesSmoke(t *testing.T) {
 		{name: "orders list", method: http.MethodGet, path: "/admin/v1/orders?page=1&page_size=20&status=4", token: true},
 		{name: "abnormal orders", method: http.MethodGet, path: "/admin/v1/orders/abnormal?page=1&page_size=20&abnormal_type=payment", token: true},
 		{name: "order detail", method: http.MethodGet, path: "/admin/v1/orders/1", token: true},
+		{name: "order track", method: http.MethodGet, path: "/admin/v1/orders/1/track?limit=100", token: true},
 		{name: "order cancel", method: http.MethodPost, path: "/admin/v1/orders/1/cancel", body: `{"reason":"客服取消"}`, token: true},
+		{name: "order redispatch", method: http.MethodPost, path: "/admin/v1/orders/1/redispatch", body: `{"new_driver_id":2002,"reason":"原司机无法继续服务","request_id":"rt-1"}`, token: true},
+		{name: "order refund", method: http.MethodPost, path: "/admin/v1/orders/1/refund", body: `{"refund_amount_cents":1850,"reason":"投诉成立","request_id":"rf-1"}`, token: true},
 		{name: "coupons list", method: http.MethodGet, path: "/admin/v1/coupons?page=1&page_size=20&type=1&status=1", token: true},
 		{name: "coupon create", method: http.MethodPost, path: "/admin/v1/coupons", body: couponBody, token: true},
 		{name: "coupon update", method: http.MethodPut, path: "/admin/v1/coupons/1", body: couponBody, token: true},
@@ -783,12 +820,14 @@ func TestRouter_AllImplementedAdminRoutesSmoke(t *testing.T) {
 		{name: "statistics overview", method: http.MethodGet, path: "/admin/v1/statistics/overview?city_code=110100", token: true},
 		{name: "statistics orders", method: http.MethodGet, path: "/admin/v1/statistics/orders?city_code=110100", token: true},
 		{name: "statistics coupons", method: http.MethodGet, path: "/admin/v1/statistics/coupons?city_code=110100", token: true},
+		{name: "statistics users", method: http.MethodGet, path: "/admin/v1/statistics/users", token: true},
 		{name: "export tasks list", method: http.MethodGet, path: "/admin/v1/export-tasks?page=1&page_size=20&export_type=orders", token: true},
 		{name: "export task create", method: http.MethodPost, path: "/admin/v1/export-tasks", body: `{"export_type":"orders","filters":"{\"status\":5}"}`, token: true},
 		{name: "export task detail", method: http.MethodGet, path: "/admin/v1/export-tasks/EX20260820120000000001", token: true},
 		{name: "blacklist list", method: http.MethodGet, path: "/admin/v1/blacklist?page=1&page_size=20&target_type=user&target_id=1001", token: true},
 		{name: "blacklist add", method: http.MethodPost, path: "/admin/v1/blacklist", body: blacklistBody, token: true},
 		{name: "blacklist release", method: http.MethodPost, path: "/admin/v1/blacklist/1/release", body: blacklistBody, token: true},
+		{name: "blacklist release patch", method: http.MethodPatch, path: "/admin/v1/blacklist/1/release", body: blacklistBody, token: true},
 		{name: "risk hit records", method: http.MethodGet, path: "/admin/v1/risk/hit-records?page=1&page_size=20&target_type=user&scene=login", token: true},
 	}
 

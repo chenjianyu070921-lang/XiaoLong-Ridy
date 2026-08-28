@@ -169,6 +169,29 @@ func (c *LocalClient) DeleteDriver(_ context.Context, req *driversproto.DeleteDr
 	return &driversproto.DeleteDriverResponse{Id: req.GetId(), Success: true}, nil
 }
 
+// FreezeDriver 冻结司机账号，并将本地在线状态同步为离线。
+func (c *LocalClient) FreezeDriver(_ context.Context, req *driversproto.FreezeDriverRequest) (*driversproto.CommonResponse, error) {
+	if req == nil || req.GetDriverId() <= 0 || strings.TrimSpace(req.GetReason()) == "" || req.GetOperatorId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "driver id, reason and operator id are required")
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	driver, ok := c.drivers[uint64(req.GetDriverId())]
+	if !ok {
+		return nil, status.Error(codes.NotFound, "driver not found")
+	}
+	driver.Status = driversproto.DriverStatus_DRIVER_STATUS_FROZEN
+	driver.OnlineStatus = 0
+	driver.UpdatedAt = time.Now().Unix()
+	c.drivers[uint64(req.GetDriverId())] = cloneDriver(driver)
+	if loc, ok := c.locations[uint64(req.GetDriverId())]; ok {
+		loc.onlineState = 0
+	}
+	return &driversproto.CommonResponse{Message: "ok"}, nil
+}
+
 // GetDriver 按 ID 查询司机详情。
 func (c *LocalClient) GetDriver(_ context.Context, req *driversproto.GetDriverRequest) (*driversproto.GetDriverResponse, error) {
 	if req == nil || req.GetId() <= 0 {

@@ -23,6 +23,12 @@ type Config struct {
 	DispatchRPC zrpc.RpcClientConf `yaml:"dispatchrpc" json:"dispatchrpc"`
 	// DispatchTimeoutSeconds 派单超时秒数，0 时默认 60（1 分钟）
 	DispatchTimeoutSeconds int64 `yaml:"dispatchtimeoutseconds" json:"dispatchtimeoutseconds"`
+	// DriverRPC driversvc 客户端，管理后台 outbox 冻结司机补偿任务使用
+	DriverRPC zrpc.RpcClientConf `yaml:"driverrpc" json:"driverrpc"`
+	// PushRPC pushsvc 客户端，管理后台 outbox 通知补偿任务使用
+	PushRPC zrpc.RpcClientConf `yaml:"pushrpc" json:"pushrpc"`
+	// AdminOutboxMaxRetry 管理后台 outbox 最大补偿次数，0 时默认 5
+	AdminOutboxMaxRetry int `yaml:"adminoutboxmaxretry" json:"adminoutboxmaxretry"`
 }
 
 type LogConfig struct {
