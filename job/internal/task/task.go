@@ -83,8 +83,7 @@ func (t *Task) SyncOrderStatus() error {
 	const timeoutSeconds int32 = 300
 	page, pageSize := int32(1), int32(100)
 	var canceled, failed int64
-
-	for {
+hai
 		resp, err := t.svcCtx.OrderClient.ListTimeoutOrders(ctx, &ordersvcclient.ListTimeoutOrdersRequest{
 			TimeoutSeconds: timeoutSeconds,
 			Page:           page,
