@@ -74,17 +74,22 @@ func (r *gormDriverRepository) List(ctx context.Context, filter DriverListFilter
 	// 构造带过滤条件的查询作用域。
 	query := r.db.WithContext(ctx).Model(&model.Driver{})
 	if filter.Status != nil {
-		query = query.Where("status = ?", *filter.Status)
+		query = query.Where("driver.status = ?", *filter.Status)
 	}
 	if filter.Keyword != "" {
-		// 模糊匹配手机号或姓名。
+		// 模糊匹配司机身份字段和车牌号，保持后台司机查询的搜索语义。
 		like := "%" + filter.Keyword + "%"
-		query = query.Where("phone LIKE ? OR real_name LIKE ?", like, like)
+		query = query.Joins("LEFT JOIN driver_vehicle v ON v.driver_id = driver.id").
+			Where("driver.phone LIKE ? OR driver.real_name LIKE ? OR driver.id_card_no LIKE ? OR driver.driver_license_no LIKE ? OR v.plate_no LIKE ?", like, like, like, like, like)
 	}
 
 	// 统计符合条件的总记录数。
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	countQuery := query
+	if filter.Keyword != "" {
+		countQuery = countQuery.Distinct("driver.id")
+	}
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -103,7 +108,10 @@ func (r *gormDriverRepository) List(ctx context.Context, filter DriverListFilter
 
 	// 查询本页数据（按 ID 倒序，新注册的靠前）。
 	var drivers []*model.Driver
-	if err := query.Order("id DESC").
+	if filter.Keyword != "" {
+		query = query.Select("driver.*").Group("driver.id")
+	}
+	if err := query.Order("driver.id DESC").
 		Offset(int((page - 1) * pageSize)).
 		Limit(int(pageSize)).
 		Find(&drivers).Error; err != nil {

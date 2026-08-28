@@ -205,7 +205,7 @@ func (c *LocalClient) GetDriver(_ context.Context, req *driversproto.GetDriverRe
 	if !ok {
 		return nil, status.Error(codes.NotFound, "driver not found")
 	}
-	return &driversproto.GetDriverResponse{Driver: cloneDriver(driver)}, nil
+	return &driversproto.GetDriverResponse{Driver: c.enrichDriverLocked(driver)}, nil
 }
 
 // GetDriverByPhone 按手机号查询司机。
@@ -502,14 +502,10 @@ func (c *LocalClient) ListDrivers(_ context.Context, req *driversproto.ListDrive
 		if req != nil && req.Status != nil && driver.GetStatus() != *req.Status {
 			continue
 		}
-		if keyword := strings.TrimSpace(req.GetKeyword()); keyword != "" {
-			if !strings.Contains(driver.GetPhone(), keyword) &&
-				!strings.Contains(driver.GetRealName(), keyword) &&
-				!strings.Contains(driver.GetDriverLicenseNo(), keyword) {
-				continue
-			}
+		if keyword := strings.TrimSpace(req.GetKeyword()); keyword != "" && !c.driverMatchesKeywordLocked(driver, keyword) {
+			continue
 		}
-		list = append(list, cloneDriver(driver))
+		list = append(list, c.enrichDriverLocked(driver))
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i].GetId() > list[j].GetId() })
 
@@ -538,7 +534,59 @@ func (c *LocalClient) ListDrivers(_ context.Context, req *driversproto.ListDrive
 	}, nil
 }
 
-// Login 密码登录。
+// enrichDriverLocked mirrors production aggregate fields for local client driver responses.
+func (c *LocalClient) enrichDriverLocked(driver *driversproto.Driver) *driversproto.Driver {
+	item := cloneDriver(driver)
+	if item == nil {
+		return nil
+	}
+	if vehicle := c.latestVehicleForDriverLocked(uint64(item.GetId())); vehicle != nil {
+		item.VehicleId = vehicle.GetId()
+		item.PlateNo = vehicle.GetPlateNo()
+		item.VehicleStatus = int32(vehicle.GetStatus())
+	}
+	if certID, ok := c.certByDriver[uint64(item.GetId())]; ok {
+		if cert := c.certByID[certID]; cert != nil {
+			item.CertificationId = cert.GetId()
+			item.AuditStatus = int32(cert.GetAuditStatus())
+			item.AuditRemark = cert.GetAuditRemark()
+			if item.VehicleId == 0 {
+				item.VehicleId = cert.GetVehicleId()
+			}
+		}
+	}
+	return item
+}
+
+func (c *LocalClient) latestVehicleForDriverLocked(driverID uint64) *driversproto.Vehicle {
+	var latest *driversproto.Vehicle
+	for _, vehicle := range c.vehicles {
+		if vehicle.GetDriverId() != int64(driverID) {
+			continue
+		}
+		if latest == nil || vehicle.GetId() > latest.GetId() {
+			latest = vehicle
+		}
+	}
+	return latest
+}
+
+func (c *LocalClient) driverMatchesKeywordLocked(driver *driversproto.Driver, keyword string) bool {
+	if strings.Contains(driver.GetPhone(), keyword) ||
+		strings.Contains(driver.GetRealName(), keyword) ||
+		strings.Contains(driver.GetIdCardNo(), keyword) ||
+		strings.Contains(driver.GetDriverLicenseNo(), keyword) {
+		return true
+	}
+	for _, vehicle := range c.vehicles {
+		if vehicle.GetDriverId() == driver.GetId() && strings.Contains(vehicle.GetPlateNo(), keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// Login handles password login for the local driver client.
 func (c *LocalClient) Login(_ context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error) {
 	if req == nil || strings.TrimSpace(req.GetPhone()) == "" {
 		return nil, status.Error(codes.InvalidArgument, "phone is required")
