@@ -97,8 +97,15 @@ func cancelOrderIdempotencyKey(in *adminsvc.AdminCancelOrderRequest, reason stri
 	if raw == "" {
 		raw = fmt.Sprintf("order:%d:admin:%d:reason:%s", in.GetOrderId(), in.GetAdminId(), reason)
 	}
+	return adminOrderActionIdempotencyKey("cancel_order", in.GetAdminId(), raw)
+}
+
+// adminOrderActionIdempotencyKey 生成后台订单写操作的统一幂等键。
+// action 用于隔离取消、改派、退款等不同动作；requestID 由 HTTP 层生成或调用方传入，避免重复点击重复触发下游 RPC。
+func adminOrderActionIdempotencyKey(action string, adminID int64, requestID string) string {
+	raw := strings.TrimSpace(requestID)
 	sum := sha1.Sum([]byte(raw))
-	return fmt.Sprintf("admin:idem:cancel_order:%d:%s", in.GetAdminId(), hex.EncodeToString(sum[:]))
+	return fmt.Sprintf("admin:idem:%s:%d:%s", action, adminID, hex.EncodeToString(sum[:]))
 }
 
 // acquireCancelOrderIdempotency 尝试登记取消订单幂等请求。

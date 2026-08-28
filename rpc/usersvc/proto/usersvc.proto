@@ -31,6 +31,8 @@ service User {
   rpc ClaimCoupon(ClaimCouponRequest) returns (ClaimCouponResponse);
   // ListMyCoupons 查询我的优惠券。
   rpc ListMyCoupons(ListMyCouponsRequest) returns (ListMyCouponsResponse);
+  // AdminListUserCoupons 为管理后台提供用户券查询能力。
+  rpc AdminListUserCoupons(AdminListUserCouponsRequest) returns (AdminListUserCouponsResponse);
   // LockUserCoupon 下单前锁定用户券，防止重复使用。
   rpc LockUserCoupon(LockUserCouponRequest) returns (LockUserCouponResponse);
   // ReleaseUserCoupon 下单失败时释放用户券锁定。
@@ -226,6 +228,25 @@ message ListMyCouponsRequest {
 
 // ListMyCouponsResponse 查询我的优惠券响应。
 message ListMyCouponsResponse {
+  repeated CouponInfo list = 1; // 优惠券列表
+  int64 total = 2; // 符合条件的优惠券总数
+  int32 page = 3; // 当前页码
+  int32 page_size = 4; // 当前页大小
+}
+
+// AdminListUserCouponsRequest 表示管理后台用户券查询请求。
+message AdminListUserCouponsRequest {
+  uint64 user_id = 1; // 用户 ID；为 0 时表示全库查询
+  uint64 coupon_id = 2; // 优惠券模板 ID
+  int32 status = 3; // 0 表示全部；1未用 2已用 3过期 4锁定
+  string start_time = 4; // 领取开始时间，格式 2006-01-02 15:04:05
+  string end_time = 5; // 领取结束时间，格式 2006-01-02 15:04:05
+  int32 page = 6; // 页码，从 1 开始
+  int32 page_size = 7; // 每页数量
+}
+
+// AdminListUserCouponsResponse 表示管理后台用户券分页结果。
+message AdminListUserCouponsResponse {
   repeated CouponInfo list = 1; // 优惠券列表
   int64 total = 2; // 符合条件的优惠券总数
   int32 page = 3; // 当前页码

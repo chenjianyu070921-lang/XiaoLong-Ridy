@@ -101,15 +101,19 @@ func promotionActivityActionToPB(id int64, req types.PromotionActivityActionRequ
 // promotionActivityPBToDTO 将 RPC 活动对象转换为 HTTP DTO。
 func promotionActivityPBToDTO(item *adminclient.PromotionActivity) types.PromotionActivityDTO {
 	return types.PromotionActivityDTO{
-		ID:        item.Id,
-		Name:      item.Name,
-		Type:      item.Type,
-		Config:    item.Config,
-		StartAt:   item.StartAt,
-		EndAt:     item.EndAt,
-		Status:    item.Status,
-		CreatedBy: item.CreatedBy,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ID:           item.Id,
+		Name:         item.Name,
+		Type:         item.Type,
+		Config:       item.Config,
+		StartAt:      item.StartAt,
+		EndAt:        item.EndAt,
+		Status:       item.Status,
+		CreatedBy:    item.CreatedBy,
+		CreatedAt:    item.CreatedAt,
+		UpdatedAt:    item.UpdatedAt,
+		PublishScope: item.PublishScope,
+		TargetConfig: item.TargetConfig,
+		PublishedAt:  item.PublishedAt,
+		RollbackAt:   item.RollbackAt,
 	}
 }

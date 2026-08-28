@@ -7,7 +7,9 @@ import (
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/job/internal/config"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
+	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
+	pushproto "XiaoLong-Ridy/rpc/pushesvc/pushesvc"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -20,6 +22,8 @@ type ServiceContext struct {
 	Redis          *redis.Client
 	OrderClient    order.Order
 	DispatchClient dispatch.Dispatch
+	DriverClient   driverproto.DriverServiceClient
+	PushClient     pushproto.PushServiceClient
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -44,6 +48,18 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	orderClient := order.NewOrder(zrpc.MustNewClient(c.OrderRPC))
 	// 创建 dispatchsvc RPC 客户端（通过 Etcd 服务发现）
 	dispatchClient := dispatch.NewDispatch(zrpc.MustNewClient(c.DispatchRPC))
+	// 创建 driversvc RPC 客户端，供管理后台 outbox 冻结司机补偿使用。
+	driverRPC := c.DriverRPC
+	if len(driverRPC.Endpoints) == 0 && driverRPC.Target == "" {
+		driverRPC.Target = "127.0.0.1:5055"
+	}
+	driverClient := driverproto.NewDriverServiceClient(zrpc.MustNewClient(driverRPC).Conn())
+	// 创建 pushsvc RPC 客户端，供管理后台 outbox 通知补偿使用。
+	pushRPC := c.PushRPC
+	if len(pushRPC.Endpoints) == 0 && pushRPC.Target == "" {
+		pushRPC.Target = "127.0.0.1:9002"
+	}
+	pushClient := pushproto.NewPushServiceClient(zrpc.MustNewClient(pushRPC).Conn())
 
 	return &ServiceContext{
 		Config:         c,
@@ -51,5 +67,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Redis:          redisClient,
 		OrderClient:    orderClient,
 		DispatchClient: dispatchClient,
+		DriverClient:   driverClient,
+		PushClient:     pushClient,
 	}
 }

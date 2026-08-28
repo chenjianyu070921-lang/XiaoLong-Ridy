@@ -121,6 +121,12 @@ func (h *CleanupHandler) RetryPendingDispatches() error {
 	return task.NewTask(h.svcCtx).RetryPendingDispatches(50)
 }
 
+// RetryAdminAuditOutbox 扫描并补偿管理后台审计、司机冻结和司机通知 outbox。
+// 单条失败不会阻断整轮扫描，任务内部会维护 retry_count 和最终 failed 状态。
+func (h *CleanupHandler) RetryAdminAuditOutbox() error {
+	return task.NewTask(h.svcCtx).RetryAdminAuditOutbox(50)
+}
+
 // redispatchOrder 拉取订单详情并触发派单（幂等重派）。
 func (h *CleanupHandler) redispatchOrder(orderID int64) error {
 	orderInfo, err := h.svcCtx.OrderClient.GetOrder(context.Background(), &order.GetOrderRequest{

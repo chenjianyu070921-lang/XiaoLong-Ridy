@@ -133,6 +133,58 @@ func (r *MemoryCouponRepository) ListByUserPage(ctx context.Context, userID uint
 	return all[start:end], total, nil
 }
 
+// ListForAdminPage 在内存仓储中模拟管理后台用户券横向筛选。
+// 该方法只服务测试和本地开发，筛选语义与 GORM 仓储保持一致。
+func (r *MemoryCouponRepository) ListForAdminPage(_ context.Context, filter AdminUserCouponQuery) ([]*UserCouponWithTemplate, int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	now := time.Now()
+	all := make([]*UserCouponWithTemplate, 0)
+	for _, item := range r.userCoupons {
+		current := *item
+		if current.Status == model.UserCouponStatusUnused && current.ExpireAt.Before(now) {
+			current.Status = model.UserCouponStatusExpired
+		}
+		if filter.UserID > 0 && current.UserID != filter.UserID {
+			continue
+		}
+		if filter.CouponID > 0 && current.CouponID != filter.CouponID {
+			continue
+		}
+		if filter.Status > 0 && current.Status != filter.Status {
+			continue
+		}
+		if !filter.StartTime.IsZero() && current.ReceivedAt.Before(filter.StartTime) {
+			continue
+		}
+		if !filter.EndTime.IsZero() && current.ReceivedAt.After(filter.EndTime) {
+			continue
+		}
+		coupon, ok := r.coupons[current.CouponID]
+		if !ok {
+			continue
+		}
+		all = append(all, couponView(&current, coupon))
+	}
+	sort.SliceStable(all, func(i, j int) bool {
+		if all[i].UserCoupon.ReceivedAt.Equal(all[j].UserCoupon.ReceivedAt) {
+			return all[i].UserCoupon.ID > all[j].UserCoupon.ID
+		}
+		return all[i].UserCoupon.ReceivedAt.After(all[j].UserCoupon.ReceivedAt)
+	})
+	total := int64(len(all))
+	start := (filter.Page - 1) * filter.PageSize
+	if start >= len(all) {
+		return []*UserCouponWithTemplate{}, total, nil
+	}
+	end := start + filter.PageSize
+	if end > len(all) {
+		end = len(all)
+	}
+	return all[start:end], total, nil
+}
+
 // Lock 将用户券从未使用锁定到指定订单，防止重复下单使用。
 func (r *MemoryCouponRepository) Lock(_ context.Context, userID, userCouponID, orderID uint64, carType int8, cityCode string) (*UserCouponWithTemplate, error) {
 	r.mu.Lock()

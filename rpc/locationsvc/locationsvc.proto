@@ -14,6 +14,8 @@ service LocationService {
   rpc RoutePlan(RoutePlanReq) returns (RoutePlanResp);
   // 司机位置上报
   rpc ReportLocation(ReportLocationReq) returns (ReportLocationResp);
+  // 订单轨迹查询
+  rpc GetOrderTrack(GetOrderTrackReq) returns (GetOrderTrackResp);
   // 附近司机查询
   rpc NearbyDrivers(NearbyDriversReq) returns (NearbyDriversResp);
 }
@@ -88,6 +90,29 @@ message ReportLocationReq {
 
 message ReportLocationResp {
   bool success = 1;
+}
+
+// ========== 订单轨迹查询 ==========
+message GetOrderTrackReq {
+  int64 order_id = 1;    // 订单ID
+  int64 start_time = 2;  // 查询开始 Unix 秒，0 表示不限
+  int64 end_time = 3;    // 查询结束 Unix 秒，0 表示不限
+  int32 limit = 4;       // 最大点数，默认 1000，上限 5000
+}
+
+message TrackPoint {
+  int64 id = 1;          // 轨迹点ID
+  int64 order_id = 2;    // 订单ID
+  int64 driver_id = 3;   // 司机ID
+  double lng = 4;        // 经度
+  double lat = 5;        // 纬度
+  double speed_kmh = 6;  // 速度
+  int32 direction = 7;   // 方向
+  int64 recorded_at = 8; // 轨迹时间 Unix 秒
+}
+
+message GetOrderTrackResp {
+  repeated TrackPoint points = 1;
 }
 
 // ========== 附近司机查询 ==========

@@ -23,6 +23,10 @@ type (
 	AdminStatusRequest               = adminsvc.AdminStatusRequest
 	AdminPasswordResetRequest        = adminsvc.AdminPasswordResetRequest
 	AdminCancelOrderRequest          = adminsvc.AdminCancelOrderRequest
+	AdminRedispatchOrderRequest      = adminsvc.AdminRedispatchOrderRequest
+	AdminRedispatchOrderResponse     = adminsvc.AdminRedispatchOrderResponse
+	AdminRefundOrderRequest          = adminsvc.AdminRefundOrderRequest
+	AdminRefundOrderResponse         = adminsvc.AdminRefundOrderResponse
 	AuditDriverCertificationRequest  = adminsvc.AuditDriverCertificationRequest
 	AuthResponse                     = adminsvc.AuthResponse
 	Blacklist                        = adminsvc.Blacklist
@@ -52,10 +56,11 @@ type (
 	PriceRuleRequest                 = adminsvc.PriceRuleRequest
 	PriceRuleStatusRequest           = adminsvc.PriceRuleStatusRequest
 	DispatchRecord                   = adminsvc.DispatchRecord
-	Driver                          = adminsvc.Driver
-	DriverDetailRequest             = adminsvc.DriverDetailRequest
-	DriverListRequest               = adminsvc.DriverListRequest
-	DriverListResponse              = adminsvc.DriverListResponse
+	Driver                           = adminsvc.Driver
+	DriverDetailRequest              = adminsvc.DriverDetailRequest
+	FreezeDriverRequest              = adminsvc.FreezeDriverRequest
+	DriverListRequest                = adminsvc.DriverListRequest
+	DriverListResponse               = adminsvc.DriverListResponse
 	DriverCertification              = adminsvc.DriverCertification
 	DriverCertificationDetailRequest = adminsvc.DriverCertificationDetailRequest
 	DriverCertificationListRequest   = adminsvc.DriverCertificationListRequest
@@ -95,6 +100,9 @@ type (
 	OrderDetailRequest               = adminsvc.OrderDetailRequest
 	OrderListRequest                 = adminsvc.OrderListRequest
 	OrderListResponse                = adminsvc.OrderListResponse
+	OrderTrackPoint                  = adminsvc.OrderTrackPoint
+	OrderTrackRequest                = adminsvc.OrderTrackRequest
+	OrderTrackResponse               = adminsvc.OrderTrackResponse
 	OrderPrice                       = adminsvc.OrderPrice
 	OrderStatisticsResponse          = adminsvc.OrderStatisticsResponse
 	OrderStatusLog                   = adminsvc.OrderStatusLog
@@ -113,8 +121,13 @@ type (
 	Settlement                       = adminsvc.Settlement
 	StatisticsOverviewResponse       = adminsvc.StatisticsOverviewResponse
 	StatisticsRequest                = adminsvc.StatisticsRequest
+	UserStatisticsResponse           = adminsvc.UserStatisticsResponse
 	User                             = adminsvc.User
 	UserDetailRequest                = adminsvc.UserDetailRequest
+	UserHistoryRequest               = adminsvc.UserHistoryRequest
+	UserCouponHistory                = adminsvc.UserCouponHistory
+	UserCouponHistoryRequest         = adminsvc.UserCouponHistoryRequest
+	UserCouponHistoryResponse        = adminsvc.UserCouponHistoryResponse
 	UserListRequest                  = adminsvc.UserListRequest
 	UserListResponse                 = adminsvc.UserListResponse
 	ValidateSessionRequest           = adminsvc.ValidateSessionRequest
@@ -144,6 +157,10 @@ type (
 		ListUsers(ctx context.Context, in *UserListRequest, opts ...grpc.CallOption) (*UserListResponse, error)
 		// 查询用户详情。
 		GetUser(ctx context.Context, in *UserDetailRequest, opts ...grpc.CallOption) (*User, error)
+		// 查询指定用户订单历史。
+		ListUserOrders(ctx context.Context, in *UserHistoryRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
+		// 查询指定用户优惠券历史。
+		ListUserCoupons(ctx context.Context, in *UserCouponHistoryRequest, opts ...grpc.CallOption) (*UserCouponHistoryResponse, error)
 		// 冻结用户。
 		FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 解封用户。
@@ -151,6 +168,7 @@ type (
 		// 查询司机审核列表。
 		ListDrivers(ctx context.Context, in *DriverListRequest, opts ...grpc.CallOption) (*DriverListResponse, error)
 		GetDriver(ctx context.Context, in *DriverDetailRequest, opts ...grpc.CallOption) (*Driver, error)
+		FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error)
 		// 查询司机审核详情。
 		GetDriverCertification(ctx context.Context, in *DriverCertificationDetailRequest, opts ...grpc.CallOption) (*DriverCertification, error)
@@ -162,8 +180,14 @@ type (
 		ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
 		// 查询订单详情。
 		GetOrder(ctx context.Context, in *OrderDetailRequest, opts ...grpc.CallOption) (*OrderDetail, error)
+		// 查询订单轨迹。
+		GetOrderTrack(ctx context.Context, in *OrderTrackRequest, opts ...grpc.CallOption) (*OrderTrackResponse, error)
 		// 后台取消订单。
 		CancelOrder(ctx context.Context, in *AdminCancelOrderRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 后台人工改派订单。
+		RedispatchOrder(ctx context.Context, in *AdminRedispatchOrderRequest, opts ...grpc.CallOption) (*AdminRedispatchOrderResponse, error)
+		// 后台发起订单退款。
+		RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error)
 		// 查询异常订单列表。
 		ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
 		// 查询优惠券模板列表。
@@ -210,6 +234,8 @@ type (
 		GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error)
 		// 查询优惠券统计。
 		GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
+		// 查询用户统计。
+		GetUserStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*UserStatisticsResponse, error)
 		// 创建导出任务。
 		CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error)
 		// 查询导出任务列表。
@@ -326,6 +352,18 @@ func (m *defaultAdminService) GetUser(ctx context.Context, in *UserDetailRequest
 	return client.GetUser(ctx, in, opts...)
 }
 
+// 查询指定用户订单历史。
+func (m *defaultAdminService) ListUserOrders(ctx context.Context, in *UserHistoryRequest, opts ...grpc.CallOption) (*OrderListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListUserOrders(ctx, in, opts...)
+}
+
+// 查询指定用户优惠券历史。
+func (m *defaultAdminService) ListUserCoupons(ctx context.Context, in *UserCouponHistoryRequest, opts ...grpc.CallOption) (*UserCouponHistoryResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListUserCoupons(ctx, in, opts...)
+}
+
 // 冻结用户。
 func (m *defaultAdminService) FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
@@ -350,11 +388,18 @@ func (m *defaultAdminService) GetDriver(ctx context.Context, in *DriverDetailReq
 	return client.GetDriver(ctx, in, opts...)
 }
 
+// 冻结司机。
+func (m *defaultAdminService) FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.FreezeDriver(ctx, in, opts...)
+}
+
 // 查询司机审核列表。
 func (m *defaultAdminService) ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListDriverCertifications(ctx, in, opts...)
 }
+
 // 查询司机审核详情。
 func (m *defaultAdminService) GetDriverCertification(ctx context.Context, in *DriverCertificationDetailRequest, opts ...grpc.CallOption) (*DriverCertification, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
@@ -385,10 +430,28 @@ func (m *defaultAdminService) GetOrder(ctx context.Context, in *OrderDetailReque
 	return client.GetOrder(ctx, in, opts...)
 }
 
+// 查询订单轨迹。
+func (m *defaultAdminService) GetOrderTrack(ctx context.Context, in *OrderTrackRequest, opts ...grpc.CallOption) (*OrderTrackResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetOrderTrack(ctx, in, opts...)
+}
+
 // 后台取消订单。
 func (m *defaultAdminService) CancelOrder(ctx context.Context, in *AdminCancelOrderRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.CancelOrder(ctx, in, opts...)
+}
+
+// RedispatchOrder 调用后台人工改派订单接口。
+func (m *defaultAdminService) RedispatchOrder(ctx context.Context, in *AdminRedispatchOrderRequest, opts ...grpc.CallOption) (*AdminRedispatchOrderResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.RedispatchOrder(ctx, in, opts...)
+}
+
+// RefundOrder 调用后台订单退款接口。
+func (m *defaultAdminService) RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.RefundOrder(ctx, in, opts...)
 }
 
 // 查询异常订单列表。
@@ -527,6 +590,12 @@ func (m *defaultAdminService) GetFinanceStatistics(ctx context.Context, in *Stat
 func (m *defaultAdminService) GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.GetCouponStatistics(ctx, in, opts...)
+}
+
+// GetUserStatistics 查询用户增长、活跃、复购、投诉和风险统计。
+func (m *defaultAdminService) GetUserStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*UserStatisticsResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetUserStatistics(ctx, in, opts...)
 }
 
 // 创建导出任务。

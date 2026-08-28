@@ -43,6 +43,11 @@ func (l *StatisticsLogic) Coupons(ctx context.Context, req types.StatisticsReque
 	return l.ctx.AdminSvc.GetCouponStatistics(ctx, statisticsRequestToPB(req))
 }
 
+// Users 查询用户增长、活跃、复购、投诉和风险统计。
+func (l *StatisticsLogic) Users(ctx context.Context, req types.StatisticsRequest) (*adminclient.UserStatisticsResponse, error) {
+	return l.ctx.AdminSvc.GetUserStatistics(ctx, statisticsRequestToPB(req))
+}
+
 // statisticsRequestToPB 将 HTTP 统计查询参数转换为 RPC 请求。
 func statisticsRequestToPB(req types.StatisticsRequest) *adminclient.StatisticsRequest {
 	return &adminclient.StatisticsRequest{

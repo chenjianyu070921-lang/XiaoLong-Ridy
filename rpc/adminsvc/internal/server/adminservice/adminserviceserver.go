@@ -138,6 +138,12 @@ func (s *AdminServiceServer) GetDriver(ctx context.Context, in *adminsvc.DriverD
 	return l.GetDriver(in)
 }
 
+// FreezeDriver 冻结司机账号，并联动司机端通知。
+func (s *AdminServiceServer) FreezeDriver(ctx context.Context, in *adminsvc.FreezeDriverRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewFreezeDriverLogic(ctx, s.svcCtx)
+	return l.FreezeDriver(in)
+}
+
 func (s *AdminServiceServer) ListDriverCertifications(ctx context.Context, in *adminsvc.DriverCertificationListRequest) (*adminsvc.DriverCertificationListResponse, error) {
 	l := adminservicelogic.NewListDriverCertificationsLogic(ctx, s.svcCtx)
 	return l.ListDriverCertifications(in)
@@ -173,10 +179,28 @@ func (s *AdminServiceServer) GetOrder(ctx context.Context, in *adminsvc.OrderDet
 	return l.GetOrder(in)
 }
 
+// GetOrderTrack 查询订单轨迹点。
+func (s *AdminServiceServer) GetOrderTrack(ctx context.Context, in *adminsvc.OrderTrackRequest) (*adminsvc.OrderTrackResponse, error) {
+	l := adminservicelogic.NewGetOrderTrackLogic(ctx, s.svcCtx)
+	return l.GetOrderTrack(in)
+}
+
 // 后台取消订单。
 func (s *AdminServiceServer) CancelOrder(ctx context.Context, in *adminsvc.AdminCancelOrderRequest) (*adminsvc.CommonResponse, error) {
 	l := adminservicelogic.NewCancelOrderLogic(ctx, s.svcCtx)
 	return l.CancelOrder(in)
+}
+
+// RedispatchOrder 后台人工改派订单。
+func (s *AdminServiceServer) RedispatchOrder(ctx context.Context, in *adminsvc.AdminRedispatchOrderRequest) (*adminsvc.AdminRedispatchOrderResponse, error) {
+	l := adminservicelogic.NewRedispatchOrderLogic(ctx, s.svcCtx)
+	return l.RedispatchOrder(in)
+}
+
+// RefundOrder 后台发起订单退款。
+func (s *AdminServiceServer) RefundOrder(ctx context.Context, in *adminsvc.AdminRefundOrderRequest) (*adminsvc.AdminRefundOrderResponse, error) {
+	l := adminservicelogic.NewRefundOrderLogic(ctx, s.svcCtx)
+	return l.RefundOrder(in)
 }
 
 // 查询异常订单列表。
@@ -305,6 +329,12 @@ func (s *AdminServiceServer) GetFinanceStatistics(ctx context.Context, in *admin
 func (s *AdminServiceServer) GetCouponStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.CouponStatisticsResponse, error) {
 	l := adminservicelogic.NewGetCouponStatisticsLogic(ctx, s.svcCtx)
 	return l.GetCouponStatistics(in)
+}
+
+// GetUserStatistics 查询用户增长、活跃、下单、复购、投诉和风险统计。
+func (s *AdminServiceServer) GetUserStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.UserStatisticsResponse, error) {
+	l := adminservicelogic.NewGetUserStatisticsLogic(ctx, s.svcCtx)
+	return l.GetUserStatistics(in)
 }
 
 func (s *AdminServiceServer) CreateExportTask(ctx context.Context, in *adminsvc.ExportTaskRequest) (*adminsvc.ExportTaskResponse, error) {

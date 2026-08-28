@@ -19,8 +19,16 @@ type fakeDriversClient struct {
 
 	approveReq *driverproto.AuditCertificationRequest
 	rejectReq  *driverproto.AuditCertificationRequest
+	listReq    *driverproto.ListDriversRequest
+	getReq     *driverproto.GetDriverRequest
+	freezeReq  *driverproto.FreezeDriverRequest
+	listResp   *driverproto.ListDriversResponse
+	getResp    *driverproto.GetDriverResponse
 	approveErr error
 	rejectErr  error
+	listErr    error
+	getErr     error
+	freezeErr  error
 }
 
 func (f *fakeDriversClient) ApproveCertification(ctx context.Context, in *driverproto.AuditCertificationRequest, opts ...grpc.CallOption) (*driverproto.CommonResponse, error) {
@@ -139,5 +147,35 @@ func TestApproveDriverCertification_CreatesOutboxAndReturnsSuccess(t *testing.T)
 	}
 	if driverClient.approveReq == nil {
 		t.Fatal("ApproveDriverCertification() should call driver service before audit log failure is observed")
+	}
+}
+
+// TestFreezeDriver_PushDisabledWritesOutboxAndReturnsSuccess 验证冻结主链路成功后，
+// pushsvc 未配置不会导致接口失败，而是写入补偿任务等待后续异步通知。
+func TestFreezeDriver_PushDisabledWritesOutboxAndReturnsSuccess(t *testing.T) {
+	svcCtx, mock, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	driverClient := &fakeDriversClient{}
+	svcCtx.DriverSvc = driverClient
+	svcCtx.PushSvc = nil
+
+	mock.ExpectExec(`INSERT INTO admin_operation_log`).
+		WithArgs(int64(9001), "driver", "freeze", "driver", int64(2001), "冻结司机：严重违规", "127.0.0.1").
+		WillReturnResult(sqlmock.NewResult(99, 1))
+	mock.ExpectExec(`INSERT INTO admin_audit_outbox`).
+		WithArgs(sqlmock.AnyArg(), "driver", "freeze_notify", "driver", int64(2001), int64(9001), "严重违规", "127.0.0.1", sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	resp, err := NewFreezeDriverLogic(context.Background(), svcCtx).FreezeDriver(&adminsvc.FreezeDriverRequest{
+		Id:      2001,
+		Reason:  "严重违规",
+		AdminId: 9001,
+		Ip:      "127.0.0.1",
+	})
+	if err != nil || resp.GetMessage() != "ok" {
+		t.Fatalf("FreezeDriver() = %#v, %v; want success with notification outbox", resp, err)
+	}
+	if driverClient.freezeReq == nil || driverClient.freezeReq.GetDriverId() != 2001 {
+		t.Fatalf("FreezeDriver() downstream request = %#v, want driver 2001", driverClient.freezeReq)
 	}
 }

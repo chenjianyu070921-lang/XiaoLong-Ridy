@@ -79,6 +79,7 @@ func (r *Router) routes() {
 
 	r.mux.HandleFunc("/admin/v1/users", r.authRequired(r.handleUsers))
 	r.mux.HandleFunc("/admin/v1/users/", r.authRequired(r.handleUserByID))
+	r.mux.HandleFunc("/admin/v1/user-coupons", r.authRequired(r.handleUserCoupons))
 
 	r.mux.HandleFunc("/admin/v1/drivers", r.authRequired(r.handleDrivers))
 	r.mux.HandleFunc("/admin/v1/drivers/", r.authRequired(r.handleDriverByID))
@@ -101,6 +102,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/statistics/drivers", r.authRequired(r.handleStatisticsDrivers))
 	r.mux.HandleFunc("/admin/v1/statistics/revenue", r.authRequired(r.handleStatisticsRevenue))
 	r.mux.HandleFunc("/admin/v1/statistics/coupons", r.authRequired(r.handleStatisticsCoupons))
+	r.mux.HandleFunc("/admin/v1/statistics/users", r.authRequired(r.handleStatisticsUsers))
 
 	r.mux.HandleFunc("/admin/v1/export-tasks", r.authRequired(r.handleExportTasks))
 	r.mux.HandleFunc("/admin/v1/export-tasks/", r.authRequired(r.handleExportTaskByNo))
@@ -385,12 +387,33 @@ func (r *Router) handleUserByID(w http.ResponseWriter, req *http.Request) {
 			writeMethodNotAllowed(w)
 			return
 		}
-		resp, err := userLogic.Detail(req.Context(), id)
+		resp, err := userLogic.Detail(req.Context(), id, boolQuery(req, "sensitive", false))
 		if err != nil {
 			r.writeBizError(w, err)
 			return
 		}
 		writeSuccess(w, resp)
+		return
+	}
+	if req.Method == http.MethodGet {
+		switch action {
+		case "orders":
+			resp, err := userLogic.OrderHistory(req.Context(), id, intQuery(req, "page", 1), intQuery(req, "page_size", 20), int32Query(req, "status", 0))
+			if err != nil {
+				r.writeBizError(w, err)
+				return
+			}
+			writeSuccess(w, resp)
+		case "coupons":
+			resp, err := userLogic.CouponHistory(req.Context(), id, intQuery(req, "page", 1), intQuery(req, "page_size", 20), int32Query(req, "status", 0))
+			if err != nil {
+				r.writeBizError(w, err)
+				return
+			}
+			writeSuccess(w, resp)
+		default:
+			http.NotFound(w, req)
+		}
 		return
 	}
 	if req.Method != http.MethodPost {
@@ -424,6 +447,32 @@ func (r *Router) handleUserByID(w http.ResponseWriter, req *http.Request) {
 	writeSuccess(w, types.CommonResponse{Message: "ok"})
 }
 
+// handleUserCoupons 处理后台用户券列表入口。
+// 当前复用 usersvc.ListMyCoupons 的真实服务边界，因此必须传入 user_id；全库用户券列表后续需由 usersvc 新增后台查询 RPC。
+func (r *Router) handleUserCoupons(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	userID := int64Query(req, "user_id", 0)
+	if userID <= 0 {
+		writeError(w, http.StatusBadRequest, 40001, "user_id required")
+		return
+	}
+	resp, err := logic.NewUserLogic(r.ctx).CouponHistory(
+		req.Context(),
+		userID,
+		intQuery(req, "page", 1),
+		intQuery(req, "page_size", 20),
+		int32Query(req, "status", 0),
+	)
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
 // handleDrivers returns the driver base record list.
 func (r *Router) handleDrivers(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
@@ -447,21 +496,44 @@ func (r *Router) handleDrivers(w http.ResponseWriter, req *http.Request) {
 // handleDriverByID returns a single driver base record.
 func (r *Router) handleDriverByID(w http.ResponseWriter, req *http.Request) {
 	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/drivers/")
-	if !ok || action != "" {
+	if !ok {
 		writeError(w, http.StatusBadRequest, 40001, "invalid driver id")
 		return
 	}
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
+	driverLogic := logic.NewDriverLogic(r.ctx)
+	switch action {
+	case "":
+		if req.Method != http.MethodGet {
+			writeMethodNotAllowed(w)
+			return
+		}
+		resp, err := driverLogic.DriverDetail(req.Context(), id, boolQuery(req, "sensitive", false))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case "freeze":
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.DriverFreezeRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		if err := driverLogic.FreezeDriver(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
+	default:
+		http.NotFound(w, req)
 		return
 	}
-	resp, err := logic.NewDriverLogic(r.ctx).DriverDetail(req.Context(), id)
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
 }
+
 // handleDriverCertifications 返回司机审核列表。
 func (r *Router) handleDriverCertifications(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
@@ -583,7 +655,7 @@ func (r *Router) handleAbnormalOrders(w http.ResponseWriter, req *http.Request) 
 	writeSuccess(w, resp)
 }
 
-// handleOrderByID 处理订单详情和后台取消订单。
+// handleOrderByID 处理订单详情、轨迹查询和后台取消订单。
 func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
 	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/orders/")
 	if !ok {
@@ -597,6 +669,60 @@ func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		resp, err := orderLogic.Detail(req.Context(), id)
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
+	if action == "track" {
+		if req.Method != http.MethodGet {
+			writeMethodNotAllowed(w)
+			return
+		}
+		resp, err := orderLogic.Track(req.Context(), types.OrderTrackRequest{
+			OrderID:   id,
+			StartTime: int64Query(req, "start_time", 0),
+			EndTime:   int64Query(req, "end_time", 0),
+			Limit:     int32Query(req, "limit", 1000),
+		})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
+	if action == "redispatch" {
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.OrderRedispatchRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		resp, err := orderLogic.Redispatch(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+		return
+	}
+	if action == "refund" {
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.OrderRefundRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		resp, err := orderLogic.Refund(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req))
 		if err != nil {
 			r.writeBizError(w, err)
 			return
@@ -990,6 +1116,20 @@ func (r *Router) handleStatisticsCoupons(w http.ResponseWriter, req *http.Reques
 	writeSuccess(w, resp)
 }
 
+// handleStatisticsUsers 查询用户增长、活跃、复购、投诉和风险统计。
+func (r *Router) handleStatisticsUsers(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewStatisticsLogic(r.ctx).Users(req.Context(), statisticsRequestFromQuery(req))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
 // handleExportTasks 处理导出任务创建和列表查询。
 func (r *Router) handleExportTasks(w http.ResponseWriter, req *http.Request) {
 	exportLogic := logic.NewExportLogic(r.ctx)
@@ -1227,7 +1367,7 @@ func (r *Router) handleBlacklistByID(w http.ResponseWriter, req *http.Request) {
 		http.NotFound(w, req)
 		return
 	}
-	if req.Method != http.MethodPost {
+	if req.Method != http.MethodPost && req.Method != http.MethodPatch {
 		writeMethodNotAllowed(w)
 		return
 	}
@@ -1469,6 +1609,23 @@ func int64Query(req *http.Request, key string, defaultValue int64) int64 {
 		return defaultValue
 	}
 	return parsed
+}
+
+// boolQuery 读取布尔查询参数。
+// 支持 1/true/yes/on 表示 true，0/false/no/off 表示 false；非法值按默认值处理。
+func boolQuery(req *http.Request, key string, defaultValue bool) bool {
+	val := strings.ToLower(strings.TrimSpace(req.URL.Query().Get(key)))
+	if val == "" {
+		return defaultValue
+	}
+	switch val {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return defaultValue
+	}
 }
 
 // statisticsRequestFromQuery 读取统计接口通用查询参数。

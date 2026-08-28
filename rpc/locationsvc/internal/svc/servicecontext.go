@@ -32,6 +32,7 @@ type ServiceContext struct {
 	Geo                 *geo.Client
 	PoiModel            *model.PoiModel
 	DriverLocationModel *model.DriverLocationModel
+	RideTrackPointModel *model.RideTrackPointModel
 }
 
 func NewServiceContext(c config.Config, db *gorm.DB, redisClient *redis.Client) *ServiceContext {
@@ -47,6 +48,7 @@ func NewServiceContext(c config.Config, db *gorm.DB, redisClient *redis.Client) 
 		Geo:                 geo.NewClient(c.MapService),
 		PoiModel:            model.NewPoiModel(db),
 		DriverLocationModel: model.NewDriverLocationModel(db),
+		RideTrackPointModel: model.NewRideTrackPointModel(db),
 	}
 }
 
