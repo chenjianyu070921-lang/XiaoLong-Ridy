@@ -37,6 +37,7 @@ type (
 	GetDriverAiScoreResponse         = __proto.GetDriverAiScoreResponse
 	GetDriverByPhoneRequest          = __proto.GetDriverByPhoneRequest
 	GetDriverByPhoneResponse         = __proto.GetDriverByPhoneResponse
+	FreezeDriverRequest              = __proto.FreezeDriverRequest
 	GetDriverListenPreferenceRequest = __proto.GetDriverListenPreferenceRequest
 	GetDriverRequest                 = __proto.GetDriverRequest
 	GetDriverResponse                = __proto.GetDriverResponse
@@ -79,6 +80,7 @@ type (
 		DeleteDriver(ctx context.Context, in *DeleteDriverRequest, opts ...grpc.CallOption) (*DeleteDriverResponse, error)
 		GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error)
 		GetDriverByPhone(ctx context.Context, in *GetDriverByPhoneRequest, opts ...grpc.CallOption) (*GetDriverByPhoneResponse, error)
+		FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		SetDriverOnline(ctx context.Context, in *SetDriverOnlineRequest, opts ...grpc.CallOption) (*SetDriverOnlineResponse, error)
 		SetDriverOffline(ctx context.Context, in *SetDriverOfflineRequest, opts ...grpc.CallOption) (*SetDriverOfflineResponse, error)
 		SetDriverListenPreference(ctx context.Context, in *SetDriverListenPreferenceRequest, opts ...grpc.CallOption) (*DriverListenPreferenceResponse, error)
@@ -142,6 +144,11 @@ func (m *defaultDriverService) GetDriver(ctx context.Context, in *GetDriverReque
 func (m *defaultDriverService) GetDriverByPhone(ctx context.Context, in *GetDriverByPhoneRequest, opts ...grpc.CallOption) (*GetDriverByPhoneResponse, error) {
 	client := __proto.NewDriverServiceClient(m.cli.Conn())
 	return client.GetDriverByPhone(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.FreezeDriver(ctx, in, opts...)
 }
 
 func (m *defaultDriverService) SetDriverOnline(ctx context.Context, in *SetDriverOnlineRequest, opts ...grpc.CallOption) (*SetDriverOnlineResponse, error) {

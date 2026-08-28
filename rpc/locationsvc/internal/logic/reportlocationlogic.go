@@ -51,6 +51,23 @@ func (l *ReportLocationLogic) ReportLocation(in *locationsvc.ReportLocationReq) 
 		l.Errorf("写入 driver_location 失败: %v", err)
 		return nil, err
 	}
+	if in.OrderId > 0 {
+		// 行程中位置带有 order_id 时同步写入轨迹点表，供乘客端轨迹回放和后台客服仲裁使用。
+		// 这里只使用既有 ride_track_point 表，不创建或修改表结构。
+		point := &model.RideTrackPoint{
+			OrderID:    uint64(in.OrderId),
+			DriverID:   uint64(in.DriverId),
+			Longitude:  in.Lng,
+			Latitude:   in.Lat,
+			SpeedKmh:   in.SpeedKmh,
+			Direction:  int16(in.Heading),
+			RecordedAt: loc.ReportTime,
+		}
+		if err := l.svcCtx.RideTrackPointModel.Insert(point); err != nil {
+			l.Errorf("写入 ride_track_point 失败: %v", err)
+			return nil, err
+		}
+	}
 
 	// 2. 写 Redis GEO，供附近司机查询
 	if err := l.svcCtx.Redis.GeoAdd(l.ctx, svc.DriverGeoKey, &redis.GeoLocation{

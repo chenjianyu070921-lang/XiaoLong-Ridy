@@ -36,9 +36,18 @@ func (l *GetUserLogic) GetUser(in *adminsvc.UserDetailRequest) (*adminsvc.User, 
 	if in.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "用户ID不能为空")
 	}
-	canViewSensitive := canViewUserSensitive(l.ctx, l.svcCtx)
+	canViewSensitive := false
+	var sensitiveAdminID int64
+	if in.GetSensitive() {
+		admin, err := requireSensitiveFieldPermission(l.ctx, l.svcCtx)
+		if err != nil {
+			return nil, err
+		}
+		canViewSensitive = true
+		sensitiveAdminID = admin.ID
+	}
 	if l.svcCtx != nil && l.svcCtx.UsersSvc != nil {
-		return l.getUserFromRPC(in, canViewSensitive)
+		return l.getUserFromRPC(in, canViewSensitive, sensitiveAdminID)
 	}
 	row := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
 		SELECT id, phone, nickname, avatar_url, gender, real_name, id_card_no,
@@ -57,15 +66,25 @@ func (l *GetUserLogic) GetUser(in *adminsvc.UserDetailRequest) (*adminsvc.User, 
 	}
 	item.CreatedAt = formatNullTime(createdAt)
 	item.UpdatedAt = formatNullTime(updatedAt)
+	if canViewSensitive {
+		if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, sensitiveAdminID, "user", "view_sensitive", "user", in.GetId(), "查看用户完整手机号和身份证号", ""); err != nil {
+			return nil, err
+		}
+	}
 	return filterAdminUserSensitive(&item, canViewSensitive), nil
 }
 
 // getUserFromRPC 通过真实 usersvc 查询用户详情，并转换为后台响应对象。
 // 用户领域数据以 usersvc 为准，adminsvc 只承担后台响应转换、敏感字段权限裁剪和错误透传职责。
-func (l *GetUserLogic) getUserFromRPC(in *adminsvc.UserDetailRequest, canViewSensitive bool) (*adminsvc.User, error) {
+func (l *GetUserLogic) getUserFromRPC(in *adminsvc.UserDetailRequest, canViewSensitive bool, sensitiveAdminID int64) (*adminsvc.User, error) {
 	item, err := l.svcCtx.UsersSvc.AdminGetUser(l.ctx, &usersvc.AdminUserDetailRequest{Id: uint64(in.GetId())})
 	if err != nil {
 		return nil, err
+	}
+	if canViewSensitive {
+		if err := writeAuditAfterCommitted(l.ctx, l.svcCtx, sensitiveAdminID, "user", "view_sensitive", "user", in.GetId(), "查看用户完整手机号和身份证号", ""); err != nil {
+			return nil, err
+		}
 	}
 	return filterAdminUserSensitive(adminUserFromUsersRPC(item), canViewSensitive), nil
 }

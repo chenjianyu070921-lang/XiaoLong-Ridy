@@ -36,19 +36,11 @@ func (l *GetDriverLogic) GetDriver(in *proto.GetDriverRequest) (*proto.GetDriver
 	if err != nil {
 		return nil, err
 	}
+	driver, err := buildAdminDriverPB(l.ctx, l.svcCtx, d)
+	if err != nil {
+		return nil, err
+	}
 	return &proto.GetDriverResponse{
-		Driver: &proto.Driver{
-			Id:              int64(d.Id),
-			Phone:           d.Phone,
-			PasswordHash:    d.PasswordHash,
-			RealName:        d.RealName,
-			IdCardNo:        d.IdCardNo,
-			DriverLicenseNo: d.DriverLicenseNo,
-			AvatarUrl:       d.AvatarUrl,
-			Status:          proto.DriverStatus(d.Status),
-			OnlineStatus:    int32(d.OnlineStatus),
-			CreatedAt:       d.CreatedAt.Unix(),
-			UpdatedAt:       d.UpdatedAt.Unix(),
-		},
+		Driver: driver,
 	}, nil
 }

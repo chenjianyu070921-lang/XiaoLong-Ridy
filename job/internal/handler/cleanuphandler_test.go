@@ -70,6 +70,15 @@ func (f *fakeOrderClient) ConfirmPaid(context.Context, *order.ConfirmPaidRequest
 func (f *fakeOrderClient) ListOrderStatusLogs(context.Context, *order.ListOrderStatusLogsRequest, ...grpc.CallOption) (*order.ListOrderStatusLogsResponse, error) {
 	return nil, nil
 }
+func (f *fakeOrderClient) RefundOrder(context.Context, *order.RefundOrderRequest, ...grpc.CallOption) (*order.RefundOrderResponse, error) {
+	return nil, nil
+}
+func (f *fakeOrderClient) RedispatchOrder(context.Context, *order.RedispatchOrderRequest, ...grpc.CallOption) (*order.RedispatchOrderResponse, error) {
+	return nil, nil
+}
+func (f *fakeOrderClient) ForceRefundOrder(context.Context, *order.ForceRefundOrderRequest, ...grpc.CallOption) (*order.ForceRefundOrderResponse, error) {
+	return nil, nil
+}
 
 func newTestHandler(client order.Order) *CleanupHandler {
 	return NewCleanupHandler(&svc.ServiceContext{

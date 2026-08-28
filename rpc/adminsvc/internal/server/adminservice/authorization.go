@@ -28,9 +28,12 @@ const (
 var operatorIdentityMethods = map[string]struct{}{
 	"/adminsvc.AdminService/FreezeUser":                 {},
 	"/adminsvc.AdminService/UnfreezeUser":               {},
+	"/adminsvc.AdminService/FreezeDriver":               {},
 	"/adminsvc.AdminService/ApproveDriverCertification": {},
 	"/adminsvc.AdminService/RejectDriverCertification":  {},
 	"/adminsvc.AdminService/CancelOrder":                {},
+	"/adminsvc.AdminService/RedispatchOrder":            {},
+	"/adminsvc.AdminService/RefundOrder":                {},
 	"/adminsvc.AdminService/CreateCoupon":               {},
 	"/adminsvc.AdminService/UpdateCoupon":               {},
 	"/adminsvc.AdminService/DisableCoupon":              {},
@@ -117,9 +120,13 @@ func roleAllowed(method string, role int32) bool {
 			"/adminsvc.AdminService/ListOperationLogs", "/adminsvc.AdminService/ListUsers", "/adminsvc.AdminService/GetUser",
 			"/adminsvc.AdminService/ListDriverCertifications", "/adminsvc.AdminService/GetDriverCertification",
 			"/adminsvc.AdminService/ListOrders", "/adminsvc.AdminService/GetOrder", "/adminsvc.AdminService/ListAbnormalOrders",
-			"/adminsvc.AdminService/CancelOrder", "/adminsvc.AdminService/ListWorkOrders", "/adminsvc.AdminService/GetWorkOrder",
+			"/adminsvc.AdminService/GetOrderTrack", "/adminsvc.AdminService/CancelOrder", "/adminsvc.AdminService/RedispatchOrder",
+			"/adminsvc.AdminService/ListWorkOrders", "/adminsvc.AdminService/GetWorkOrder",
 			"/adminsvc.AdminService/ActWorkOrder", "/adminsvc.AdminService/BatchActWorkOrders",
-			"/adminsvc.AdminService/AddWorkOrderEvidence", "/adminsvc.AdminService/ListWorkOrderEvidence":
+			"/adminsvc.AdminService/AddWorkOrderEvidence", "/adminsvc.AdminService/ListWorkOrderEvidence",
+			"/adminsvc.AdminService/GetStatisticsOverview", "/adminsvc.AdminService/GetOrderStatistics",
+			"/adminsvc.AdminService/GetDriverStatistics", "/adminsvc.AdminService/GetFinanceStatistics",
+			"/adminsvc.AdminService/GetCouponStatistics", "/adminsvc.AdminService/GetUserStatistics":
 			return true
 		default:
 			return false
@@ -132,7 +139,8 @@ func roleAllowed(method string, role int32) bool {
 		"/adminsvc.AdminService/CreatePriceRule", "/adminsvc.AdminService/UpdatePriceRule",
 		"/adminsvc.AdminService/EnablePriceRule", "/adminsvc.AdminService/DisablePriceRule",
 		"/adminsvc.AdminService/PublishPromotionActivity", "/adminsvc.AdminService/RollbackPromotionActivity",
-		"/adminsvc.AdminService/AddBlacklist", "/adminsvc.AdminService/ReleaseBlacklist":
+		"/adminsvc.AdminService/AddBlacklist", "/adminsvc.AdminService/ReleaseBlacklist",
+		"/adminsvc.AdminService/RefundOrder":
 		return false
 	case "/adminsvc.AdminService/HandleRiskHitRecords":
 		// 风控命中处置可能新增黑名单、创建工单并写入审计，统一收归超管。

@@ -75,15 +75,20 @@ func (l *RiskLogic) ListRiskHitRecords(ctx context.Context, page, pageSize int, 
 	items := make([]types.RiskHitRecordDTO, 0, len(resp.List))
 	for _, item := range resp.List {
 		items = append(items, types.RiskHitRecordDTO{
-			ID:          item.Id,
-			BlacklistID: item.BlacklistId,
-			TargetType:  item.TargetType,
-			TargetID:    item.TargetId,
-			Scene:       item.Scene,
-			RiskLevel:   item.RiskLevel,
-			HitReason:   item.HitReason,
-			RequestID:   item.RequestId,
-			CreatedAt:   item.CreatedAt,
+			ID:           item.Id,
+			BlacklistID:  item.BlacklistId,
+			TargetType:   item.TargetType,
+			TargetID:     item.TargetId,
+			Scene:        item.Scene,
+			RiskLevel:    item.RiskLevel,
+			HitReason:    item.HitReason,
+			RequestID:    item.RequestId,
+			CreatedAt:    item.CreatedAt,
+			HandleStatus: item.HandleStatus,
+			HandleAction: item.HandleAction,
+			HandledBy:    item.HandledBy,
+			HandledAt:    item.HandledAt,
+			WorkOrderID:  item.WorkOrderId,
 		})
 	}
 	return &types.PageResult{List: items, Total: resp.Total, Page: int(resp.Page), PageSize: int(resp.PageSize)}, nil

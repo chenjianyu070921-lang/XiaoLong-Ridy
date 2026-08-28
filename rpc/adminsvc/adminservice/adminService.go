@@ -41,10 +41,11 @@ type (
 	DriverStatisticsResponse         = adminsvc.DriverStatisticsResponse
 	FinanceStatisticsResponse        = adminsvc.FinanceStatisticsResponse
 	DispatchRecord                   = adminsvc.DispatchRecord
-	Driver                          = adminsvc.Driver
-	DriverDetailRequest             = adminsvc.DriverDetailRequest
-	DriverListRequest               = adminsvc.DriverListRequest
-	DriverListResponse              = adminsvc.DriverListResponse
+	Driver                           = adminsvc.Driver
+	DriverDetailRequest              = adminsvc.DriverDetailRequest
+	FreezeDriverRequest              = adminsvc.FreezeDriverRequest
+	DriverListRequest                = adminsvc.DriverListRequest
+	DriverListResponse               = adminsvc.DriverListResponse
 	DriverCertification              = adminsvc.DriverCertification
 	DriverCertificationDetailRequest = adminsvc.DriverCertificationDetailRequest
 	DriverCertificationListRequest   = adminsvc.DriverCertificationListRequest
@@ -127,6 +128,7 @@ type (
 		// 查询司机审核列表。
 		ListDrivers(ctx context.Context, in *DriverListRequest, opts ...grpc.CallOption) (*DriverListResponse, error)
 		GetDriver(ctx context.Context, in *DriverDetailRequest, opts ...grpc.CallOption) (*Driver, error)
+		FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error)
 		// 查询司机审核详情。
 		GetDriverCertification(ctx context.Context, in *DriverCertificationDetailRequest, opts ...grpc.CallOption) (*DriverCertification, error)
@@ -293,11 +295,18 @@ func (m *defaultAdminService) GetDriver(ctx context.Context, in *DriverDetailReq
 	return client.GetDriver(ctx, in, opts...)
 }
 
+// 冻结司机。
+func (m *defaultAdminService) FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.FreezeDriver(ctx, in, opts...)
+}
+
 // 查询司机审核列表。
 func (m *defaultAdminService) ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListDriverCertifications(ctx, in, opts...)
 }
+
 // 查询司机审核详情。
 func (m *defaultAdminService) GetDriverCertification(ctx context.Context, in *DriverCertificationDetailRequest, opts ...grpc.CallOption) (*DriverCertification, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())

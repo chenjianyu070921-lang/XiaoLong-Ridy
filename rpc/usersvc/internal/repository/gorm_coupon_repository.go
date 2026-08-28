@@ -168,6 +168,62 @@ func (r *gormCouponRepository) ListByUserPage(ctx context.Context, userID uint64
 	return list, total, nil
 }
 
+// ListForAdminPage 按管理后台筛选条件分页查询用户券。
+// 查询仍在 usersvc 内部完成，adminsvc 只通过 RPC 获取结果，避免管理后台跨服务直连 user_coupon 表。
+func (r *gormCouponRepository) ListForAdminPage(ctx context.Context, filter AdminUserCouponQuery) ([]*UserCouponWithTemplate, int64, error) {
+	now := time.Now()
+	offset := (filter.Page - 1) * filter.PageSize
+
+	base := func() *gorm.DB {
+		query := r.db.WithContext(ctx).Table("user_coupon AS uc")
+		if filter.UserID > 0 {
+			query = query.Where("uc.user_id = ?", filter.UserID)
+		}
+		if filter.CouponID > 0 {
+			query = query.Where("uc.coupon_id = ?", filter.CouponID)
+		}
+		if !filter.StartTime.IsZero() {
+			query = query.Where("uc.received_at >= ?", filter.StartTime)
+		}
+		if !filter.EndTime.IsZero() {
+			query = query.Where("uc.received_at <= ?", filter.EndTime)
+		}
+		if filter.Status > 0 {
+			query = applyCouponStatusFilter(query, filter.Status, now)
+		}
+		return query
+	}
+
+	var total int64
+	if err := base().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var rows []couponListRow
+	err := base().
+		Select(`uc.id AS user_coupon_id, uc.user_id, uc.coupon_id, uc.order_id, uc.locked_order_id,
+			uc.status, uc.received_at, uc.used_at, uc.locked_at, uc.expire_at, uc.created_at, uc.updated_at,
+			c.name, c.type, c.face_value, c.discount, c.threshold_amount, c.car_type, c.city_code`).
+		Joins("JOIN coupon AS c ON c.id = uc.coupon_id").
+		Order("uc.received_at DESC, uc.id DESC").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	list := make([]*UserCouponWithTemplate, 0, len(rows))
+	for _, row := range rows {
+		item := row.toView()
+		if item.UserCoupon.Status == model.UserCouponStatusUnused && item.UserCoupon.ExpireAt.Before(now) {
+			item.UserCoupon.Status = model.UserCouponStatusExpired
+		}
+		list = append(list, item)
+	}
+	return list, total, nil
+}
+
 // applyCouponStatusFilter 将用户券状态筛选转换为数据库条件。
 // 未使用券过期后在业务层展示为过期，因此状态 3 需要同时匹配数据库中的过期状态
 // 和已超过有效期的未使用券，保证 COUNT 与分页列表的口径一致。

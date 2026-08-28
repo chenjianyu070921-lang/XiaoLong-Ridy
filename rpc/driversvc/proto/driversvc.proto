@@ -26,6 +26,7 @@ service DriverService {
   rpc DeleteDriver(DeleteDriverRequest) returns (DeleteDriverResponse);
   rpc GetDriver(GetDriverRequest) returns (GetDriverResponse);
   rpc GetDriverByPhone(GetDriverByPhoneRequest) returns (GetDriverByPhoneResponse);
+  rpc FreezeDriver(FreezeDriverRequest) returns (CommonResponse);
 
   rpc SetDriverOnline(SetDriverOnlineRequest) returns (SetDriverOnlineResponse);
   rpc SetDriverOffline(SetDriverOfflineRequest) returns (SetDriverOfflineResponse);
@@ -67,6 +68,12 @@ message Driver {
   int64 created_at = 9;
   int64 updated_at = 10;
   int32 online_status = 11;
+  int64 vehicle_id = 12;
+  string plate_no = 13;
+  int32 vehicle_status = 14;
+  int64 certification_id = 15;
+  int32 audit_status = 16;
+  string audit_remark = 17;
 }
 
 message CreateDriverRequest {
@@ -116,6 +123,13 @@ message GetDriverRequest {
 
 message GetDriverResponse {
   Driver driver = 1;
+}
+
+message FreezeDriverRequest {
+  int64 driver_id = 1;
+  string reason = 2;
+  int64 operator_id = 3;
+  string ip = 4;
 }
 
 message SetDriverOnlineRequest {
