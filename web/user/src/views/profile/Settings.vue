@@ -181,6 +181,25 @@
       </div>
     </van-dialog>
 
+    <!-- 已认证信息弹窗：仅展示服务端脱敏后的姓名和身份证号。 -->
+    <van-dialog v-model:show="showRealNameInfoDialog" title="实名认证信息" :show-confirm-button="true" confirm-button-text="关闭">
+      <div class="dialog-content realname-info-dialog">
+        <div class="info-row"><span>真实姓名</span><strong>{{ maskedRealName || '-' }}</strong></div>
+        <div class="info-row"><span>身份证号</span><strong>{{ maskedIDCard || '-' }}</strong></div>
+        <p class="realname-info-tip">以上信息已脱敏，仅用于核对当前认证状态。</p>
+      </div>
+    </van-dialog>
+
+    <!-- 账号信息弹窗：展示当前账号安全信息，敏感内容始终脱敏。 -->
+    <van-dialog v-model:show="showAccountDialog" title="账号与密码" :show-confirm-button="true" confirm-button-text="关闭">
+      <div class="dialog-content account-dialog">
+        <div class="info-row"><span>登录手机号</span><strong>{{ maskedPhone }}</strong></div>
+        <div class="info-row"><span>登录方式</span><strong>短信验证码</strong></div>
+        <div class="info-row"><span>密码状态</span><strong>未设置</strong></div>
+        <p class="realname-info-tip">当前账号使用短信验证码登录，暂不支持密码登录。</p>
+      </div>
+    </van-dialog>
+
     <!-- 实名认证弹窗：提交真实姓名和身份证号到乘客端实名认证接口。 -->
     <van-dialog
       v-model:show="showRealNameDialog"
@@ -223,6 +242,8 @@ const userStore = useUserStore()
 const cacheSize = ref('12.5MB')
 const showChangePhone = ref(false)
 const showRealNameDialog = ref(false)
+const showRealNameInfoDialog = ref(false)
+const showAccountDialog = ref(false)
 const oldPhoneCode = ref('')
 const realNameForm = ref({
   realName: '',
@@ -245,6 +266,8 @@ const realNameStatus = computed(() => {
 const realNameText = computed(() => {
   return realNameStatus.value === 'verified' ? '已认证' : '未认证'
 })
+const maskedRealName = computed(() => userStore.userInfo.realName || '')
+const maskedIDCard = computed(() => userStore.userInfo.idCardNo || '')
 
 // 手机号脱敏
 const maskedPhone = computed(() => {
@@ -257,7 +280,7 @@ const goBack = () => router.back()
 
 const goToPage = (page) => {
   if (page === 'realname' && realNameStatus.value === 'verified') {
-    showToast('您已完成实名认证')
+    showRealNameInfoDialog.value = true
     return
   }
   if (page === 'realname') {
@@ -266,7 +289,7 @@ const goToPage = (page) => {
     return
   }
   if (page === 'phone') {
-    showToast('账号与密码功能开发中')
+    showAccountDialog.value = true
   }
 }
 
@@ -305,7 +328,8 @@ const onRealNameDialogClose = async (action) => {
       userStore.userInfo = {
         ...userStore.userInfo,
         ...res.user,
-        realNameStatus: res.user.realNameStatus || 'verified'
+        // 后端枚举为 VERIFIED/UNVERIFIED，前端统一使用小写状态。
+        realNameStatus: String(res.user.realNameStatus || 'verified').toLowerCase()
       }
       localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
     } else {
@@ -521,4 +545,11 @@ const handleLogout = () => {
   padding: 12px 0;
   text-align: left;
 }
+</style>
+
+<style scoped>
+.realname-info-dialog { padding: 4px 18px 18px; }
+.info-row { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280; font-size: 14px; }
+.info-row strong { color: #111827; font-weight: 600; letter-spacing: 1px; }
+.realname-info-tip { margin: 14px 0 0; color: #9ca3af; font-size: 12px; line-height: 1.5; }
 </style>

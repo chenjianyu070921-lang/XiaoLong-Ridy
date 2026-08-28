@@ -54,7 +54,7 @@ export const useUserStore = defineStore('user', () => {
       phone: info.phone || fallbackPhone,
       nickname: info.nickname || '乘客',
       avatarUrl: info.avatarUrl || info.avatarURL || '/default-avatar.png',
-      realNameStatus: info.realNameStatus || 'unverified'
+      realNameStatus: String(info.realNameStatus || 'unverified').toLowerCase()
     }
   }
 
@@ -81,7 +81,8 @@ export const useUserStore = defineStore('user', () => {
   async function fetchUserInfo() {
     try {
       const res = await getProfile()
-      userInfo.value = res.user || {}
+      // 后端返回大写实名认证枚举，统一归一化后供页面使用。
+      userInfo.value = normalizeUserInfo(res.user || {})
       localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
       return res
     } catch (error) {

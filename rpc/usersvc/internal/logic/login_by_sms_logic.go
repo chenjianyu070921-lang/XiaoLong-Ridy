@@ -169,5 +169,32 @@ func toUserInfo(user *model.User) *userproto.UserInfo {
 		Nickname:       user.Nickname,
 		AvatarUrl:      user.AvatarURL,
 		RealNameStatus: realNameStatus(user),
+		RealName:       maskRealName(user.RealName),
+		IdCardNo:       maskIDCard(user.IDCardNo),
 	}
+}
+
+// maskRealName 仅保留姓名首字，其余字符脱敏。
+func maskRealName(name string) string {
+	r := []rune(strings.TrimSpace(name))
+	if len(r) == 0 {
+		return ""
+	}
+	if len(r) == 1 {
+		return "*"
+	}
+	return string(r[0]) + strings.Repeat("*", len(r)-1)
+}
+
+// maskIDCard 仅保留身份证前四位和后四位，中间字符脱敏。
+func maskIDCard(id string) string {
+	id = strings.TrimSpace(id)
+	r := []rune(id)
+	if len(r) <= 8 {
+		if id == "" {
+			return ""
+		}
+		return strings.Repeat("*", len(r))
+	}
+	return string(r[:4]) + strings.Repeat("*", len(r)-8) + string(r[len(r)-4:])
 }
