@@ -60,12 +60,23 @@ func UpdateDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 // GetDriverHandler returns the current driver profile. driverId comes from JWT.
 func GetDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims := middleware.ClaimsFromContext(r.Context())
-		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
-			return
+		driverID := int64(0)
+		if middleware.IsInternalCall(r.Context()) {
+			id, ok := decodeQueryID(r, "id")
+			if !ok {
+				writeError(w, http.StatusBadRequest, 50000, "invalid driverId")
+				return
+			}
+			driverID = id
+		} else {
+			claims := middleware.ClaimsFromContext(r.Context())
+			if claims == nil {
+				writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+				return
+			}
+			driverID = int64(claims.AccountID)
 		}
-		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).GetDriver(int64(claims.AccountID))
+		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).GetDriver(driverID)
 		if err != nil {
 			writeParamError(w, err)
 			return
@@ -98,8 +109,7 @@ func GetDriverByPhoneHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 // ListNearbyDriversHandler returns nearby online drivers for dispatching.
 func ListNearbyDriversHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims := middleware.ClaimsFromContext(r.Context())
-		if claims == nil {
+		if !middleware.IsInternalCall(r.Context()) && middleware.ClaimsFromContext(r.Context()) == nil {
 			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}

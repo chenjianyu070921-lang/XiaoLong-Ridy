@@ -51,17 +51,28 @@ func UpdateVehicleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 
 func GetVehicleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims := middleware.ClaimsFromContext(r.Context())
-		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
-			return
-		}
 		id, ok := decodeQueryID(r, "id")
 		if !ok {
 			writeError(w, http.StatusBadRequest, 50000, "车辆ID不合法")
 			return
 		}
-		resp, err := logic.NewVehicleLogic(r.Context(), svcCtx).GetVehicle(int64(claims.AccountID), id)
+		driverID := int64(0)
+		if middleware.IsInternalCall(r.Context()) {
+			var ok bool
+			driverID, ok = decodeQueryID(r, "driverId")
+			if !ok {
+				writeError(w, http.StatusBadRequest, 50000, "司机ID不合法")
+				return
+			}
+		} else {
+			claims := middleware.ClaimsFromContext(r.Context())
+			if claims == nil {
+				writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+				return
+			}
+			driverID = int64(claims.AccountID)
+		}
+		resp, err := logic.NewVehicleLogic(r.Context(), svcCtx).GetVehicle(driverID, id)
 		if err != nil {
 			writeParamError(w, err)
 			return

@@ -26,7 +26,10 @@ func NewCertificationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cer
 // UploadCertification 上传司机资质图片：透传 base64 图片到 driversvc，由其直传 MinIO 并落库，返回资质记录。
 // driverID 由鉴权中间件从 JWT 解析得到。
 func (l *CertificationLogic) UploadCertification(driverID int64, req *types.UploadCertificationRequest) (*types.UploadCertificationResponse, error) {
-	// 参数校验：至少提供一张资质图片。
+	// 参数校验：司机ID和至少提供一张资质图片。
+	if driverID <= 0 || req == nil {
+		return nil, ErrInvalidParam
+	}
 	if req.IdCardFront == "" && req.IdCardBack == "" && req.DriverLicense == "" && req.VehicleLicense == "" {
 		return nil, errEmptyCertification
 	}

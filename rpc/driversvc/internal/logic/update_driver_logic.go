@@ -30,6 +30,9 @@ func (l *UpdateDriverLogic) UpdateDriver(in *proto.UpdateDriverRequest) (*proto.
 	if in == nil || in.Id <= 0 {
 		return nil, errors.New("司机ID不合法")
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
+		return nil, errors.New("driver repository not ready")
+	}
 	if in.Phone != nil && !driverPhoneRegexp.MatchString(in.GetPhone()) {
 		return nil, errors.New("手机号格式不合法")
 	}

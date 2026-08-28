@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
@@ -28,6 +29,12 @@ func NewListDriversLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListD
 
 // ListDrivers 分页查询司机列表，支持状态与关键字过滤。
 func (l *ListDriversLogic) ListDrivers(in *proto.ListDriversRequest) (*proto.ListDriversResponse, error) {
+	if in == nil {
+		return nil, errors.New("请求参数不能为空")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
+		return nil, errors.New("driver repository not ready")
+	}
 	// 组装过滤条件；状态为空时不过滤。
 	filter := repository.DriverListFilter{
 		Page:     in.GetPage(),

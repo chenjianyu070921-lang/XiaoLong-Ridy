@@ -75,6 +75,32 @@ func TestLoginBySMSRejectsInvalidCodeBeforeDriverService(t *testing.T) {
 	}
 }
 
+func TestSendSMSCodeRejectsNilRequest(t *testing.T) {
+	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{
+		CodeCache: svc.NewLocalCodeCache(time.Minute),
+	})
+
+	if _, err := logic.SendSMSCode(nil); err != ErrInvalidParam {
+		t.Fatalf("SendSMSCode(nil) error = %v, want %v", err, ErrInvalidParam)
+	}
+}
+
+func TestSendSMSCodeRequiresCodeCache(t *testing.T) {
+	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{})
+
+	if _, err := logic.SendSMSCode(&types.SendSMSCodeRequest{Phone: "13800000001"}); err != ErrCodeSendFailed {
+		t.Fatalf("SendSMSCode() error = %v, want %v", err, ErrCodeSendFailed)
+	}
+}
+
+func TestLoginBySMSRequiresCodeCache(t *testing.T) {
+	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{})
+
+	if _, err := logic.LoginBySMS(&types.LoginBySMSRequest{Phone: "13800000001", Code: "123456"}); err != ErrCodeInvalid {
+		t.Fatalf("LoginBySMS() error = %v, want %v", err, ErrCodeInvalid)
+	}
+}
+
 func TestNormalizeLoginErrorTreatsPendingDriverAsForbidden(t *testing.T) {
 	err := normalizeLoginError(status.Error(codes.Unknown, "账号未审核通过"))
 	if err != ErrDriverFrozen {

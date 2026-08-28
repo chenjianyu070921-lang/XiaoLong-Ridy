@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
@@ -26,6 +27,12 @@ func NewUpdateVehicleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 
 // UpdateVehicle 更新车辆信息，仅修改请求中显式传入的字段（optional 字段为指针，nil 表示不更新）。
 func (l *UpdateVehicleLogic) UpdateVehicle(in *proto.UpdateVehicleRequest) (*proto.UpdateVehicleResponse, error) {
+	if in == nil || in.Id <= 0 {
+		return nil, errors.New("车辆ID不合法")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
+		return nil, errors.New("driver vehicle repository not ready")
+	}
 	v, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, uint64(in.Id))
 	if err != nil {
 		return nil, err

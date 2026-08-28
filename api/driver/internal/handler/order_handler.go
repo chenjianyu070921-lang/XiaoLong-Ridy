@@ -169,11 +169,6 @@ func RejectOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 // Lists dispatch records for the current driver.
 func ListMyDispatchesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims := middleware.ClaimsFromContext(r.Context())
-		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
-			return
-		}
 		var req types.ListMyDispatchesRequest
 		if !decodeJSON(w, r, &req) {
 			return
@@ -182,8 +177,23 @@ func ListMyDispatchesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, 50000, "invalid dispatch query parameters")
 			return
 		}
+		driverID := int64(0)
+		if middleware.IsInternalCall(r.Context()) {
+			if req.DriverID <= 0 {
+				writeError(w, http.StatusBadRequest, 50000, "invalid driverId")
+				return
+			}
+			driverID = req.DriverID
+		} else {
+			claims := middleware.ClaimsFromContext(r.Context())
+			if claims == nil {
+				writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+				return
+			}
+			driverID = int64(claims.AccountID)
+		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).ListMyDispatches(
-			int64(claims.AccountID),
+			driverID,
 			req.Page,
 			req.PageSize,
 			req.Status,

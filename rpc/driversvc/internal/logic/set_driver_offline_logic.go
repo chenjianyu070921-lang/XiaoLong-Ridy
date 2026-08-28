@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
@@ -27,6 +28,9 @@ func NewSetDriverOfflineLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 func (l *SetDriverOfflineLogic) SetDriverOffline(in *proto.SetDriverOfflineRequest) (*proto.SetDriverOfflineResponse, error) {
 	if in == nil || in.GetDriverId() <= 0 {
 		return nil, errInvalidDriverID
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil || l.svcCtx.OnlineStore == nil {
+		return nil, errors.New("driver dependencies not ready")
 	}
 	// 先校验司机存在（软删不可见）。
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.GetDriverId())); err != nil {

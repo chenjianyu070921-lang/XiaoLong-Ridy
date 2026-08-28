@@ -19,10 +19,14 @@
           maxlength="8"
           clearable
         />
-        <div class="captcha-image-wrap">
-          <img v-if="imgBase64" class="captcha-image" :src="captchaImageSrc" alt="图形验证码" />
-          <div v-else class="captcha-image empty">{{ loading ? '加载中' : '加载失败' }}</div>
-          <button class="refresh-link" type="button" :disabled="loading" @click="refreshCaptcha">看不清？</button>
+        <div class="captcha-image-column">
+          <div class="captcha-image-wrap">
+            <img v-if="imgBase64" class="captcha-image" :src="captchaImageSrc" alt="图形验证码" />
+            <div v-else class="captcha-image empty">{{ loading ? '加载中' : '加载失败' }}</div>
+          </div>
+          <div class="captcha-refresh-row">
+            <button class="refresh-link" type="button" :disabled="loading" @click="refreshCaptcha">看不清？</button>
+          </div>
         </div>
       </div>
 
@@ -41,7 +45,7 @@ import { getImgCaptcha, invalidateImgCaptcha } from '@/api/driver'
 type CaptchaConfirmPayload = {
   phone: string
   uuid: string
-  userInputCode: string
+  code: string
 }
 
 type CaptchaClosePayload = {
@@ -115,7 +119,7 @@ async function handleConfirm() {
   }
   submitting.value = true
   try {
-    emit('confirm', { phone: props.phone, uuid: uuid.value, userInputCode: userInputCode.value })
+    emit('confirm', { phone: props.phone, uuid: uuid.value, code: userInputCode.value })
   } finally {
     submitting.value = false
   }
@@ -210,14 +214,20 @@ function apiErrorMessage(error: unknown, fallbackMessage: string) {
   font-size: 13px;
 }
 
+.captcha-refresh-row {
+  display: flex;
+  min-height: 22px;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-top: 3px;
+}
+
 .refresh-link {
-  position: absolute;
-  right: 6px;
-  bottom: 4px;
+  padding: 0;
   border: 0;
-  background: rgba(255, 255, 255, 0.88);
+  background: transparent;
   color: #1677ff;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 18px;
 }
 

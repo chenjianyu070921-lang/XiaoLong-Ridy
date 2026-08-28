@@ -21,7 +21,7 @@ import (
 const defaultHTTPAddress = ":8082"
 
 // driversvc listens on rpc/driversvc/etc/driversvc.yaml ListenOn by default.
-const defaultDriverGRPCAddr = "127.0.0.1:5055"
+const defaultDriverGRPCAddr = "127.0.0.1:50055"
 
 const defaultOrderGRPCAddr = "127.0.0.1:50051"
 
@@ -39,6 +39,7 @@ type driverConfig struct {
 	LocationGRPCAddr string                 `yaml:"locationGrpcAddr"`
 	RedisAddr        string                 `yaml:"redisAddr"`
 	Mysql            commonconfig.MysqlConf `yaml:"mysql"`
+	InternalAuth     svc.InternalAuthConfig `yaml:"internalAuth"`
 }
 
 func main() {
@@ -55,13 +56,20 @@ func main() {
 	dispatchGRPCAddr := envOr("DISPATCH_GRPC_ADDR", cfg.DispatchGRPCAddr)
 	locationGRPCAddr := envOr("LOCATION_GRPC_ADDR", cfg.LocationGRPCAddr)
 	redisAddr := envOr("DRIVER_REDIS_ADDR", cfg.RedisAddr)
+	if internalToken := envOr("DRIVER_INTERNAL_SERVICE_TOKEN", ""); internalToken != "" {
+		cfg.InternalAuth.ServiceToken = internalToken
+	}
 	if mysqlDSN := envOr("DRIVER_MYSQL_DSN", ""); mysqlDSN != "" {
 		cfg.Mysql.Dsn = mysqlDSN
 	}
 
 	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, cfg.Mysql)
+	svcCtx.InternalAuth = cfg.InternalAuth
 	if err := svcCtx.ValidateSigningKey(); err != nil {
 		panic(fmt.Errorf("driver api signing key check: %w", err))
+	}
+	if err := svcCtx.ValidateInternalAuth(); err != nil {
+		panic(fmt.Errorf("driver api internal auth check: %w", err))
 	}
 
 	server := &http.Server{
@@ -189,7 +197,7 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/ws", handler.DriverPushWSHandler(svcCtx))
 	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", handler.AgentChatHandler())))
 
-	return mux
+	return middleware.InternalServiceAuth(svcCtx)(mux)
 }
 
 func internalOrDriverAuth(svcCtx *svc.ServiceContext, h http.HandlerFunc) http.Handler {

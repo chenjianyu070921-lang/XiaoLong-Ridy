@@ -31,9 +31,9 @@ func NewGetDriverAiScoreLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 // 综合推荐分各维度的权重（权重之和=1，便于直观调整）。
 const (
 	weightServiceScore = 0.45 // 服务分（满分 100 归一化）
-	weightCancelRate  = 0.25 // 取消率（越低越好）
-	weightComplaint   = 0.15 // 投诉数（越少越好）
-	weightMonthOrders = 0.15 // 当月完单数（越多越好，封顶 50 单）
+	weightCancelRate   = 0.25 // 取消率（越低越好）
+	weightComplaint    = 0.15 // 投诉数（越少越好）
+	weightMonthOrders  = 0.15 // 当月完单数（越多越好，封顶 50 单）
 )
 
 // maxMonthOrders 当月完单数的归一化上限，超过视为满分贡献。
@@ -43,8 +43,11 @@ const maxMonthOrders = 50.0
 // 降级策略：若司机服务分记录不存在或查询异常，则返回 degraded=true，
 // 回退到「距离优先」原始派单逻辑，保证打车链路不中断。
 func (l *GetDriverAiScoreLogic) GetDriverAiScore(in *proto.GetDriverAiScoreRequest) (*proto.GetDriverAiScoreResponse, error) {
-	if in.DriverId <= 0 {
+	if in == nil || in.DriverId <= 0 {
 		return nil, errors.New("司机ID不合法")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
+		return nil, errors.New("driver repository not ready")
 	}
 
 	score, err := l.svcCtx.DriverRepository.GetDriverScore(l.ctx, uint64(in.DriverId))
@@ -74,32 +77,32 @@ func (l *GetDriverAiScoreLogic) GetDriverAiScore(in *proto.GetDriverAiScoreReque
 
 	factors := []*proto.AiScoreFactor{
 		{
-			Key:     "service_score",
-			Label:   "服务分",
-			Value:   score.Score,
-			Impact:  impactOf(serviceNorm, "提升服务分可提升推荐优先级", "服务分偏低，建议规范服务提升得分"),
-			Hint:    "保持高服务分（好评、准时）可显著提升推荐优先级",
+			Key:    "service_score",
+			Label:  "服务分",
+			Value:  score.Score,
+			Impact: impactOf(serviceNorm, "提升服务分可提升推荐优先级", "服务分偏低，建议规范服务提升得分"),
+			Hint:   "保持高服务分（好评、准时）可显著提升推荐优先级",
 		},
 		{
-			Key:     "cancel_rate",
-			Label:   "当月取消率",
-			Value:   score.MonthCancelRate,
-			Impact:  impactOf(cancelNorm, "低取消率有利于推荐优先级", "取消率偏高，降低推荐优先级"),
-			Hint:    "降低订单取消率可提升推荐优先级",
+			Key:    "cancel_rate",
+			Label:  "当月取消率",
+			Value:  score.MonthCancelRate,
+			Impact: impactOf(cancelNorm, "低取消率有利于推荐优先级", "取消率偏高，降低推荐优先级"),
+			Hint:   "降低订单取消率可提升推荐优先级",
 		},
 		{
-			Key:     "complaint",
-			Label:   "当月投诉数",
-			Value:   float64(score.MonthComplaintCount),
-			Impact:  impactOf(complaintNorm, "无投诉有利于推荐优先级", "存在投诉，降低推荐优先级"),
-			Hint:    "减少服务投诉可提升推荐优先级",
+			Key:    "complaint",
+			Label:  "当月投诉数",
+			Value:  float64(score.MonthComplaintCount),
+			Impact: impactOf(complaintNorm, "无投诉有利于推荐优先级", "存在投诉，降低推荐优先级"),
+			Hint:   "减少服务投诉可提升推荐优先级",
 		},
 		{
-			Key:     "month_orders",
-			Label:   "当月完单数",
-			Value:   float64(score.MonthOrders),
-			Impact:  impactOf(orderNorm, "完单数多有利于推荐优先级", "完单数偏少，推荐优先级较低"),
-			Hint:    "提高完单量可提升推荐优先级",
+			Key:    "month_orders",
+			Label:  "当月完单数",
+			Value:  float64(score.MonthOrders),
+			Impact: impactOf(orderNorm, "完单数多有利于推荐优先级", "完单数偏少，推荐优先级较低"),
+			Hint:   "提高完单量可提升推荐优先级",
 		},
 	}
 

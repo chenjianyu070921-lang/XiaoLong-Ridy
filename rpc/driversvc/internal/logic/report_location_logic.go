@@ -39,6 +39,9 @@ func (l *ReportLocationLogic) ReportLocation(in *proto.ReportLocationRequest) (*
 	if !validLongitudeLatitude(in.GetLongitude(), in.GetLatitude()) {
 		return nil, errInvalidLongitudeLatitude
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil || l.svcCtx.OnlineStore == nil {
+		return nil, errors.New("driver dependencies not ready")
+	}
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.GetDriverId())); err != nil {
 		return nil, err
 	}

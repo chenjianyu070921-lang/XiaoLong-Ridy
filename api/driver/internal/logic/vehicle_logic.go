@@ -119,6 +119,18 @@ func (l *VehicleLogic) DeleteVehicle(driverID, vehicleID int64) (*types.DeleteVe
 	if err != nil {
 		return nil, err
 	}
+	// 校验车辆归属，防止越权删除他人车辆
+	getResp, err := client.GetVehicle(l.ctx, &driversproto.GetVehicleRequest{Id: vehicleID})
+	if err != nil {
+		return nil, err
+	}
+	vehicle := getResp.GetVehicle()
+	if vehicle == nil {
+		return nil, ErrInvalidParam
+	}
+	if vehicle.GetDriverId() != driverID {
+		return nil, ErrForbiddenDriverResource
+	}
 	resp, err := client.DeleteVehicle(l.ctx, &driversproto.DeleteVehicleRequest{Id: vehicleID})
 	if err != nil {
 		return nil, err

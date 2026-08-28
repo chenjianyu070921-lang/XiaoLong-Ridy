@@ -2,13 +2,13 @@
 package handler
 
 import (
-	"crypto/rand"  // 用于生成随机 traceID
-	"encoding/hex" // 将随机字节编码为十六进制字符串
+	"crypto/rand"   // 用于生成随机 traceID
+	"encoding/hex"  // 将随机字节编码为十六进制字符串
 	"encoding/json" // 提供 JSON 编解码能力
 	"errors"
-	"net/http"      // HTTP 基础类型与状态码
-	"strconv"       // 将查询参数字符串解析为整型
-	"time"          // 生成响应时间戳
+	"net/http" // HTTP 基础类型与状态码
+	"strconv"  // 将查询参数字符串解析为整型
+	"time"     // 生成响应时间戳
 
 	"XiaoLong-Ridy/api/driver/internal/types" // 统一响应结构体定义
 )
@@ -32,12 +32,18 @@ func writeResponse(w http.ResponseWriter, status, code int, message string, data
 	// 写入 HTTP 状态码。
 	w.WriteHeader(status)
 	// 将统一响应结构编码为 JSON 并写入响应体（忽略编码错误）。
+	responseTraceID := traceID()
+	if carrier, ok := w.(interface{ ResponseTraceID() string }); ok {
+		if traceID := carrier.ResponseTraceID(); traceID != "" {
+			responseTraceID = traceID
+		}
+	}
 	_ = json.NewEncoder(w).Encode(types.Response{
-		Code:      code,             // 业务码
-		Message:   message,          // 提示信息
-		Data:      data,             // 业务数据（可为 nil）
+		Code:      code,              // 业务码
+		Message:   message,           // 提示信息
+		Data:      data,              // 业务数据（可为 nil）
 		Timestamp: time.Now().Unix(), // 当前秒级时间戳
-		TraceID:   traceID(),         // 本次请求追踪 ID
+		TraceID:   responseTraceID,   // 本次请求追踪 ID
 	})
 }
 

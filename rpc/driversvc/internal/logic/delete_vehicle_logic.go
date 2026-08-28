@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
@@ -25,6 +26,12 @@ func NewDeleteVehicleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Del
 
 // DeleteVehicle 根据车辆 ID 删除车辆（driver_vehicle 表无软删字段，按物理删除处理）。
 func (l *DeleteVehicleLogic) DeleteVehicle(in *proto.DeleteVehicleRequest) (*proto.DeleteVehicleResponse, error) {
+	if in == nil || in.Id <= 0 {
+		return nil, errors.New("车辆ID不合法")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
+		return nil, errors.New("driver vehicle repository not ready")
+	}
 	v, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, uint64(in.Id))
 	if err != nil {
 		return nil, err

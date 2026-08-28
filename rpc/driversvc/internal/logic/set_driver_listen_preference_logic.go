@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
@@ -34,6 +35,9 @@ func (l *SetDriverListenPreferenceLogic) SetDriverListenPreference(in *proto.Set
 	}
 	if !validDriverListenPreference(pref) {
 		return nil, errInvalidListenPreference
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil || l.svcCtx.DriverListenPreferenceRepository == nil {
+		return nil, errors.New("driver dependencies not ready")
 	}
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.GetDriverId())); err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -28,10 +29,14 @@ type fakeOrderClient struct {
 	listOrdersRequest         *orderproto.ListOrdersRequest
 	listOrdersResponse        *orderproto.ListOrdersResponse
 	getOrderResponses         map[int64]*orderproto.GetOrderResponse
+	getOrderErr               error
 }
 
 func (f *fakeOrderClient) GetOrder(_ context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
 	f.getOrderRequest = req
+	if f.getOrderErr != nil {
+		return nil, f.getOrderErr
+	}
 	if f.getOrderResponses != nil {
 		if resp, ok := f.getOrderResponses[req.GetOrderId()]; ok {
 			return resp, nil
@@ -333,6 +338,31 @@ func TestListMyDispatchesCombinesDispatchAndOrder(t *testing.T) {
 	}
 	if dispatchClient.listRequest.GetDriverId() != 25 || dispatchClient.listRequest.GetStatus() != 1 {
 		t.Fatalf("ListMyDispatches() request = %+v", dispatchClient.listRequest)
+	}
+	if !resp.OrderQueryOk {
+		t.Fatalf("ListMyDispatches() orderQueryOk = false, want true")
+	}
+}
+
+func TestListMyDispatchesMarksOrderQueryFailed(t *testing.T) {
+	dispatchClient := &fakeDispatchClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
+		DispatchClient: dispatchClient,
+		OrderClient:    &fakeOrderClient{getOrderErr: errors.New("ordersvc unavailable")},
+	})
+
+	resp, err := logic.ListMyDispatches(25, 1, 20, 1)
+	if err != nil {
+		t.Fatalf("ListMyDispatches() error = %v", err)
+	}
+	if resp.OrderQueryOk {
+		t.Fatalf("ListMyDispatches() orderQueryOk = true, want false")
+	}
+	if len(resp.List) != 1 || resp.List[0].Dispatch.OrderID != 1001 {
+		t.Fatalf("ListMyDispatches() should keep dispatch record when order query fails: %+v", resp)
+	}
+	if resp.List[0].Order.OrderID != 0 || resp.List[0].Order.OrderNo != "" {
+		t.Fatalf("ListMyDispatches() order should be zero value on query failure: %+v", resp.List[0].Order)
 	}
 }
 

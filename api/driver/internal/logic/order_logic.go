@@ -219,6 +219,7 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 		return nil, err
 	}
 	items := make([]types.MyDispatchItem, 0, len(resp.GetList()))
+	orderQueryOk := true
 	for _, record := range resp.GetList() {
 		item := types.MyDispatchItem{
 			Dispatch: types.DispatchRecord{
@@ -236,24 +237,27 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 		}
 		order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: record.GetOrderId()})
 		if err != nil {
-			return nil, err
-		}
-		item.Order = types.OrderBrief{
-			OrderID:             order.GetOrderId(),
-			OrderNo:             order.GetOrderNo(),
-			FromAddress:         order.GetFromAddress(),
-			ToAddress:           order.GetToAddress(),
-			Status:              int32(order.GetStatus()),
-			EstimatedPriceCents: order.GetEstimatedPriceCents(),
-			CreatedAt:           order.GetCreatedAt(),
+			orderQueryOk = false
+			logx.WithContext(l.ctx).Errorf("get order for dispatch record failed (orderId=%d): %v", record.GetOrderId(), err)
+		} else {
+			item.Order = types.OrderBrief{
+				OrderID:             order.GetOrderId(),
+				OrderNo:             order.GetOrderNo(),
+				FromAddress:         order.GetFromAddress(),
+				ToAddress:           order.GetToAddress(),
+				Status:              int32(order.GetStatus()),
+				EstimatedPriceCents: order.GetEstimatedPriceCents(),
+				CreatedAt:           order.GetCreatedAt(),
+			}
 		}
 		items = append(items, item)
 	}
 	return &types.ListMyDispatchesResponse{
-		List:     items,
-		Total:    resp.GetTotal(),
-		Page:     resp.GetPage(),
-		PageSize: resp.GetPageSize(),
+		List:         items,
+		Total:        resp.GetTotal(),
+		Page:         resp.GetPage(),
+		PageSize:     resp.GetPageSize(),
+		OrderQueryOk: orderQueryOk,
 	}, nil
 }
 

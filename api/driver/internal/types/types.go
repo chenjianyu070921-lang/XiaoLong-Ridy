@@ -1,4 +1,4 @@
-﻿package types
+package types
 
 import "encoding/json"
 
@@ -127,7 +127,52 @@ type ImgCaptchaResponse struct {
 type VerifyImgCaptchaRequest struct {
 	Phone         string `json:"phone"`
 	UUID          string `json:"uuid"`
-	UserInputCode string `json:"userInputCode"`
+	Code          string `json:"code"`
+	UserInputCode string `json:"userInputCode,omitempty"`
+}
+
+func (r *VerifyImgCaptchaRequest) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Phone            string `json:"phone"`
+		UUID             string `json:"uuid"`
+		CaptchaID        string `json:"captchaId"`
+		CaptchaUUID      string `json:"captchaUuid"`
+		ImgCaptchaUUID   string `json:"imgCaptchaUuid"`
+		Code             string `json:"code"`
+		UserInputCode    string `json:"userInputCode"`
+		CaptchaCode      string `json:"captchaCode"`
+		ImgCaptchaCode   string `json:"imgCaptchaCode"`
+		VerificationCode string `json:"verificationCode"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	r.Phone = raw.Phone
+	r.UUID = raw.UUID
+	if r.UUID == "" {
+		r.UUID = raw.CaptchaID
+	}
+	if r.UUID == "" {
+		r.UUID = raw.CaptchaUUID
+	}
+	if r.UUID == "" {
+		r.UUID = raw.ImgCaptchaUUID
+	}
+	r.Code = raw.Code
+	if r.Code == "" {
+		r.Code = raw.UserInputCode
+	}
+	if r.Code == "" {
+		r.Code = raw.CaptchaCode
+	}
+	if r.Code == "" {
+		r.Code = raw.ImgCaptchaCode
+	}
+	if r.Code == "" {
+		r.Code = raw.VerificationCode
+	}
+	r.UserInputCode = raw.UserInputCode
+	return nil
 }
 
 type InvalidateImgCaptchaRequest struct {
@@ -376,6 +421,7 @@ type ListNearbyDriversRequest struct {
 }
 
 type ListNearbyDriversResponse struct {
+	List    []NearbyDriver `json:"list"`
 	Drivers []NearbyDriver `json:"drivers"`
 }
 
@@ -418,7 +464,7 @@ type WithdrawRecord struct {
 
 type ListWithdrawsResponse struct {
 	List  []WithdrawRecord `json:"list"`
-	Total   int64            `json:"total"`
+	Total int64            `json:"total"`
 }
 
 type GetIncomeSummaryResponse struct {
@@ -519,6 +565,7 @@ type RejectOrderResponse struct {
 }
 
 type ListMyDispatchesRequest struct {
+	DriverID int64 `json:"driverId,omitempty"`
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"pageSize"`
 	Status   int32 `json:"status"`
@@ -553,10 +600,11 @@ type MyDispatchItem struct {
 }
 
 type ListMyDispatchesResponse struct {
-	List     []MyDispatchItem `json:"list"`
-	Total    int64            `json:"total"`
-	Page     int32            `json:"page"`
-	PageSize int32            `json:"pageSize"`
+	List         []MyDispatchItem `json:"list"`
+	Total        int64            `json:"total"`
+	Page         int32            `json:"page"`
+	PageSize     int32            `json:"pageSize"`
+	OrderQueryOk bool             `json:"orderQueryOk"`
 }
 
 type ListMyOrdersRequest struct {

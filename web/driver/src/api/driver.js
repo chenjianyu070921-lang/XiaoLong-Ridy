@@ -64,11 +64,27 @@ export function getImgCaptcha(phone, config = {}) {
 }
 
 export function verifyImgCaptcha(data, config = {}) {
-  return driverRequest.post('/img-captcha/verify', data, config)
+  return driverRequest.post('/img-captcha/verify', normalizeImgCaptchaPayload(data), config)
 }
 
 export function invalidateImgCaptcha(data, config = {}) {
   return driverRequest.post('/img-captcha/invalidate', data, config)
+}
+
+function normalizeImgCaptchaPayload(data = {}) {
+  const phone = data.phone || ''
+  const uuid = data.uuid || data.captchaId || data.captchaUuid || data.imgCaptchaUuid || ''
+  const code = data.code || data.userInputCode || data.captchaCode || data.imgCaptchaCode || data.verificationCode || ''
+  return {
+    ...data,
+    phone,
+    uuid,
+    captchaId: uuid,
+    captchaUuid: uuid,
+    code,
+    userInputCode: code,
+    captchaCode: code
+  }
 }
 
 export function sendDriverSMSCode(phone, config = {}) {
@@ -129,6 +145,10 @@ export function updateVehicle(data) {
 
 export function deleteVehicle(id) {
   return driverRequest.post('/vehicles/delete', { id })
+}
+
+export function createWithdraw(data) {
+  return driverRequest.post('/withdraws', data)
 }
 
 export function uploadCertification(data) {

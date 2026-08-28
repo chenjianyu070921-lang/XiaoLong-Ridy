@@ -37,6 +37,9 @@ func (l *CreateWithdrawLogic) CreateWithdraw(in *proto.CreateWithdrawRequest) (*
 	if in == nil || in.DriverId <= 0 {
 		return nil, errors.New("请求参数不能为空")
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverWithdrawRepository == nil {
+		return nil, errors.New("driver withdraw repository not ready")
+	}
 	if err := validateWithdrawAmount(in.Amount); err != nil {
 		return nil, err
 	}

@@ -27,7 +27,11 @@ func VerifyImgCaptchaHandler(_ *svc.ServiceContext) http.HandlerFunc {
 		if !decodeJSON(w, r, &req) {
 			return
 		}
-		if err := logic.NewImgCaptchaLogic(r.Context()).Verify(req.Phone, req.UUID, req.UserInputCode); err != nil {
+		code := req.Code
+		if code == "" {
+			code = req.UserInputCode
+		}
+		if err := logic.NewImgCaptchaLogic(r.Context()).Verify(req.Phone, req.UUID, code); err != nil {
 			writeCaptchaError(w, err)
 			return
 		}

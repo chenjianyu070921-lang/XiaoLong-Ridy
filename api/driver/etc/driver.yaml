@@ -2,14 +2,30 @@
 # HTTP 监听地址（可通过环境变量 DRIVER_HTTP_ADDR 覆盖，如 :8082）
 httpAddr: ":8082"
 # 下游 driversvc gRPC 地址（可通过环境变量 DRIVER_GRPC_ADDR 覆盖）
-# 必须与 rpc/driversvc/etc/driversvc.yaml 的 ListenOn 保持一致（均为 5055），否则联调时连接失败。
-driverGrpcAddr: "127.0.0.1:5055"
+# 必须与 rpc/driversvc/etc/driversvc.yaml 的 ListenOn 保持一致（均为 50055），否则联调时连接失败。
+driverGrpcAddr: "127.0.0.1:50055"
 orderGrpcAddr: "127.0.0.1:50051"
 dispatchGrpcAddr: "127.0.0.1:8083"
 locationGrpcAddr: "127.0.0.1:5056"
 # 验证码缓存 Redis 地址（可通过环境变量 DRIVER_REDIS_ADDR 覆盖）。
 # 配置后使用 Redis 存储短信验证码，支持多实例共享；留空则回退本地内存（仅限单实例联调）。
 redisAddr: "127.0.0.1:6379"
+# Internal admin HTTP calls are disabled unless serviceToken is injected by config center.
+# Do not hardcode the real token in this repository.
+# internalAuth:
+#   serviceToken: ""
+#   allowedRoutes:
+#     - method: GET
+#       path: /api/driver/v1/drivers/get
+#     - method: GET
+#       path: /api/driver/v1/vehicles/get
+#     - method: POST
+#       path: /api/driver/v1/drivers/nearby
+#     - method: POST
+#       path: /api/driver/v1/orders/dispatches
+#   rateLimit:
+#     limit: 60
+#     windowSeconds: 60
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
   maxOpenConn: 100

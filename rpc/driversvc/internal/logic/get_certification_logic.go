@@ -30,8 +30,11 @@ func NewGetCertificationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 
 // GetCertification 按司机 ID 查询资质记录；无记录时返回 found=false。
 func (l *GetCertificationLogic) GetCertification(in *proto.GetCertificationRequest) (*proto.GetCertificationResponse, error) {
-	if in.DriverId <= 0 {
+	if in == nil || in.DriverId <= 0 {
 		return nil, errInvalidDriverID
+	}
+	if l.svcCtx == nil || l.svcCtx.CertificationRepository == nil {
+		return nil, errors.New("certification repository not ready")
 	}
 	cert, err := l.svcCtx.CertificationRepository.GetByDriverID(l.ctx, uint64(in.DriverId))
 	if err != nil {
