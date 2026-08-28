@@ -6,7 +6,7 @@ Log:
   Level: info
 
 Mysql:
-  Dsn: "root:root@tcp(127.0.0.1:3306)/xiaolongridy?charset=utf8mb4&parseTime=true&loc=Local"
+  Dsn: "root:root@tcp(127.0.0.1:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=true&loc=Local"
   MaxOpenConn: 100
   MaxIdleConn: 10
   MaxLifeTime: 3600

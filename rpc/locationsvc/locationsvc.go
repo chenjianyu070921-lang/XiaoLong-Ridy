@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/config"
@@ -27,24 +28,17 @@ func main() {
 
 	logx.DisableStat()
 
-	// ========== 配置中心：从 etcd 拉取配置，失败降级本地 yaml ==========
-	// 注意：启动前需要先把配置写入 etcd，key 为 locationsvc.yaml
-	// docker exec etcd etcdctl put locationsvc.yaml < locationsvc.yaml
-	cc := configcenter.MustNewConfigCenter[config.Config](
-		configcenter.Config{Type: "yaml"},
-		subscriber.MustNewEtcdSubscriber(subscriber.EtcdConf{
-			Hosts: []string{"127.0.0.1:2379"},
-			Key:   "locationsvc.yaml",
-		}),
-	)
-
+	// ========== 配置加载：本地 yaml 优先，保证任何环境(含无 etcd)都能直接启动 ==========
+	// 原来用 configcenter.MustNewConfigCenter 强制连 etcd，导致没有 etcd 配置的机器启动即 panic。
+	// 现改为：先加载本地 yaml；etcd 配置中心仅作为「可选热更新」，连不上不影响启动。
 	var c config.Config
-	var err error
-	if c, err = cc.GetConfig(); err != nil {
-		logx.Errorf("从配置中心(etcd)加载配置失败: %v，降级加载本地文件 %s", err, *configFile)
-		conf.MustLoad(*configFile, &c)
+	conf.MustLoad(*configFile, &c)
+
+	// 高德 ApiKey 允许通过环境变量覆盖，便于不同环境/开发者使用各自的 Key（不写死在仓库）
+	if envKey := os.Getenv("AMAP_API_KEY"); envKey != "" {
+		c.MapService.ApiKey = envKey
 	}
-	fmt.Printf("[配置中心] 配置加载成功: Provider=%s BaseUrl=%s\n", c.MapService.Provider, c.MapService.BaseUrl)
+	fmt.Printf("[配置] 本地配置加载成功: Provider=%s BaseUrl=%s\n", c.MapService.Provider, c.MapService.BaseUrl)
 
 	// 连接 MySQL
 	mysqlDB, err := datasource.NewMysqlClient(c.Mysql)
@@ -70,18 +64,38 @@ func main() {
 	// 注入数据库、Redis 与地图客户端
 	ctx := svc.NewServiceContext(c, mysqlDB, redisClient)
 
-	// ========== 配置热更新：etcd 配置变更后自动生效，无需重启 ==========
-	cc.AddListener(func() {
-		newCfg, e := cc.GetConfig()
-		if e != nil {
-			logx.Errorf("[配置中心] 热更新解析失败: %v", e)
-			return
+	// ========== 可选：etcd 配置中心热更新（连不上/无配置则静默跳过，不影响启动） ==========
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logx.Errorf("[配置中心] etcd 热更新初始化失败(已跳过，使用本地配置): %v", r)
+			}
+		}()
+		cc := configcenter.MustNewConfigCenter[config.Config](
+			configcenter.Config{Type: "yaml"},
+			subscriber.MustNewEtcdSubscriber(subscriber.EtcdConf{
+				Hosts: []string{"127.0.0.1:2379"},
+				Key:   "locationsvc.yaml",
+			}),
+		)
+		if remote, e := cc.GetConfig(); e == nil {
+			ctx.UpdateConfig(remote)
+			fmt.Printf("[配置中心] 已加载远程配置，地图ApiKey=%s\n", remote.MapService.ApiKey)
+		} else {
+			logx.Infof("[配置中心] 远程配置不可用，使用本地配置: %v", e)
 		}
-		oldKey := ctx.GetConfig().MapService.ApiKey
-		ctx.UpdateConfig(newCfg)
-		fmt.Printf("[配置中心] 检测到配置变更，已热更新: 地图ApiKey %s -> %s\n",
-			oldKey, newCfg.MapService.ApiKey)
-	})
+		cc.AddListener(func() {
+			newCfg, e := cc.GetConfig()
+			if e != nil {
+				logx.Errorf("[配置中心] 热更新解析失败: %v", e)
+				return
+			}
+			oldKey := ctx.GetConfig().MapService.ApiKey
+			ctx.UpdateConfig(newCfg)
+			fmt.Printf("[配置中心] 检测到配置变更，已热更新: 地图ApiKey %s -> %s\n",
+				oldKey, newCfg.MapService.ApiKey)
+		})
+	}()
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		locationsvc.RegisterLocationServiceServer(grpcServer, server.NewLocationServiceServer(ctx))

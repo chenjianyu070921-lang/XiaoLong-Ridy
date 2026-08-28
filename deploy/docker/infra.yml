@@ -1,5 +1,5 @@
-  deploy/docker/infra.yml# XiaoLong-Ridy 订单模块基础中间件
-# 启动：docker compose -f rpc/ordersvc/docker-compose/infra.yml up -d
+# XiaoLong-Ridy 基础中间件：MySQL / Redis / Kafka / Etcd
+# 启动：docker compose -f deploy/docker/infra.yml up -d
 name: xiaolong-order-infra
 
 services:
@@ -71,6 +71,21 @@ services:
       timeout: 10s
       retries: 10
       start_period: 40s
+
+  etcd:
+    image: bitnami/etcd:3.5
+    container_name: xl-order-etcd
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      ETCD_ENABLE_V2: "true"
+      ALLOW_NONE_AUTHENTICATION: "yes"
+      ETCD_ADVERTISE_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+    ports:
+      - "2379:2379"
+    volumes:
+      - etcd_data:/bitnami/etcd
 
 volumes:
   mysql_data:
