@@ -112,6 +112,11 @@ func (s *UserServer) ReleaseUserCoupon(ctx context.Context, req *userproto.Relea
 }
 
 // AdminListUsers 转发管理后台用户列表查询请求。
+func (s *UserServer) AdminListUserCoupons(ctx context.Context, req *userproto.AdminListUserCouponsRequest) (*userproto.AdminListUserCouponsResponse, error) {
+	l := logic.NewAdminListUserCouponsLogic(ctx, s.svcCtx)
+	return l.AdminListUserCoupons(req)
+}
+
 func (s *UserServer) AdminListUsers(ctx context.Context, req *userproto.AdminUserListRequest) (*userproto.AdminUserListResponse, error) {
 	l := logic.NewAdminUserLogic(ctx, s.svcCtx)
 	return l.ListUsers(req)

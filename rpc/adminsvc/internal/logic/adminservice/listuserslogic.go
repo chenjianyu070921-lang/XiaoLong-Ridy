@@ -11,6 +11,8 @@ import (
 	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ListUsersLogic 处理用户列表查询 RPC。
@@ -110,17 +112,46 @@ func adminUserFromUsersRPC(item *usersvc.AdminUser) *adminsvc.User {
 }
 
 // canViewUserSensitive 根据管理员真实会话判断是否允许查看完整手机号和身份证号。
-// 权限设计当前固定角色为 1=超级管理员、2=运营、3=客服；只有超管和运营可查看完整敏感信息。
-// 若调用方缺少 token、会话失效、Redis 不可用或账号状态异常，统一按无权限处理，保证读接口不会泄露明文。
+// 列表接口不支持显式查看明文，当前统一返回脱敏值，避免批量泄露敏感信息。
 func canViewUserSensitive(ctx context.Context, svcCtx *svc.ServiceContext) bool {
+	return canViewSensitiveFields(ctx, svcCtx, false)
+}
+
+// canViewSensitiveFields 判断当前管理员是否允许查看完整敏感字段。
+// reveal 表示调用方是否显式申请明文；未申请时即使具备权限也返回 false，保证详情接口默认脱敏。
+// 权限设计当前固定角色为 1=超级管理员、2=运营、3=客服；只有超管和运营可在显式申请时查看完整敏感信息。
+// 若调用方缺少 token、会话失效、Redis 不可用或账号状态异常，统一按无权限处理，保证读接口不会泄露明文。
+func canViewSensitiveFields(ctx context.Context, svcCtx *svc.ServiceContext, reveal bool) bool {
+	_, ok := sensitiveFieldAdmin(ctx, svcCtx, reveal)
+	return ok
+}
+
+// sensitiveFieldAdmin 返回允许查看完整敏感字段的管理员会话。
+// 该函数只信任 Redis 中的真实后台会话，不信任客户端传入角色，避免伪造参数越权查看明文。
+func sensitiveFieldAdmin(ctx context.Context, svcCtx *svc.ServiceContext, reveal bool) (*adminRow, bool) {
+	if !reveal {
+		return nil, false
+	}
 	if svcCtx == nil || svcCtx.Redis == nil || svcCtx.MySQL == nil {
-		return false
+		return nil, false
 	}
 	admin, err := ValidateAdminTokenFromContext(ctx, svcCtx)
 	if err != nil || admin == nil {
-		return false
+		return nil, false
 	}
-	return admin.Role == 1 || admin.Role == 2
+	if admin.Role != 1 && admin.Role != 2 {
+		return nil, false
+	}
+	return admin, true
+}
+
+// requireSensitiveFieldPermission 校验显式查看敏感字段的后台权限。
+// 只有超级管理员和运营角色可通过；客服或无有效会话时返回 PermissionDenied。
+func requireSensitiveFieldPermission(ctx context.Context, svcCtx *svc.ServiceContext) (*adminRow, error) {
+	if admin, ok := sensitiveFieldAdmin(ctx, svcCtx, true); ok {
+		return admin, nil
+	}
+	return nil, status.Error(codes.PermissionDenied, "当前管理员无权查看完整敏感信息")
 }
 
 // filterAdminUserSensitive 按管理员权限裁剪后台用户敏感信息。

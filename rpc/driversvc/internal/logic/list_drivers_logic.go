@@ -46,19 +46,11 @@ func (l *ListDriversLogic) ListDrivers(in *proto.ListDriversRequest) (*proto.Lis
 
 	list := make([]*proto.Driver, 0, len(drivers))
 	for _, d := range drivers {
-		list = append(list, &proto.Driver{
-			Id:              int64(d.Id),
-			Phone:           d.Phone,
-			PasswordHash:    d.PasswordHash,
-			RealName:        d.RealName,
-			IdCardNo:        d.IdCardNo,
-			DriverLicenseNo: d.DriverLicenseNo,
-			AvatarUrl:       d.AvatarUrl,
-			Status:          proto.DriverStatus(d.Status),
-			OnlineStatus:    int32(d.OnlineStatus),
-			CreatedAt:       d.CreatedAt.Unix(),
-			UpdatedAt:       d.UpdatedAt.Unix(),
-		})
+		item, err := buildAdminDriverPB(l.ctx, l.svcCtx, d)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, item)
 	}
 	return &proto.ListDriversResponse{
 		Drivers: list,

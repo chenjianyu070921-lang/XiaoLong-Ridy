@@ -11,7 +11,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useUserStore()
 const collapsed = ref(false)
-const isLightTheme = ref(document.documentElement.classList.contains('light-theme'))
+const isLightTheme = ref(!document.documentElement.classList.contains('dark-theme'))
 
 // 后端菜单接口 path -> 前端路由映射
 const pathToRoute = {
@@ -57,6 +57,61 @@ const dashboardMenu = { name: '工作台', path: '/dashboard', icon: 'Odometer' 
 const menuItems = ref([dashboardMenu])
 const iconMap = { Odometer, User, Avatar, Tickets, Memo, Discount, List, Setting, Warning, DataAnalysis, Document, Management }
 
+// 后端菜单不返回图标，前端按路径补齐，保证侧边栏视觉一致。
+const pathIcon = {
+  '/dashboard': 'Odometer',
+  '/admins': 'Management',
+  '/users': 'User',
+  '/driver-certifications': 'Avatar',
+  '/drivers': 'Avatar',
+  '/orders': 'Tickets',
+  '/orders/abnormal': 'Warning',
+  '/operation-logs': 'Memo',
+  '/coupons': 'Discount',
+  '/coupon-issue-tasks': 'List',
+  '/price-rules': 'Setting',
+  '/promotion-activities': 'Discount',
+  '/work-orders': 'Document',
+  '/statistics': 'DataAnalysis',
+  '/export-tasks': 'Document',
+  '/blacklist': 'Warning',
+  '/risk-hits': 'Management',
+}
+const iconOf = (item) => iconMap[item.icon] || iconMap[pathIcon[item.path]] || null
+
+// 侧边栏分组：仅影响视觉分区，不改变菜单来源和权限逻辑。
+const groupOf = (path) => ({
+  '/dashboard': '概览',
+  '/users': '用户与司机',
+  '/driver-certifications': '用户与司机',
+  '/drivers': '用户与司机',
+  '/orders': '订单中心',
+  '/orders/abnormal': '订单中心',
+  '/coupons': '营销中心',
+  '/coupon-issue-tasks': '营销中心',
+  '/price-rules': '营销中心',
+  '/promotion-activities': '营销中心',
+  '/work-orders': '工单与风控',
+  '/blacklist': '工单与风控',
+  '/risk-hits': '工单与风控',
+  '/statistics': '数据与系统',
+  '/export-tasks': '数据与系统',
+  '/operation-logs': '数据与系统',
+  '/admins': '数据与系统',
+}[path] || '其他')
+
+// menuGroups 按分组顺序聚合当前可见菜单，组内保持后端返回顺序。
+const menuGroups = computed(() => {
+  const order = ['概览', '用户与司机', '订单中心', '营销中心', '工单与风控', '数据与系统', '其他']
+  const groups = new Map()
+  menuItems.value.forEach((item) => {
+    const name = groupOf(item.path)
+    if (!groups.has(name)) groups.set(name, [])
+    groups.get(name).push(item)
+  })
+  return order.filter((name) => groups.has(name)).map((name) => ({ name, items: groups.get(name) }))
+})
+
 // 返回按当前角色收敛后的静态兜底菜单。
 // 超级管理员可以看到完整菜单；运营和客服只保留基础查询入口。
 const getFallbackMenus = (role) => {
@@ -101,19 +156,18 @@ const handleLogout = async () => {
   }
 }
 
-// 切换并保存主题，供登录页、注册页和后台页面下次启动时恢复。
+// 切换主题仅对当前会话生效，不写入本地存储；每次打开页面都恢复浅色。
 const toggleTheme = () => {
   isLightTheme.value = !isLightTheme.value
   const theme = isLightTheme.value ? 'light' : 'dark'
   document.documentElement.classList.remove('dark-theme', 'light-theme')
   document.documentElement.classList.add(`${theme}-theme`)
-  localStorage.setItem('admin-theme', theme)
 }
 </script>
 
 <template>
   <el-container class="layout">
-    <el-aside :width="collapsed ? '64px' : '220px'" class="aside">
+    <el-aside :width="collapsed ? '64px' : '232px'" class="aside">
       <div class="logo">
         <img class="logo-mark" src="/huaxiaolong-logo.png" alt="花小龙出行" /><span v-if="!collapsed" class="logo-text">花小龙出行<br><small>运营管理中心</small></span>
       </div>
@@ -121,15 +175,18 @@ const toggleTheme = () => {
         :default-active="activeMenu"
         :collapse="collapsed"
         :collapse-transition="false"
-        background-color="#001529"
-        text-color="#a6adb4"
-        active-text-color="#ffffff"
+        background-color="transparent"
+        text-color="rgba(255,255,255,.72)"
+        active-text-color="#584ac9"
         @select="handleSelect"
       >
-      <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
-          <el-icon v-if="iconMap[item.icon]"><component :is="iconMap[item.icon]" /></el-icon>
-          <template #title>{{ item.name }}</template>
-        </el-menu-item>
+        <template v-for="group in menuGroups" :key="group.name">
+          <div v-if="!collapsed" class="menu-group">{{ group.name }}</div>
+          <el-menu-item v-for="item in group.items" :key="item.path" :index="item.path">
+            <el-icon v-if="iconOf(item)"><component :is="iconOf(item)" /></el-icon>
+            <template #title>{{ item.name }}</template>
+          </el-menu-item>
+        </template>
       </el-menu>
       <el-button class="theme-toggle" text @click="toggleTheme">
         <el-icon><component :is="isLightTheme ? Moon : Sunny" /></el-icon>
@@ -148,8 +205,9 @@ const toggleTheme = () => {
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <span class="admin-avatar">{{ (store.admin?.real_name || store.admin?.username || '管').slice(0, 1) }}</span>
           <span class="admin-name">{{ orDash(store.admin?.real_name || store.admin?.username) }}</span>
-          <el-tag size="small" type="info">{{ roleText(store.admin?.role) }}</el-tag>
+          <el-tag size="small" effect="light">{{ roleText(store.admin?.role) }}</el-tag>
           <el-button link type="danger" @click="handleLogout">退出登录</el-button>
         </div>
       </el-header>
@@ -164,37 +222,67 @@ const toggleTheme = () => {
 .layout {
   height: 100vh;
 }
+/* 紫色侧边栏：渐变随主题切换，浅色鲜亮、深色沉稳。 */
 .aside {
-  background: var(--aside-bg, #08111d);
+  background: var(--aside-grad, linear-gradient(180deg, #6a5ae2 0%, #5847c9 60%, #4f41bc 100%));
   transition: width 0.2s;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 .logo {
-  height: 56px;
-  line-height: 56px;
-  color: #f3f7fb;
+  height: 60px;
+  line-height: 60px;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
-  display:flex; align-items:center; gap:10px; padding:0 20px; text-align:left;
+  display:flex; align-items:center; gap:10px; padding:0 18px; text-align:left;
   white-space: nowrap;
 }
 .aside :deep(.el-menu) {
   border-right: none;
-  background:var(--aside-bg, #08111d);
+  background: transparent;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 4px 0;
+}
+.aside :deep(.el-menu-item) {
+  margin: 2px 10px;
+  border-radius: 10px;
+  color: rgba(255,255,255,.72);
+}
+.aside :deep(.el-menu-item:hover) {
+  background: rgba(255,255,255,.12);
+  color: #ffffff;
+}
+/* 选中项：白色圆角胶囊 + 紫色文字，贴合原型图。 */
+.aside :deep(.el-menu-item.is-active) {
+  background: #ffffff !important;
+  color: #584ac9 !important;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(40,28,110,.25);
+}
+.aside :deep(.el-menu--collapse .el-menu-item) {
+  margin: 2px 8px;
+}
+.menu-group {
+  padding: 14px 22px 6px;
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: rgba(255,255,255,.45);
+  white-space: nowrap;
 }
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-color,#e4e7ed);
-  background: var(--header-bg,#0c1724);
-  color:var(--text-color,#dce7f3);
+  border-bottom: 1px solid var(--border-color,#e5e4f0);
+  background: var(--header-bg,#ffffff);
+  color: var(--text-color,#2e2c4e);
+  box-shadow: 0 1px 4px rgba(46,44,78,.05);
+  z-index: 1;
 }
 .header-left {
   display: flex;
@@ -210,15 +298,29 @@ const toggleTheme = () => {
   align-items: center;
   gap: 10px;
 }
+.admin-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6c5ce7, #8b7ff0);
+  color: #ffffff;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .admin-name {
   font-size: 14px;
 }
 .main {
-  background: var(--page-bg, #070e17);
-  padding: 16px;
+  background: var(--page-bg, #f2f3fa);
+  padding: 20px;
   overflow: auto;
 }
-.logo-mark{width:34px;height:34px;border-radius:10px;object-fit:cover;background:#ff7625;display:block}.logo-text{font-weight:700;line-height:1.05}.logo-text small{color:#7d91a5;font-weight:400;font-size:11px}
-.theme-toggle{width:calc(100% - 24px);height:42px;flex:0 0 42px;margin:10px 12px 14px;color:var(--muted-color,#a6adb4);justify-content:flex-start}.theme-toggle:hover{color:#ff8538;background:var(--active-bg,#1d2d3d)}
-:global(:root.light-theme){--aside-bg:#ffffff}.theme-toggle :deep(.el-icon){font-size:17px}
+.logo-mark{width:36px;height:36px;border-radius:10px;object-fit:cover;background:#ffffff;display:block;box-shadow:0 2px 8px rgba(40,28,110,.3)}
+.logo-text{font-weight:700;line-height:1.1}
+.logo-text small{color:rgba(255,255,255,.6);font-weight:400;font-size:11px}
+.theme-toggle{width:calc(100% - 24px);height:42px;flex:0 0 42px;margin:10px 12px 14px;color:rgba(255,255,255,.72);justify-content:flex-start;border-radius:10px}
+.theme-toggle:hover{color:#ffffff;background:rgba(255,255,255,.14)}
+.theme-toggle :deep(.el-icon){font-size:17px}
 </style>

@@ -1,6 +1,6 @@
 <script setup>
-// 订单详情页面：按订单域结构化展示主订单、状态、派单、价格、支付和结算信息。
-// 轨迹、人工改派和退款接口当前尚未开放，本页面只展示不可用提示，不伪造请求。
+// 订单详情页面：按订单域结构化展示主订单、状态、派单、价格、支付、结算和轨迹信息。
+// 后台取消、人工改派和退款均调用 admin 网关已开放接口，提交成功后重新拉取详情。
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -12,6 +12,11 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const canceling = ref(false)
+const trackLoading = ref(false)
+const redispatching = ref(false)
+const refunding = ref(false)
+const trackVisible = ref(false)
+const trackPoints = ref([])
 const detail = ref(null)
 
 const order = computed(() => detail.value?.order || {})
@@ -31,6 +36,7 @@ const dispatchTypeText = (type) => ({ 1: '自动派单', 2: '人工派单' }[typ
 const money = (value) => value === null || value === undefined || value === '' ? '-' : `¥${value}`
 const distance = (value) => value === null || value === undefined || value === '' ? '-' : `${value} m`
 const duration = (value) => value === null || value === undefined || value === '' ? '-' : `${value} 秒`
+const requestID = (prefix) => crypto.randomUUID ? `${prefix}-${crypto.randomUUID()}` : `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
 // loadDetail 读取真实订单详情，主订单与关联数据由后端一次聚合返回。
 const loadDetail = async () => {
@@ -42,8 +48,17 @@ const loadDetail = async () => {
   }
 }
 
-// unavailableAction 明确告知接口尚未开放，避免前端构造不存在的退款、改派或轨迹请求。
-const unavailableAction = (name) => ElMessage.info(`${name}接口尚未开放，待后端服务契约接入后再启用`)
+// loadTrack 读取订单轨迹点。轨迹接口为只读能力，失败时不影响主订单详情展示。
+const loadTrack = async () => {
+  trackLoading.value = true
+  try {
+    const data = await ordersApi.track(order.value.id || route.params.id, { limit: 1000 })
+    trackPoints.value = data?.points || []
+    trackVisible.value = true
+  } finally {
+    trackLoading.value = false
+  }
+}
 
 // cancelOrder 执行后台取消订单，成功后重新读取详情，避免使用本地乐观状态。
 const cancelOrder = async () => {
@@ -54,12 +69,63 @@ const cancelOrder = async () => {
   })
   canceling.value = true
   try {
-    const requestID = crypto.randomUUID ? crypto.randomUUID() : `cancel-${Date.now()}-${Math.random().toString(16).slice(2)}`
-    await ordersApi.cancel(order.value.id, { reason: result.value.trim(), request_id: requestID })
+    await ordersApi.cancel(order.value.id, { reason: result.value.trim(), request_id: requestID('cancel') })
     ElMessage.success('订单已取消')
     await loadDetail()
   } finally {
     canceling.value = false
+  }
+}
+
+// redispatchOrder 执行后台人工改派，目标司机 ID、原因和幂等号按接口契约提交给后端。
+const redispatchOrder = async () => {
+  const driverInput = await ElMessageBox.prompt('请输入新的司机 ID', `人工改派「${order.value.order_no || order.value.id}」`, {
+    confirmButtonText: '下一步',
+    cancelButtonText: '返回',
+    inputValidator: (value) => /^[1-9]\d*$/.test(String(value || '').trim()) ? true : '司机 ID 必须是正整数',
+  })
+  const reasonInput = await ElMessageBox.prompt('请输入改派原因', '人工改派原因', {
+    confirmButtonText: '确认改派',
+    cancelButtonText: '返回',
+    inputValidator: (value) => value?.trim() ? true : '改派原因不能为空',
+  })
+  redispatching.value = true
+  try {
+    await ordersApi.redispatch(order.value.id, {
+      new_driver_id: Number(driverInput.value),
+      reason: reasonInput.value.trim(),
+      request_id: requestID('redispatch'),
+    })
+    ElMessage.success('订单已提交改派')
+    await loadDetail()
+  } finally {
+    redispatching.value = false
+  }
+}
+
+// refundOrder 执行后台退款。退款金额按元输入、转为分提交，避免前端浮点值直接进入接口。
+const refundOrder = async () => {
+  const amountInput = await ElMessageBox.prompt('请输入退款金额（元）', `订单退款「${order.value.order_no || order.value.id}」`, {
+    confirmButtonText: '下一步',
+    cancelButtonText: '返回',
+    inputValidator: (value) => /^\d+(\.\d{1,2})?$/.test(String(value || '').trim()) && Number(value) > 0 ? true : '退款金额必须大于 0，最多两位小数',
+  })
+  const reasonInput = await ElMessageBox.prompt('请输入退款原因', '退款原因', {
+    confirmButtonText: '确认退款',
+    cancelButtonText: '返回',
+    inputValidator: (value) => value?.trim() ? true : '退款原因不能为空',
+  })
+  refunding.value = true
+  try {
+    await ordersApi.refund(order.value.id, {
+      refund_amount_cents: Math.round(Number(amountInput.value) * 100),
+      reason: reasonInput.value.trim(),
+      request_id: requestID('refund'),
+    })
+    ElMessage.success('退款请求已提交')
+    await loadDetail()
+  } finally {
+    refunding.value = false
   }
 }
 
@@ -83,9 +149,9 @@ watch(() => route.params.id, loadDetail, { immediate: true })
 
     <div class="action-bar">
       <el-button type="warning" :loading="canceling" :disabled="!canCancel" @click="cancelOrder">取消订单</el-button>
-      <el-button @click="unavailableAction('轨迹查看')">轨迹查看</el-button>
-      <el-button @click="unavailableAction('人工改派')">人工改派</el-button>
-      <el-button @click="unavailableAction('退款')">退款</el-button>
+      <el-button :loading="trackLoading" @click="loadTrack">轨迹查看</el-button>
+      <el-button :loading="redispatching" :disabled="!canCancel" @click="redispatchOrder">人工改派</el-button>
+      <el-button type="danger" :loading="refunding" @click="refundOrder">退款</el-button>
     </div>
 
     <section class="panel">
@@ -130,6 +196,18 @@ watch(() => route.params.id, loadDetail, { immediate: true })
         <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
         <el-table-column prop="created_at" label="创建时间" width="180" />
         <el-table-column prop="updated_at" label="更新时间" width="180" />
+      </el-table>
+    </section>
+
+    <section v-if="trackVisible" class="panel">
+      <div class="section-title">轨迹点</div>
+      <el-table :data="trackPoints" empty-text="暂无轨迹点">
+        <el-table-column prop="recorded_at" label="记录时间" width="180" />
+        <el-table-column prop="driver_id" label="司机 ID" width="110" />
+        <el-table-column prop="longitude" label="经度" width="140" />
+        <el-table-column prop="latitude" label="纬度" width="140" />
+        <el-table-column prop="speed_kmh" label="速度 km/h" width="130" />
+        <el-table-column prop="direction" label="方向" width="100" />
       </el-table>
     </section>
 
@@ -185,5 +263,5 @@ watch(() => route.params.id, loadDetail, { immediate: true })
 </template>
 
 <style scoped>
-.order-detail{color:#dce7f3}.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}.eyebrow{color:#6f879d;font-size:12px;letter-spacing:.08em}.page-head h1{margin:7px 0 4px;font-size:28px;color:#f4f7fb}.page-head p{margin:0;color:#8293a5}.head-actions,.action-bar{display:flex;gap:10px}.action-bar{margin-bottom:16px}.panel{padding:18px;margin-bottom:16px;background:#101d2b;border:1px solid #1d3042;border-radius:10px;overflow:auto}.section-title{margin-bottom:15px;color:#fff;font-size:17px;font-weight:700}.info-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.info-grid>div{min-width:0;padding:14px 16px;border-top:1px solid #1d3042}.info-grid span{display:block;margin-bottom:7px;color:#8293a5;font-size:12px}.info-grid strong{display:block;overflow-wrap:anywhere;color:#eaf1f7;font-weight:500}.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.two-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.two-columns .panel{margin-bottom:0}@media(max-width:1100px){.info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.page-head{display:block}.head-actions{margin-top:14px}.two-columns{grid-template-columns:1fr}.info-grid,.compact{grid-template-columns:1fr}.action-bar{flex-wrap:wrap}}
+.order-detail{color:var(--text-color,#2e2c4e)}.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}.eyebrow{color:var(--brand,#6c5ce7);font-size:12px;letter-spacing:.1em;font-weight:600}.page-head h1{margin:7px 0 4px;font-size:26px;color:var(--text-color,#2e2c4e)}.page-head p{margin:0;color:var(--muted-color,#8b88a3)}.head-actions,.action-bar{display:flex;gap:10px}.action-bar{margin-bottom:16px}.panel{padding:20px;margin-bottom:16px;background:var(--panel-bg,#fff);border:1px solid var(--border-color,#e5e4f0);border-radius:14px;box-shadow:var(--card-shadow,none);overflow:auto}.section-title{margin-bottom:15px;color:var(--text-color,#2e2c4e);font-size:16px;font-weight:700;padding-left:10px;border-left:3px solid var(--brand,#6c5ce7)}.info-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.info-grid>div{min-width:0;padding:14px 16px;border-top:1px solid var(--border-color,#e5e4f0)}.info-grid span{display:block;margin-bottom:7px;color:var(--muted-color,#8b88a3);font-size:12px}.info-grid strong{display:block;overflow-wrap:anywhere;color:var(--text-color,#2e2c4e);font-weight:500}.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.two-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.two-columns .panel{margin-bottom:0}@media(max-width:1100px){.info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.page-head{display:block}.head-actions{margin-top:14px}.two-columns{grid-template-columns:1fr}.info-grid,.compact{grid-template-columns:1fr}.action-bar{flex-wrap:wrap}}
 </style>

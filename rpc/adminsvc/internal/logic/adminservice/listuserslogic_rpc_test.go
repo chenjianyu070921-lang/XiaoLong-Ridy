@@ -11,7 +11,9 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // fakeUsersClient 提供用户列表 RPC 的最小测试替身。
@@ -75,8 +77,8 @@ func TestGetUser_UsesUsersRPC(t *testing.T) {
 	}
 }
 
-// TestGetUser_RevealsSensitiveForOpsRole 验证运营角色经过真实会话校验后可查看完整手机号和身份证号。
-func TestGetUser_RevealsSensitiveForOpsRole(t *testing.T) {
+// TestGetUser_RevealsSensitiveOnlyWhenRequestedByOpsRole 验证运营角色只有显式申请敏感字段时才可查看完整手机号和身份证号。
+func TestGetUser_RevealsSensitiveOnlyWhenRequestedByOpsRole(t *testing.T) {
 	client := &fakeUsersClient{}
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
 	defer cleanup()
@@ -91,8 +93,11 @@ func TestGetUser_RevealsSensitiveForOpsRole(t *testing.T) {
 		WithArgs(int64(2001)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password_hash", "real_name", "role", "status"}).
 			AddRow(2001, "ops", "hash", "运营", 2, 1))
+	mock.ExpectExec(`INSERT INTO admin_operation_log`).
+		WithArgs(int64(2001), "user", "view_sensitive", "user", int64(1001), "查看用户完整手机号和身份证号", "").
+		WillReturnResult(sqlmock.NewResult(99, 1))
 
-	resp, err := NewGetUserLogic(ctx, svcCtx).GetUser(&adminsvc.UserDetailRequest{Id: 1001})
+	resp, err := NewGetUserLogic(ctx, svcCtx).GetUser(&adminsvc.UserDetailRequest{Id: 1001, Sensitive: true})
 	if err != nil {
 		t.Fatalf("GetUser() error = %v", err)
 	}
@@ -101,8 +106,24 @@ func TestGetUser_RevealsSensitiveForOpsRole(t *testing.T) {
 	}
 }
 
-// TestGetUser_MasksSensitiveForCustomerServiceRole 验证客服角色即使会话有效也只能查看脱敏用户信息。
-func TestGetUser_MasksSensitiveForCustomerServiceRole(t *testing.T) {
+// TestGetUser_MasksSensitiveForOpsRoleWithoutExplicitRequest 验证运营角色不传 sensitive 时仍默认脱敏。
+func TestGetUser_MasksSensitiveForOpsRoleWithoutExplicitRequest(t *testing.T) {
+	client := &fakeUsersClient{}
+	svcCtx, _, cleanup := newAdminSQLMock(t)
+	defer cleanup()
+	svcCtx.UsersSvc = client
+
+	resp, err := NewGetUserLogic(context.Background(), svcCtx).GetUser(&adminsvc.UserDetailRequest{Id: 1001})
+	if err != nil {
+		t.Fatalf("GetUser() error = %v", err)
+	}
+	if resp.GetPhone() != "138****8000" || resp.GetIdCardNo() != "110101********1234" {
+		t.Fatalf("GetUser() masked response = %+v", resp)
+	}
+}
+
+// TestGetUser_DeniesSensitiveForCustomerServiceRole 验证客服角色显式申请敏感字段时会被服务端拒绝。
+func TestGetUser_DeniesSensitiveForCustomerServiceRole(t *testing.T) {
 	client := &fakeUsersClient{}
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
 	defer cleanup()
@@ -118,12 +139,12 @@ func TestGetUser_MasksSensitiveForCustomerServiceRole(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password_hash", "real_name", "role", "status"}).
 			AddRow(3001, "cs", "hash", "客服", 3, 1))
 
-	resp, err := NewGetUserLogic(ctx, svcCtx).GetUser(&adminsvc.UserDetailRequest{Id: 1001})
-	if err != nil {
-		t.Fatalf("GetUser() error = %v", err)
+	_, err := NewGetUserLogic(ctx, svcCtx).GetUser(&adminsvc.UserDetailRequest{Id: 1001, Sensitive: true})
+	if status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("GetUser() error code = %v, want PermissionDenied", status.Code(err))
 	}
-	if resp.GetPhone() != "138****8000" || resp.GetIdCardNo() != "110101********1234" {
-		t.Fatalf("GetUser() masked response = %+v", resp)
+	if client.detailRequest != nil {
+		t.Fatalf("GetUser() called usersvc after permission denied: %+v", client.detailRequest)
 	}
 }
 

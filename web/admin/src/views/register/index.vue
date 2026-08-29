@@ -32,5 +32,5 @@ const submit = async () => {
 </template>
 
 <style scoped>
-.register-page{min-height:100vh;display:grid;place-items:center;background:var(--page-bg,#07101a)}.register-shell{width:min(480px,calc(100% - 40px));padding:40px;background:var(--panel-bg,#0e1b29);border:1px solid var(--border-color,#1d3041);border-radius:10px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:30px}.mark{width:42px;height:42px;object-fit:cover;background:#ff7625;border-radius:8px}.brand h1{margin:0;color:var(--text-color,#f4f8fb);font-size:22px}.brand p{margin:3px 0 0;color:var(--muted-color,#8397a9)}.register-button{width:100%}.back-button{display:block;margin:16px auto 0}
+.register-page{min-height:100vh;display:grid;place-items:center;background:linear-gradient(135deg,#6a5ae2 0%,#7f6cec 45%,#9a8ff2 100%)}.register-shell{width:min(480px,calc(100% - 40px));padding:40px;background:var(--panel-bg,#fff);border:1px solid var(--border-color,#e5e4f0);border-radius:18px;box-shadow:0 30px 80px rgba(40,28,110,.35)}.brand{display:flex;align-items:center;gap:12px;margin-bottom:30px}.mark{width:42px;height:42px;object-fit:cover;background:#6c5ce7;border-radius:12px}.brand h1{margin:0;color:var(--text-color,#2e2c4e);font-size:22px}.brand p{margin:3px 0 0;color:var(--muted-color,#8b88a3)}.register-button{width:100%}.back-button{display:block;margin:16px auto 0}
 </style>

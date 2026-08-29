@@ -18,7 +18,7 @@ const form = reactive({})
 const isCoupon = computed(() => ['createCoupon', 'editCoupon'].includes(props.type))
 const isPriceRule = computed(() => ['createPriceRule', 'editPriceRule'].includes(props.type))
 const isActivity = computed(() => ['createActivity', 'editActivity'].includes(props.type))
-const isReasonAction = computed(() => ['freeze', 'unfreeze', 'cancel', 'release'].includes(props.type))
+const isReasonAction = computed(() => ['freeze', 'unfreeze', 'freezeDriver', 'cancel', 'release'].includes(props.type))
 
 // createDefaults 按接口字段初始化表单；金额始终保留字符串，避免前端浮点计算误差。
 const createDefaults = () => ({
@@ -96,7 +96,7 @@ const toPayload = () => {
   if (props.type === 'createBlacklist') return { target_type: form.target_type, target_id: Number(form.target_id), reason: form.reason }
   if (props.type === 'createExport') { const filters = {}; [['start_time', form.export_range?.[0]], ['end_time', form.export_range?.[1]], ['user_id', form.export_user_id], ['driver_id', form.export_driver_id], ['order_id', form.export_order_id], ['admin_id', form.export_admin_id], ['city_code', form.export_city_code]].forEach(([key, value]) => { if (value !== '' && value !== undefined) filters[key] = key.endsWith('_id') ? Number(value) : value }); return { export_type: form.export_type, filters: JSON.stringify(filters) } }
   if (props.type === 'approve' || props.type === 'reject') return { remark: form.remark }
-  if (props.type === 'freeze' || props.type === 'unfreeze') return { reason: form.reason, remark: form.remark }
+  if (props.type === 'freeze' || props.type === 'unfreeze' || props.type === 'freezeDriver') return { reason: form.reason, remark: form.remark }
   if (props.type === 'cancel') return { reason: form.reason, request_id: crypto.randomUUID ? crypto.randomUUID() : `cancel-${Date.now()}-${Math.random().toString(16).slice(2)}` }
   if (props.type === 'release') return { reason: form.reason }
   return {}
@@ -131,5 +131,5 @@ const close = () => emit('update:modelValue', false)
 </template>
 
 <style scoped>
-.business-form :deep(.el-select),.business-form :deep(.el-date-editor){width:100%}.business-form :deep(.el-input-number){width:180px}.field-suffix{margin-left:8px;color:#8496a8}.operation-confirm{margin:12px 0;color:#c6d4e1}
+.business-form :deep(.el-select),.business-form :deep(.el-date-editor){width:100%}.business-form :deep(.el-input-number){width:180px}.field-suffix{margin-left:8px;color:var(--muted-color,#8b88a3)}.operation-confirm{margin:12px 0;color:var(--text-color,#2e2c4e)}
 </style>

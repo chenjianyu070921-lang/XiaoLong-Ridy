@@ -36,5 +36,5 @@ onMounted(load)
 </template>
 
 <style scoped>
-.evidence{margin-top:16px;padding:18px;background:#101d2b;border:1px solid #1d3042;border-radius:8px}.evidence-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.evidence-head h2{margin:0;color:#f4f7fb;font-size:16px}.evidence :deep(.el-pagination){margin-top:14px}
+.evidence{margin-top:16px;padding:20px;background:var(--panel-bg,#fff);border:1px solid var(--border-color,#e5e4f0);border-radius:14px;box-shadow:var(--card-shadow,none)}.evidence-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.evidence-head h2{margin:0;color:var(--text-color,#2e2c4e);font-size:16px}.evidence :deep(.el-pagination){margin-top:14px}
 </style>

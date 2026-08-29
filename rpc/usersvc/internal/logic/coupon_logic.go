@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
+	"time"
 
 	"XiaoLong-Ridy/rpc/usersvc/internal/model"
 	"XiaoLong-Ridy/rpc/usersvc/internal/repository"
@@ -75,6 +77,59 @@ func (l *ListMyCouponsLogic) ListMyCoupons(in *userproto.ListMyCouponsRequest) (
 		return nil, mapCouponRepositoryError(err)
 	}
 	resp := &userproto.ListMyCouponsResponse{List: make([]*userproto.CouponInfo, 0, len(list))}
+	for _, item := range list {
+		resp.List = append(resp.List, toCouponInfo(item))
+	}
+	resp.Total = total
+	resp.Page = int32(page)
+	resp.PageSize = int32(pageSize)
+	return resp, nil
+}
+
+// AdminListUserCouponsLogic 处理管理后台用户券查询 RPC。
+// 该逻辑支持按用户、券模板、状态和领取时间范围分页查询，供 adminsvc 进行运营检索。
+type AdminListUserCouponsLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+	logx.Logger
+}
+
+// NewAdminListUserCouponsLogic 创建后台用户券查询逻辑实例。
+func NewAdminListUserCouponsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AdminListUserCouponsLogic {
+	return &AdminListUserCouponsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+}
+
+// AdminListUserCoupons 查询后台用户券列表。
+func (l *AdminListUserCouponsLogic) AdminListUserCoupons(in *userproto.AdminListUserCouponsRequest) (*userproto.AdminListUserCouponsResponse, error) {
+	coupons, err := couponRepository(l.svcCtx)
+	if err != nil {
+		return nil, err
+	}
+	page, pageSize := normalizeCouponPage(in.GetPage(), in.GetPageSize())
+	filter := repository.AdminUserCouponQuery{
+		UserID:   in.GetUserId(),
+		CouponID: in.GetCouponId(),
+		Status:   int8(in.GetStatus()),
+		Page:     page,
+		PageSize: pageSize,
+	}
+	if strings.TrimSpace(in.GetStartTime()) != "" {
+		filter.StartTime, err = time.ParseInLocation("2006-01-02 15:04:05", in.GetStartTime(), time.Local)
+		if err != nil {
+			return nil, ErrInvalidCouponRequest
+		}
+	}
+	if strings.TrimSpace(in.GetEndTime()) != "" {
+		filter.EndTime, err = time.ParseInLocation("2006-01-02 15:04:05", in.GetEndTime(), time.Local)
+		if err != nil {
+			return nil, ErrInvalidCouponRequest
+		}
+	}
+	list, total, err := coupons.ListForAdminPage(l.ctx, filter)
+	if err != nil {
+		return nil, mapCouponRepositoryError(err)
+	}
+	resp := &userproto.AdminListUserCouponsResponse{List: make([]*userproto.CouponInfo, 0, len(list))}
 	for _, item := range list {
 		resp.List = append(resp.List, toCouponInfo(item))
 	}

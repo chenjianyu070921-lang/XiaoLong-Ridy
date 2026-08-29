@@ -148,6 +148,13 @@ type DriverDTO struct {
 	CreatedAt       string `json:"created_at"`
 	UpdatedAt       string `json:"updated_at"`
 }
+
+// DriverFreezeRequest 表示后台冻结司机请求体。
+type DriverFreezeRequest struct {
+	Reason string `json:"reason"` // 冻结原因，必填
+	Remark string `json:"remark"` // 运营备注，可选
+}
+
 // DriverCertificationListRequest 表示司机审核列表查询条件。
 type DriverCertificationListRequest struct {
 	Page        int
@@ -201,6 +208,15 @@ type OrderListRequest struct {
 	DriverID  int64
 	StartTime string
 	EndTime   string
+}
+
+// OrderTrackRequest 表示后台订单轨迹查询条件。
+// start_time/end_time 使用 Unix 秒，方便地图组件按时间轴请求轨迹切片。
+type OrderTrackRequest struct {
+	OrderID   int64
+	StartTime int64
+	EndTime   int64
+	Limit     int32
 }
 
 // AbnormalOrderListRequest 表示异常订单列表查询条件。
@@ -260,6 +276,23 @@ type OrderDetailDTO struct {
 	Degraded        []string         `json:"degraded,omitempty"`
 }
 
+// OrderTrackPointDTO 表示后台地图回放使用的单个轨迹点。
+type OrderTrackPointDTO struct {
+	ID         int64  `json:"id"`
+	OrderID    int64  `json:"order_id"`
+	DriverID   int64  `json:"driver_id"`
+	Longitude  string `json:"longitude"`
+	Latitude   string `json:"latitude"`
+	SpeedKmh   string `json:"speed_kmh"`
+	Direction  int32  `json:"direction"`
+	RecordedAt string `json:"recorded_at"`
+}
+
+// OrderTrackDTO 表示订单轨迹查询结果。
+type OrderTrackDTO struct {
+	Points []OrderTrackPointDTO `json:"points"`
+}
+
 // OrderStatusLog 表示订单状态流转日志。
 type OrderStatusLog struct {
 	ID           int64  `json:"id"`
@@ -315,6 +348,39 @@ type Payment struct {
 	TransactionID string `json:"transaction_id"`
 	RefundAmount  string `json:"refund_amount"`
 	PaidAt        string `json:"paid_at"`
+}
+
+// OrderRedispatchRequest 表示后台人工改派订单请求体。
+// request_id 为后台幂等号，new_driver_id 为 0 时表示释放回自动派单池。
+type OrderRedispatchRequest struct {
+	NewDriverID int64  `json:"new_driver_id"`
+	Reason      string `json:"reason"`
+	RequestID   string `json:"request_id"`
+}
+
+// OrderRedispatchResponse 表示后台人工改派后的订单状态。
+type OrderRedispatchResponse struct {
+	OrderID  int64  `json:"order_id"`
+	Status   int32  `json:"status"`
+	DriverID int64  `json:"driver_id"`
+	Message  string `json:"message"`
+}
+
+// OrderRefundRequest 表示后台订单退款请求体。
+// refund_amount_cents 为退款金额，0 表示由 ordersvc 按订单已支付金额全额退款。
+type OrderRefundRequest struct {
+	RefundAmountCents int64  `json:"refund_amount_cents"`
+	Reason            string `json:"reason"`
+	RequestID         string `json:"request_id"`
+}
+
+// OrderRefundResponse 表示后台退款处理结果。
+type OrderRefundResponse struct {
+	OrderID     int64  `json:"order_id"`
+	Status      int32  `json:"status"`
+	RefundCents int64  `json:"refund_cents"`
+	RefundNo    string `json:"refund_no"`
+	Message     string `json:"message"`
 }
 
 // Settlement 表示结算单信息。
@@ -500,16 +566,20 @@ type PromotionActivityActionRequest struct {
 
 // PromotionActivityDTO 表示活动配置返回对象。
 type PromotionActivityDTO struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Type      int32  `json:"type"`
-	Config    string `json:"config"`
-	StartAt   string `json:"start_at"`
-	EndAt     string `json:"end_at"`
-	Status    int32  `json:"status"`
-	CreatedBy int64  `json:"created_by"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	Type         int32  `json:"type"`
+	Config       string `json:"config"`
+	StartAt      string `json:"start_at"`
+	EndAt        string `json:"end_at"`
+	Status       int32  `json:"status"`
+	CreatedBy    int64  `json:"created_by"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	PublishScope string `json:"publish_scope"`
+	TargetConfig string `json:"target_config"`
+	PublishedAt  string `json:"published_at"`
+	RollbackAt   string `json:"rollback_at"`
 }
 
 // StatisticsRequest 表示后台统计查询条件。
@@ -584,15 +654,20 @@ type BlacklistDTO struct {
 
 // RiskHitRecordDTO 表示风控命中记录列表项。
 type RiskHitRecordDTO struct {
-	ID          int64  `json:"id"`
-	BlacklistID int64  `json:"blacklist_id"`
-	TargetType  string `json:"target_type"`
-	TargetID    int64  `json:"target_id"`
-	Scene       string `json:"scene"`
-	RiskLevel   int32  `json:"risk_level"`
-	HitReason   string `json:"hit_reason"`
-	RequestID   string `json:"request_id"`
-	CreatedAt   string `json:"created_at"`
+	ID           int64  `json:"id"`
+	BlacklistID  int64  `json:"blacklist_id"`
+	TargetType   string `json:"target_type"`
+	TargetID     int64  `json:"target_id"`
+	Scene        string `json:"scene"`
+	RiskLevel    int32  `json:"risk_level"`
+	HitReason    string `json:"hit_reason"`
+	RequestID    string `json:"request_id"`
+	CreatedAt    string `json:"created_at"`
+	HandleStatus string `json:"handle_status"`
+	HandleAction string `json:"handle_action"`
+	HandledBy    int64  `json:"handled_by"`
+	HandledAt    string `json:"handled_at"`
+	WorkOrderID  int64  `json:"work_order_id"`
 }
 
 // RiskHitActionRequest 表示风控命中记录人工处置请求体。

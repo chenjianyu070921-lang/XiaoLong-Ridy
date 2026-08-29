@@ -6,6 +6,7 @@ import (
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
+	locationsvc "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	ordersvc "XiaoLong-Ridy/rpc/ordersvc/proto"
 
 	"google.golang.org/grpc"
@@ -17,6 +18,20 @@ type fakeOrdersClient struct {
 	request        *ordersvc.ListOrdersRequest
 	detailRequest  *ordersvc.GetOrderRequest
 	statusLogError error
+}
+
+// fakeLocationsClient 提供订单轨迹 RPC 的最小测试替身。
+type fakeLocationsClient struct {
+	locationsvc.LocationServiceClient
+	request *locationsvc.GetOrderTrackReq
+}
+
+// GetOrderTrack 记录后台转发给 locationsvc 的轨迹查询条件。
+func (f *fakeLocationsClient) GetOrderTrack(_ context.Context, in *locationsvc.GetOrderTrackReq, _ ...grpc.CallOption) (*locationsvc.GetOrderTrackResp, error) {
+	f.request = in
+	return &locationsvc.GetOrderTrackResp{Points: []*locationsvc.TrackPoint{{
+		Id: 1, OrderId: in.GetOrderId(), DriverId: 66, Lng: 116.123456, Lat: 39.123456, SpeedKmh: 32.5, Direction: 90, RecordedAt: 1724150400,
+	}}}, nil
 }
 
 // ListOrders 记录后台转发给 ordersvc 的查询条件。
@@ -103,5 +118,21 @@ func TestGetOrder_UsesOrdersRPCMainData(t *testing.T) {
 	}
 	if len(resp.GetDegraded()) != 3 {
 		t.Fatalf("degraded = %+v, want local mysql dependent modules", resp.GetDegraded())
+	}
+}
+
+// TestGetOrderTrack_UsesLocationSvc 验证后台订单轨迹查询必须通过 locationsvc 获取轨迹点。
+func TestGetOrderTrack_UsesLocationSvc(t *testing.T) {
+	client := &fakeLocationsClient{}
+	logic := NewGetOrderTrackLogic(context.Background(), &svc.ServiceContext{LocationSvc: client})
+	resp, err := logic.GetOrderTrack(&adminsvc.OrderTrackRequest{OrderId: 1001, StartTime: 1724150000, EndTime: 1724159999, Limit: 100})
+	if err != nil {
+		t.Fatalf("GetOrderTrack() error = %v", err)
+	}
+	if client.request == nil || client.request.GetOrderId() != 1001 || client.request.GetLimit() != 100 {
+		t.Fatalf("locationsvc request = %+v", client.request)
+	}
+	if len(resp.GetPoints()) != 1 || resp.GetPoints()[0].GetLongitude() != "116.123456" || resp.GetPoints()[0].GetRecordedAt() == "" {
+		t.Fatalf("GetOrderTrack() = %+v", resp)
 	}
 }
