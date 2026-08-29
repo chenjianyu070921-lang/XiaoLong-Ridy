@@ -24,6 +24,8 @@ type UserInfo struct {
 	Nickname       string `json:"nickname"`
 	AvatarURL      string `json:"avatarUrl"`
 	RealNameStatus string `json:"realNameStatus"`
+	RealName       string `json:"realName"`
+	IDCardNo       string `json:"idCardNo"`
 }
 
 // LoginBySMSResponse 对应短信验证码登录接口的响应数据。

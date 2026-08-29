@@ -260,6 +260,20 @@ func (x *UserInfo) GetRealNameStatus() string {
 	return ""
 }
 
+func (x *UserInfo) GetRealName() string {
+	if x != nil {
+		return x.RealName
+	}
+	return ""
+}
+
+func (x *UserInfo) GetIdCardNo() string {
+	if x != nil {
+		return x.IdCardNo
+	}
+	return ""
+}
+
 // LoginBySMSResponse 短信验证码登录响应。
 type LoginBySMSResponse struct {
 	state         protoimpl.MessageState

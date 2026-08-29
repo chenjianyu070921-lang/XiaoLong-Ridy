@@ -165,6 +165,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import AMapLoader from '@amap/amap-jsapi-loader'
+import { getAmapConfig } from '@/config/amap'
 import { showToast, showLoadingToast, closeToast } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { createOrder, estimateOrder, getMyCoupons } from '@/api/order'
@@ -224,8 +225,7 @@ const initRouteMap = async () => {
     routeError.value = '请返回首页选择有效的上车点和目的地'
     return
   }
-  const amapKey = import.meta.env.VITE_AMAP_KEY || ''
-  const securityCode = import.meta.env.VITE_AMAP_SECURITY_CODE || ''
+  const { key: amapKey, securityCode } = getAmapConfig()
   if (!amapKey) {
     routeError.value = '未配置高德地图 Key，无法规划路线'
     return

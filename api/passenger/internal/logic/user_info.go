@@ -16,5 +16,7 @@ func toAPIUserInfo(user *userproto.UserInfo) types.UserInfo {
 		Nickname:       user.GetNickname(),
 		AvatarURL:      user.GetAvatarUrl(),
 		RealNameStatus: user.GetRealNameStatus(),
+		RealName:       user.GetRealName(),
+		IDCardNo:       user.GetIdCardNo(),
 	}
 }

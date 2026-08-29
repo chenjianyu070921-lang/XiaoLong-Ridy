@@ -118,6 +118,7 @@ import { useRouter } from 'vue-router'
 import { showToast, showLoadingToast, closeToast, showDialog } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { payOrder, getPaymentStatus } from '@/api/order'
+import { recordWalletTransaction } from '@/api/wallet'
 
 const router = useRouter()
 const orderStore = useOrderStore()
@@ -189,6 +190,11 @@ const handlePay = async () => {
         clearInterval(pollTimer)
         closeToast()
         showToast('支付成功')
+        // 支付成功后写入下单支付流水；优惠券抵扣单独记录，便于钱包分类统计。
+        const orderId = orderStore.currentOrder?.orderId || ''
+        recordWalletTransaction({ type: 'order', title: '下单支付', amount: -Number(orderDetail.value.totalPrice || 0), orderId })
+        const discount = Math.abs(Number(orderDetail.value.discount || 0))
+        if (discount > 0) recordWalletTransaction({ type: 'coupon', title: '优惠券扣减', amount: -discount, orderId })
         
         // 跳转到支付成功页
         setTimeout(() => {
