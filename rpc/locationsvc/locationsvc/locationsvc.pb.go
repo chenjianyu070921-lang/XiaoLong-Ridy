@@ -1115,6 +1115,142 @@ func (x *NearbyDriversResp) GetDrivers() []*NearbyDriver {
 	return nil
 }
 
+type GetDriverLocationReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverLocationReq) Reset() {
+	*x = GetDriverLocationReq{}
+	mi := &file_rpc_locationsvc_locationsvc_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverLocationReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverLocationReq) ProtoMessage() {}
+
+func (x *GetDriverLocationReq) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_locationsvc_locationsvc_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverLocationReq.ProtoReflect.Descriptor instead.
+func (*GetDriverLocationReq) Descriptor() ([]byte, []int) {
+	return file_rpc_locationsvc_locationsvc_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetDriverLocationReq) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type GetDriverLocationResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Lng           float64                `protobuf:"fixed64,2,opt,name=lng,proto3" json:"lng,omitempty"`
+	Lat           float64                `protobuf:"fixed64,3,opt,name=lat,proto3" json:"lat,omitempty"`
+	Heading       int32                  `protobuf:"varint,4,opt,name=heading,proto3" json:"heading,omitempty"`
+	SpeedKmh      float64                `protobuf:"fixed64,5,opt,name=speed_kmh,json=speedKmh,proto3" json:"speed_kmh,omitempty"`
+	OnlineStatus  int32                  `protobuf:"varint,6,opt,name=online_status,json=onlineStatus,proto3" json:"online_status,omitempty"`
+	ReportTime    int64                  `protobuf:"varint,7,opt,name=report_time,json=reportTime,proto3" json:"report_time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverLocationResp) Reset() {
+	*x = GetDriverLocationResp{}
+	mi := &file_rpc_locationsvc_locationsvc_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverLocationResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverLocationResp) ProtoMessage() {}
+
+func (x *GetDriverLocationResp) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_locationsvc_locationsvc_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverLocationResp.ProtoReflect.Descriptor instead.
+func (*GetDriverLocationResp) Descriptor() ([]byte, []int) {
+	return file_rpc_locationsvc_locationsvc_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetDriverLocationResp) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetLng() float64 {
+	if x != nil {
+		return x.Lng
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetLat() float64 {
+	if x != nil {
+		return x.Lat
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetHeading() int32 {
+	if x != nil {
+		return x.Heading
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetSpeedKmh() float64 {
+	if x != nil {
+		return x.SpeedKmh
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetOnlineStatus() int32 {
+	if x != nil {
+		return x.OnlineStatus
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetReportTime() int64 {
+	if x != nil {
+		return x.ReportTime
+	}
+	return 0
+}
+
 var File_rpc_locationsvc_locationsvc_proto protoreflect.FileDescriptor
 
 var file_rpc_locationsvc_locationsvc_proto_rawDesc = []byte{

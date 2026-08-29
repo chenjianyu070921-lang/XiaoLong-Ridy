@@ -51,7 +51,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if dispatchRPC.Target == "" && len(dispatchRPC.Endpoints) == 0 {
 		dispatchRPC.Target = "127.0.0.1:8083"
 	}
-	dispatchClient, err := zrpc.NewClient(dispatchRPC)
+	// NonBlock：懒连接，下游（dispatchsvc）未就绪时不阻塞启动
+	dispatchRPC.NonBlock = true
+	dispatchClient, err := zrpc.NewClient(dispatchRPC, zrpc.WithNonBlock())
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +62,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if priceRPC.Target == "" && len(priceRPC.Endpoints) == 0 {
 		priceRPC.Target = "127.0.0.1:50053"
 	}
-	priceClient, err := zrpc.NewClient(priceRPC)
+	// NonBlock：懒连接，下游（pricesvc）未就绪时不阻塞启动
+	priceRPC.NonBlock = true
+	priceClient, err := zrpc.NewClient(priceRPC, zrpc.WithNonBlock())
 	if err != nil {
 		panic(err)
 	}

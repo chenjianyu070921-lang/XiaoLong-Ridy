@@ -59,6 +59,8 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, codeReviewAlreadyExists, "review already exists")
 	case errors.Is(err, logic.ErrReviewRepositoryNotConfigured):
 		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "review repository not configured")
+	case errors.Is(err, logic.ErrQiniuNotConfigured):
+		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "qiniu storage not configured")
 	default:
 		writeError(w, http.StatusInternalServerError, codeInternalError, "internal error")
 	}

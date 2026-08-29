@@ -42,3 +42,12 @@ func (m *DriverLocationModel) Upsert(loc *DriverLocation) error {
 		}),
 	}).Create(loc).Error
 }
+
+// GetByDriverID 查询司机最新位置，未找到时返回 gorm.ErrRecordNotFound。
+func (m *DriverLocationModel) GetByDriverID(driverID uint64) (*DriverLocation, error) {
+	var loc DriverLocation
+	if err := m.db.Where("driver_id = ?", driverID).First(&loc).Error; err != nil {
+		return nil, err
+	}
+	return &loc, nil
+}

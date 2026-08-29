@@ -48,3 +48,8 @@ func (s *LocationServiceServer) NearbyDrivers(ctx context.Context, in *locations
 	l := logic.NewNearbyDriversLogic(ctx, s.svcCtx)
 	return l.NearbyDrivers(in)
 }
+
+// GetDriverLocation 返回司机最新位置，供乘客端轮询追踪。
+func (s *LocationServiceServer) GetDriverLocation(ctx context.Context, in *locationsvc.GetDriverLocationReq) (*locationsvc.GetDriverLocationResp, error) {
+	return logic.NewGetDriverLocationLogic(ctx, s.svcCtx).GetDriverLocation(in)
+}
