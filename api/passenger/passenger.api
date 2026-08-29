@@ -257,6 +257,40 @@ type OrderStatusPollResponse {
 	Dispatch DispatchStatusResponse `json:"dispatch,optional"`
 }
 
+type AvatarUploadTokenRequest {
+	Extension string `json:"extension"`
+}
+
+type AvatarUploadTokenResponse {
+	UploadToken string `json:"uploadToken"`
+	Key string `json:"key"`
+	Domain string `json:"domain"`
+	UploadURL string `json:"uploadUrl"`
+	ExpireSec int64 `json:"expireSec"`
+}
+
+type OrderTrackingRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderTrackingResponse {
+	OrderID int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	Status int32 `json:"status"`
+	DriverLongitude float64 `json:"driverLongitude"`
+	DriverLatitude float64 `json:"driverLatitude"`
+	Heading int32 `json:"heading"`
+	SpeedKmh float64 `json:"speedKmh"`
+	ReportTime int64 `json:"reportTime"`
+	Stale bool `json:"stale"`
+	TravelledDistanceM int64 `json:"travelledDistanceM"`
+	ElapsedDurationS int64 `json:"elapsedDurationS"`
+	RemainingDistanceM int64 `json:"remainingDistanceM"`
+	RemainingDurationS int64 `json:"remainingDurationS"`
+	EstimatedPriceCents int64 `json:"estimatedPriceCents"`
+	Polyline string `json:"polyline"`
+}
+
 type SubmitReviewRequest {
 	OrderID int64 `json:"orderId"`
 	Rating int32 `json:"rating"`
@@ -371,6 +405,9 @@ service passenger-api {
 	@handler UpdateProfileHandler
 	post /api/passenger/v1/profile/update (UpdateProfileRequest) returns (UpdateProfileResponse)
 
+	@handler AvatarUploadTokenHandler
+	post /api/passenger/v1/upload/avatar-token (AvatarUploadTokenRequest) returns (AvatarUploadTokenResponse)
+
 	@handler CreateOrderHandler
 	post /api/passenger/v1/orders/create (CreateOrderRequest) returns (CreateOrderResponse)
 
@@ -385,6 +422,9 @@ service passenger-api {
 
 	@handler PollOrderStatusHandler
 	post /api/passenger/v1/orders/status (OrderStatusPollRequest) returns (OrderStatusPollResponse)
+
+	@handler GetOrderTrackingHandler
+	post /api/passenger/v1/orders/tracking (OrderTrackingRequest) returns (OrderTrackingResponse)
 
 	@handler CancelOrderHandler
 	post /api/passenger/v1/orders/cancel (CancelOrderRequest) returns (CancelOrderResponse)

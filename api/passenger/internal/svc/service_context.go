@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	commonconfig "XiaoLong-Ridy/common/config"
 	"XiaoLong-Ridy/common/datasource"
+	qiniuutil "XiaoLong-Ridy/common/qiniu"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	orderlocal "XiaoLong-Ridy/rpc/ordersvc/client"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	paylocal "XiaoLong-Ridy/rpc/paysvc/pay"
@@ -32,6 +35,7 @@ const (
 	defaultPriceRPCAddr    = "127.0.0.1:50053"
 	defaultPayRPCAddr      = "127.0.0.1:50054"
 	defaultDispatchRPCAddr = "127.0.0.1:8083"
+	defaultLocationRPCAddr = "127.0.0.1:50055"
 	defaultPriceCityCode   = "110000"
 	localDevSigningKey     = "xiaolong-passenger-local-dev-key"
 )
@@ -46,9 +50,15 @@ type RuntimeConfig struct {
 	PriceRPCAddr    string
 	PayRPCAddr      string
 	DispatchRPCAddr string
+	LocationRPCAddr string
 	ClientMode      string
 	PriceCityCode   string
 	MysqlDSN        string
+	QiniuAccessKey  string
+	QiniuSecretKey  string
+	QiniuBucket     string
+	QiniuDomain     string
+	QiniuUploadURL  string
 }
 
 // UserClient 定义 passenger API 调用 usersvc 的完整 RPC 契约。
@@ -95,6 +105,12 @@ type DispatchClient interface {
 	ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error)
 }
 
+// LocationClient 定义 passenger API 查询司机最新位置和规划剩余路线的 RPC 契约。
+type LocationClient interface {
+	GetDriverLocation(ctx context.Context, req *locationproto.GetDriverLocationReq, opts ...grpc.CallOption) (*locationproto.GetDriverLocationResp, error)
+	RoutePlan(ctx context.Context, req *locationproto.RoutePlanReq, opts ...grpc.CallOption) (*locationproto.RoutePlanResp, error)
+}
+
 // Option 用于在本地联调和测试时按需注入下游客户端与配置。
 type Option func(*ServiceContext)
 
@@ -105,9 +121,11 @@ type ServiceContext struct {
 	PriceClient     PriceClient
 	PayClient       PayClient
 	DispatchClient  DispatchClient
+	LocationClient  LocationClient
 	Reviews         ReviewRepository
 	TokenSigningKey string
 	PriceCityCode   string
+	Qiniu           *qiniuutil.Client
 	grpcConns       []*grpc.ClientConn
 }
 
@@ -126,6 +144,10 @@ func NewServiceContext(userClient UserClient, opts ...Option) *ServiceContext {
 // LoadRuntimeConfig 从 YAML 配置文件加载 passenger API 配置，再叠加环境变量覆盖。
 // 配置文件不存在时返回明确错误，避免手动启动时悄悄漏掉 JWT 密钥或 RPC 地址。
 func LoadRuntimeConfig(configFile string) (RuntimeConfig, error) {
+	// 本地开发时自动加载 YAML 同目录下的 .env，密钥无需手动注入 shell。
+	if err := loadDotEnvFile(filepath.Join(filepath.Dir(configFile), ".env")); err != nil {
+		return RuntimeConfig{}, err
+	}
 	var cfg RuntimeConfig
 	if err := conf.LoadConfig(configFile, &cfg); err != nil {
 		return RuntimeConfig{}, err
@@ -148,9 +170,15 @@ func applyRuntimeEnvOverrides(cfg RuntimeConfig) RuntimeConfig {
 	cfg.PriceRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_PRICESVC_ADDR"), cfg.PriceRPCAddr)
 	cfg.PayRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_PAYSVC_ADDR"), cfg.PayRPCAddr)
 	cfg.DispatchRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_DISPATCHSVC_ADDR"), cfg.DispatchRPCAddr)
+	cfg.LocationRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_LOCATIONSVC_ADDR"), cfg.LocationRPCAddr)
 	cfg.ClientMode = firstNonEmptyRuntime(os.Getenv("PASSENGER_CLIENT_MODE"), cfg.ClientMode)
 	cfg.PriceCityCode = firstNonEmptyRuntime(os.Getenv("PASSENGER_PRICE_CITY_CODE"), cfg.PriceCityCode)
 	cfg.MysqlDSN = firstNonEmptyRuntime(os.Getenv("PASSENGER_MYSQL_DSN"), cfg.MysqlDSN)
+	cfg.QiniuAccessKey = firstNonEmptyRuntime(os.Getenv("PASSENGER_QINIU_ACCESS_KEY"), cfg.QiniuAccessKey)
+	cfg.QiniuSecretKey = firstNonEmptyRuntime(os.Getenv("PASSENGER_QINIU_SECRET_KEY"), cfg.QiniuSecretKey)
+	cfg.QiniuBucket = firstNonEmptyRuntime(os.Getenv("PASSENGER_QINIU_BUCKET"), cfg.QiniuBucket)
+	cfg.QiniuDomain = firstNonEmptyRuntime(os.Getenv("PASSENGER_QINIU_DOMAIN"), cfg.QiniuDomain)
+	cfg.QiniuUploadURL = firstNonEmptyRuntime(os.Getenv("PASSENGER_QINIU_UPLOAD_URL"), cfg.QiniuUploadURL)
 	return cfg
 }
 
@@ -203,6 +231,11 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		closeGRPCConns(userConn, orderConn, priceConn, payConn)
 		return nil, err
 	}
+	locationClient, locationConn, err := buildLocationClient(cfg.LocationRPCAddr)
+	if err != nil {
+		closeGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn)
+		return nil, err
+	}
 
 	ctx := NewServiceContext(
 		userClient,
@@ -210,9 +243,17 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		WithPriceClient(priceClient),
 		WithPayClient(payClient),
 		WithDispatchClient(dispatchClient),
+		WithLocationClient(locationClient),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 		WithPriceCityCode(cfg.PriceCityCode),
 	)
+	if cfg.QiniuAccessKey != "" || cfg.QiniuSecretKey != "" || cfg.QiniuBucket != "" || cfg.QiniuDomain != "" {
+		qiniuClient, err := qiniuutil.NewClient(qiniuutil.Config{AccessKey: cfg.QiniuAccessKey, SecretKey: cfg.QiniuSecretKey, Bucket: cfg.QiniuBucket, Domain: cfg.QiniuDomain, UploadURL: cfg.QiniuUploadURL})
+		if err != nil {
+			return nil, err
+		}
+		ctx.Qiniu = qiniuClient
+	}
 	if cfg.MysqlDSN != "" {
 		db, err := datasource.NewMysqlClient(commonconfig.MysqlConf{
 			Dsn:         cfg.MysqlDSN,
@@ -226,7 +267,7 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		}
 		ctx.Reviews = NewGormReviewRepository(db)
 	}
-	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn)
+	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, locationConn)
 	return ctx, nil
 }
 
@@ -272,6 +313,9 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 	}
 	if cfg.DispatchRPCAddr == "" {
 		cfg.DispatchRPCAddr = defaultDispatchRPCAddr
+	}
+	if cfg.LocationRPCAddr == "" {
+		cfg.LocationRPCAddr = defaultLocationRPCAddr
 	}
 	if cfg.ClientMode == "" {
 		// 乘客端 API 默认必须调用真实 usersvc gRPC，避免验证码接口只写入本地内存而没有真正发送短信。
@@ -327,6 +371,13 @@ func WithPayClient(client PayClient) Option {
 func WithDispatchClient(client DispatchClient) Option {
 	return func(ctx *ServiceContext) {
 		ctx.DispatchClient = client
+	}
+}
+
+// WithLocationClient 注入位置服务客户端。
+func WithLocationClient(client LocationClient) Option {
+	return func(ctx *ServiceContext) {
+		ctx.LocationClient = client
 	}
 }
 
@@ -404,6 +455,18 @@ func buildDispatchClient(addr string) (DispatchClient, *grpc.ClientConn, error) 
 		return nil, nil, err
 	}
 	return newGRPCDispatchClient(dispatchproto.NewDispatchClient(conn)), conn, nil
+}
+
+// buildLocationClient 根据 locationsvc 地址创建真实 gRPC 客户端。
+func buildLocationClient(addr string) (LocationClient, *grpc.ClientConn, error) {
+	if strings.TrimSpace(addr) == "" {
+		return nil, nil, fmt.Errorf("locationsvc grpc addr is required")
+	}
+	conn, err := newInsecureGRPCConn(addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return locationproto.NewLocationServiceClient(conn), conn, nil
 }
 
 // closeGRPCConns 关闭非空 gRPC 连接，忽略关闭阶段错误。

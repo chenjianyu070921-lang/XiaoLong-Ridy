@@ -1,7 +1,10 @@
 <template>
   <div class="trip-page">
     <!-- 地图 -->
-    <div class="map-container" id="trip-map"></div>
+    <div class="map-container" id="trip-map">
+      <div v-if="trackingLoading" class="map-state">正在获取实时位置...</div>
+      <div v-else-if="trackingError" class="map-state error">{{ trackingError }}</div>
+    </div>
 
     <!-- 行程信息卡片 -->
     <div class="trip-card animate-slideUp">
@@ -83,10 +86,12 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import AMapLoader from '@amap/amap-jsapi-loader'
 import { useRouter } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { useOrderStore } from '@/stores/order'
-import { pollOrderStatus } from '@/api/order'
+import { getOrderTracking, pollOrderStatus } from '@/api/order'
+import { getAmapConfig } from '@/config/amap'
 
 const router = useRouter()
 const orderStore = useOrderStore()
@@ -109,6 +114,12 @@ const tripStats = ref({
 })
 
 let pollTimer = null
+let trackingTimer = null
+let mapInstance = null
+let driverMarker = null
+let routePolyline = null
+const trackingLoading = ref(true)
+const trackingError = ref('')
 
 // 联系司机
 const callDriver = () => {
@@ -164,22 +175,98 @@ const pollStatus = async () => {
   }
 }
 
+// 将秒数格式化为乘客容易阅读的行程时长。
+const formatDuration = (seconds) => `${Math.max(1, Math.ceil(Number(seconds || 0) / 60))}分钟`
+
+// 将米数格式化为公里，短距离仍保留米制展示。
+const formatDistance = (meters) => {
+  const value = Number(meters || 0)
+  return value < 1000 ? `${Math.max(0, Math.round(value))}米` : `${(value / 1000).toFixed(1)}公里`
+}
+
+// 把后端返回的高德点串转换为地图坐标数组。
+const parsePolyline = (polyline) => String(polyline || '').split(';').map(point => {
+  const [lng, lat] = point.split(',').map(Number)
+  return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null
+}).filter(Boolean)
+
+// 更新司机标记、剩余路线和行程统计，地图对象只创建一次。
+const renderTracking = (snapshot) => {
+  if (!mapInstance || !snapshot) return
+  const position = [Number(snapshot.driverLongitude), Number(snapshot.driverLatitude)]
+  if (!position.every(Number.isFinite)) return
+
+  if (!driverMarker) {
+    driverMarker = new window.AMap.Marker({ position, title: '司机当前位置', anchor: 'center' })
+    mapInstance.add(driverMarker)
+  } else {
+    driverMarker.setPosition(position)
+  }
+
+  const path = parsePolyline(snapshot.polyline)
+  if (path.length > 1) {
+    if (!routePolyline) {
+      routePolyline = new window.AMap.Polyline({ path, strokeColor: '#7C3AED', strokeWeight: 7, showDir: true })
+      mapInstance.add(routePolyline)
+    } else {
+      routePolyline.setPath(path)
+    }
+    mapInstance.setFitView([driverMarker, routePolyline], false, [70, 40, 70, 40])
+  } else {
+    mapInstance.setCenter(position)
+  }
+
+  tripStats.value.distance = formatDistance(snapshot.travelledDistanceM)
+  tripStats.value.duration = formatDuration(snapshot.elapsedDurationS)
+  tripStats.value.estimatedPrice = (Number(snapshot.estimatedPriceCents || 0) / 100).toFixed(2)
+  if (snapshot.remainingDurationS) {
+    tripStats.value.estimatedArrival = formatDuration(snapshot.remainingDurationS)
+  }
+}
+
+// 拉取单次追踪快照；短暂网络失败不会清空地图上的最后有效位置。
+const refreshTracking = async () => {
+  const orderId = orderStore.currentOrder?.orderId
+  if (!orderId) {
+    trackingError.value = '未找到进行中的订单'
+    trackingLoading.value = false
+    return
+  }
+  try {
+    const snapshot = await getOrderTracking(orderId)
+    trackingError.value = snapshot?.stale ? '司机位置更新时间较早，正在重新连接...' : ''
+    renderTracking(snapshot)
+  } catch (error) {
+    console.error('获取行程追踪失败', error)
+    trackingError.value = '实时位置暂不可用，正在重试...'
+  } finally {
+    trackingLoading.value = false
+  }
+}
+
 onMounted(() => {
-  initMap()
+  initMap().then(refreshTracking)
   pollTimer = setInterval(pollStatus, 5000)
-  
-  // 模拟更新行程数据
-  setInterval(() => {
-    // 更新行驶距离和时间
-  }, 10000)
+  trackingTimer = setInterval(refreshTracking, 3000)
 })
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (trackingTimer) clearInterval(trackingTimer)
+  mapInstance?.destroy()
+  mapInstance = null
 })
 
-const initMap = () => {
-  // 初始化地图显示实时路线
+// 初始化高德地图；密钥配置与首页地图保持一致。
+const initMap = async () => {
+  const { key, securityCode } = getAmapConfig()
+  window._AMapSecurityConfig = { securityJsCode: securityCode }
+  const AMap = await AMapLoader.load({ key, version: '2.0' })
+  window.AMap = AMap
+  mapInstance = new AMap.Map('trip-map', {
+    zoom: 15,
+    center: [Number(orderStore.orderParams.fromLng) || 116.397428, Number(orderStore.orderParams.fromLat) || 39.90923]
+  })
 }
 </script>
 
@@ -190,8 +277,29 @@ const initMap = () => {
 }
 
 .map-container {
+  position: relative;
   height: 50vh;
   background: #E5E7EB;
+}
+
+.map-state {
+  position: absolute;
+  z-index: 10;
+  top: 16px;
+  left: 50%;
+  max-width: calc(100% - 32px);
+  padding: 8px 12px;
+  transform: translateX(-50%);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #374151;
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
+}
+
+.map-state.error {
+  color: #B45309;
 }
 
 .trip-card {

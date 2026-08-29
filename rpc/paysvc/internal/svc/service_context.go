@@ -43,10 +43,17 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	// Kafka 生产者（容错：未启动时降级为 NoopProducer）
 	svcCtx.Producer = newProducer(c.Kafka)
 
-	// 订单服务客户端（直连，懒连接）
-	svcCtx.OrderClient = orderclient.NewRpcOrderClient(zrpc.MustNewClient(zrpc.RpcClientConf{
-		Target: c.Ordersvc.Target,
-	}))
+	// 订单服务客户端（直连，懒连接；配置缺失或下游未就绪时降级，避免进程 fatal panic）
+	orderTarget := c.Ordersvc.Target
+	if orderTarget == "" {
+		orderTarget = "127.0.0.1:50051"
+	}
+	// NonBlock：懒连接，下游（ordersvc）未就绪时不阻塞、不报错，首次调用时再建立连接
+	orderCli, err := zrpc.NewClient(zrpc.RpcClientConf{Target: orderTarget, NonBlock: true})
+	if err != nil {
+		logx.Errorf("init ordersvc client failed: %v", err)
+	}
+	svcCtx.OrderClient = orderclient.NewRpcOrderClient(orderCli)
 
 	// 回调验签器（容错：密钥为空时降级为 MockVerifier）
 	svcCtx.Verifier = newVerifier(c.Alipay)

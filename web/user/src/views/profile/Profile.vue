@@ -92,6 +92,7 @@ import { useRouter } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { useUserStore } from '@/stores/user'
 import { updateProfile } from '@/api/user'
+import { getAvatarUploadToken, uploadToQiniu } from '@/api/upload'
 import { getMyCoupons } from '@/api/order'
 
 const router = useRouter()
@@ -149,18 +150,44 @@ const editAvatar = () => {
   dialogValue.value = userInfo.value.avatarUrl || ''
 }
 
+// 打开系统文件选择器，重新选择头像时复用同一个隐藏输入框。
+const chooseAvatar = () => {
+  avatarInput.value?.click()
+}
+
+// 处理本地头像：先校验文件，再生成预览并缓存待上传文件。
+const pendingAvatarFile = ref(null)
+const onAvatarSelected = (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    showToast('仅支持 JPG、PNG 或 WEBP 图片')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('头像大小不能超过 5MB')
+    return
+  }
+  pendingAvatarFile.value = file
+  dialogType.value = 'avatar'
+  dialogValue.value = URL.createObjectURL(file)
+}
+
 // 关闭编辑弹窗并清理输入内容。
 const closeEditDialog = () => {
   if (!dialogLoading.value) {
     dialogType.value = ''
     dialogValue.value = ''
+    pendingAvatarFile.value = null
   }
 }
 
 // 保存昵称或头像，并同步 Pinia 与本地缓存，确保刷新后仍能显示最新资料。
 const saveEditDialog = async () => {
   const value = dialogValue.value.trim()
-  if (!value) {
+  if (!value || (dialogType.value === 'avatar' && !pendingAvatarFile.value)) {
     showToast(dialogType.value === 'nickname' ? '昵称不能为空' : '头像地址不能为空')
     return
   }
@@ -170,9 +197,18 @@ const saveEditDialog = async () => {
   }
   dialogLoading.value = true
   try {
-    const payload = dialogType.value === 'nickname' ? { nickname: value } : { avatarUrl: value }
+    let payload
+    if (dialogType.value === 'avatar') {
+      // 先申请短期 Token，再将文件直传七牛云，最后只保存 CDN 地址。
+      const extension = pendingAvatarFile.value.name.split('.').pop().toLowerCase()
+      const tokenInfo = await getAvatarUploadToken(extension)
+      await uploadToQiniu(tokenInfo.uploadUrl, tokenInfo.uploadToken, tokenInfo.key, pendingAvatarFile.value)
+      payload = { avatarUrl: `${tokenInfo.domain}/${tokenInfo.key}` }
+    } else {
+      payload = { nickname: value }
+    }
     await updateProfile(payload)
-    userStore.userInfo = { ...userStore.userInfo, ...(dialogType.value === 'nickname' ? { nickname: value } : { avatarUrl: value }) }
+    userStore.userInfo = { ...userStore.userInfo, ...payload }
     localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
     showToast(dialogType.value === 'nickname' ? '昵称已更新' : '头像已更新')
     closeEditDialog()

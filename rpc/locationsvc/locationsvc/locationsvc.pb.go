@@ -858,6 +858,142 @@ func (x *NearbyDriversResp) GetDrivers() []*NearbyDriver {
 	return nil
 }
 
+type GetDriverLocationReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverLocationReq) Reset() {
+	*x = GetDriverLocationReq{}
+	mi := &file_rpc_locationsvc_locationsvc_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverLocationReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverLocationReq) ProtoMessage() {}
+
+func (x *GetDriverLocationReq) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_locationsvc_locationsvc_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverLocationReq.ProtoReflect.Descriptor instead.
+func (*GetDriverLocationReq) Descriptor() ([]byte, []int) {
+	return file_rpc_locationsvc_locationsvc_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetDriverLocationReq) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type GetDriverLocationResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Lng           float64                `protobuf:"fixed64,2,opt,name=lng,proto3" json:"lng,omitempty"`
+	Lat           float64                `protobuf:"fixed64,3,opt,name=lat,proto3" json:"lat,omitempty"`
+	Heading       int32                  `protobuf:"varint,4,opt,name=heading,proto3" json:"heading,omitempty"`
+	SpeedKmh      float64                `protobuf:"fixed64,5,opt,name=speed_kmh,json=speedKmh,proto3" json:"speed_kmh,omitempty"`
+	OnlineStatus  int32                  `protobuf:"varint,6,opt,name=online_status,json=onlineStatus,proto3" json:"online_status,omitempty"`
+	ReportTime    int64                  `protobuf:"varint,7,opt,name=report_time,json=reportTime,proto3" json:"report_time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverLocationResp) Reset() {
+	*x = GetDriverLocationResp{}
+	mi := &file_rpc_locationsvc_locationsvc_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverLocationResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverLocationResp) ProtoMessage() {}
+
+func (x *GetDriverLocationResp) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_locationsvc_locationsvc_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverLocationResp.ProtoReflect.Descriptor instead.
+func (*GetDriverLocationResp) Descriptor() ([]byte, []int) {
+	return file_rpc_locationsvc_locationsvc_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetDriverLocationResp) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetLng() float64 {
+	if x != nil {
+		return x.Lng
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetLat() float64 {
+	if x != nil {
+		return x.Lat
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetHeading() int32 {
+	if x != nil {
+		return x.Heading
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetSpeedKmh() float64 {
+	if x != nil {
+		return x.SpeedKmh
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetOnlineStatus() int32 {
+	if x != nil {
+		return x.OnlineStatus
+	}
+	return 0
+}
+
+func (x *GetDriverLocationResp) GetReportTime() int64 {
+	if x != nil {
+		return x.ReportTime
+	}
+	return 0
+}
+
 var File_rpc_locationsvc_locationsvc_proto protoreflect.FileDescriptor
 
 const file_rpc_locationsvc_locationsvc_proto_rawDesc = "" +
@@ -928,13 +1064,25 @@ const file_rpc_locationsvc_locationsvc_proto_rawDesc = "" +
 	"\x03lat\x18\x03 \x01(\x01R\x03lat\x12\x1a\n" +
 	"\bdistance\x18\x04 \x01(\x01R\bdistance\"H\n" +
 	"\x11NearbyDriversResp\x123\n" +
-	"\adrivers\x18\x01 \x03(\v2\x19.locationsvc.NearbyDriverR\adrivers2\x8f\x03\n" +
+	"\adrivers\x18\x01 \x03(\v2\x19.locationsvc.NearbyDriverR\adrivers\"3\n" +
+	"\x14GetDriverLocationReq\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\"\xd5\x01\n" +
+	"\x15GetDriverLocationResp\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x10\n" +
+	"\x03lng\x18\x02 \x01(\x01R\x03lng\x12\x10\n" +
+	"\x03lat\x18\x03 \x01(\x01R\x03lat\x12\x18\n" +
+	"\aheading\x18\x04 \x01(\x05R\aheading\x12\x1b\n" +
+	"\tspeed_kmh\x18\x05 \x01(\x01R\bspeedKmh\x12#\n" +
+	"\ronline_status\x18\x06 \x01(\x05R\fonlineStatus\x12\x1f\n" +
+	"\vreport_time\x18\a \x01(\x03R\n" +
+	"reportTime2\xeb\x03\n" +
 	"\x0fLocationService\x12Q\n" +
 	"\x0eReverseGeocode\x12\x1e.locationsvc.ReverseGeocodeReq\x1a\x1f.locationsvc.ReverseGeocodeResp\x12B\n" +
 	"\tPOISearch\x12\x19.locationsvc.POISearchReq\x1a\x1a.locationsvc.POISearchResp\x12B\n" +
 	"\tRoutePlan\x12\x19.locationsvc.RoutePlanReq\x1a\x1a.locationsvc.RoutePlanResp\x12Q\n" +
 	"\x0eReportLocation\x12\x1e.locationsvc.ReportLocationReq\x1a\x1f.locationsvc.ReportLocationResp\x12N\n" +
-	"\rNearbyDrivers\x12\x1d.locationsvc.NearbyDriversReq\x1a\x1e.locationsvc.NearbyDriversRespB+Z)XiaoLong-Ridy/rpc/locationsvc/locationsvcb\x06proto3"
+	"\rNearbyDrivers\x12\x1d.locationsvc.NearbyDriversReq\x1a\x1e.locationsvc.NearbyDriversResp\x12Z\n" +
+	"\x11GetDriverLocation\x12!.locationsvc.GetDriverLocationReq\x1a\".locationsvc.GetDriverLocationRespB+Z)XiaoLong-Ridy/rpc/locationsvc/locationsvcb\x06proto3"
 
 var (
 	file_rpc_locationsvc_locationsvc_proto_rawDescOnce sync.Once
@@ -948,20 +1096,22 @@ func file_rpc_locationsvc_locationsvc_proto_rawDescGZIP() []byte {
 	return file_rpc_locationsvc_locationsvc_proto_rawDescData
 }
 
-var file_rpc_locationsvc_locationsvc_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_rpc_locationsvc_locationsvc_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_rpc_locationsvc_locationsvc_proto_goTypes = []any{
-	(*ReverseGeocodeReq)(nil),  // 0: locationsvc.ReverseGeocodeReq
-	(*ReverseGeocodeResp)(nil), // 1: locationsvc.ReverseGeocodeResp
-	(*POISearchReq)(nil),       // 2: locationsvc.POISearchReq
-	(*POIItem)(nil),            // 3: locationsvc.POIItem
-	(*POISearchResp)(nil),      // 4: locationsvc.POISearchResp
-	(*RoutePlanReq)(nil),       // 5: locationsvc.RoutePlanReq
-	(*RoutePlanResp)(nil),      // 6: locationsvc.RoutePlanResp
-	(*ReportLocationReq)(nil),  // 7: locationsvc.ReportLocationReq
-	(*ReportLocationResp)(nil), // 8: locationsvc.ReportLocationResp
-	(*NearbyDriversReq)(nil),   // 9: locationsvc.NearbyDriversReq
-	(*NearbyDriver)(nil),       // 10: locationsvc.NearbyDriver
-	(*NearbyDriversResp)(nil),  // 11: locationsvc.NearbyDriversResp
+	(*ReverseGeocodeReq)(nil),     // 0: locationsvc.ReverseGeocodeReq
+	(*ReverseGeocodeResp)(nil),    // 1: locationsvc.ReverseGeocodeResp
+	(*POISearchReq)(nil),          // 2: locationsvc.POISearchReq
+	(*POIItem)(nil),               // 3: locationsvc.POIItem
+	(*POISearchResp)(nil),         // 4: locationsvc.POISearchResp
+	(*RoutePlanReq)(nil),          // 5: locationsvc.RoutePlanReq
+	(*RoutePlanResp)(nil),         // 6: locationsvc.RoutePlanResp
+	(*ReportLocationReq)(nil),     // 7: locationsvc.ReportLocationReq
+	(*ReportLocationResp)(nil),    // 8: locationsvc.ReportLocationResp
+	(*NearbyDriversReq)(nil),      // 9: locationsvc.NearbyDriversReq
+	(*NearbyDriver)(nil),          // 10: locationsvc.NearbyDriver
+	(*NearbyDriversResp)(nil),     // 11: locationsvc.NearbyDriversResp
+	(*GetDriverLocationReq)(nil),  // 12: locationsvc.GetDriverLocationReq
+	(*GetDriverLocationResp)(nil), // 13: locationsvc.GetDriverLocationResp
 }
 var file_rpc_locationsvc_locationsvc_proto_depIdxs = []int32{
 	3,  // 0: locationsvc.POISearchResp.items:type_name -> locationsvc.POIItem
@@ -971,13 +1121,15 @@ var file_rpc_locationsvc_locationsvc_proto_depIdxs = []int32{
 	5,  // 4: locationsvc.LocationService.RoutePlan:input_type -> locationsvc.RoutePlanReq
 	7,  // 5: locationsvc.LocationService.ReportLocation:input_type -> locationsvc.ReportLocationReq
 	9,  // 6: locationsvc.LocationService.NearbyDrivers:input_type -> locationsvc.NearbyDriversReq
-	1,  // 7: locationsvc.LocationService.ReverseGeocode:output_type -> locationsvc.ReverseGeocodeResp
-	4,  // 8: locationsvc.LocationService.POISearch:output_type -> locationsvc.POISearchResp
-	6,  // 9: locationsvc.LocationService.RoutePlan:output_type -> locationsvc.RoutePlanResp
-	8,  // 10: locationsvc.LocationService.ReportLocation:output_type -> locationsvc.ReportLocationResp
-	11, // 11: locationsvc.LocationService.NearbyDrivers:output_type -> locationsvc.NearbyDriversResp
-	7,  // [7:12] is the sub-list for method output_type
-	2,  // [2:7] is the sub-list for method input_type
+	12, // 7: locationsvc.LocationService.GetDriverLocation:input_type -> locationsvc.GetDriverLocationReq
+	1,  // 8: locationsvc.LocationService.ReverseGeocode:output_type -> locationsvc.ReverseGeocodeResp
+	4,  // 9: locationsvc.LocationService.POISearch:output_type -> locationsvc.POISearchResp
+	6,  // 10: locationsvc.LocationService.RoutePlan:output_type -> locationsvc.RoutePlanResp
+	8,  // 11: locationsvc.LocationService.ReportLocation:output_type -> locationsvc.ReportLocationResp
+	11, // 12: locationsvc.LocationService.NearbyDrivers:output_type -> locationsvc.NearbyDriversResp
+	13, // 13: locationsvc.LocationService.GetDriverLocation:output_type -> locationsvc.GetDriverLocationResp
+	8,  // [8:14] is the sub-list for method output_type
+	2,  // [2:8] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -994,7 +1146,7 @@ func file_rpc_locationsvc_locationsvc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_locationsvc_locationsvc_proto_rawDesc), len(file_rpc_locationsvc_locationsvc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

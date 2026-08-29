@@ -12,11 +12,17 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	mux := http.NewServeMux()
 	registerAuthRoutes(mux, svcCtx)
 	registerProfileRoutes(mux, svcCtx)
+	registerUploadRoutes(mux, svcCtx)
 	registerOrderRoutes(mux, svcCtx)
 	registerAddressRoutes(mux, svcCtx)
 	registerCouponRoutes(mux, svcCtx)
 	registerReviewRoutes(mux, svcCtx)
 	return mux
+}
+
+// registerUploadRoutes 注册需要登录后申请的文件上传凭证接口。
+func registerUploadRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
+	mux.HandleFunc("/api/passenger/v1/upload/avatar-token", handler.AvatarUploadTokenHandler(svcCtx))
 }
 
 // registerAuthRoutes 注册乘客端登录注册相关路由，登录前接口不需要 JWT。
@@ -52,6 +58,8 @@ func registerOrderRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	// 查询订单详情接口，返回当前乘客指定订单的完整行程信息。
 	mux.HandleFunc("/api/passenger/v1/orders/detail", handler.GetOrderHandler(svcCtx))
 	mux.HandleFunc("/api/passenger/v1/orders/status", handler.PollOrderStatusHandler(svcCtx))
+	// 行程实时追踪接口，聚合订单司机位置和剩余路线，仅允许订单所属乘客查询。
+	mux.HandleFunc("/api/passenger/v1/orders/tracking", handler.GetOrderTrackingHandler(svcCtx))
 	// 取消订单接口，由当前乘客发起订单取消操作。
 	mux.HandleFunc("/api/passenger/v1/orders/cancel", handler.CancelOrderHandler(svcCtx))
 	// 发起支付接口，校验订单归属和待支付状态后调用支付服务。

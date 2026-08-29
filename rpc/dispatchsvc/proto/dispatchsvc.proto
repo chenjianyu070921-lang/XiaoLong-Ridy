@@ -59,6 +59,7 @@ message DispatchOrderRequest {
   int32 car_type = 4;
   string city_code = 5;
   repeated int64 exclude_driver_ids = 6; // 改派/重派时排除的司机（如原司机）
+  int32 order_type = 7; // 订单类型：0 实时单，1 预约单
 }
 
 message DispatchOrderResponse {
@@ -76,6 +77,7 @@ message DispatchRecord {
   string remark = 7;
   int64 created_at = 8;
   int64 updated_at = 9;
+  string reject_reason = 10; // 拒单/取消原因
 }
 
 message ListDispatchRecordsRequest {
