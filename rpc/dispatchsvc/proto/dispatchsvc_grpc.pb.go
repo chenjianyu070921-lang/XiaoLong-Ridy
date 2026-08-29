@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v3.19.4
-// source: rpc/dispatchsvc/proto/dispatchsvc.proto
+// source: dispatchsvc.proto
 
 package proto
 
@@ -272,5 +272,5 @@ var Dispatch_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "rpc/dispatchsvc/proto/dispatchsvc.proto",
+	Metadata: "dispatchsvc.proto",
 }
