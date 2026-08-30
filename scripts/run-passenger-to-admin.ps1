@@ -1,7 +1,7 @@
 ﻿# 真实乘客端 → 管理后台 全链路本地启动脚本。
 #
 # 启动的服务与端口：
-#   usersvc(50052) ordersvc(50051) dispatchsvc(8083) pricesvc(50053) paysvc(50054)
+#   usersvc(50052) ordersvc(50051) dispatchsvc(50056) pricesvc(50053) paysvc(50054)
 #   adminsvc(8084) api/passenger(8091) api/admin(8717) 管理前端 vite(5173)
 #
 # 数据库/Redis/签名凭据不硬编码在脚本中，统一从 rpc/usersvc/etc/usersvc.yaml
@@ -101,7 +101,7 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 Set-Content -LiteralPath $pidFile -Value @() -Encoding ASCII
 
 # 目标端口预检，避免误连入旧服务。
-foreach ($port in @(50051, 50052, 50053, 50054, 8083, 8084, 8091, 8717, 5173)) {
+foreach ($port in @(50051, 50052, 50053, 50054, 50056, 8084, 8091, 8717, 5173)) {
     if (-not (Test-LocalPortAvailable -Port $port)) {
         throw "端口 $port 已被占用。为避免影响已有服务，本脚本未执行任何启动操作。"
     }
@@ -292,7 +292,7 @@ OrdersRPC:
   target: 127.0.0.1:50051
   nonblock: true
 DispatchRPC:
-  target: 127.0.0.1:8083
+  target: 127.0.0.1:50056
   nonblock: true
 UsersRPC:
   target: 127.0.0.1:50052
@@ -372,7 +372,7 @@ if (-not (Wait-LocalPort -Port 50052)) { Fail-Startup -Message "usersvc 未在 5
 Start-ManagedProcess -Name "dispatchsvc" -FilePath (Join-Path $binDir "dispatchsvc.exe") `
     -ArgumentList @("-f", (Join-Path $RepoRoot "rpc\dispatchsvc\etc\dispatchsvc.yaml")) `
     -WorkingDirectory $RepoRoot
-if (-not (Wait-LocalPort -Port 8083)) { Fail-Startup -Message "dispatchsvc 未在 8083 监听，请查看 $logDir\dispatchsvc.err.log" }
+if (-not (Wait-LocalPort -Port 50056)) { Fail-Startup -Message "dispatchsvc 未在 50056 监听，请查看 $logDir\dispatchsvc.err.log" }
 
 # 3. pricesvc（无下游 RPC 依赖）
 Start-ManagedProcess -Name "pricesvc" -FilePath (Join-Path $binDir "pricesvc.exe") `
@@ -380,7 +380,7 @@ Start-ManagedProcess -Name "pricesvc" -FilePath (Join-Path $binDir "pricesvc.exe
     -WorkingDirectory $RepoRoot
 if (-not (Wait-LocalPort -Port 50053)) { Fail-Startup -Message "pricesvc 未在 50053 监听，请查看 $logDir\pricesvc.err.log" }
 
-# 4. ordersvc（启动时阻塞拨号 dispatchsvc 8083 / pricesvc 50053，必须在其后启动）
+# 4. ordersvc（启动时阻塞拨号 dispatchsvc 50056 / pricesvc 50053，必须在其后启动）
 Start-ManagedProcess -Name "ordersvc" -FilePath (Join-Path $binDir "ordersvc.exe") `
     -ArgumentList @("-f", (Join-Path $RepoRoot "rpc\ordersvc\etc\ordersvc.yaml")) `
     -WorkingDirectory $RepoRoot
@@ -425,6 +425,6 @@ Write-Host ""
 Write-Host "乘客端 → 后台管理 全链路已启动："
 Write-Host "  乘客端 API      http://127.0.0.1:8091"
 Write-Host "  管理后台        http://127.0.0.1:5173  (API 经 8717)"
-Write-Host "  RPC: usersvc=50052 ordersvc=50051 dispatchsvc=8083 pricesvc=50053 paysvc=50054 adminsvc=8084"
+Write-Host "  RPC: usersvc=50052 ordersvc=50051 dispatchsvc=50056 pricesvc=50053 paysvc=50054 adminsvc=8084"
 Write-Host "  日志目录：$logDir"
 Write-Host "  停止服务：.\scripts\run-passenger-to-admin.ps1 -Stop"

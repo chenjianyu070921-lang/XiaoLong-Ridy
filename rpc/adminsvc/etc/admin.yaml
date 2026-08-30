@@ -175,7 +175,7 @@ OrdersRPC:
   Target: 127.0.0.1:50051
   NonBlock: true
 DispatchRPC:
-  Target: 127.0.0.1:8083
+  Target: 127.0.0.1:50056
   NonBlock: true
 DriversRPC:
   Target: 127.0.0.1:5055

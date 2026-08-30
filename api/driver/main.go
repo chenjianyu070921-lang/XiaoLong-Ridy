@@ -25,7 +25,7 @@ const defaultDriverGRPCAddr = "127.0.0.1:50055"
 
 const defaultOrderGRPCAddr = "127.0.0.1:50051"
 
-const defaultDispatchGRPCAddr = "127.0.0.1:8083"
+const defaultDispatchGRPCAddr = "127.0.0.1:50056"
 
 const defaultLocationGRPCAddr = "127.0.0.1:5056"
 

@@ -139,7 +139,7 @@ func newLocationsRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, locationsvcprot
 // newDispatchRPCClient 初始化 dispatchsvc 客户端，供后台订单详情查询真实派单记录。
 func newDispatchRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, dispatchsvcproto.DispatchClient, error) {
 	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
-		cfg.Target = "127.0.0.1:8083"
+		cfg.Target = "127.0.0.1:50056"
 	}
 	client, err := zrpc.NewClient(cfg)
 	if err != nil {

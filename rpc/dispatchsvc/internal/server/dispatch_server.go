@@ -8,12 +8,12 @@ import (
 
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/logic"
 	"XiaoLong-Ridy/rpc/dispatchsvc/internal/svc"
-	__proto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	"XiaoLong-Ridy/rpc/dispatchsvc/proto"
 )
 
 type DispatchServer struct {
 	svcCtx *svc.ServiceContext
-	__proto.UnimplementedDispatchServer
+	proto.UnimplementedDispatchServer
 }
 
 func NewDispatchServer(svcCtx *svc.ServiceContext) *DispatchServer {
@@ -23,31 +23,31 @@ func NewDispatchServer(svcCtx *svc.ServiceContext) *DispatchServer {
 }
 
 // 对指定订单执行派单（P0 为 mock 直派），返回写入的派单记录。
-func (s *DispatchServer) DispatchOrder(ctx context.Context, in *__proto.DispatchOrderRequest) (*__proto.DispatchOrderResponse, error) {
+func (s *DispatchServer) DispatchOrder(ctx context.Context, in *proto.DispatchOrderRequest) (*proto.DispatchOrderResponse, error) {
 	l := logic.NewDispatchOrderLogic(ctx, s.svcCtx)
 	return l.DispatchOrder(in)
 }
 
 // 分页查询订单的派单记录。
-func (s *DispatchServer) ListDispatchRecords(ctx context.Context, in *__proto.ListDispatchRecordsRequest) (*__proto.ListDispatchRecordsResponse, error) {
+func (s *DispatchServer) ListDispatchRecords(ctx context.Context, in *proto.ListDispatchRecordsRequest) (*proto.ListDispatchRecordsResponse, error) {
 	l := logic.NewListDispatchRecordsLogic(ctx, s.svcCtx)
 	return l.ListDispatchRecords(in)
 }
 
 // 司机拒单：将指定司机的待派单记录置为已拒绝。
-func (s *DispatchServer) RejectDispatch(ctx context.Context, in *__proto.RejectDispatchRequest) (*__proto.RejectDispatchResponse, error) {
+func (s *DispatchServer) RejectDispatch(ctx context.Context, in *proto.RejectDispatchRequest) (*proto.RejectDispatchResponse, error) {
 	l := logic.NewRejectDispatchLogic(ctx, s.svcCtx)
 	return l.RejectDispatch(in)
 }
 
 // 订单取消/超时取消：将该订单全部待派单记录置为已取消（Pending -> Cancelled）。
-func (s *DispatchServer) CancelDispatch(ctx context.Context, in *__proto.CancelDispatchRequest) (*__proto.CancelDispatchResponse, error) {
+func (s *DispatchServer) CancelDispatch(ctx context.Context, in *proto.CancelDispatchRequest) (*proto.CancelDispatchResponse, error) {
 	l := logic.NewCancelDispatchLogic(ctx, s.svcCtx)
 	return l.CancelDispatch(in)
 }
 
 // 分页查询存在超时待派单记录的订单 ID（去重），供 job 超时重派任务使用。
-func (s *DispatchServer) ListTimeoutPendingOrders(ctx context.Context, in *__proto.ListTimeoutPendingOrdersRequest) (*__proto.ListTimeoutPendingOrdersResponse, error) {
+func (s *DispatchServer) ListTimeoutPendingOrders(ctx context.Context, in *proto.ListTimeoutPendingOrdersRequest) (*proto.ListTimeoutPendingOrdersResponse, error) {
 	l := logic.NewListTimeoutPendingOrdersLogic(ctx, s.svcCtx)
 	return l.ListTimeoutPendingOrders(in)
 }
