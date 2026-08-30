@@ -11,6 +11,7 @@ import (
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -21,12 +22,11 @@ const (
 )
 
 type CancelDispatchRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	OrderId int64  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	Reason  string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CancelDispatchRequest) Reset() {
@@ -56,7 +56,7 @@ func (x *CancelDispatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelDispatchRequest.ProtoReflect.Descriptor instead.
 func (*CancelDispatchRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{0}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *CancelDispatchRequest) GetOrderId() int64 {
@@ -74,12 +74,11 @@ func (x *CancelDispatchRequest) GetReason() string {
 }
 
 type CancelDispatchResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	Affected      int64                  `protobuf:"varint,2,opt,name=affected,proto3" json:"affected,omitempty"` // 被置为已取消的派单记录数
 	unknownFields protoimpl.UnknownFields
-
-	OrderId  int64 `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	Affected int64 `protobuf:"varint,2,opt,name=affected,proto3" json:"affected,omitempty"` // 被置为已取消的派单记录数
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CancelDispatchResponse) Reset() {
@@ -109,7 +108,7 @@ func (x *CancelDispatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelDispatchResponse.ProtoReflect.Descriptor instead.
 func (*CancelDispatchResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{1}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CancelDispatchResponse) GetOrderId() int64 {
@@ -127,13 +126,12 @@ func (x *CancelDispatchResponse) GetAffected() int64 {
 }
 
 type ListTimeoutPendingOrdersRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	TimeoutSeconds int64 `protobuf:"varint,1,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"` // 超时秒数，0 时默认 60
-	Page           int32 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`                                           // 默认 1
-	PageSize       int32 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`                   // 默认 20，上限 100
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TimeoutSeconds int64                  `protobuf:"varint,1,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"` // 超时秒数，0 时默认 60
+	Page           int32                  `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`                                           // 默认 1
+	PageSize       int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`                   // 默认 20，上限 100
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListTimeoutPendingOrdersRequest) Reset() {
@@ -163,7 +161,7 @@ func (x *ListTimeoutPendingOrdersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTimeoutPendingOrdersRequest.ProtoReflect.Descriptor instead.
 func (*ListTimeoutPendingOrdersRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{2}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ListTimeoutPendingOrdersRequest) GetTimeoutSeconds() int64 {
@@ -188,14 +186,13 @@ func (x *ListTimeoutPendingOrdersRequest) GetPageSize() int32 {
 }
 
 type ListTimeoutPendingOrdersResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderIds      []int64                `protobuf:"varint,1,rep,packed,name=order_ids,json=orderIds,proto3" json:"order_ids,omitempty"`
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	OrderIds []int64 `protobuf:"varint,1,rep,packed,name=order_ids,json=orderIds,proto3" json:"order_ids,omitempty"`
-	Total    int64   `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
-	Page     int32   `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize int32   `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListTimeoutPendingOrdersResponse) Reset() {
@@ -225,7 +222,7 @@ func (x *ListTimeoutPendingOrdersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTimeoutPendingOrdersResponse.ProtoReflect.Descriptor instead.
 func (*ListTimeoutPendingOrdersResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{3}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListTimeoutPendingOrdersResponse) GetOrderIds() []int64 {
@@ -257,13 +254,12 @@ func (x *ListTimeoutPendingOrdersResponse) GetPageSize() int32 {
 }
 
 type RejectDispatchRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	OrderId  int64  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	DriverId int64  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
-	Reason   string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RejectDispatchRequest) Reset() {
@@ -293,7 +289,7 @@ func (x *RejectDispatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectDispatchRequest.ProtoReflect.Descriptor instead.
 func (*RejectDispatchRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{4}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RejectDispatchRequest) GetOrderId() int64 {
@@ -318,13 +314,12 @@ func (x *RejectDispatchRequest) GetReason() string {
 }
 
 type RejectDispatchResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Status        int32                  `protobuf:"varint,3,opt,name=status,proto3" json:"status,omitempty"` // 拒单后的派单状态（REJECTED）
 	unknownFields protoimpl.UnknownFields
-
-	OrderId  int64 `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	DriverId int64 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
-	Status   int32 `protobuf:"varint,3,opt,name=status,proto3" json:"status,omitempty"` // 拒单后的派单状态（REJECTED）
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RejectDispatchResponse) Reset() {
@@ -354,7 +349,7 @@ func (x *RejectDispatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectDispatchResponse.ProtoReflect.Descriptor instead.
 func (*RejectDispatchResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{5}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RejectDispatchResponse) GetOrderId() int64 {
@@ -418,7 +413,7 @@ func (x *DispatchOrderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DispatchOrderRequest.ProtoReflect.Descriptor instead.
 func (*DispatchOrderRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{6}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DispatchOrderRequest) GetOrderId() int64 {
@@ -471,12 +466,11 @@ func (x *DispatchOrderRequest) GetOrderType() int32 {
 }
 
 type DispatchOrderResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	List          []*DispatchRecord      `protobuf:"bytes,2,rep,name=list,proto3" json:"list,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	OrderId int64             `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	List    []*DispatchRecord `protobuf:"bytes,2,rep,name=list,proto3" json:"list,omitempty"`
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DispatchOrderResponse) Reset() {
@@ -506,7 +500,7 @@ func (x *DispatchOrderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DispatchOrderResponse.ProtoReflect.Descriptor instead.
 func (*DispatchOrderResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{7}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DispatchOrderResponse) GetOrderId() int64 {
@@ -566,7 +560,7 @@ func (x *DispatchRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DispatchRecord.ProtoReflect.Descriptor instead.
 func (*DispatchRecord) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{8}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DispatchRecord) GetId() int64 {
@@ -640,15 +634,14 @@ func (x *DispatchRecord) GetRejectReason() string {
 }
 
 type ListDispatchRecordsRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`    // 按订单查询；与 driver_id 二选一，优先 order_id
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"` // 按司机查询；order_id 为 0 时生效
+	Status        int32                  `protobuf:"varint,3,opt,name=status,proto3" json:"status,omitempty"`                     // 可选，0 表示全部，否则按派单状态过滤（仅 driver_id 查询生效）
+	Page          int32                  `protobuf:"varint,4,opt,name=page,proto3" json:"page,omitempty"`                         // 默认 1
+	PageSize      int32                  `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 默认 20，上限 100
 	unknownFields protoimpl.UnknownFields
-
-	OrderId  int64 `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`    // 按订单查询；与 driver_id 二选一，优先 order_id
-	DriverId int64 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"` // 按司机查询；order_id 为 0 时生效
-	Status   int32 `protobuf:"varint,3,opt,name=status,proto3" json:"status,omitempty"`                     // 可选，0 表示全部，否则按派单状态过滤（仅 driver_id 查询生效）
-	Page     int32 `protobuf:"varint,4,opt,name=page,proto3" json:"page,omitempty"`                         // 默认 1
-	PageSize int32 `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 默认 20，上限 100
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListDispatchRecordsRequest) Reset() {
@@ -678,7 +671,7 @@ func (x *ListDispatchRecordsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDispatchRecordsRequest.ProtoReflect.Descriptor instead.
 func (*ListDispatchRecordsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{9}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListDispatchRecordsRequest) GetOrderId() int64 {
@@ -717,14 +710,13 @@ func (x *ListDispatchRecordsRequest) GetPageSize() int32 {
 }
 
 type ListDispatchRecordsResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          []*DispatchRecord      `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"`
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	List     []*DispatchRecord `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"`
-	Total    int64             `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
-	Page     int32             `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize int32             `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListDispatchRecordsResponse) Reset() {
@@ -754,7 +746,7 @@ func (x *ListDispatchRecordsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDispatchRecordsResponse.ProtoReflect.Descriptor instead.
 func (*ListDispatchRecordsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescGZIP(), []int{10}
+	return file_dispatchsvc_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListDispatchRecordsResponse) GetList() []*DispatchRecord {
@@ -785,7 +777,7 @@ func (x *ListDispatchRecordsResponse) GetPageSize() int32 {
 	return 0
 }
 
-var File_rpc_dispatchsvc_proto_dispatchsvc_proto protoreflect.FileDescriptor
+var File_dispatchsvc_proto protoreflect.FileDescriptor
 
 const file_dispatchsvc_proto_rawDesc = "" +
 	"\n" +
@@ -868,11 +860,11 @@ func file_dispatchsvc_proto_rawDescGZIP() []byte {
 	file_dispatchsvc_proto_rawDescOnce.Do(func() {
 		file_dispatchsvc_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_dispatchsvc_proto_rawDesc), len(file_dispatchsvc_proto_rawDesc)))
 	})
-	return file_rpc_dispatchsvc_proto_dispatchsvc_proto_rawDescData
+	return file_dispatchsvc_proto_rawDescData
 }
 
-var file_rpc_dispatchsvc_proto_dispatchsvc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
-var file_rpc_dispatchsvc_proto_dispatchsvc_proto_goTypes = []any{
+var file_dispatchsvc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_dispatchsvc_proto_goTypes = []any{
 	(*CancelDispatchRequest)(nil),            // 0: dispatchsvc.CancelDispatchRequest
 	(*CancelDispatchResponse)(nil),           // 1: dispatchsvc.CancelDispatchResponse
 	(*ListTimeoutPendingOrdersRequest)(nil),  // 2: dispatchsvc.ListTimeoutPendingOrdersRequest
@@ -885,7 +877,7 @@ var file_rpc_dispatchsvc_proto_dispatchsvc_proto_goTypes = []any{
 	(*ListDispatchRecordsRequest)(nil),       // 9: dispatchsvc.ListDispatchRecordsRequest
 	(*ListDispatchRecordsResponse)(nil),      // 10: dispatchsvc.ListDispatchRecordsResponse
 }
-var file_rpc_dispatchsvc_proto_dispatchsvc_proto_depIdxs = []int32{
+var file_dispatchsvc_proto_depIdxs = []int32{
 	8,  // 0: dispatchsvc.DispatchOrderResponse.list:type_name -> dispatchsvc.DispatchRecord
 	8,  // 1: dispatchsvc.ListDispatchRecordsResponse.list:type_name -> dispatchsvc.DispatchRecord
 	6,  // 2: dispatchsvc.Dispatch.DispatchOrder:input_type -> dispatchsvc.DispatchOrderRequest
@@ -905,9 +897,9 @@ var file_rpc_dispatchsvc_proto_dispatchsvc_proto_depIdxs = []int32{
 	0,  // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_rpc_dispatchsvc_proto_dispatchsvc_proto_init() }
-func file_rpc_dispatchsvc_proto_dispatchsvc_proto_init() {
-	if File_rpc_dispatchsvc_proto_dispatchsvc_proto != nil {
+func init() { file_dispatchsvc_proto_init() }
+func file_dispatchsvc_proto_init() {
+	if File_dispatchsvc_proto != nil {
 		return
 	}
 	type x struct{}
@@ -920,9 +912,9 @@ func file_rpc_dispatchsvc_proto_dispatchsvc_proto_init() {
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_rpc_dispatchsvc_proto_dispatchsvc_proto_goTypes,
-		DependencyIndexes: file_rpc_dispatchsvc_proto_dispatchsvc_proto_depIdxs,
-		MessageInfos:      file_rpc_dispatchsvc_proto_dispatchsvc_proto_msgTypes,
+		GoTypes:           file_dispatchsvc_proto_goTypes,
+		DependencyIndexes: file_dispatchsvc_proto_depIdxs,
+		MessageInfos:      file_dispatchsvc_proto_msgTypes,
 	}.Build()
 	File_dispatchsvc_proto = out.File
 	file_dispatchsvc_proto_goTypes = nil
