@@ -18,6 +18,8 @@ service LocationService {
   rpc GetOrderTrack(GetOrderTrackReq) returns (GetOrderTrackResp);
   // 附近司机查询
   rpc NearbyDrivers(NearbyDriversReq) returns (NearbyDriversResp);
+  // 查询司机最新位置，供乘客行程实时追踪使用
+  rpc GetDriverLocation(GetDriverLocationReq) returns (GetDriverLocationResp);
 }
 
 // ========== 逆地址解析 ==========
@@ -132,4 +134,15 @@ message NearbyDriver {
 
 message NearbyDriversResp {
   repeated NearbyDriver drivers = 1;
+}
+
+message GetDriverLocationReq { int64 driver_id = 1; }
+message GetDriverLocationResp {
+  int64 driver_id = 1;
+  double lng = 2;
+  double lat = 3;
+  int32 heading = 4;
+  double speed_kmh = 5;
+  int32 online_status = 6;
+  int64 report_time = 7;
 }

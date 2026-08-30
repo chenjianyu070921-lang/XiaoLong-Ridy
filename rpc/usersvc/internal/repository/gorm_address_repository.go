@@ -91,19 +91,29 @@ func (r *gormAddressRepository) Update(ctx context.Context, address *model.UserA
 func (r *gormAddressRepository) Delete(ctx context.Context, userID, addressID uint64) error {
 	now := time.Now()
 	res := r.db.WithContext(ctx).
+		Model(&model.UserAddress{}).
 		Where("id = ? AND user_id = ?", addressID, userID).
-		Updates(&model.UserAddress{UpdatedAt: now})
+		Updates(map[string]interface{}{"deleted_at": now, "updated_at": now})
 	if res.Error != nil {
 		return res.Error
 	}
 	if res.RowsAffected == 0 {
 		return ErrAddressNotFound
 	}
-	return r.db.WithContext(ctx).Where("id = ? AND user_id = ?", addressID, userID).Delete(&model.UserAddress{}).Error
+	return nil
 }
 
 // clearDefaultAddress 清除同一用户下除 keepID 外的默认地址标记。
 func clearDefaultAddress(ctx context.Context, tx *gorm.DB, userID, keepID uint64) error {
+	// 锁定该用户地址记录，保证并发设置默认地址时串行执行。
+	var locked []model.UserAddress
+	lockQuery := tx.WithContext(ctx).Where("user_id = ?", userID)
+	if keepID > 0 {
+		lockQuery = lockQuery.Where("id <> ?", keepID)
+	}
+	if err := lockQuery.Set("gorm:query_option", "FOR UPDATE").Find(&locked).Error; err != nil {
+		return err
+	}
 	query := tx.WithContext(ctx).Model(&model.UserAddress{}).
 		Where("user_id = ?", userID)
 	if keepID > 0 {

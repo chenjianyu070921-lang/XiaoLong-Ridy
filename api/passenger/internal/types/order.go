@@ -183,6 +183,30 @@ type OrderStatusPollResponse struct {
 	Dispatch  *DispatchStatusResponse `json:"dispatch,omitempty"`
 }
 
+// OrderTrackingRequest 表示乘客查询当前订单实时位置的请求参数。
+type OrderTrackingRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+// OrderTrackingResponse 表示一次行程追踪快照，坐标采用高德地图经纬度。
+type OrderTrackingResponse struct {
+	OrderID             int64   `json:"orderId"`
+	DriverID            int64   `json:"driverId"`
+	Status              int32   `json:"status"`
+	DriverLongitude     float64 `json:"driverLongitude"`
+	DriverLatitude      float64 `json:"driverLatitude"`
+	Heading             int32   `json:"heading"`
+	SpeedKmh            float64 `json:"speedKmh"`
+	ReportTime          int64   `json:"reportTime"`
+	Stale               bool    `json:"stale"`
+	TravelledDistanceM  int64   `json:"travelledDistanceM"`
+	ElapsedDurationS    int64   `json:"elapsedDurationS"`
+	RemainingDistanceM  int64   `json:"remainingDistanceM"`
+	RemainingDurationS  int64   `json:"remainingDurationS"`
+	EstimatedPriceCents int64   `json:"estimatedPriceCents"`
+	Polyline            string  `json:"polyline"`
+}
+
 // EstimateOrderRequest 表示下单前的行程费用预估参数，不会创建订单。
 type EstimateOrderRequest struct {
 	CarType            int32   `json:"carType"`

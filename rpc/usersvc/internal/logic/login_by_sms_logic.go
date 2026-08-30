@@ -53,7 +53,9 @@ func (l *LoginBySMSLogic) LoginBySMS(in *userproto.LoginBySMSRequest) (*userprot
 	// 新账号创建成功后自动发放四张新人券，保证优惠券默认属于账号而不是依赖前端额外点击领取。
 	if isNewUser {
 		if err := l.issueWelcomeCoupons(user.ID); err != nil {
-			return nil, err
+			// 用户创建与发券属于不同存储边界；发券失败不能让已创建用户登录失败。
+			// 记录结构化错误，后续可由补偿任务调用 ensureWelcomeCoupons 重试。
+			l.Logger.Errorf("welcome coupon issue failed, user_id=%d: %v", user.ID, err)
 		}
 	}
 	if user.Status == model.UserStatusFrozen {

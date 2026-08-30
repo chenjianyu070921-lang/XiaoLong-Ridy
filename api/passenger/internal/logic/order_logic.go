@@ -3,15 +3,19 @@ package logic
 import (
 	"context"
 	"strings"
+	"time"
 
 	"XiaoLong-Ridy/api/passenger/internal/svc"
 	"XiaoLong-Ridy/api/passenger/internal/types"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
 )
+
+const trackingStaleAfter = 15 * time.Second
 
 // OrderLogic 封装乘客端订单相关业务流程。
 type OrderLogic struct {
@@ -698,6 +702,61 @@ func shouldUseDispatchDriver(currentDriverID int64, status int32, driverID int64
 		return true
 	}
 	return currentDriverID <= 0 && status == 1
+}
+
+// GetOrderTracking 校验订单归属后聚合司机最新位置与剩余路线，供乘客端实时刷新地图。
+func (l *OrderLogic) GetOrderTracking(req *types.OrderTrackingRequest) (*types.OrderTrackingResponse, error) {
+	if req == nil || req.OrderID <= 0 || l.svcCtx.LocationClient == nil {
+		return nil, ErrInvalidRequest
+	}
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetUserId() != int64(userID) || order.GetDriverId() <= 0 {
+		return nil, ErrInvalidRequest
+	}
+
+	location, err := l.svcCtx.LocationClient.GetDriverLocation(l.ctx, &locationproto.GetDriverLocationReq{DriverId: order.GetDriverId()})
+	if err != nil {
+		return nil, err
+	}
+	destinationLng, destinationLat := order.GetToLongitude(), order.GetToLatitude()
+	if order.GetStatus() == orderproto.OrderStatus_ORDER_STATUS_ACCEPTED {
+		destinationLng, destinationLat = order.GetFromLongitude(), order.GetFromLatitude()
+	}
+	route, err := l.svcCtx.LocationClient.RoutePlan(l.ctx, &locationproto.RoutePlanReq{
+		OriginLng: location.GetLng(), OriginLat: location.GetLat(),
+		DestinationLng: destinationLng, DestinationLat: destinationLat,
+	})
+	if err != nil {
+		return nil, err
+	}
+	elapsed := time.Now().Unix() - order.GetCreatedAt()
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	travelled := order.GetEstimatedDistanceM() - int64(route.GetDistance())
+	if travelled < 0 {
+		travelled = 0
+	}
+	return &types.OrderTrackingResponse{
+		OrderID: req.OrderID, DriverID: order.GetDriverId(), Status: int32(order.GetStatus()),
+		DriverLongitude: location.GetLng(), DriverLatitude: location.GetLat(), Heading: location.GetHeading(),
+		SpeedKmh: location.GetSpeedKmh(), ReportTime: location.GetReportTime(),
+		Stale:              time.Since(time.Unix(location.GetReportTime(), 0)) > trackingStaleAfter,
+		TravelledDistanceM: travelled, ElapsedDurationS: elapsed,
+		RemainingDistanceM: int64(route.GetDistance()), RemainingDurationS: int64(route.GetDuration()),
+		EstimatedPriceCents: order.GetEstimatedPriceCents(), Polyline: route.GetPolyline(),
+	}, nil
 }
 
 // EstimateOrder 提供下单前实时行程费用预估，不创建订单或占用优惠券。

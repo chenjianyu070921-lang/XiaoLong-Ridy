@@ -18,6 +18,11 @@ type RedisTokenManager struct {
 	signingKey string
 }
 
+// redisCallContext 为 Redis 操作设置统一短超时，避免 Redis 故障拖垮 RPC 请求。
+func redisCallContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 2*time.Second)
+}
+
 // redisRefreshSession 是 Redis 中保存的刷新令牌会话结构。
 type redisRefreshSession struct {
 	UserID     uint64    `json:"userId"`
@@ -62,15 +67,20 @@ func (m *RedisTokenManager) Issue(userID uint64, phone string, userStatus int) (
 	if err != nil {
 		return "", "", err
 	}
-	if err := m.client.Set(context.Background(), refreshTokenKey(refreshToken), payload, refreshTokenTTL).Err(); err != nil {
+	ctx, cancel := redisCallContext()
+	defer cancel()
+	if err := m.client.Set(ctx, refreshTokenKey(refreshToken), payload, refreshTokenTTL).Err(); err != nil {
 		return "", "", err
 	}
 	return accessToken, refreshToken, nil
 }
 
-// Refresh 校验并删除旧 Refresh Token，然后签发新令牌对。
+// Refresh 先读取旧 Refresh Token，确认新令牌签发成功后再删除旧令牌，
+// 避免下游 Redis/签发失败时误删用户仍可用的刷新令牌。
 func (m *RedisTokenManager) Refresh(refreshToken string) (string, string, error) {
-	payload, err := m.client.GetDel(context.Background(), refreshTokenKey(refreshToken)).Bytes()
+	ctx, cancel := redisCallContext()
+	defer cancel()
+	payload, err := m.client.Get(ctx, refreshTokenKey(refreshToken)).Bytes()
 	if errors.Is(err, redis.Nil) {
 		return "", "", ErrInvalidToken
 	}
@@ -85,7 +95,14 @@ func (m *RedisTokenManager) Refresh(refreshToken string) (string, string, error)
 	if time.Now().After(session.ExpiresAt) {
 		return "", "", ErrTokenExpired
 	}
-	return m.Issue(session.UserID, session.Phone, session.UserStatus)
+	token, nextRefresh, err := m.Issue(session.UserID, session.Phone, session.UserStatus)
+	if err != nil {
+		return "", "", err
+	}
+	if err := m.client.Del(ctx, refreshTokenKey(refreshToken)).Err(); err != nil {
+		return "", "", err
+	}
+	return token, nextRefresh, nil
 }
 
 // Revoke 将当前 Access Token 写入 Redis 黑名单直到其自然过期。
@@ -93,7 +110,9 @@ func (m *RedisTokenManager) Revoke(token string) error {
 	if _, err := m.Validate(token); err != nil {
 		return err
 	}
-	return m.client.Set(context.Background(), revokedTokenKey(token), "1", accessTokenTTL).Err()
+	ctx, cancel := redisCallContext()
+	defer cancel()
+	return m.client.Set(ctx, revokedTokenKey(token), "1", accessTokenTTL).Err()
 }
 
 // Validate 校验 Access Token 签名、有效期和 Redis 注销黑名单。
@@ -109,7 +128,9 @@ func (m *RedisTokenManager) Validate(token string) (*jwtx.UserClaims, error) {
 		return nil, err
 	}
 
-	exists, err := m.client.Exists(context.Background(), revokedTokenKey(token)).Result()
+	ctx, cancel := redisCallContext()
+	defer cancel()
+	exists, err := m.client.Exists(ctx, revokedTokenKey(token)).Result()
 	if err != nil {
 		return nil, err
 	}

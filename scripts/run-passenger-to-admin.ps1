@@ -303,6 +303,12 @@ DriversRPC:
 PricesRPC:
   target: 127.0.0.1:50053
   nonblock: true
+LocationsRPC:
+  target: 127.0.0.1:9001
+  nonblock: true
+PushRPC:
+  target: 127.0.0.1:9002
+  nonblock: true
 "@
 Set-Content -LiteralPath $adminsvcCfg -Value $adminsvcTemplate -Encoding UTF8
 

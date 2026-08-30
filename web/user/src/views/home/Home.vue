@@ -532,7 +532,8 @@ function handleSearchResult(sequence, status, result) {
 }
 
 // 双通道搜索：InputTips（关键词提示）+ PlaceSearch（POI详情）。
-// 上车点限定当前城市，目的地允许跨城搜索，兼容城市交界处打到相邻城市的场景。
+// 两种地址都限定当前工作城市，避免手动切换城市后高德按全国相关性返回其他城市结果。
+// 目的地若需跨城，用户可在城市选择页切换工作城市后再进行搜索，保证搜索结果与订单城市一致。
 function searchByKeyword(value) {
   const sequence = ++searchSequence
   if (!AMapSDK.value) return Object.assign(searchLoading, { value: false })
@@ -548,7 +549,8 @@ function searchByKeyword(value) {
   // 搜索关键词：优先用剥离后的短词，保留原始输入作为备选
   const searchKeyword = localKeyword || normalizedKeyword
   const cityCode = currentCityCode.value || ''
-  const shouldLimitCity = searchMode.value === 'pickup'
+  // 目的地和上车点都必须使用当前工作城市，城市切换后不能继续沿用设备定位城市的结果。
+  const shouldLimitCity = Boolean(cityCode || cityName)
 
   // ====== 关键词过滤：名称必须包含用户输入的关键词 ======
   const isNameMatch = (name) => {

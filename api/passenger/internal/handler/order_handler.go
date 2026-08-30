@@ -136,6 +136,22 @@ func PollOrderStatusHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// GetOrderTrackingHandler 处理乘客端行程实时追踪请求。
+func GetOrderTrackingHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.OrderTrackingRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx, bearerToken(r)).GetOrderTracking(&req)
+		if err != nil {
+			writeBusinessError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
 // EstimateOrderHandler 处理 POST /api/passenger/v1/orders/estimate，用于下单前查询预估价格。
 func EstimateOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

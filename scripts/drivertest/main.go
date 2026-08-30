@@ -23,7 +23,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := proto.NewDriversvcClient(conn)
+	c := proto.NewDriverServiceClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

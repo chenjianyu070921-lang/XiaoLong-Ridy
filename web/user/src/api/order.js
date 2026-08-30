@@ -34,6 +34,11 @@ export function pollOrderStatus(orderId, knownStatus = 0) {
   return request.post('/orders/status', { orderId, knownStatus })
 }
 
+// 查询乘客当前订单的实时追踪快照，包含司机位置、行程进度和路线信息。
+export function getOrderTracking(orderId) {
+  return request.post('/orders/tracking', { orderId })
+}
+
 // 取消订单
 export function cancelOrder(orderId, reason = '') {
   return request.post('/orders/cancel', { orderId, reason })

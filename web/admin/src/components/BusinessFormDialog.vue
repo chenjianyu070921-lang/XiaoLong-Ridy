@@ -131,5 +131,5 @@ const close = () => emit('update:modelValue', false)
 </template>
 
 <style scoped>
-.business-form :deep(.el-select),.business-form :deep(.el-date-editor){width:100%}.business-form :deep(.el-input-number){width:180px}.field-suffix{margin-left:8px;color:#8496a8}.operation-confirm{margin:12px 0;color:#c6d4e1}
+.business-form :deep(.el-select),.business-form :deep(.el-date-editor){width:100%}.business-form :deep(.el-input-number){width:180px}.field-suffix{margin-left:8px;color:var(--muted-color,#8b88a3)}.operation-confirm{margin:12px 0;color:var(--text-color,#2e2c4e)}
 </style>

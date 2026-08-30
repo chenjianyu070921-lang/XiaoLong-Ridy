@@ -45,6 +45,8 @@ type LocationServiceClient interface {
 	GetOrderTrack(ctx context.Context, in *GetOrderTrackReq, opts ...grpc.CallOption) (*GetOrderTrackResp, error)
 	// 附近司机查询
 	NearbyDrivers(ctx context.Context, in *NearbyDriversReq, opts ...grpc.CallOption) (*NearbyDriversResp, error)
+	// 查询司机最新位置，供乘客行程实时追踪使用
+	GetDriverLocation(ctx context.Context, in *GetDriverLocationReq, opts ...grpc.CallOption) (*GetDriverLocationResp, error)
 }
 
 type locationServiceClient struct {
@@ -115,6 +117,16 @@ func (c *locationServiceClient) NearbyDrivers(ctx context.Context, in *NearbyDri
 	return out, nil
 }
 
+func (c *locationServiceClient) GetDriverLocation(ctx context.Context, in *GetDriverLocationReq, opts ...grpc.CallOption) (*GetDriverLocationResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDriverLocationResp)
+	err := c.cc.Invoke(ctx, LocationService_GetDriverLocation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LocationServiceServer is the server API for LocationService service.
 // All implementations must embed UnimplementedLocationServiceServer
 // for forward compatibility
@@ -133,6 +145,8 @@ type LocationServiceServer interface {
 	GetOrderTrack(context.Context, *GetOrderTrackReq) (*GetOrderTrackResp, error)
 	// 附近司机查询
 	NearbyDrivers(context.Context, *NearbyDriversReq) (*NearbyDriversResp, error)
+	// 查询司机最新位置，供乘客行程实时追踪使用
+	GetDriverLocation(context.Context, *GetDriverLocationReq) (*GetDriverLocationResp, error)
 	mustEmbedUnimplementedLocationServiceServer()
 }
 
@@ -157,6 +171,9 @@ func (UnimplementedLocationServiceServer) GetOrderTrack(context.Context, *GetOrd
 }
 func (UnimplementedLocationServiceServer) NearbyDrivers(context.Context, *NearbyDriversReq) (*NearbyDriversResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NearbyDrivers not implemented")
+}
+func (UnimplementedLocationServiceServer) GetDriverLocation(context.Context, *GetDriverLocationReq) (*GetDriverLocationResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDriverLocation not implemented")
 }
 func (UnimplementedLocationServiceServer) mustEmbedUnimplementedLocationServiceServer() {}
 
@@ -279,6 +296,24 @@ func _LocationService_NearbyDrivers_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LocationService_GetDriverLocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDriverLocationReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LocationServiceServer).GetDriverLocation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LocationService_GetDriverLocation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LocationServiceServer).GetDriverLocation(ctx, req.(*GetDriverLocationReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LocationService_ServiceDesc is the grpc.ServiceDesc for LocationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -309,6 +344,10 @@ var LocationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "NearbyDrivers",
 			Handler:    _LocationService_NearbyDrivers_Handler,
+		},
+		{
+			MethodName: "GetDriverLocation",
+			Handler:    _LocationService_GetDriverLocation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
