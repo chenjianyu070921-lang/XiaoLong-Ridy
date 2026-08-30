@@ -1,5 +1,5 @@
 Name: dispatchsvc.rpc
-ListenOn: 0.0.0.0:8083
+ListenOn: 0.0.0.0:50056
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 myredis:
@@ -21,4 +21,5 @@ enableMockDispatch: false
 dispatchTimeoutSeconds: 60
 # 派单前复核订单状态的订单服务地址（P0-M4-1）
 orderrpc:
-  Target: 127.0.0.1:50051
+  Target: 127.0.0.1:50051
+

@@ -134,7 +134,7 @@ func TestLoadDriverConfigReadsYamlAndEnvCanOverride(t *testing.T) {
 httpAddr: ":18082"
 driverGrpcAddr: "driversvc:5055"
 orderGrpcAddr: "ordersvc:50051"
-dispatchGrpcAddr: "dispatchsvc:8083"
+dispatchGrpcAddr: "dispatchsvc:50056"
 locationGrpcAddr: "locationsvc:5056"
 redisAddr: "redis:6379"
 `), 0o600); err != nil {
@@ -146,7 +146,7 @@ redisAddr: "redis:6379"
 		t.Fatalf("loadDriverConfig() error = %v", err)
 	}
 	if cfg.HTTPAddr != ":18082" || cfg.DriverGRPCAddr != "driversvc:5055" ||
-		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.DispatchGRPCAddr != "dispatchsvc:8083" ||
+		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.DispatchGRPCAddr != "dispatchsvc:50056" ||
 		cfg.LocationGRPCAddr != "locationsvc:5056" || cfg.RedisAddr != "redis:6379" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}

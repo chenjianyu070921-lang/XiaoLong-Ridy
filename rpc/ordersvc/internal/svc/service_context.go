@@ -49,7 +49,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	dispatchRPC := c.DispatchRPC
 	if dispatchRPC.Target == "" && len(dispatchRPC.Endpoints) == 0 {
-		dispatchRPC.Target = "127.0.0.1:8083"
+		dispatchRPC.Target = "127.0.0.1:50056"
 	}
 	// NonBlock：懒连接，下游（dispatchsvc）未就绪时不阻塞启动
 	dispatchRPC.NonBlock = true
