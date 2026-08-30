@@ -13,7 +13,7 @@ Log:
 orderrpc:
   Target: 127.0.0.1:50051
 dispatchrpc:
-  Target: 127.0.0.1:8083
+  Target: 127.0.0.1:50056
 driverrpc:
   Target: 127.0.0.1:5055
 pushrpc:

@@ -14,7 +14,7 @@ kafka:
   brokers:
     - 115.191.16.159:9092
 dispatchrpc:
-  Target: 127.0.0.1:8083
+  Target: 127.0.0.1:50056
 pricerpc:
   Target: 127.0.0.1:50053
 payrpc:

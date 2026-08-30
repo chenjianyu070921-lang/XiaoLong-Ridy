@@ -283,5 +283,5 @@ var Dispatch_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "dispatchsvc.proto",
+	Metadata: "rpc/dispatchsvc/proto/dispatchsvc.proto",
 }

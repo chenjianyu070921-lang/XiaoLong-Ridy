@@ -34,7 +34,7 @@ const (
 	defaultOrderRPCAddr    = "127.0.0.1:50051"
 	defaultPriceRPCAddr    = "127.0.0.1:50053"
 	defaultPayRPCAddr      = "127.0.0.1:50054"
-	defaultDispatchRPCAddr = "127.0.0.1:8083"
+	defaultDispatchRPCAddr = "127.0.0.1:50056"
 	defaultLocationRPCAddr = "127.0.0.1:50055"
 	defaultPriceCityCode   = "110000"
 	localDevSigningKey     = "xiaolong-passenger-local-dev-key"

@@ -6,24 +6,24 @@ package dispatch
 import (
 	"context"
 
-	__proto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	"XiaoLong-Ridy/rpc/dispatchsvc/proto"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	CancelDispatchRequest            = __proto.CancelDispatchRequest
-	CancelDispatchResponse           = __proto.CancelDispatchResponse
-	DispatchOrderRequest             = __proto.DispatchOrderRequest
-	DispatchOrderResponse            = __proto.DispatchOrderResponse
-	DispatchRecord                   = __proto.DispatchRecord
-	ListDispatchRecordsRequest       = __proto.ListDispatchRecordsRequest
-	ListDispatchRecordsResponse      = __proto.ListDispatchRecordsResponse
-	ListTimeoutPendingOrdersRequest  = __proto.ListTimeoutPendingOrdersRequest
-	ListTimeoutPendingOrdersResponse = __proto.ListTimeoutPendingOrdersResponse
-	RejectDispatchRequest            = __proto.RejectDispatchRequest
-	RejectDispatchResponse           = __proto.RejectDispatchResponse
+	CancelDispatchRequest            = proto.CancelDispatchRequest
+	CancelDispatchResponse           = proto.CancelDispatchResponse
+	DispatchOrderRequest             = proto.DispatchOrderRequest
+	DispatchOrderResponse            = proto.DispatchOrderResponse
+	DispatchRecord                   = proto.DispatchRecord
+	ListDispatchRecordsRequest       = proto.ListDispatchRecordsRequest
+	ListDispatchRecordsResponse      = proto.ListDispatchRecordsResponse
+	ListTimeoutPendingOrdersRequest  = proto.ListTimeoutPendingOrdersRequest
+	ListTimeoutPendingOrdersResponse = proto.ListTimeoutPendingOrdersResponse
+	RejectDispatchRequest            = proto.RejectDispatchRequest
+	RejectDispatchResponse           = proto.RejectDispatchResponse
 
 	Dispatch interface {
 		// 对指定订单执行派单（P0 为 mock 直派），返回写入的派单记录。
@@ -51,30 +51,30 @@ func NewDispatch(cli zrpc.Client) Dispatch {
 
 // 对指定订单执行派单（P0 为 mock 直派），返回写入的派单记录。
 func (m *defaultDispatch) DispatchOrder(ctx context.Context, in *DispatchOrderRequest, opts ...grpc.CallOption) (*DispatchOrderResponse, error) {
-	client := __proto.NewDispatchClient(m.cli.Conn())
+	client := proto.NewDispatchClient(m.cli.Conn())
 	return client.DispatchOrder(ctx, in, opts...)
 }
 
 // 分页查询订单的派单记录。
 func (m *defaultDispatch) ListDispatchRecords(ctx context.Context, in *ListDispatchRecordsRequest, opts ...grpc.CallOption) (*ListDispatchRecordsResponse, error) {
-	client := __proto.NewDispatchClient(m.cli.Conn())
+	client := proto.NewDispatchClient(m.cli.Conn())
 	return client.ListDispatchRecords(ctx, in, opts...)
 }
 
 // 司机拒单：将指定司机的待派单记录置为已拒绝。
 func (m *defaultDispatch) RejectDispatch(ctx context.Context, in *RejectDispatchRequest, opts ...grpc.CallOption) (*RejectDispatchResponse, error) {
-	client := __proto.NewDispatchClient(m.cli.Conn())
+	client := proto.NewDispatchClient(m.cli.Conn())
 	return client.RejectDispatch(ctx, in, opts...)
 }
 
 // 订单取消/超时取消：将该订单全部待派单记录置为已取消（Pending -> Cancelled）。
 func (m *defaultDispatch) CancelDispatch(ctx context.Context, in *CancelDispatchRequest, opts ...grpc.CallOption) (*CancelDispatchResponse, error) {
-	client := __proto.NewDispatchClient(m.cli.Conn())
+	client := proto.NewDispatchClient(m.cli.Conn())
 	return client.CancelDispatch(ctx, in, opts...)
 }
 
 // 分页查询存在超时待派单记录的订单 ID（去重），供 job 超时重派任务使用。
 func (m *defaultDispatch) ListTimeoutPendingOrders(ctx context.Context, in *ListTimeoutPendingOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutPendingOrdersResponse, error) {
-	client := __proto.NewDispatchClient(m.cli.Conn())
+	client := proto.NewDispatchClient(m.cli.Conn())
 	return client.ListTimeoutPendingOrders(ctx, in, opts...)
 }

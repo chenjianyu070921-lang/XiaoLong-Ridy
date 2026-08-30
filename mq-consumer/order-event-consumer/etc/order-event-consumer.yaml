@@ -11,7 +11,7 @@ Kafka:
     - 115.191.16.159:9092
 
 DispatchRPC:
-  Target: 127.0.0.1:8083
+  Target: 127.0.0.1:50056
 
 OrderRPC:
   Target: 127.0.0.1:50051
