@@ -6,8 +6,8 @@ mysql:
 signingKey: local-development-signing-key
 # Redis：维护司机在线状态与多端互踢（deviceID 绑定）。
 driverRedis:
-  host: 127.0.0.1:6379
-  password: ""
+  host: 115.191.16.159:6379
+  password: "4ay1nkal3u8ed77y"
   db: 0
 # MinIO：司机资质图片（身份证/驾驶证/行驶证）对象存储。
 minio:

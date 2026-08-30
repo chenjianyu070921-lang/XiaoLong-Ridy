@@ -75,6 +75,45 @@ func TestLoginBySMSRejectsInvalidCodeBeforeDriverService(t *testing.T) {
 	}
 }
 
+func TestSendSMSCodeReturnsUsableCode(t *testing.T) {
+	driverClient := &fakeDriverClient{}
+	codeCache := svc.NewLocalCodeCache(time.Minute)
+	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{
+		DriverClient: driverClient,
+		CodeCache:    codeCache,
+	})
+
+	resp, err := logic.SendSMSCode(&types.SendSMSCodeRequest{Phone: "13800000001"})
+	if err != nil {
+		t.Fatalf("SendSMSCode() error = %v", err)
+	}
+	if !resp.Success || resp.ExpireIn != 60 {
+		t.Fatalf("SendSMSCode() response = %+v", resp)
+	}
+	if len(resp.Code) != 6 {
+		t.Fatalf("SendSMSCode() code length = %d, want 6", len(resp.Code))
+	}
+	for _, ch := range resp.Code {
+		if ch < '0' || ch > '9' {
+			t.Fatalf("SendSMSCode() code = %q, want numeric code", resp.Code)
+		}
+	}
+
+	loginResp, err := logic.LoginBySMS(&types.LoginBySMSRequest{
+		Phone: "13800000001",
+		Code:  resp.Code,
+	})
+	if err != nil {
+		t.Fatalf("LoginBySMS() with returned code error = %v", err)
+	}
+	if loginResp.Token != "sms-token" {
+		t.Fatalf("LoginBySMS() token = %q, want sms-token", loginResp.Token)
+	}
+	if driverClient.loginBySMSRequest == nil || driverClient.loginBySMSRequest.GetPhone() != "13800000001" {
+		t.Fatalf("driversvc LoginBySMS request = %+v", driverClient.loginBySMSRequest)
+	}
+}
+
 func TestSendSMSCodeRejectsNilRequest(t *testing.T) {
 	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{
 		CodeCache: svc.NewLocalCodeCache(time.Minute),

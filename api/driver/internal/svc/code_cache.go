@@ -76,8 +76,8 @@ func (c *RedisCodeCache) key(phone string) string {
 func (c *RedisCodeCache) Set(phone, code string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	// NX 避免覆盖已存在的有效验证码；EX 保证自动过期。
-	c.rdb.SetNX(ctx, c.key(phone), code, c.ttl)
+	// 覆盖式写入：重复发送时以最新验证码为准，避免日志与存储不一致。
+	c.rdb.Set(ctx, c.key(phone), code, c.ttl)
 }
 
 func (c *RedisCodeCache) Verify(phone, code string) bool {

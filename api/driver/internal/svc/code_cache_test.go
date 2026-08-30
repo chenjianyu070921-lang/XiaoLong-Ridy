@@ -72,14 +72,17 @@ func TestRedisCodeCacheSetAndVerify(t *testing.T) {
 	}
 }
 
-func TestRedisCodeCacheDoesNotOverwriteActiveCode(t *testing.T) {
+func TestRedisCodeCacheOverwritesActiveCode(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	cache := NewRedisCodeCache(rdb, time.Minute)
 
 	cache.Set("13800000001", "123456")
 	cache.Set("13800000001", "654321")
-	if cache.Verify("13800000001", "654321") {
-		t.Fatal("Verify(redis overwritten code) = true, want false")
+	if !cache.Verify("13800000001", "654321") {
+		t.Fatal("Verify(redis latest code) = false, want true")
+	}
+	if cache.Verify("13800000001", "123456") {
+		t.Fatal("Verify(redis overwritten old code) = true, want false")
 	}
 }

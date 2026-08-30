@@ -361,10 +361,10 @@ const defaultSigningKey = "local-development-signing-key"
 const defaultCodeTTL = 5 * time.Minute
 
 func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr string) *ServiceContext {
-	return NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, commonconfig.MysqlConf{})
+	return NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, "", commonconfig.MysqlConf{})
 }
 
-func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr string, mysqlConf commonconfig.MysqlConf) *ServiceContext {
+func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword string, mysqlConf commonconfig.MysqlConf) *ServiceContext {
 	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpcDialOpts...)
 	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpcDialOpts...)
 	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpcDialOpts...)
@@ -374,7 +374,7 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 	var codeCache CodeCache
 	var rdb *redis.Client
 	if redisAddr != "" {
-		rdb = redis.NewClient(&redis.Options{Addr: redisAddr})
+		rdb = redis.NewClient(&redis.Options{Addr: redisAddr, Password: redisPassword})
 		codeCache = NewRedisCodeCache(rdb, defaultCodeTTL)
 	} else {
 		codeCache = NewLocalCodeCache(defaultCodeTTL)

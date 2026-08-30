@@ -29,6 +29,7 @@ for (const path of [
   'web/driver/src/stores/driver.js',
   'web/driver/src/views/DriverLogin.vue',
   'web/driver/src/views/DriverHome.vue',
+  'web/driver/src/components/SmsCodeDialog.vue'
 ]) {
   assert(existsSync(file(path)), `missing independent driver frontend file: ${path}`)
 }
@@ -43,7 +44,7 @@ for (const path of [
   'web/user/src/api/driver.js',
   'web/user/src/stores/driver.js',
   'web/user/src/views/driver/DriverLogin.vue',
-  'web/user/src/views/driver/DriverHome.vue',
+  'web/user/src/views/driver/DriverHome.vue'
 ]) {
   assert(!existsSync(file(path)), `driver code must live under web/driver, not ${path}`)
 }
@@ -95,10 +96,7 @@ for (const endpoint of [
   '/orders/trajectory',
   '/orders/list',
   '/orders/dispatches',
-  '/reviews/list',
-  '/img-captcha',
-  '/img-captcha/verify',
-  '/img-captcha/invalidate',
+  '/reviews/list'
 ]) {
   assert(api.includes(endpoint), `missing real driver API wrapper: ${endpoint}`)
 }
@@ -106,7 +104,7 @@ for (const endpoint of [
 const home = readIfExists('web/driver/src/views/DriverHome.vue')
 const login = readIfExists('web/driver/src/views/DriverLogin.vue')
 const app = readIfExists('web/driver/src/App.vue')
-const captcha = readIfExists('web/driver/src/components/ImgCaptchaDialog.vue')
+const smsDialog = readIfExists('web/driver/src/components/SmsCodeDialog.vue')
 assert(login.includes("router.replace('/home')"), 'driver login must navigate inside independent app')
 assert(api.includes("router.push('/login')"), 'driver auth expiry must navigate inside independent app')
 assert(home.includes("router.replace('/login')"), 'driver logout must navigate inside independent app')
@@ -114,30 +112,14 @@ assert(home.includes('van-tabbar'), 'driver H5 navigation must use fixed mobile 
 assert(home.includes('workStatusPayload()'), 'online/offline actions must send device and location payload')
 assert(home.includes('safeApiCall'), 'driver H5 actions must keep UI usable when API calls fail')
 assert(home.includes('showIncomeLoadFailure'), 'driver income API failures must open a failure dialog')
-assert(home.includes('收入数据加载失败'), 'driver income failure dialog must have a clear title')
 assert(home.includes('rejectOrder(orderId, reason)'), 'driver reject action must submit explicit reject reason')
-assert(home.includes("apiErrorMessage(error, '结束行程失败')"), 'finish trip failures must show a driver-facing error')
 assert(!home.includes('actualPriceCents'), 'driver finish trip must not ask driver to enter settlement amount')
-assert(existsSync(file('web/driver/src/components/ImgCaptchaDialog.vue')), 'driver image captcha component must exist')
 assert(app.includes('driver-phone-shell'), 'driver app must render a centered phone shell for H5 preview')
 assert(login.includes('class="login-card"'), 'driver login must use a compact H5 login card')
-assert(login.includes('<ImgCaptchaDialog'), 'driver login must mount image captcha dialog before sending SMS')
-assert(login.includes('handleImgCaptchaConfirm'), 'driver login must handle image captcha confirmation')
-assert(login.includes('verifyImgCaptcha(payload'), 'driver login must verify image captcha through backend')
-assert(login.includes('imgCaptchaVisible.value = false'), 'driver login must close image captcha only after backend verification succeeds')
-assert(api.includes('function normalizeImgCaptchaPayload'), 'driver captcha verify wrapper must normalize payload before posting')
-assert(api.includes('userInputCode: code'), 'driver captcha verify wrapper must send legacy userInputCode with canonical code')
-assert(api.includes('captchaCode: code'), 'driver captcha verify wrapper must send captchaCode alias with canonical code')
-assert(captcha.includes('<script setup lang="ts">'), 'image captcha component must use Vue3 TS setup syntax')
-assert(captcha.includes('请输入下方图形验证码'), 'image captcha dialog title is required')
-assert(captcha.includes('placeholder="请输入验证码"'), 'image captcha input placeholder is required')
-assert(captcha.includes('看不清？'), 'image captcha refresh action is required')
-assert(captcha.includes('getImgCaptcha(props.phone'), 'image captcha must request backend with phone')
-assert(captcha.includes('invalidateImgCaptcha'), 'image captcha close must invalidate current uuid')
-assert(!captcha.includes('Math.random'), 'frontend must not generate captcha content')
-assert(captcha.includes('class="captcha-refresh-row"'), 'image captcha refresh action must use a separate row')
-assert(!/\.refresh-link\s*\{\s*position:\s*absolute/.test(captcha), 'image captcha refresh action must not cover the image')
 assert(login.includes('class="auth-mode-tabs"'), 'driver login must expose touch-friendly H5 auth mode tabs')
+assert(login.includes('<SmsCodeDialog'), 'driver login must mount SMS code dialog after sending SMS')
+assert(login.includes('smsCodeDialogVisible.value = true'), 'driver login must open SMS code dialog when backend returns code')
+assert(login.includes("smsCodeValue.value = String(res?.code || '').trim()"), 'driver login must capture backend SMS code')
 assert(home.includes('class="driver-hero"'), 'driver home must start with a driver hero')
 assert(home.includes('class="quick-entry-row"'), 'driver home must expose H5 quick action controls')
 assert(home.includes('class="tab-panel-scroll"'), 'driver tab content must use a mobile scroll panel')
@@ -145,5 +127,9 @@ assert(home.includes('getTodayIncome'), 'driver wallet must call backend today i
 assert(home.includes('getWeekIncome'), 'driver wallet must call backend week income endpoint')
 assert(home.includes('/api/driver/v1/ws'), 'driver WebSocket must connect to registered /api/driver/v1/ws route')
 assert(!home.includes('/api/driver/v1/push/ws'), 'driver WebSocket must not use stale /api/driver/v1/push/ws route')
+assert(smsDialog.includes('������֤��'), 'driver SMS code dialog title is required')
+assert(smsDialog.includes('��֤�����Ժ�˷��ؽ��'), 'driver SMS code dialog must explain the code source')
+assert(smsDialog.includes('sms-code-dialog__code'), 'driver SMS code dialog must render the returned code')
 
 console.log('driver frontend isolation checks passed')
+

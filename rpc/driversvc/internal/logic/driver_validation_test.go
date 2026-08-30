@@ -46,10 +46,13 @@ func TestPrepareDriverPasswordHash(t *testing.T) {
 }
 
 func TestValidateDriverIdentity(t *testing.T) {
-	if err := validateDriverIdentity("13800000000", "张三", "110101199001011234", "DL10000001"); err != nil {
+	if err := validateDriverIdentity("13800000000", "\u5f20\u4e09", "110101199001011234", "DL10000001"); err != nil {
 		t.Fatalf("validateDriverIdentity() error = %v", err)
 	}
-	if err := validateDriverIdentity("12800000000", "张三", "110101199001011234", "DL10000001"); err == nil {
+	if err := validateDriverIdentity("852656554556", "\u5f20\u4e09", "110101199001011234", "DL10000001"); err != nil {
+		t.Fatalf("validateDriverIdentity() accepted a driver-phone format used by the driver app: %v", err)
+	}
+	if err := validateDriverIdentity("12800000000", "\u5f20\u4e09", "110101199001011234", "DL10000001"); err == nil {
 		t.Fatal("validateDriverIdentity() accepted an invalid phone")
 	}
 }

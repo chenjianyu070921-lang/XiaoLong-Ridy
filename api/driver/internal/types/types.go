@@ -119,74 +119,14 @@ type DeleteResponse struct {
 	Success bool  `json:"success"`
 }
 
-type ImgCaptchaResponse struct {
-	UUID      string `json:"uuid"`
-	ImgBase64 string `json:"imgBase64"`
-}
-
-type VerifyImgCaptchaRequest struct {
-	Phone         string `json:"phone"`
-	UUID          string `json:"uuid"`
-	Code          string `json:"code"`
-	UserInputCode string `json:"userInputCode,omitempty"`
-}
-
-func (r *VerifyImgCaptchaRequest) UnmarshalJSON(data []byte) error {
-	var raw struct {
-		Phone            string `json:"phone"`
-		UUID             string `json:"uuid"`
-		CaptchaID        string `json:"captchaId"`
-		CaptchaUUID      string `json:"captchaUuid"`
-		ImgCaptchaUUID   string `json:"imgCaptchaUuid"`
-		Code             string `json:"code"`
-		UserInputCode    string `json:"userInputCode"`
-		CaptchaCode      string `json:"captchaCode"`
-		ImgCaptchaCode   string `json:"imgCaptchaCode"`
-		VerificationCode string `json:"verificationCode"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	r.Phone = raw.Phone
-	r.UUID = raw.UUID
-	if r.UUID == "" {
-		r.UUID = raw.CaptchaID
-	}
-	if r.UUID == "" {
-		r.UUID = raw.CaptchaUUID
-	}
-	if r.UUID == "" {
-		r.UUID = raw.ImgCaptchaUUID
-	}
-	r.Code = raw.Code
-	if r.Code == "" {
-		r.Code = raw.UserInputCode
-	}
-	if r.Code == "" {
-		r.Code = raw.CaptchaCode
-	}
-	if r.Code == "" {
-		r.Code = raw.ImgCaptchaCode
-	}
-	if r.Code == "" {
-		r.Code = raw.VerificationCode
-	}
-	r.UserInputCode = raw.UserInputCode
-	return nil
-}
-
-type InvalidateImgCaptchaRequest struct {
-	Phone string `json:"phone"`
-	UUID  string `json:"uuid"`
-}
-
 type SendSMSCodeRequest struct {
 	Phone string `json:"phone"`
 }
 
 type SendSMSCodeResponse struct {
-	Success  bool `json:"success"`
-	ExpireIn int  `json:"expireIn"`
+	Success  bool   `json:"success"`
+	ExpireIn int    `json:"expireIn"`
+	Code     string `json:"code"`
 }
 
 type LoginByPasswordRequest struct {

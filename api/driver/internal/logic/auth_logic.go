@@ -43,8 +43,8 @@ func (l *AuthLogic) SendSMSCode(req *types.SendSMSCodeRequest) (*types.SendSMSCo
 	if req == nil {
 		return nil, ErrInvalidParam
 	}
-	// 校验手机号格式。
-	if !validPhone(strings.TrimSpace(req.Phone)) {
+	phone := strings.TrimSpace(req.Phone)
+	if !validPhone(phone) {
 		return nil, errors.New("手机号格式不合法")
 	}
 	if l.svcCtx == nil || l.svcCtx.CodeCache == nil {
@@ -56,12 +56,13 @@ func (l *AuthLogic) SendSMSCode(req *types.SendSMSCodeRequest) (*types.SendSMSCo
 		return nil, ErrCodeSendFailed
 	}
 	// 存入本地验证码缓存。
-	l.svcCtx.CodeCache.Set(req.Phone, code)
+	l.svcCtx.CodeCache.Set(phone, code)
 	// 联调阶段将验证码打印到日志，方便用 curl/Postman 获取（顶替真实短信）。
-	logSMS(req.Phone, code)
+	logSMS(phone, code)
 	return &types.SendSMSCodeResponse{
 		Success:  true,
 		ExpireIn: int(l.svcCtx.CodeCache.TTL().Seconds()),
+		Code:     code,
 	}, nil
 }
 

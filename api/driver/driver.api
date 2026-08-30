@@ -99,23 +99,6 @@ type DeleteResponse {
 	Success bool  `json:"success"`
 }
 
-type ImgCaptchaResponse {
-	UUID      string `json:"uuid"`
-	ImgBase64 string `json:"imgBase64"`
-}
-
-type VerifyImgCaptchaRequest {
-	Phone         string `json:"phone"`
-	UUID          string `json:"uuid"`
-	Code          string `json:"code"`
-	UserInputCode string `json:"userInputCode,omitempty"`
-}
-
-type InvalidateImgCaptchaRequest {
-	Phone string `json:"phone"`
-	UUID  string `json:"uuid"`
-}
-
 type SendSMSCodeRequest {
 	Phone string `json:"phone"`
 }
@@ -123,6 +106,7 @@ type SendSMSCodeRequest {
 type SendSMSCodeResponse {
 	Success  bool `json:"success"`
 	ExpireIn int  `json:"expireIn"`
+	Code     string `json:"code"`
 }
 
 type LoginByPasswordRequest {
@@ -633,15 +617,6 @@ type AgentChatResponse {
 }
 
 service driver-api {
-	@handler ImgCaptchaHandler
-	get /api/driver/v1/img-captcha returns (ImgCaptchaResponse)
-
-	@handler VerifyImgCaptchaHandler
-	post /api/driver/v1/img-captcha/verify (VerifyImgCaptchaRequest) returns (CommonResponse)
-
-	@handler InvalidateImgCaptchaHandler
-	post /api/driver/v1/img-captcha/invalidate (InvalidateImgCaptchaRequest) returns (CommonResponse)
-
 	@handler SendSMSCodeHandler
 	post /api/driver/v1/auth/send-sms-code (SendSMSCodeRequest) returns (SendSMSCodeResponse)
 

@@ -38,6 +38,7 @@ type driverConfig struct {
 	DispatchGRPCAddr string                 `yaml:"dispatchGrpcAddr"`
 	LocationGRPCAddr string                 `yaml:"locationGrpcAddr"`
 	RedisAddr        string                 `yaml:"redisAddr"`
+	RedisPassword    string                 `yaml:"redisPassword"`
 	Mysql            commonconfig.MysqlConf `yaml:"mysql"`
 	InternalAuth     svc.InternalAuthConfig `yaml:"internalAuth"`
 }
@@ -56,6 +57,7 @@ func main() {
 	dispatchGRPCAddr := envOr("DISPATCH_GRPC_ADDR", cfg.DispatchGRPCAddr)
 	locationGRPCAddr := envOr("LOCATION_GRPC_ADDR", cfg.LocationGRPCAddr)
 	redisAddr := envOr("DRIVER_REDIS_ADDR", cfg.RedisAddr)
+	redisPassword := envOr("DRIVER_REDIS_PASSWORD", cfg.RedisPassword)
 	if internalToken := envOr("DRIVER_INTERNAL_SERVICE_TOKEN", ""); internalToken != "" {
 		cfg.InternalAuth.ServiceToken = internalToken
 	}
@@ -63,7 +65,7 @@ func main() {
 		cfg.Mysql.Dsn = mysqlDSN
 	}
 
-	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, cfg.Mysql)
+	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword, cfg.Mysql)
 	svcCtx.InternalAuth = cfg.InternalAuth
 	if err := svcCtx.ValidateSigningKey(); err != nil {
 		panic(fmt.Errorf("driver api signing key check: %w", err))
@@ -148,9 +150,6 @@ func envOr(key, fallback string) string {
 func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/driver/v1/img-captcha", methodSwitch("GET", handler.ImgCaptchaHandler(svcCtx)))
-	mux.HandleFunc("/api/driver/v1/img-captcha/verify", methodSwitch("POST", handler.VerifyImgCaptchaHandler(svcCtx)))
-	mux.HandleFunc("/api/driver/v1/img-captcha/invalidate", methodSwitch("POST", handler.InvalidateImgCaptchaHandler(svcCtx)))
 	mux.HandleFunc("/api/driver/v1/auth/send-sms-code", methodSwitch("POST", handler.SendSMSCodeHandler(svcCtx)))
 	mux.HandleFunc("/api/driver/v1/auth/login-by-password", methodSwitch("POST", handler.LoginByPasswordHandler(svcCtx)))
 	mux.HandleFunc("/api/driver/v1/auth/login-by-sms", methodSwitch("POST", handler.LoginBySMSHandler(svcCtx)))
