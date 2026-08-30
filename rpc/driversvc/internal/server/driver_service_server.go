@@ -68,16 +68,6 @@ func (s *DriverServiceServer) SetDriverOffline(ctx context.Context, in *__proto.
 	return l.SetDriverOffline(in)
 }
 
-func (s *DriverServiceServer) SetDriverListenPreference(ctx context.Context, in *__proto.SetDriverListenPreferenceRequest) (*__proto.DriverListenPreferenceResponse, error) {
-	l := logic.NewSetDriverListenPreferenceLogic(ctx, s.svcCtx)
-	return l.SetDriverListenPreference(in)
-}
-
-func (s *DriverServiceServer) GetDriverListenPreference(ctx context.Context, in *__proto.GetDriverListenPreferenceRequest) (*__proto.DriverListenPreferenceResponse, error) {
-	l := logic.NewGetDriverListenPreferenceLogic(ctx, s.svcCtx)
-	return l.GetDriverListenPreference(in)
-}
-
 func (s *DriverServiceServer) ReportLocation(ctx context.Context, in *__proto.ReportLocationRequest) (*__proto.ReportLocationResponse, error) {
 	l := logic.NewReportLocationLogic(ctx, s.svcCtx)
 	return l.ReportLocation(in)

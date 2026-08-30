@@ -230,7 +230,7 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 				Status:       record.GetStatus(),
 				MatchScore:   record.GetMatchScore(),
 				Remark:       record.GetRemark(),
-				RejectReason: record.GetRemark(),
+				RejectReason: record.GetRejectReason(),
 				CreatedAt:    record.GetCreatedAt(),
 				UpdatedAt:    record.GetUpdatedAt(),
 			},

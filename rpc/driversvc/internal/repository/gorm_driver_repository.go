@@ -197,7 +197,17 @@ func (r *gormDriverRepository) UpsertLocation(ctx context.Context, location *mod
 	if result.RowsAffected > 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).Create(location).Error
+	// 司机首次上报位置时走 INSERT；显式指定真实表列，避免把仅用于附近查询映射的
+	// distance_meters 幻影列（见 DriverLocation.DistanceMeters）写入不存在的表列。
+	return r.db.WithContext(ctx).Model(&model.DriverLocation{}).Create(map[string]interface{}{
+		"driver_id":     location.DriverID,
+		"longitude":     location.Longitude,
+		"latitude":      location.Latitude,
+		"heading":       location.Heading,
+		"speed_kmh":     location.SpeedKmh,
+		"online_status": location.OnlineStatus,
+		"report_time":   location.ReportTime,
+	}).Error
 }
 
 // UpdateLocationStatus updates the cached location row status for a driver.

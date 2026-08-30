@@ -1,4 +1,4 @@
-package logic
+﻿package logic
 
 import (
 	"context"
@@ -81,16 +81,19 @@ func (l *VehicleLogic) UpdateVehicle(driverID int64, req *types.UpdateVehicleReq
 	if err != nil {
 		return nil, err
 	}
-	var driverIDPtr *int64
-	if req.DriverID != nil {
-		if *req.DriverID <= 0 {
-			return nil, ErrInvalidParam
-		}
-		driverIDPtr = req.DriverID
+	getResp, err := client.GetVehicle(l.ctx, &driversproto.GetVehicleRequest{Id: req.ID})
+	if err != nil {
+		return nil, err
+	}
+	vehicle := getResp.GetVehicle()
+	if vehicle == nil {
+		return nil, ErrInvalidParam
+	}
+	if vehicle.GetDriverId() != driverID {
+		return nil, ErrForbiddenDriverResource
 	}
 	resp, err := client.UpdateVehicle(l.ctx, &driversproto.UpdateVehicleRequest{
 		Id:                req.ID,
-		DriverId:          driverIDPtr,
 		PlateNo:           req.PlateNo,
 		Brand:             req.Brand,
 		Model:             req.Model,
@@ -209,8 +212,7 @@ func normalizeUpdateVehicleRequest(req *types.UpdateVehicleRequest) {
 }
 
 func hasVehicleUpdateFields(req *types.UpdateVehicleRequest) bool {
-	return req.DriverID != nil ||
-		req.PlateNo != nil ||
+	return req.PlateNo != nil ||
 		req.Brand != nil ||
 		req.Model != nil ||
 		req.Color != nil ||
@@ -256,3 +258,4 @@ func toVehicleInfo(v *driversproto.Vehicle) types.VehicleInfo {
 		UpdatedAt:         v.GetUpdatedAt(),
 	}
 }
+

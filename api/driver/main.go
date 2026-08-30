@@ -20,14 +20,14 @@ import (
 
 const defaultHTTPAddress = ":8082"
 
-// driversvc listens on rpc/driversvc/etc/driversvc.yaml ListenOn by default.
-const defaultDriverGRPCAddr = "127.0.0.1:50055"
+// Driver-side backend services use the shared development server by default.
+const defaultDriverGRPCAddr = "115.191.16.159:50055"
 
-const defaultOrderGRPCAddr = "127.0.0.1:50051"
+const defaultOrderGRPCAddr = "115.191.16.159:50051"
 
-const defaultDispatchGRPCAddr = "127.0.0.1:50056"
+const defaultDispatchGRPCAddr = "115.191.16.159:50056"
 
-const defaultLocationGRPCAddr = "127.0.0.1:5056"
+const defaultLocationGRPCAddr = "115.191.16.159:9001"
 
 const defaultRedisAddr = ""
 
@@ -162,7 +162,6 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/drivers/by-phone", protected(methodSwitch("POST", handler.GetDriverByPhoneHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/delete", protected(handler.DeleteDriverHandler(svcCtx)))
 	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/listen-preference", protected(handler.ListenPreferenceHandler(svcCtx)))
 	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/heartbeat", protected(methodSwitch("POST", handler.HeartbeatHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/location/report", protected(methodSwitch("POST", handler.ReportLocationHandler(svcCtx))))

@@ -96,3 +96,50 @@ func TestGetVehicleReturnsCurrentDriverVehicle(t *testing.T) {
 		t.Fatalf("GetVehicle() response = %+v", resp)
 	}
 }
+
+func TestUpdateVehicleRejectsVehicleFromAnotherDriver(t *testing.T) {
+	driverClient := &fakeDriverClient{
+		getVehicleResponse: &driversproto.GetVehicleResponse{
+			Vehicle: &driversproto.Vehicle{Id: 77, DriverId: 99},
+		},
+	}
+	logic := NewVehicleLogic(context.Background(), &svc.ServiceContext{DriverClient: driverClient})
+
+	plateNo := "粤B54321"
+	if _, err := logic.UpdateVehicle(25, &types.UpdateVehicleRequest{ID: 77, DriverID: int64Ptr(99), PlateNo: &plateNo}); err != ErrForbiddenDriverResource {
+		t.Fatalf("UpdateVehicle() error = %v, want %v", err, ErrForbiddenDriverResource)
+	}
+	if driverClient.getVehicleRequest == nil || driverClient.getVehicleRequest.GetId() != 77 {
+		t.Fatalf("UpdateVehicle() get request = %+v", driverClient.getVehicleRequest)
+	}
+	if driverClient.updateVehicleRequest != nil {
+		t.Fatalf("UpdateVehicle() should not forward update when ownership mismatches: %+v", driverClient.updateVehicleRequest)
+	}
+}
+
+func TestUpdateVehicleIgnoresClientDriverID(t *testing.T) {
+	driverClient := &fakeDriverClient{
+		getVehicleResponse: &driversproto.GetVehicleResponse{
+			Vehicle: &driversproto.Vehicle{Id: 77, DriverId: 25},
+		},
+	}
+	logic := NewVehicleLogic(context.Background(), &svc.ServiceContext{DriverClient: driverClient})
+
+	plateNo := "粤B54321"
+	resp, err := logic.UpdateVehicle(25, &types.UpdateVehicleRequest{ID: 77, DriverID: int64Ptr(99), PlateNo: &plateNo})
+	if err != nil {
+		t.Fatalf("UpdateVehicle() error = %v", err)
+	}
+	if resp.ID != 77 || resp.Status != "VEHICLE_STATUS_NORMAL" || resp.UpdatedAt != 456 {
+		t.Fatalf("UpdateVehicle() response = %+v", resp)
+	}
+	if driverClient.getVehicleRequest == nil || driverClient.getVehicleRequest.GetId() != 77 {
+		t.Fatalf("UpdateVehicle() get request = %+v", driverClient.getVehicleRequest)
+	}
+	req := driverClient.updateVehicleRequest
+	if req == nil || req.GetDriverId() != 0 || req.GetPlateNo() != "粤B54321" {
+		t.Fatalf("UpdateVehicle() update request = %+v", req)
+	}
+}
+
+func int64Ptr(v int64) *int64 { return &v }

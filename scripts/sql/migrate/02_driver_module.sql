@@ -66,15 +66,6 @@ CREATE TABLE IF NOT EXISTS `driver_certification` (
 
 -- 司机评分表：保存司机的服务分、等级和运营指标。
 -- 必须有这张表：派单引擎需要按评分/完单率排序，司机端也要展示服务分和等级。
--- Driver listen preference table: stores realtime/reservation order filters for driver-side listening.
-CREATE TABLE IF NOT EXISTS `driver_listen_preference` (
-  `driver_id` BIGINT UNSIGNED NOT NULL COMMENT 'driver id',
-  `accept_realtime` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'accept realtime orders: 0 no, 1 yes',
-  `accept_reservation` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'accept reservation orders: 0 no, 1 yes',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'updated time',
-  PRIMARY KEY (`driver_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='driver listen preference';
 CREATE TABLE IF NOT EXISTS `driver_score` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `driver_id` BIGINT UNSIGNED NOT NULL COMMENT '司机ID',

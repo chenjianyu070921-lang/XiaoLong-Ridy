@@ -60,8 +60,6 @@ type DriverClient interface {
 	GetDriverByPhone(ctx context.Context, req *driversproto.GetDriverByPhoneRequest) (*driversproto.GetDriverByPhoneResponse, error)
 	SetDriverOnline(ctx context.Context, req *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error)
 	SetDriverOffline(ctx context.Context, req *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error)
-	SetDriverListenPreference(ctx context.Context, req *driversproto.SetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error)
-	GetDriverListenPreference(ctx context.Context, req *driversproto.GetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error)
 	ReportLocation(ctx context.Context, req *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error)
 	SetDriverServiceStatus(ctx context.Context, req *driversproto.SetDriverServiceStatusRequest) (*driversproto.SetDriverServiceStatusResponse, error)
 	Heartbeat(ctx context.Context, req *driversproto.HeartbeatRequest) (*driversproto.HeartbeatResponse, error)
@@ -124,18 +122,6 @@ func (g *grpcClient) SetDriverOffline(ctx context.Context, req *driversproto.Set
 	ctx, cancel := RPCContext(ctx)
 	defer cancel()
 	return g.cli.SetDriverOffline(ctx, req)
-}
-
-func (g *grpcClient) SetDriverListenPreference(ctx context.Context, req *driversproto.SetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error) {
-	ctx, cancel := RPCContext(ctx)
-	defer cancel()
-	return g.cli.SetDriverListenPreference(ctx, req)
-}
-
-func (g *grpcClient) GetDriverListenPreference(ctx context.Context, req *driversproto.GetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error) {
-	ctx, cancel := RPCContext(ctx)
-	defer cancel()
-	return g.cli.GetDriverListenPreference(ctx, req)
 }
 
 func (g *grpcClient) ReportLocation(ctx context.Context, req *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error) {

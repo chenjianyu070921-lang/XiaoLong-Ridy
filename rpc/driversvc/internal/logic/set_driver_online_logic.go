@@ -47,15 +47,6 @@ func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest)
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.DriverId)); err != nil {
 		return nil, err
 	}
-	pref, err := resolveDriverListenPreference(l.ctx, l.svcCtx, in.GetDriverId(), in.AcceptRealtime, in.AcceptReservation)
-	if err != nil {
-		return nil, err
-	}
-	if in.AcceptRealtime != nil || in.AcceptReservation != nil {
-		if err := saveDriverListenPreference(l.ctx, l.svcCtx, in.GetDriverId(), pref); err != nil {
-			return nil, err
-		}
-	}
 	if err := l.svcCtx.OnlineStore.SetOnline(l.ctx, in.GetDriverId(), in.GetDeviceId(), in.GetLongitude(), in.GetLatitude()); err != nil {
 		return nil, err
 	}
@@ -74,7 +65,7 @@ func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest)
 		return nil, err
 	}
 	// 派单侧同步失败仅告警，不阻断主流程（onlinestore 和 DB 已更新，避免司机端收到"上线失败"但实际已上线）
-	if err := syncDispatchDriverOnlineWithPreference(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude(), pref); err != nil {
+	if err := syncDispatchDriverOnline(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude()); err != nil {
 		l.Errorf("sync dispatch online failed (driver already online in DB/Redis): %v", err)
 	}
 	return &proto.SetDriverOnlineResponse{

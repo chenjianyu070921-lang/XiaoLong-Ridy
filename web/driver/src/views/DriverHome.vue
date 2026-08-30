@@ -501,10 +501,12 @@ function syncForms() {
 }
 
 async function setOnline() {
+  await ensureWorkLocation()
   await setWorkStatus(() => setDriverOnline(workStatusPayload()), 1, '已上线，开始听单')
 }
 
 async function setOffline() {
+  await ensureWorkLocation()
   await setWorkStatus(() => setDriverOffline(workStatusPayload()), 0, '已下线')
 }
 
@@ -530,6 +532,31 @@ async function setWorkStatus(request, status, message) {
   } finally {
     workLoading.value = false
   }
+}
+
+
+// workLocationDefault 仅在浏览器无法获取定位时作为兜底，保证司机能上线听单（演示/同步环境可重新配置）。
+const workLocationDefault = { longitude: 116.397128, latitude: 39.916527 }
+function ensureWorkLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(workLocationDefault)
+      return
+    }
+    if (lastLongitude != null && lastLatitude != null) {
+      resolve({ longitude: lastLongitude, latitude: lastLatitude })
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        lastLatitude = position.coords.latitude
+        lastLongitude = position.coords.longitude
+        resolve({ longitude: lastLongitude, latitude: lastLatitude })
+      },
+      () => resolve(workLocationDefault),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+    )
+  })
 }
 
 function workStatusPayload() {

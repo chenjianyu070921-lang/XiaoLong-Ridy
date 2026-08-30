@@ -135,8 +135,6 @@ type SetOnlineRequest {
 	DeviceID          string  `json:"deviceId"`
 	Longitude         float64 `json:"longitude"`
 	Latitude          float64 `json:"latitude"`
-	AcceptRealtime    *bool   `json:"acceptRealtime,omitempty"`
-	AcceptReservation *bool   `json:"acceptReservation,omitempty"`
 }
 
 type SetOfflineRequest {
@@ -149,18 +147,6 @@ type SetOnlineResponse {
 	DriverID     int64 `json:"driverId"`
 	OnlineStatus int   `json:"onlineStatus"`
 	Kicked       bool  `json:"kicked"`
-}
-
-type DriverListenPreferenceRequest {
-	AcceptRealtime    bool `json:"acceptRealtime"`
-	AcceptReservation bool `json:"acceptReservation"`
-}
-
-type DriverListenPreferenceResponse {
-	DriverID          int64 `json:"driverId"`
-	AcceptRealtime    bool  `json:"acceptRealtime"`
-	AcceptReservation bool  `json:"acceptReservation"`
-	UpdatedAt         int64 `json:"updatedAt"`
 }
 
 type SetOfflineResponse {
@@ -652,12 +638,6 @@ service driver-api {
 
 	@handler SetOnlineHandler
 	post /api/driver/v1/drivers/online (SetOnlineRequest) returns (SetOnlineResponse)
-
-	@handler SetListenPreferenceHandler
-	post /api/driver/v1/drivers/listen-preference (DriverListenPreferenceRequest) returns (DriverListenPreferenceResponse)
-
-	@handler GetListenPreferenceHandler
-	get /api/driver/v1/drivers/listen-preference returns (DriverListenPreferenceResponse)
 
 	@handler SetOfflineHandler
 	post /api/driver/v1/drivers/offline (SetOfflineRequest) returns (SetOfflineResponse)

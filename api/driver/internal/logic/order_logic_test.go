@@ -282,7 +282,7 @@ func (f *fakeDispatchClient) RejectDispatch(_ context.Context, req *dispatchprot
 
 func (f *fakeDispatchClient) ListDispatchRecords(_ context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
 	f.listRequest = req
-	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{{Id: 7, OrderId: 1001, DriverId: req.DriverId, Status: 1, Remark: "too far"}}, Total: 1, Page: req.Page, PageSize: req.PageSize}, nil
+	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{{Id: 7, OrderId: 1001, DriverId: req.DriverId, Status: 1, Remark: "dispatch note", RejectReason: "too far"}}, Total: 1, Page: req.Page, PageSize: req.PageSize}, nil
 }
 
 func TestRejectOrderForwardsDispatchRequest(t *testing.T) {

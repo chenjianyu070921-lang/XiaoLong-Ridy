@@ -155,8 +155,6 @@ type SetOnlineRequest struct {
 	DeviceID          string  `json:"deviceId"`
 	Longitude         float64 `json:"longitude"`
 	Latitude          float64 `json:"latitude"`
-	AcceptRealtime    *bool   `json:"acceptRealtime,omitempty"`
-	AcceptReservation *bool   `json:"acceptReservation,omitempty"`
 }
 
 type SetOfflineRequest struct {
@@ -169,18 +167,6 @@ type SetOnlineResponse struct {
 	DriverID     int64 `json:"driverId"`
 	OnlineStatus int   `json:"onlineStatus"`
 	Kicked       bool  `json:"kicked"`
-}
-
-type DriverListenPreferenceRequest struct {
-	AcceptRealtime    bool `json:"acceptRealtime"`
-	AcceptReservation bool `json:"acceptReservation"`
-}
-
-type DriverListenPreferenceResponse struct {
-	DriverID          int64 `json:"driverId"`
-	AcceptRealtime    bool  `json:"acceptRealtime"`
-	AcceptReservation bool  `json:"acceptReservation"`
-	UpdatedAt         int64 `json:"updatedAt"`
 }
 
 type SetOfflineResponse struct {
