@@ -28,9 +28,14 @@ func TestSetDriverOnlineClearsBusyAndMarksOnline(t *testing.T) {
 	}
 	logic := NewSetDriverOnlineLogic(context.Background(), &svc.ServiceContext{
 		DriverRepository:        repo,
-		CertificationRepository: &setDriverOnlineCertificationRepository{certification: &model.DriverCertification{DriverId: 25, AuditStatus: AuditStatusPassed}},
-		OnlineStore:             onlinestore.NewStore(rdb, 0),
-		RedisClient:             rdb,
+		CertificationRepository: &setDriverOnlineCertificationRepository{certification: &model.DriverCertification{DriverId: 25, VehicleId: 77, AuditStatus: AuditStatusPassed}},
+		DriverVehicleRepository: &updateVehicleRepository{vehicle: &model.DriverVehicle{
+			Id:       77,
+			DriverId: 25,
+			Status:   int8(proto.VehicleStatus_VEHICLE_STATUS_NORMAL),
+		}},
+		OnlineStore: onlinestore.NewStore(rdb, 0),
+		RedisClient: rdb,
 	})
 
 	resp, err := logic.SetDriverOnline(&proto.SetDriverOnlineRequest{
@@ -98,6 +103,47 @@ func TestSetDriverOnlineRejectsUnapprovedCertification(t *testing.T) {
 		t.Fatalf("SIsMember(online) error = %v", err)
 	}
 	if busy {
+		t.Fatalf("driver should not be added to %s", constants.RedisDriverOnline)
+	}
+	if repo.location != nil || repo.updatedStatus != 0 {
+		t.Fatalf("driver repository should not be updated: location=%+v status=%d", repo.location, repo.updatedStatus)
+	}
+}
+
+func TestSetDriverOnlineRejectsDriverWithoutNormalVehicle(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	repo := &setDriverOnlineRepository{
+		driver: &model.Driver{Id: 25, Status: int8(proto.DriverStatus_DRIVER_STATUS_NORMAL)},
+	}
+	logic := NewSetDriverOnlineLogic(context.Background(), &svc.ServiceContext{
+		DriverRepository: repo,
+		CertificationRepository: &setDriverOnlineCertificationRepository{
+			certification: &model.DriverCertification{DriverId: 25, VehicleId: 77, AuditStatus: AuditStatusPassed},
+		},
+		DriverVehicleRepository: &updateVehicleRepository{vehicle: &model.DriverVehicle{
+			Id:       77,
+			DriverId: 25,
+			Status:   int8(proto.VehicleStatus_VEHICLE_STATUS_PENDING),
+		}},
+		OnlineStore: onlinestore.NewStore(rdb, 0),
+		RedisClient: rdb,
+	})
+
+	if _, err := logic.SetDriverOnline(&proto.SetDriverOnlineRequest{
+		DriverId:  25,
+		DeviceId:  "device-1",
+		Longitude: 116.397,
+		Latitude:  39.908,
+	}); err == nil {
+		t.Fatal("SetDriverOnline() accepted driver without normal vehicle")
+	}
+	online, err := rdb.SIsMember(context.Background(), constants.RedisDriverOnline, "25").Result()
+	if err != nil {
+		t.Fatalf("SIsMember(online) error = %v", err)
+	}
+	if online {
 		t.Fatalf("driver should not be added to %s", constants.RedisDriverOnline)
 	}
 	if repo.location != nil || repo.updatedStatus != 0 {

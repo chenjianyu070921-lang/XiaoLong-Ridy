@@ -70,6 +70,24 @@ func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest)
 	if cert == nil || cert.AuditStatus != AuditStatusPassed {
 		return nil, status.Error(codes.PermissionDenied, "driver certification not approved")
 	}
+	if cert.VehicleId <= 0 {
+		return nil, status.Error(codes.PermissionDenied, "driver vehicle is not approved")
+	}
+	if l.svcCtx.DriverVehicleRepository == nil {
+		return nil, errors.New("driver dependencies not ready")
+	}
+	vehicle, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, cert.VehicleId)
+	if err != nil {
+		if errors.Is(err, repository.ErrVehicleNotFound) {
+			return nil, status.Error(codes.PermissionDenied, "driver vehicle is not approved")
+		}
+		return nil, err
+	}
+	if vehicle == nil ||
+		vehicle.DriverId != uint64(in.DriverId) ||
+		vehicle.Status != int8(proto.VehicleStatus_VEHICLE_STATUS_NORMAL) {
+		return nil, status.Error(codes.PermissionDenied, "driver vehicle is not approved")
+	}
 	if err := l.svcCtx.OnlineStore.SetOnline(l.ctx, in.GetDriverId(), in.GetDeviceId(), in.GetLongitude(), in.GetLatitude()); err != nil {
 		return nil, err
 	}

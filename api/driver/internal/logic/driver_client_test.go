@@ -7,30 +7,32 @@ import (
 )
 
 type fakeDriverClient struct {
-	setOnlineRequest         *driversproto.SetDriverOnlineRequest
-	setOfflineRequest        *driversproto.SetDriverOfflineRequest
-	reportLocationRequest    *driversproto.ReportLocationRequest
-	serviceStatusRequests    []*driversproto.SetDriverServiceStatusRequest
-	loginRequest             *driversproto.LoginRequest
-	loginBySMSRequest        *driversproto.LoginBySMSRequest
-	registerDriverRequest    *driversproto.CreateDriverRequest
-	createVehicleRequest     *driversproto.CreateVehicleRequest
-	updateVehicleRequest     *driversproto.UpdateVehicleRequest
-	deleteVehicleRequest     *driversproto.DeleteVehicleRequest
-	getVehicleRequest        *driversproto.GetVehicleRequest
-	getDriverByPhoneRequest  *driversproto.GetDriverByPhoneRequest
-	nearbyDriversRequest     *driversproto.ListNearbyDriversRequest
-	reportLocationResponse   *driversproto.ReportLocationResponse
-	setServiceStatusResponse *driversproto.SetDriverServiceStatusResponse
-	loginResponse            *driversproto.LoginResponse
-	loginBySMSResponse       *driversproto.LoginResponse
-	registerDriverResponse   *driversproto.CreateDriverResponse
-	createVehicleResponse    *driversproto.CreateVehicleResponse
-	updateVehicleResponse    *driversproto.UpdateVehicleResponse
-	deleteVehicleResponse    *driversproto.DeleteVehicleResponse
-	getVehicleResponse       *driversproto.GetVehicleResponse
-	getDriverByPhoneResponse *driversproto.GetDriverByPhoneResponse
-	nearbyDriversResponse    *driversproto.ListNearbyDriversResponse
+	setOnlineRequest            *driversproto.SetDriverOnlineRequest
+	setOfflineRequest           *driversproto.SetDriverOfflineRequest
+	reportLocationRequest       *driversproto.ReportLocationRequest
+	serviceStatusRequests       []*driversproto.SetDriverServiceStatusRequest
+	loginRequest                *driversproto.LoginRequest
+	loginBySMSRequest           *driversproto.LoginBySMSRequest
+	registerDriverRequest       *driversproto.CreateDriverRequest
+	createVehicleRequest        *driversproto.CreateVehicleRequest
+	updateVehicleRequest        *driversproto.UpdateVehicleRequest
+	deleteVehicleRequest        *driversproto.DeleteVehicleRequest
+	getVehicleRequest           *driversproto.GetVehicleRequest
+	uploadCertificationRequest  *driversproto.UploadCertificationRequest
+	getDriverByPhoneRequest     *driversproto.GetDriverByPhoneRequest
+	nearbyDriversRequest        *driversproto.ListNearbyDriversRequest
+	reportLocationResponse      *driversproto.ReportLocationResponse
+	setServiceStatusResponse    *driversproto.SetDriverServiceStatusResponse
+	loginResponse               *driversproto.LoginResponse
+	loginBySMSResponse          *driversproto.LoginResponse
+	registerDriverResponse      *driversproto.CreateDriverResponse
+	createVehicleResponse       *driversproto.CreateVehicleResponse
+	updateVehicleResponse       *driversproto.UpdateVehicleResponse
+	deleteVehicleResponse       *driversproto.DeleteVehicleResponse
+	getVehicleResponse          *driversproto.GetVehicleResponse
+	uploadCertificationResponse *driversproto.UploadCertificationResponse
+	getDriverByPhoneResponse    *driversproto.GetDriverByPhoneResponse
+	nearbyDriversResponse       *driversproto.ListNearbyDriversResponse
 }
 
 func (f *fakeDriverClient) CreateDriver(context.Context, *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
@@ -113,8 +115,19 @@ func (f *fakeDriverClient) GetDriverAiScore(context.Context, *driversproto.GetDr
 	return nil, nil
 }
 
-func (f *fakeDriverClient) UploadCertification(context.Context, *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error) {
-	return nil, nil
+func (f *fakeDriverClient) UploadCertification(_ context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error) {
+	f.uploadCertificationRequest = req
+	if f.uploadCertificationResponse != nil {
+		return f.uploadCertificationResponse, nil
+	}
+	return &driversproto.UploadCertificationResponse{
+		Id: req.GetDriverId(),
+		Certification: &driversproto.CertificationInfo{
+			Id:        req.GetDriverId(),
+			DriverId:  req.GetDriverId(),
+			VehicleId: req.GetVehicleId(),
+		},
+	}, nil
 }
 
 func (f *fakeDriverClient) GetCertification(context.Context, *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error) {

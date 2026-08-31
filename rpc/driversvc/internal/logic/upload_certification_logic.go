@@ -9,11 +9,14 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
+	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // 资质图片类型校验：仅允许常见图片扩展名。
@@ -47,11 +50,36 @@ func NewUploadCertificationLogic(ctx context.Context, svcCtx *svc.ServiceContext
 // UploadCertification 处理资质上传：解码校验图片、上传 MinIO、落库并返回访问 URL。
 func (l *UploadCertificationLogic) UploadCertification(in *proto.UploadCertificationRequest) (*proto.UploadCertificationResponse, error) {
 	// 校验司机 ID 与至少一张图片。
-	if in.DriverId <= 0 {
+	if in == nil || in.DriverId <= 0 {
 		return nil, errInvalidDriverID
+	}
+	if in.VehicleId <= 0 {
+		return nil, errors.New("vehicle id is required")
 	}
 	if in.IdCardFront == "" && in.IdCardBack == "" && in.DriverLicense == "" && in.VehicleLicense == "" {
 		return nil, errEmptyCertification
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
+		return nil, errors.New("driver vehicle repository not ready")
+	}
+	vehicle, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, uint64(in.VehicleId))
+	if err != nil {
+		if errors.Is(err, repository.ErrVehicleNotFound) {
+			return nil, status.Error(codes.NotFound, "vehicle not found")
+		}
+		return nil, err
+	}
+	if vehicle == nil {
+		return nil, status.Error(codes.NotFound, "vehicle not found")
+	}
+	if vehicle.DriverId != uint64(in.DriverId) {
+		return nil, status.Error(codes.PermissionDenied, "vehicle does not belong to driver")
+	}
+	if l.svcCtx.CertificationRepository == nil {
+		return nil, errors.New("certification repository not ready")
+	}
+	if l.svcCtx.MinioClient == nil {
+		return nil, errors.New("minio client not ready")
 	}
 
 	// 逐类上传图片到 MinIO，得到访问 URL。
@@ -108,7 +136,7 @@ func (l *UploadCertificationLogic) UploadCertification(in *proto.UploadCertifica
 	}
 
 	return &proto.UploadCertificationResponse{
-		Id: int64(saved.Id),
+		Id:            int64(saved.Id),
 		Certification: toCertificationInfo(saved),
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -11,9 +12,21 @@ import (
 
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+)
+
+var localDriverPhoneRegexp = regexp.MustCompile(`^(?:1[3-9]\d{9}|\d{12,15})$`)
+var localDriverIDCardRegexp = regexp.MustCompile(`^\d{17}[\dXx]$`)
+var localVehiclePlateRegexp = regexp.MustCompile("^[京津沪渝冀云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9使领挂学警港澳]$")
+
+const (
+	localMaxVehicleBrandLen     = 64
+	localMaxVehicleModelLen     = 64
+	localMaxVehicleColorLen     = 32
+	localMaxVehicleInsuranceLen = 64
 )
 
 // LocalClient 是本地开发和测试使用的 driversvc 内存实现。
@@ -68,6 +81,9 @@ func (c *LocalClient) createDriver(req *driversproto.CreateDriverRequest) (*driv
 	if req == nil || strings.TrimSpace(req.GetPhone()) == "" {
 		return nil, status.Error(codes.InvalidArgument, "phone is required")
 	}
+	if err := validateLocalDriverRegistration(req); err != nil {
+		return nil, err
+	}
 	now := time.Now().Unix()
 
 	c.mu.Lock()
@@ -99,6 +115,29 @@ func (c *LocalClient) createDriver(req *driversproto.CreateDriverRequest) (*driv
 		Status:    driver.GetStatus(),
 		CreatedAt: now,
 	}, nil
+}
+
+func validateLocalDriverRegistration(req *driversproto.CreateDriverRequest) error {
+	if !localDriverPhoneRegexp.MatchString(req.GetPhone()) {
+		return status.Error(codes.InvalidArgument, "invalid driver phone")
+	}
+	password := req.GetPasswordHash()
+	if _, err := bcrypt.Cost([]byte(password)); err != nil {
+		passwordLength := len([]byte(password))
+		if passwordLength < 8 || passwordLength > 72 {
+			return status.Error(codes.InvalidArgument, "driver password length must be 8-72 bytes")
+		}
+	}
+	if strings.TrimSpace(req.GetRealName()) == "" {
+		return status.Error(codes.InvalidArgument, "driver real name is required")
+	}
+	if !localDriverIDCardRegexp.MatchString(req.GetIdCardNo()) {
+		return status.Error(codes.InvalidArgument, "invalid driver id card")
+	}
+	if strings.TrimSpace(req.GetDriverLicenseNo()) == "" {
+		return status.Error(codes.InvalidArgument, "driver license no is required")
+	}
+	return nil
 }
 
 // UpdateDriver 更新司机信息。
@@ -226,7 +265,7 @@ func (c *LocalClient) GetDriverByPhone(_ context.Context, req *driversproto.GetD
 
 // SetDriverOnline 将司机置为在线。
 func (c *LocalClient) SetDriverOnline(_ context.Context, req *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error) {
-	driverID, onlineStatus, kicked, err := c.setOnlineState(req.GetDriverId(), req.GetDeviceId(), req.GetLongitude(), req.GetLatitude(), driversproto.DriverStatus_DRIVER_STATUS_NORMAL, 1)
+	driverID, onlineStatus, kicked, err := c.setOnlineState(req.GetDriverId(), req.GetDeviceId(), req.GetLongitude(), req.GetLatitude(), true, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +278,7 @@ func (c *LocalClient) SetDriverOnline(_ context.Context, req *driversproto.SetDr
 
 // SetDriverOffline 将司机置为离线。
 func (c *LocalClient) SetDriverOffline(_ context.Context, req *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error) {
-	driverID, onlineStatus, kicked, err := c.setOnlineState(req.GetDriverId(), req.GetDeviceId(), req.GetLongitude(), req.GetLatitude(), driversproto.DriverStatus_DRIVER_STATUS_NORMAL, 0)
+	driverID, onlineStatus, kicked, err := c.setOnlineState(req.GetDriverId(), req.GetDeviceId(), req.GetLongitude(), req.GetLatitude(), false, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +384,7 @@ func (c *LocalClient) Heartbeat(_ context.Context, req *driversproto.HeartbeatRe
 	}, nil
 }
 
-func (c *LocalClient) setOnlineState(driverID int64, deviceID string, longitude, latitude float64, _ driversproto.DriverStatus, onlineStatus int32) (int64, int32, bool, error) {
+func (c *LocalClient) setOnlineState(driverID int64, deviceID string, longitude, latitude float64, requireEligibility bool, onlineStatus int32) (int64, int32, bool, error) {
 	if driverID <= 0 || strings.TrimSpace(deviceID) == "" {
 		return 0, 0, false, status.Error(codes.InvalidArgument, "driver id and device id are required")
 	}
@@ -355,6 +394,11 @@ func (c *LocalClient) setOnlineState(driverID int64, deviceID string, longitude,
 	driver, ok := c.drivers[uint64(driverID)]
 	if !ok {
 		return 0, 0, false, status.Error(codes.NotFound, "driver not found")
+	}
+	if requireEligibility {
+		if err := c.ensureDriverCanGoOnlineLocked(driverID, driver); err != nil {
+			return 0, 0, false, err
+		}
 	}
 	kicked := false
 	if prev := c.devices[uint64(driverID)]; prev != "" && prev != deviceID {
@@ -374,10 +418,37 @@ func (c *LocalClient) setOnlineState(driverID int64, deviceID string, longitude,
 	return driverID, onlineStatus, kicked, nil
 }
 
+func (c *LocalClient) ensureDriverCanGoOnlineLocked(driverID int64, driver *driversproto.Driver) error {
+	if driver.GetStatus() != driversproto.DriverStatus_DRIVER_STATUS_NORMAL {
+		return status.Error(codes.PermissionDenied, "driver account is not active")
+	}
+	certID, ok := c.certByDriver[uint64(driverID)]
+	if !ok {
+		return status.Error(codes.PermissionDenied, "driver certification not approved")
+	}
+	cert := c.certByID[certID]
+	if cert == nil || cert.GetAuditStatus() != 2 {
+		return status.Error(codes.PermissionDenied, "driver certification not approved")
+	}
+	if cert.GetVehicleId() <= 0 {
+		return status.Error(codes.PermissionDenied, "driver vehicle is not approved")
+	}
+	vehicle, ok := c.vehicles[uint64(cert.GetVehicleId())]
+	if !ok ||
+		vehicle.GetDriverId() != driverID ||
+		vehicle.GetStatus() != driversproto.VehicleStatus_VEHICLE_STATUS_NORMAL {
+		return status.Error(codes.PermissionDenied, "driver vehicle is not approved")
+	}
+	return nil
+}
+
 // CreateVehicle 创建车辆。
 func (c *LocalClient) CreateVehicle(_ context.Context, req *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error) {
 	if req == nil || req.GetDriverId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "driver id is required")
+	}
+	if err := validateLocalCreateVehicle(req.GetPlateNo(), req.GetBrand(), req.GetModel(), req.GetColor(), req.GetVehicleType(), req.GetInsuranceNo()); err != nil {
+		return nil, err
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -391,12 +462,12 @@ func (c *LocalClient) CreateVehicle(_ context.Context, req *driversproto.CreateV
 	vehicle := &driversproto.Vehicle{
 		Id:          int64(id),
 		DriverId:    req.GetDriverId(),
-		PlateNo:     req.GetPlateNo(),
-		Brand:       req.GetBrand(),
-		Model:       req.GetModel(),
-		Color:       req.GetColor(),
+		PlateNo:     strings.ToUpper(strings.TrimSpace(req.GetPlateNo())),
+		Brand:       strings.TrimSpace(req.GetBrand()),
+		Model:       strings.TrimSpace(req.GetModel()),
+		Color:       strings.TrimSpace(req.GetColor()),
 		VehicleType: req.GetVehicleType(),
-		InsuranceNo: req.GetInsuranceNo(),
+		InsuranceNo: strings.TrimSpace(req.GetInsuranceNo()),
 		Status:      driversproto.VehicleStatus_VEHICLE_STATUS_PENDING,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -413,10 +484,56 @@ func (c *LocalClient) CreateVehicle(_ context.Context, req *driversproto.CreateV
 	return &driversproto.CreateVehicleResponse{Id: int64(id), Status: vehicle.GetStatus(), CreatedAt: now}, nil
 }
 
+func validateLocalCreateVehicle(plateNo, brand, model, color string, vehicleType int32, insuranceNo string) error {
+	if strings.TrimSpace(plateNo) == "" {
+		return status.Error(codes.InvalidArgument, "vehicle plate no is required")
+	}
+	if !localVehiclePlateRegexp.MatchString(strings.ToUpper(strings.TrimSpace(plateNo))) {
+		return status.Error(codes.InvalidArgument, "invalid vehicle plate no")
+	}
+	if vehicleType < 1 || vehicleType > 5 {
+		return status.Error(codes.InvalidArgument, "invalid vehicle type")
+	}
+	if err := validateLocalRequiredLength("vehicle brand", brand, localMaxVehicleBrandLen); err != nil {
+		return err
+	}
+	if err := validateLocalRequiredLength("vehicle model", model, localMaxVehicleModelLen); err != nil {
+		return err
+	}
+	if err := validateLocalOptionalLength("vehicle color", color, localMaxVehicleColorLen); err != nil {
+		return err
+	}
+	if err := validateLocalOptionalLength("vehicle insurance no", insuranceNo, localMaxVehicleInsuranceLen); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateLocalRequiredLength(name, value string, max int) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return status.Error(codes.InvalidArgument, name+" is required")
+	}
+	if len([]rune(value)) > max {
+		return status.Error(codes.InvalidArgument, name+" is too long")
+	}
+	return nil
+}
+
+func validateLocalOptionalLength(name, value string, max int) error {
+	if len([]rune(strings.TrimSpace(value))) > max {
+		return status.Error(codes.InvalidArgument, name+" is too long")
+	}
+	return nil
+}
+
 // UpdateVehicle 更新车辆信息。
 func (c *LocalClient) UpdateVehicle(_ context.Context, req *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error) {
 	if req == nil || req.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "vehicle id is required")
+	}
+	if req.GetDriverId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "driver id is required")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -425,8 +542,8 @@ func (c *LocalClient) UpdateVehicle(_ context.Context, req *driversproto.UpdateV
 	if !ok {
 		return nil, status.Error(codes.NotFound, "vehicle not found")
 	}
-	if req.DriverId != nil {
-		vehicle.DriverId = *req.DriverId
+	if vehicle.GetDriverId() != req.GetDriverId() {
+		return nil, status.Error(codes.PermissionDenied, "vehicle does not belong to driver")
 	}
 	if req.PlateNo != nil {
 		vehicle.PlateNo = *req.PlateNo
@@ -467,11 +584,18 @@ func (c *LocalClient) DeleteVehicle(_ context.Context, req *driversproto.DeleteV
 	if req == nil || req.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "vehicle id is required")
 	}
+	if req.GetDriverId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "driver id is required")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if _, ok := c.vehicles[uint64(req.GetId())]; !ok {
+	vehicle, ok := c.vehicles[uint64(req.GetId())]
+	if !ok {
 		return nil, status.Error(codes.NotFound, "vehicle not found")
+	}
+	if vehicle.GetDriverId() != req.GetDriverId() {
+		return nil, status.Error(codes.PermissionDenied, "vehicle does not belong to driver")
 	}
 	delete(c.vehicles, uint64(req.GetId()))
 	return &driversproto.DeleteVehicleResponse{Id: req.GetId(), Success: true}, nil
@@ -733,11 +857,21 @@ func (c *LocalClient) UploadCertification(_ context.Context, req *driversproto.U
 	if req == nil || req.GetDriverId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "driver id is required")
 	}
+	if req.GetVehicleId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "vehicle id is required")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if _, ok := c.drivers[uint64(req.GetDriverId())]; !ok {
 		return nil, status.Error(codes.NotFound, "driver not found")
+	}
+	vehicle, ok := c.vehicles[uint64(req.GetVehicleId())]
+	if !ok {
+		return nil, status.Error(codes.NotFound, "vehicle not found")
+	}
+	if vehicle.GetDriverId() != req.GetDriverId() {
+		return nil, status.Error(codes.PermissionDenied, "vehicle does not belong to driver")
 	}
 	id := c.nextCertificationID
 	c.nextCertificationID++
