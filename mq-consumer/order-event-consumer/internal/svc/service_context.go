@@ -7,6 +7,7 @@ import (
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/config"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
+	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -19,6 +20,7 @@ type ServiceContext struct {
 	EventBus       events.Bus
 	DispatchClient dispatch.Dispatch
 	OrderClient    order.Order
+	PayClient      pay.Pay
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -40,6 +42,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err != nil {
 		panic(err)
 	}
+	payRPC := c.PayRPC
+	if payRPC.Target == "" && len(payRPC.Endpoints) == 0 {
+		payRPC.Target = "127.0.0.1:50054"
+	}
+	payClient, err := zrpc.NewClient(payRPC)
+	if err != nil {
+		panic(err)
+	}
 
 	// 事件总线：Kafka ConsumerGroup 消费（与支付模块 paysvc 对齐）。
 	// Kafka 未配置或消费者初始化失败时 EventBus 保持 nil，Start 会直接返回错误退出。
@@ -58,5 +68,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		EventBus:       eventBus,
 		DispatchClient: dispatch.NewDispatch(dispatchClient),
 		OrderClient:    order.NewOrder(orderClient),
+		PayClient:      pay.NewPay(payClient),
 	}
 }

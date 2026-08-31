@@ -2,6 +2,9 @@ Name: paysvc.rpc
 ListenOn: 0.0.0.0:50054
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+redis:
+  host: 127.0.0.1:6379
+  db: 0
 alipay:
   appId: ""
   privateKey: ""

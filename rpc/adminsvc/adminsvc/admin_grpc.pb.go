@@ -50,6 +50,8 @@ const (
 	AdminService_CancelOrder_FullMethodName                = "/adminsvc.AdminService/CancelOrder"
 	AdminService_RedispatchOrder_FullMethodName            = "/adminsvc.AdminService/RedispatchOrder"
 	AdminService_RefundOrder_FullMethodName                = "/adminsvc.AdminService/RefundOrder"
+	AdminService_ListRefundRetryTasks_FullMethodName       = "/adminsvc.AdminService/ListRefundRetryTasks"
+	AdminService_RetryRefundTask_FullMethodName            = "/adminsvc.AdminService/RetryRefundTask"
 	AdminService_ListAbnormalOrders_FullMethodName         = "/adminsvc.AdminService/ListAbnormalOrders"
 	AdminService_ListCoupons_FullMethodName                = "/adminsvc.AdminService/ListCoupons"
 	AdminService_CreateCoupon_FullMethodName               = "/adminsvc.AdminService/CreateCoupon"
@@ -162,6 +164,10 @@ type AdminServiceClient interface {
 	RedispatchOrder(ctx context.Context, in *AdminRedispatchOrderRequest, opts ...grpc.CallOption) (*AdminRedispatchOrderResponse, error)
 	// 后台发起订单退款。
 	RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error)
+	// 查询退款事件补偿队列。
+	ListRefundRetryTasks(ctx context.Context, in *RefundRetryTaskListRequest, opts ...grpc.CallOption) (*RefundRetryTaskListResponse, error)
+	// 立即触发指定退款事件补偿任务。
+	RetryRefundTask(ctx context.Context, in *RefundRetryTaskRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询异常订单列表。
 	ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
 	// 查询优惠券模板列表。
@@ -558,6 +564,26 @@ func (c *adminServiceClient) RefundOrder(ctx context.Context, in *AdminRefundOrd
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AdminRefundOrderResponse)
 	err := c.cc.Invoke(ctx, AdminService_RefundOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListRefundRetryTasks(ctx context.Context, in *RefundRetryTaskListRequest, opts ...grpc.CallOption) (*RefundRetryTaskListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefundRetryTaskListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListRefundRetryTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) RetryRefundTask(ctx context.Context, in *RefundRetryTaskRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_RetryRefundTask_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1066,6 +1092,10 @@ type AdminServiceServer interface {
 	RedispatchOrder(context.Context, *AdminRedispatchOrderRequest) (*AdminRedispatchOrderResponse, error)
 	// 后台发起订单退款。
 	RefundOrder(context.Context, *AdminRefundOrderRequest) (*AdminRefundOrderResponse, error)
+	// 查询退款事件补偿队列。
+	ListRefundRetryTasks(context.Context, *RefundRetryTaskListRequest) (*RefundRetryTaskListResponse, error)
+	// 立即触发指定退款事件补偿任务。
+	RetryRefundTask(context.Context, *RefundRetryTaskRequest) (*CommonResponse, error)
 	// 查询异常订单列表。
 	ListAbnormalOrders(context.Context, *AbnormalOrderListRequest) (*AbnormalOrderListResponse, error)
 	// 查询优惠券模板列表。
@@ -1247,6 +1277,12 @@ func (UnimplementedAdminServiceServer) RedispatchOrder(context.Context, *AdminRe
 }
 func (UnimplementedAdminServiceServer) RefundOrder(context.Context, *AdminRefundOrderRequest) (*AdminRefundOrderResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RefundOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) ListRefundRetryTasks(context.Context, *RefundRetryTaskListRequest) (*RefundRetryTaskListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRefundRetryTasks not implemented")
+}
+func (UnimplementedAdminServiceServer) RetryRefundTask(context.Context, *RefundRetryTaskRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RetryRefundTask not implemented")
 }
 func (UnimplementedAdminServiceServer) ListAbnormalOrders(context.Context, *AbnormalOrderListRequest) (*AbnormalOrderListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListAbnormalOrders not implemented")
@@ -1938,6 +1974,42 @@ func _AdminService_RefundOrder_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AdminServiceServer).RefundOrder(ctx, req.(*AdminRefundOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListRefundRetryTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundRetryTaskListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListRefundRetryTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListRefundRetryTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListRefundRetryTasks(ctx, req.(*RefundRetryTaskListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_RetryRefundTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundRetryTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).RetryRefundTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_RetryRefundTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).RetryRefundTask(ctx, req.(*RefundRetryTaskRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2813,6 +2885,14 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RefundOrder",
 			Handler:    _AdminService_RefundOrder_Handler,
+		},
+		{
+			MethodName: "ListRefundRetryTasks",
+			Handler:    _AdminService_ListRefundRetryTasks_Handler,
+		},
+		{
+			MethodName: "RetryRefundTask",
+			Handler:    _AdminService_RetryRefundTask_Handler,
 		},
 		{
 			MethodName: "ListAbnormalOrders",

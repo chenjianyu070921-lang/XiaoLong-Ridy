@@ -34,6 +34,7 @@ var operatorIdentityMethods = map[string]struct{}{
 	"/adminsvc.AdminService/CancelOrder":                {},
 	"/adminsvc.AdminService/RedispatchOrder":            {},
 	"/adminsvc.AdminService/RefundOrder":                {},
+	"/adminsvc.AdminService/RetryRefundTask":            {},
 	"/adminsvc.AdminService/CreateCoupon":               {},
 	"/adminsvc.AdminService/UpdateCoupon":               {},
 	"/adminsvc.AdminService/DisableCoupon":              {},

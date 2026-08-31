@@ -3,11 +3,13 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/svc"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
+	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -92,15 +94,38 @@ func (c *OrderConsumer) handleOrderCreated(ctx context.Context, payload []byte) 
 	return err
 }
 
-// handleOrderRefunded 处理退款成功事件：pay 服务未到位时仅记录日志，
-// 待支付模块接入后在此触发真实支付通道回款。
+// handleOrderRefunded 处理订单退款事件，完成支付通道退款。
+// 处理失败必须返回错误，由 Kafka 消费器写入退款主题 DLQ，避免订单已退款但资金未回退
+// 时被静默吞掉。
 func (c *OrderConsumer) handleOrderRefunded(ctx context.Context, payload []byte) error {
 	var evt OrderRefundedEvent
 	if err := json.Unmarshal(payload, &evt); err != nil {
 		return err
 	}
-	logx.Infof("order.refunded received: order=%d refundNo=%s cents=%d operator=%s(%d)",
-		evt.OrderId, evt.RefundNo, evt.RefundCents, evt.OperatorType, evt.OperatorId)
+	if c.svcCtx.PayClient == nil {
+		return fmt.Errorf("pay client not configured")
+	}
+	payment, err := c.svcCtx.PayClient.GetPayment(ctx, &pay.GetPaymentRequest{OrderId: evt.OrderId})
+	if err != nil {
+		return fmt.Errorf("get payment by order %d: %w", evt.OrderId, err)
+	}
+	if payment == nil || payment.PaymentNo == "" {
+		return fmt.Errorf("payment not found for order %d", evt.OrderId)
+	}
+	resp, err := c.svcCtx.PayClient.RefundPayment(ctx, &pay.RefundPaymentRequest{
+		PaymentNo:         payment.PaymentNo,
+		RefundAmountCents: evt.RefundCents,
+		Reason:            "订单退款：" + evt.RefundNo,
+		RefundNo:          evt.RefundNo,
+	})
+	if err != nil {
+		return fmt.Errorf("refund payment %s: %w", payment.PaymentNo, err)
+	}
+	if resp == nil || !resp.Success {
+		return fmt.Errorf("refund payment %s unsuccessful", payment.PaymentNo)
+	}
+	logx.Infof("order.refunded processed: order=%d refundNo=%s paymentNo=%s cents=%d operator=%s(%d)",
+		evt.OrderId, evt.RefundNo, payment.PaymentNo, evt.RefundCents, evt.OperatorType, evt.OperatorId)
 	return nil
 }
 

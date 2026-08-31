@@ -69,6 +69,10 @@ service AdminService {
   rpc RedispatchOrder(AdminRedispatchOrderRequest) returns (AdminRedispatchOrderResponse);
   // 后台发起订单退款。
   rpc RefundOrder(AdminRefundOrderRequest) returns (AdminRefundOrderResponse);
+  // 查询退款事件补偿队列。
+  rpc ListRefundRetryTasks(RefundRetryTaskListRequest) returns (RefundRetryTaskListResponse);
+  // 立即触发指定退款事件补偿任务。
+  rpc RetryRefundTask(RefundRetryTaskRequest) returns (CommonResponse);
   // 查询异常订单列表。
   rpc ListAbnormalOrders(AbnormalOrderListRequest) returns (AbnormalOrderListResponse);
   // 查询优惠券模板列表。
@@ -565,6 +569,35 @@ message AdminRefundOrderResponse {
   int64 refund_cents = 3;
   string refund_no = 4;
   string message = 5;
+}
+
+message RefundRetryTaskListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message RefundRetryTaskRequest {
+  string refund_no = 1;
+  int64 admin_id = 2;
+  string ip = 3;
+}
+
+message RefundRetryTask {
+  int64 order_id = 1;
+  string order_no = 2;
+  string refund_no = 3;
+  int64 refund_cents = 4;
+  string operator_type = 5;
+  int64 operator_id = 6;
+  int32 attempt = 7;
+  int64 next_retry_at = 8;
+}
+
+message RefundRetryTaskListResponse {
+  repeated RefundRetryTask list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }
 
 message Order {

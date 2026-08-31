@@ -11,6 +11,7 @@ import (
 	"XiaoLong-Ridy/mq-consumer/order-event-consumer/internal/svc"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
+	pay "XiaoLong-Ridy/rpc/paysvc/pay"
 
 	"google.golang.org/grpc"
 )
@@ -93,8 +94,40 @@ func (m *mockOrder) ForceRefundOrder(ctx context.Context, in *order.ForceRefundO
 	return &order.ForceRefundOrderResponse{}, nil
 }
 
+// mockPay 实现 pay.Pay，记录退款链路调用。
+type mockPay struct {
+	getPaymentCalls    int
+	refundPaymentCalls int
+	lastRefund         *pay.RefundPaymentRequest
+	getPayment         *pay.GetPaymentResponse
+	getPaymentErr      error
+	refundErr          error
+}
+
+func (m *mockPay) CreatePayment(context.Context, *pay.CreatePaymentRequest, ...grpc.CallOption) (*pay.CreatePaymentResponse, error) {
+	return &pay.CreatePaymentResponse{}, nil
+}
+func (m *mockPay) NotifyPayment(context.Context, *pay.NotifyPaymentRequest, ...grpc.CallOption) (*pay.NotifyPaymentResponse, error) {
+	return &pay.NotifyPaymentResponse{}, nil
+}
+func (m *mockPay) GetPayment(_ context.Context, in *pay.GetPaymentRequest, _ ...grpc.CallOption) (*pay.GetPaymentResponse, error) {
+	m.getPaymentCalls++
+	return m.getPayment, m.getPaymentErr
+}
+func (m *mockPay) RefundPayment(_ context.Context, in *pay.RefundPaymentRequest, _ ...grpc.CallOption) (*pay.RefundPaymentResponse, error) {
+	m.refundPaymentCalls++
+	m.lastRefund = in
+	if m.refundErr != nil {
+		return nil, m.refundErr
+	}
+	return &pay.RefundPaymentResponse{Success: true, RefundNo: in.RefundNo}, nil
+}
+func (m *mockPay) SettleOrder(context.Context, *pay.SettleOrderRequest, ...grpc.CallOption) (*pay.SettleOrderResponse, error) {
+	return &pay.SettleOrderResponse{}, nil
+}
+
 // newTestConsumer 构造测试用 OrderConsumer：Redis 用 miniredis 模拟，RPC 用 mock。
-func newTestConsumer(t *testing.T) (*OrderConsumer, *mockDispatch, *mockOrder, *miniredis.Miniredis) {
+func newTestConsumer(t *testing.T) (*OrderConsumer, *mockDispatch, *mockOrder, *mockPay, *miniredis.Miniredis) {
 	t.Helper()
 	s, err := miniredis.Run()
 	if err != nil {
@@ -102,6 +135,7 @@ func newTestConsumer(t *testing.T) (*OrderConsumer, *mockDispatch, *mockOrder, *
 	}
 	md := &mockDispatch{}
 	mo := &mockOrder{}
+	mp := &mockPay{}
 	rdb := redis.NewClient(&redis.Options{Addr: s.Addr()})
 	t.Cleanup(func() {
 		rdb.Close()
@@ -111,13 +145,14 @@ func newTestConsumer(t *testing.T) (*OrderConsumer, *mockDispatch, *mockOrder, *
 		Redis:          rdb,
 		DispatchClient: md,
 		OrderClient:    mo,
+		PayClient:      mp,
 	}}
-	return c, md, mo, s
+	return c, md, mo, mp, s
 }
 
 // TestDispatchHandler_OrderCreated order.created 事件应触发派单 RPC。
 func TestDispatchHandler_OrderCreated(t *testing.T) {
-	c, md, _, _ := newTestConsumer(t)
+	c, md, _, _, _ := newTestConsumer(t)
 	payload := []byte(`{"order_id":101,"order_no":"XL2026","from_longitude":116.4,"from_latitude":39.9,"car_type":1,"city_code":"110000"}`)
 	if err := c.dispatchHandler(context.Background(), constants.TopicOrderCreated, payload); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -132,7 +167,7 @@ func TestDispatchHandler_OrderCreated(t *testing.T) {
 
 // TestDispatchHandler_OrderPaid order.paid 事件应触发确认支付 RPC。
 func TestDispatchHandler_OrderPaid(t *testing.T) {
-	c, _, mo, _ := newTestConsumer(t)
+	c, _, mo, _, _ := newTestConsumer(t)
 	payload := []byte(`{"order_id":202,"payment_no":"P2026","amount_cents":4500,"paid_at":1700000000}`)
 	if err := c.dispatchHandler(context.Background(), constants.TopicOrderPaid, payload); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -145,9 +180,41 @@ func TestDispatchHandler_OrderPaid(t *testing.T) {
 	}
 }
 
+// TestDispatchHandler_OrderRefunded 退款事件应先查询支付单号，再调用支付退款。
+func TestDispatchHandler_OrderRefunded(t *testing.T) {
+	c, _, _, mp, _ := newTestConsumer(t)
+	mp.getPayment = &pay.GetPaymentResponse{OrderId: 202, PaymentNo: "PAY2026"}
+	payload := []byte(`{"order_id":202,"order_no":"XL2026","refund_no":"RF2026","refund_cents":4500,"operator_id":9,"operator_type":"admin"}`)
+
+	if err := c.dispatchHandler(context.Background(), constants.TopicOrderRefunded, payload); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mp.getPaymentCalls != 1 || mp.refundPaymentCalls != 1 {
+		t.Fatalf("pay calls = get:%d refund:%d, want 1/1", mp.getPaymentCalls, mp.refundPaymentCalls)
+	}
+	if mp.lastRefund == nil || mp.lastRefund.PaymentNo != "PAY2026" ||
+		mp.lastRefund.RefundAmountCents != 4500 || mp.lastRefund.RefundNo != "RF2026" {
+		t.Fatalf("refund request = %+v, want payment PAY2026 amount 4500 refund RF2026", mp.lastRefund)
+	}
+}
+
+// TestDispatchHandler_OrderRefundedWithoutPayment 关联支付单不存在时必须返回错误，交由 DLQ 处理。
+func TestDispatchHandler_OrderRefundedWithoutPayment(t *testing.T) {
+	c, _, _, mp, _ := newTestConsumer(t)
+	mp.getPayment = &pay.GetPaymentResponse{}
+	payload := []byte(`{"order_id":202,"refund_no":"RF2026","refund_cents":4500}`)
+
+	if err := c.dispatchHandler(context.Background(), constants.TopicOrderRefunded, payload); err == nil {
+		t.Fatal("expected payment not found error")
+	}
+	if mp.refundPaymentCalls != 0 {
+		t.Fatalf("RefundPayment calls = %d, want 0", mp.refundPaymentCalls)
+	}
+}
+
 // TestDispatchHandler_DispatchNew dispatch.new 事件应把订单写入候选司机的待接单列表。
 func TestDispatchHandler_DispatchNew(t *testing.T) {
-	c, _, _, s := newTestConsumer(t)
+	c, _, _, _, s := newTestConsumer(t)
 	payload := []byte(`{"order_id":303,"driver_ids":[1,2],"from_longitude":116.4,"from_latitude":39.9,"car_type":1,"city_code":"110000","dispatched_at":1700000000}`)
 	if err := c.dispatchHandler(context.Background(), constants.TopicDispatchNew, payload); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -168,7 +235,7 @@ func TestDispatchHandler_DispatchNew(t *testing.T) {
 
 // TestDispatchHandler_UnknownTopic 未知 topic 应直接忽略，不报错。
 func TestDispatchHandler_UnknownTopic(t *testing.T) {
-	c, _, _, _ := newTestConsumer(t)
+	c, _, _, _, _ := newTestConsumer(t)
 	if err := c.dispatchHandler(context.Background(), "unknown.topic", []byte(`{}`)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -176,7 +243,7 @@ func TestDispatchHandler_UnknownTopic(t *testing.T) {
 
 // TestDispatchHandler_BadPayload 非法载荷应返回解析错误（交由消费者 DLQ 兜底）。
 func TestDispatchHandler_BadPayload(t *testing.T) {
-	c, _, _, _ := newTestConsumer(t)
+	c, _, _, _, _ := newTestConsumer(t)
 	if err := c.dispatchHandler(context.Background(), constants.TopicOrderCreated, []byte(`not-json`)); err == nil {
 		t.Fatal("expected unmarshal error")
 	}

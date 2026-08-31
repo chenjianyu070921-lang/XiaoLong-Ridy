@@ -1,4 +1,4 @@
-﻿package constants
+package constants
 
 const (
 	OrderTypeRealtime    = 1
@@ -54,7 +54,7 @@ const (
 	TopicDispatchNew        = "dispatch.new"
 	TopicDispatchResult     = "dispatch.result"
 	TopicOrderPaid          = "order.paid"
-	TopicOrderRefunded      = "order.refunded"        // 閫€娆炬垚鍔?)
+	TopicOrderRefunded      = "order.refunded" // 閫€娆炬垚鍔?)
 )
 
 const (
@@ -65,5 +65,6 @@ const (
 const (
 	DispatchRetryQueueKey   = "dispatch:retry:orders"
 	MaxDispatchRetryAttempt = 3
+	RefundRetryQueueKey     = "refund:retry:events"
+	MaxRefundRetryAttempt   = 5
 )
-

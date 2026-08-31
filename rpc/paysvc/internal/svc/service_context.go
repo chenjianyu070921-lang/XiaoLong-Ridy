@@ -10,6 +10,7 @@ import (
 	"XiaoLong-Ridy/rpc/paysvc/internal/orderclient"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 	"gorm.io/gorm"
@@ -21,6 +22,7 @@ type ServiceContext struct {
 	Producer    mq.Producer             // Kafka 生产者
 	OrderClient orderclient.OrderClient // 订单服务客户端
 	Verifier    channel.SignVerifier    // 回调验签器
+	Redis       *redis.Client           // 退款幂等结果缓存
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -38,6 +40,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	svcCtx := &ServiceContext{
 		Config: c,
 		DB:     db,
+		Redis:  datasource.NewRedisClient(c.Redis),
 	}
 
 	// Kafka 生产者（容错：未启动时降级为 NoopProducer）

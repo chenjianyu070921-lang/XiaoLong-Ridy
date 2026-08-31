@@ -27,6 +27,10 @@ type (
 	AdminRedispatchOrderResponse     = adminsvc.AdminRedispatchOrderResponse
 	AdminRefundOrderRequest          = adminsvc.AdminRefundOrderRequest
 	AdminRefundOrderResponse         = adminsvc.AdminRefundOrderResponse
+	RefundRetryTaskListRequest       = adminsvc.RefundRetryTaskListRequest
+	RefundRetryTaskRequest           = adminsvc.RefundRetryTaskRequest
+	RefundRetryTask                  = adminsvc.RefundRetryTask
+	RefundRetryTaskListResponse      = adminsvc.RefundRetryTaskListResponse
 	AuditDriverCertificationRequest  = adminsvc.AuditDriverCertificationRequest
 	AuthResponse                     = adminsvc.AuthResponse
 	Blacklist                        = adminsvc.Blacklist
@@ -188,6 +192,8 @@ type (
 		RedispatchOrder(ctx context.Context, in *AdminRedispatchOrderRequest, opts ...grpc.CallOption) (*AdminRedispatchOrderResponse, error)
 		// 后台发起订单退款。
 		RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error)
+		ListRefundRetryTasks(ctx context.Context, in *RefundRetryTaskListRequest, opts ...grpc.CallOption) (*RefundRetryTaskListResponse, error)
+		RetryRefundTask(ctx context.Context, in *RefundRetryTaskRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询异常订单列表。
 		ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
 		// 查询优惠券模板列表。
@@ -452,6 +458,18 @@ func (m *defaultAdminService) RedispatchOrder(ctx context.Context, in *AdminRedi
 func (m *defaultAdminService) RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.RefundOrder(ctx, in, opts...)
+}
+
+// ListRefundRetryTasks 查询退款事件补偿队列。
+func (m *defaultAdminService) ListRefundRetryTasks(ctx context.Context, in *RefundRetryTaskListRequest, opts ...grpc.CallOption) (*RefundRetryTaskListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListRefundRetryTasks(ctx, in, opts...)
+}
+
+// RetryRefundTask 立即触发指定退款事件补偿任务。
+func (m *defaultAdminService) RetryRefundTask(ctx context.Context, in *RefundRetryTaskRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.RetryRefundTask(ctx, in, opts...)
 }
 
 // 查询异常订单列表。
