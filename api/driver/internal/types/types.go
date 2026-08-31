@@ -102,6 +102,7 @@ type DriverDetail struct {
 	AvatarURL       string `json:"avatarUrl"`
 	Status          string `json:"status"`
 	OnlineStatus    int    `json:"onlineStatus"`
+	VehicleID       int64  `json:"vehicleId"`
 	CreatedAt       int64  `json:"createdAt"`
 	UpdatedAt       int64  `json:"updatedAt"`
 }
@@ -141,9 +142,10 @@ type LoginBySMSRequest struct {
 }
 
 type DriverBrief struct {
-	ID     int64  `json:"id"`
-	Phone  string `json:"phone"`
-	Status string `json:"status"`
+	ID        int64  `json:"id"`
+	Phone     string `json:"phone"`
+	Status    string `json:"status"`
+	VehicleID int64  `json:"vehicleId"`
 }
 
 type LoginResponse struct {

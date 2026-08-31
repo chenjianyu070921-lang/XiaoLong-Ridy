@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
-	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
@@ -57,19 +56,8 @@ func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest)
 	if driver.Status != int8(proto.DriverStatus_DRIVER_STATUS_NORMAL) {
 		return nil, status.Error(codes.PermissionDenied, "driver account is not active")
 	}
-	if l.svcCtx.CertificationRepository == nil {
-		return nil, errors.New("driver dependencies not ready")
-	}
-	cert, err := l.svcCtx.CertificationRepository.GetByDriverID(l.ctx, uint64(in.DriverId))
-	if err != nil {
-		if errors.Is(err, repository.ErrCertificationNotFound) {
-			return nil, status.Error(codes.PermissionDenied, "driver certification not approved")
-		}
-		return nil, err
-	}
-	if cert == nil || cert.AuditStatus != AuditStatusPassed {
-		return nil, status.Error(codes.PermissionDenied, "driver certification not approved")
-	}
+	// 按产品要求：听单不再校验资质审核与车辆状态（资质上传即成功），
+	// 只要司机账号为正常状态即可上线，进入派单池。
 	if err := l.svcCtx.OnlineStore.SetOnline(l.ctx, in.GetDriverId(), in.GetDeviceId(), in.GetLongitude(), in.GetLatitude()); err != nil {
 		return nil, err
 	}

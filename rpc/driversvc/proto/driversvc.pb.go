@@ -1943,6 +1943,7 @@ func (x *UpdateVehicleResponse) GetUpdatedAt() int64 {
 type DeleteVehicleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	DriverId      int64                  `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1980,6 +1981,13 @@ func (*DeleteVehicleRequest) Descriptor() ([]byte, []int) {
 func (x *DeleteVehicleRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
+	}
+	return 0
+}
+
+func (x *DeleteVehicleRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
 	}
 	return 0
 }
@@ -3923,9 +3931,10 @@ const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x120\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x18.driversvc.VehicleStatusR\x06status\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x03 \x01(\x03R\tupdatedAt\"&\n" +
+	"updated_at\x18\x03 \x01(\x03R\tupdatedAt\"C\n" +
 	"\x14DeleteVehicleRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"A\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x03R\bdriverId\"A\n" +
 	"\x15DeleteVehicleResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
 	"\asuccess\x18\x02 \x01(\bR\asuccess\"#\n" +

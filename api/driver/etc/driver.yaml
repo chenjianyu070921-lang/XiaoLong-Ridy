@@ -3,10 +3,10 @@
 httpAddr: ":8082"
 # 下游 driversvc gRPC 地址（可通过环境变量 DRIVER_GRPC_ADDR 覆盖）
 # 必须与 rpc/driversvc/etc/driversvc.yaml 的 ListenOn 保持一致（均为 50055），否则联调时连接失败。
-driverGrpcAddr: "115.191.16.159:50055"
-orderGrpcAddr: "115.191.16.159:50051"
-dispatchGrpcAddr: "115.191.16.159:50056"
-locationGrpcAddr: "115.191.16.159:9001"
+driverGrpcAddr: "127.0.0.1:50055"
+orderGrpcAddr: "127.0.0.1:50051"
+dispatchGrpcAddr: "127.0.0.1:50056"
+locationGrpcAddr: "127.0.0.1:9001"
 # 验证码缓存 Redis 地址（可通过环境变量 DRIVER_REDIS_ADDR 覆盖）。
 # 配置后使用 Redis 存储短信验证码，支持多实例共享；留空则回退本地内存（仅限单实例联调）。
 redisAddr: "115.191.16.159:6379"

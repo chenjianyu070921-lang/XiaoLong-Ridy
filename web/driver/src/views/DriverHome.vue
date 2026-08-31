@@ -318,6 +318,7 @@ import {
   uploadCertification
 } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
+import { resolveCreatedVehicle } from '@/utils/vehicle'
 
 const router = useRouter()
 const driverStore = useDriverStore()
@@ -863,9 +864,12 @@ function vehiclePayload() {
 }
 
 async function submitVehicle() {
-  const res = await safeApiCall(() => createVehicle(vehiclePayload()), '车辆提交失败')
+  const payload = vehiclePayload()
+  const res = await safeApiCall(() => createVehicle(payload), '车辆提交失败')
   if (!res) return
-  driverStore.setVehicle(res.vehicle || res)
+  const vehicle = await resolveCreatedVehicle(payload, res, (id) => getVehicle(id, { silentError: true }))
+  driverStore.setVehicle(vehicle)
+  syncForms()
   showToast('车辆提交成功')
 }
 
