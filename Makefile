@@ -102,7 +102,7 @@ run-user-web:
 run-admin-web:
 	powershell -Command "cd web/admin; npm run dev"
 
-run-dirver-web:
+run-driver-web:
 	powershell -Command "cd web/driver; npm run dev"
 # 消息消费者与定时任务启动命令
 
