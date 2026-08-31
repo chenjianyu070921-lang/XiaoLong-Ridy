@@ -118,6 +118,45 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/orders", r.authRequired(r.handleOrders))
 	r.mux.HandleFunc("/admin/v1/orders/abnormal", r.authRequired(r.handleAbnormalOrders))
 	r.mux.HandleFunc("/admin/v1/orders/", r.authRequired(r.handleOrderByID))
+	r.mux.HandleFunc("/admin/v1/refund-retry-tasks", r.authRequired(r.handleRefundRetryTasks))
+	r.mux.HandleFunc("/admin/v1/refund-retry-tasks/", r.authRequired(r.handleRefundRetryTaskByNo))
+}
+
+// handleRefundRetryTasks 查询退款事件补偿队列。
+func (r *Router) handleRefundRetryTasks(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewRefundRetryLogic(r.ctx).List(req.Context(), int32Query(req, "page", 1), int32Query(req, "page_size", 20))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleRefundRetryTaskByNo 立即触发指定退款补偿任务。
+func (r *Router) handleRefundRetryTaskByNo(w http.ResponseWriter, req *http.Request) {
+	refundNo := strings.TrimPrefix(req.URL.Path, "/admin/v1/refund-retry-tasks/")
+	if refundNo == "" || strings.Contains(refundNo, "/") {
+		writeError(w, http.StatusBadRequest, 40001, "invalid refund number")
+		return
+	}
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	session := sessionFromContext(req.Context())
+	if session == nil {
+		writeError(w, http.StatusUnauthorized, 40101, "unauthorized")
+		return
+	}
+	if err := logic.NewRefundRetryLogic(r.ctx).Retry(req.Context(), refundNo, session.AdminID, clientIP(req)); err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, map[string]string{"message": "ok"})
 }
 
 // handleRegister 处理后台管理员注册。

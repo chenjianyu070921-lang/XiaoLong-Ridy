@@ -30,7 +30,7 @@ const createDefaults = () => ({
   work_order_type: 1, source_type: 'order', source_id: '', order_id: '', user_id: '', driver_id: '', title: '', content: '', priority: 2,
   action: 'follow', assignee_id: '', arbitration_result: '', version: 0, evidence_type: 'text', evidence_url: '',
   ids: [], risk_action: 'review_pass', work_order_title: '',
-  reason: '', remark: '', target_id: '', export_type: 'orders', export_range: [], export_user_id: '', export_driver_id: '', export_order_id: '', export_admin_id: '', export_city_code: '',
+  reason: '', remark: '', target_id: '', export_type: 'orders', export_range: [], export_keyword: '', export_status: '', export_audit_status: '', export_user_id: '', export_driver_id: '', export_admin_id: '', export_module: '', export_action: '', export_target_type: '', export_target_id: '',
 })
 const copyRecord = () => {
   Object.keys(form).forEach((key) => delete form[key])
@@ -94,7 +94,29 @@ const toPayload = () => {
   if (props.type === 'workOrderEvidence') return { evidence_type: form.evidence_type, evidence_url: form.evidence_url, content: form.content }
   if (props.type === 'riskHitAction') return { ids: form.ids || [], action: form.risk_action, reason: form.reason, work_order_title: form.work_order_title, priority: Number(form.priority || 0) }
   if (props.type === 'createBlacklist') return { target_type: form.target_type, target_id: Number(form.target_id), reason: form.reason }
-  if (props.type === 'createExport') { const filters = {}; [['start_time', form.export_range?.[0]], ['end_time', form.export_range?.[1]], ['user_id', form.export_user_id], ['driver_id', form.export_driver_id], ['order_id', form.export_order_id], ['admin_id', form.export_admin_id], ['city_code', form.export_city_code]].forEach(([key, value]) => { if (value !== '' && value !== undefined) filters[key] = key.endsWith('_id') ? Number(value) : value }); return { export_type: form.export_type, filters: JSON.stringify(filters) } }
+  if (props.type === 'createExport') {
+    const filters = {}
+    const append = (key, value, numeric = false) => {
+      if (value !== '' && value !== undefined && value !== null) filters[key] = numeric ? Number(value) : value
+    }
+    append('start_time', form.export_range?.[0])
+    append('end_time', form.export_range?.[1])
+    if (['users', 'drivers', 'orders'].includes(form.export_type)) append('keyword', form.export_keyword)
+    if (['users', 'orders'].includes(form.export_type)) append('status', form.export_status, true)
+    if (form.export_type === 'drivers') append('audit_status', form.export_audit_status, true)
+    if (form.export_type === 'orders') {
+      append('user_id', form.export_user_id, true)
+      append('driver_id', form.export_driver_id, true)
+    }
+    if (form.export_type === 'operation_logs') {
+      append('admin_id', form.export_admin_id, true)
+      append('module', form.export_module)
+      append('action', form.export_action)
+      append('target_type', form.export_target_type)
+      append('target_id', form.export_target_id, true)
+    }
+    return { export_type: form.export_type, filters: JSON.stringify(filters) }
+  }
   if (props.type === 'approve' || props.type === 'reject') return { remark: form.remark }
   if (props.type === 'freeze' || props.type === 'unfreeze' || props.type === 'freezeDriver') return { reason: form.reason, remark: form.remark }
   if (props.type === 'cancel') return { reason: form.reason, request_id: crypto.randomUUID ? crypto.randomUUID() : `cancel-${Date.now()}-${Math.random().toString(16).slice(2)}` }
@@ -121,7 +143,15 @@ const close = () => emit('update:modelValue', false)
       <template v-else-if="props.type === 'workOrderEvidence'"><el-form-item label="证据类型"><el-select v-model="form.evidence_type"><el-option v-for="item in ['track','audio','chat','payment','image','text']" :key="item" :label="item" :value="item"/></el-select></el-form-item><el-form-item label="证据地址"><el-input v-model="form.evidence_url" /></el-form-item><el-form-item label="证据说明" prop="content"><el-input v-model="form.content" type="textarea" /></el-form-item></template>
       <template v-else-if="props.type === 'riskHitAction'"><el-form-item label="命中数量"><el-input :model-value="`${form.ids?.length || 0} 条`" disabled /></el-form-item><el-form-item label="处置动作"><el-select v-model="form.risk_action"><el-option label="复核通过" value="review_pass"/><el-option label="加入黑名单" value="add_blacklist"/><el-option label="转工单" value="create_work_order"/></el-select></el-form-item><el-form-item v-if="form.risk_action === 'create_work_order'" label="工单标题"><el-input v-model="form.work_order_title" /></el-form-item><el-form-item v-if="form.risk_action === 'create_work_order'" label="优先级"><el-select v-model="form.priority"><el-option label="低" :value="1"/><el-option label="中" :value="2"/><el-option label="高" :value="3"/><el-option label="紧急" :value="4"/></el-select></el-form-item><el-form-item label="处置说明" prop="reason"><el-input v-model="form.reason" type="textarea" /></el-form-item></template>
       <template v-else-if="props.type === 'createBlacklist'"><el-form-item label="目标类型"><el-select v-model="form.target_type"><el-option label="用户" value="user"/><el-option label="司机" value="driver"/><el-option label="设备" value="device"/></el-select></el-form-item><el-form-item label="目标 ID" prop="target_id"><el-input v-model="form.target_id" /></el-form-item><el-form-item label="拉黑原因" prop="reason"><el-input v-model="form.reason" type="textarea" /></el-form-item></template>
-      <template v-else-if="props.type === 'createExport'"><el-form-item label="导出类型"><el-select v-model="form.export_type"><el-option label="用户" value="users"/><el-option label="司机" value="drivers"/><el-option label="订单" value="orders"/><el-option label="操作日志" value="operation_logs"/><el-option label="统计数据" value="statistics"/></el-select></el-form-item><el-form-item label="时间范围"><el-date-picker v-model="form.export_range" type="datetimerange" value-format="YYYY-MM-DD HH:mm:ss" /></el-form-item><el-row :gutter="16"><el-col :span="12"><el-form-item label="用户 ID"><el-input v-model="form.export_user_id" /></el-form-item></el-col><el-col :span="12"><el-form-item label="司机 ID"><el-input v-model="form.export_driver_id" /></el-form-item></el-col></el-row><el-row :gutter="16"><el-col :span="12"><el-form-item label="订单 ID"><el-input v-model="form.export_order_id" /></el-form-item></el-col><el-col :span="12"><el-form-item label="管理员 ID"><el-input v-model="form.export_admin_id" /></el-form-item></el-col></el-row><el-form-item label="城市编码"><el-input v-model="form.export_city_code" /></el-form-item></template>
+      <template v-else-if="props.type === 'createExport'">
+        <el-form-item label="导出类型"><el-select v-model="form.export_type"><el-option label="用户" value="users"/><el-option label="司机" value="drivers"/><el-option label="订单" value="orders"/><el-option label="操作日志" value="operation_logs"/><el-option label="统计数据" value="statistics"/></el-select></el-form-item>
+        <el-form-item label="时间范围"><el-date-picker v-model="form.export_range" type="datetimerange" value-format="YYYY-MM-DD HH:mm:ss" /></el-form-item>
+        <el-form-item v-if="['users','drivers','orders'].includes(form.export_type)" label="关键词"><el-input v-model="form.export_keyword" placeholder="按业务类型输入手机号、姓名、车牌或订单号" /></el-form-item>
+        <el-form-item v-if="['users','orders'].includes(form.export_type)" label="状态"><el-input v-model="form.export_status" placeholder="可选，填写状态值" /></el-form-item>
+        <el-form-item v-if="form.export_type === 'drivers'" label="审核状态"><el-input v-model="form.export_audit_status" placeholder="可选，填写审核状态值" /></el-form-item>
+        <el-row v-if="form.export_type === 'orders'" :gutter="16"><el-col :span="12"><el-form-item label="用户 ID"><el-input v-model="form.export_user_id" /></el-form-item></el-col><el-col :span="12"><el-form-item label="司机 ID"><el-input v-model="form.export_driver_id" /></el-form-item></el-col></el-row>
+        <template v-if="form.export_type === 'operation_logs'"><el-row :gutter="16"><el-col :span="12"><el-form-item label="管理员 ID"><el-input v-model="form.export_admin_id" /></el-form-item></el-col><el-col :span="12"><el-form-item label="目标 ID"><el-input v-model="form.export_target_id" /></el-form-item></el-col></el-row><el-row :gutter="16"><el-col :span="12"><el-form-item label="模块"><el-input v-model="form.export_module" /></el-form-item></el-col><el-col :span="12"><el-form-item label="动作"><el-input v-model="form.export_action" /></el-form-item></el-col></el-row><el-form-item label="目标类型"><el-input v-model="form.export_target_type" /></el-form-item></template>
+      </template>
       <template v-else-if="isReasonAction"><el-form-item label="原因" prop="reason"><el-input v-model="form.reason" type="textarea" /></el-form-item><el-form-item v-if="props.type !== 'release'" label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item></template>
       <template v-else-if="['approve','reject'].includes(props.type)"><el-form-item label="审核备注"><el-input v-model="form.remark" type="textarea" /></el-form-item></template>
       <template v-else><p class="operation-confirm">确认执行此操作？</p></template>

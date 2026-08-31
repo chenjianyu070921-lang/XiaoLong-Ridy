@@ -94,7 +94,7 @@
 | 计价规则管理 | `rpc/adminsvc` + `rpc/pricesvc` | `api/admin` 和 `adminsvc` 均不直接修改 `price_rule`；由 `adminsvc` 转发到 `pricesvc` 完成列表、详情、新增、编辑、启停；创建响应透传真实规则 ID，审计失败写入 `admin_audit_outbox` 后仍返回已生效结果 |
 | 活动配置发布/回滚 | `rpc/adminsvc` | 更新 `promotion_activity.status`，写入 `admin_operation_log` |
 | 风控黑名单 | `rpc/adminsvc` | 写入或更新 `blacklist`，查询 `risk_blacklist_hit_record`；风控命中处置按动作做权限分层，超管可全部处置，运营可复核/转工单，客服只读受限 |
-| 导出任务 | `rpc/adminsvc` | 写入 `admin_export_task` 独立任务表，并由 goroutine 异步生成 CSV 文件；当前仅支持 `orders`，筛选字段只允许 `status`、`user_id`、`driver_id`、`start_time`、`end_time`；迁移脚本为 `scripts/sql/migrate/09_admin_export_audit_task.sql` |
+| 导出任务 | `rpc/adminsvc` | 写入 `admin_export_task` 独立任务表，并由 goroutine 异步生成 CSV 文件；当前支持 `users`、`drivers`、`orders`、`operation_logs`、`statistics` 五类导出，筛选字段按导出类型白名单校验；迁移脚本为 `scripts/sql/migrate/09_admin_export_audit_task.sql` |
 | 用户冻结/解封 | `rpc/adminsvc` | 更新 `user.status` |
 | 操作审计 | `rpc/adminsvc` | 写入 `admin_operation_log` |
 

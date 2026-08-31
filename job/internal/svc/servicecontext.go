@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"XiaoLong-Ridy/common/datasource"
+	"XiaoLong-Ridy/common/mq"
 	"XiaoLong-Ridy/job/internal/config"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
@@ -24,6 +25,7 @@ type ServiceContext struct {
 	DispatchClient dispatch.Dispatch
 	DriverClient   driverproto.DriverServiceClient
 	PushClient     pushproto.PushServiceClient
+	EventProducer  mq.Producer
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -60,6 +62,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		pushRPC.Target = "127.0.0.1:9002"
 	}
 	pushClient := pushproto.NewPushServiceClient(zrpc.MustNewClient(pushRPC).Conn())
+	var eventProducer mq.Producer = &mq.NoopProducer{}
+	if len(c.Kafka.Brokers) > 0 {
+		if producer, producerErr := mq.NewKafkaProducer(c.Kafka.Brokers); producerErr == nil {
+			eventProducer = producer
+		}
+	}
 
 	return &ServiceContext{
 		Config:         c,
@@ -69,5 +77,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		DispatchClient: dispatchClient,
 		DriverClient:   driverClient,
 		PushClient:     pushClient,
+		EventProducer:  eventProducer,
 	}
 }

@@ -383,6 +383,18 @@ type OrderRefundResponse struct {
 	Message     string `json:"message"`
 }
 
+// RefundRetryTask 表示退款事件补偿任务。
+type RefundRetryTask struct {
+	OrderID      int64  `json:"order_id"`
+	OrderNo      string `json:"order_no"`
+	RefundNo     string `json:"refund_no"`
+	RefundCents  int64  `json:"refund_cents"`
+	OperatorType string `json:"operator_type"`
+	OperatorID   int64  `json:"operator_id"`
+	Attempt      int32  `json:"attempt"`
+	NextRetryAt  int64  `json:"next_retry_at"`
+}
+
 // Settlement 表示结算单信息。
 type Settlement struct {
 	ID                     int64  `json:"id"`

@@ -83,6 +83,7 @@ message RefundPaymentRequest {
   string payment_no = 1;
   int64 refund_amount_cents = 2; // 退款金额（分）
   string reason = 3;
+  string refund_no = 4; // 调用方业务退款单号，用于跨服务幂等与渠道退款标识
 }
 
 // 退款响应
