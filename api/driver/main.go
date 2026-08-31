@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/handler"
@@ -147,6 +149,13 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
+func localCertificationDir() string {
+	if dir := strings.TrimSpace(os.Getenv("DRIVER_CERT_LOCAL_DIR")); dir != "" {
+		return dir
+	}
+	return filepath.Join(".run", "certifications")
+}
+
 func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux := http.NewServeMux()
 
@@ -158,6 +167,10 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/auth/login-by-password", authLimit(methodSwitch("POST", handler.LoginByPasswordHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/auth/login-by-sms", authLimit(methodSwitch("POST", handler.LoginBySMSHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/register", authLimit(methodSwitch("POST", handler.RegisterDriverHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/certification-files/", http.StripPrefix(
+		"/api/driver/v1/certification-files/",
+		http.FileServer(http.Dir(localCertificationDir())),
+	))
 
 	protected := middleware.RequireAuth(svcCtx)
 	mux.Handle("/api/driver/v1/drivers/update", protected(handler.UpdateDriverHandler(svcCtx)))

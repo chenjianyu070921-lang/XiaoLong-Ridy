@@ -4,6 +4,8 @@ import vue from '@vitejs/plugin-vue'
 import Components from 'unplugin-vue-components/vite'
 import { VantResolver } from '@vant/auto-import-resolver'
 
+const driverApiTarget = process.env.VITE_DRIVER_API_TARGET || 'http://127.0.0.1:8082'
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -22,7 +24,7 @@ export default defineConfig({
     },
     proxy: {
       '/api/driver': {
-        target: 'http://localhost:8082',
+        target: driverApiTarget,
         changeOrigin: true,
         ws: true
       }

@@ -171,6 +171,30 @@ func TestLoadDriverConfigDefaultsUseSharedBackendServer(t *testing.T) {
 	}
 }
 
+func TestCertificationFilesRouteServesLocalStoredImages(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DRIVER_CERT_LOCAL_DIR", dir)
+	imagePath := filepath.Join(dir, "drivers", "25")
+	if err := os.MkdirAll(imagePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(imagePath, "id_card_front-1.png"), []byte("png-data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "cert-file-test-key"})
+	request := httptest.NewRequest(http.MethodGet, "/api/driver/v1/certification-files/drivers/25/id_card_front-1.png", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if response.Body.String() != "png-data" {
+		t.Fatalf("body = %q", response.Body.String())
+	}
+}
+
 func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "order-route-test-key"})
 	routes := []struct {

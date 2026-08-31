@@ -154,14 +154,11 @@ async function submitLogin(action) {
     showLoadingToast({ message: '登录中...', forbidClick: true, duration: 0 })
     const res = await action()
     closeToast()
-    // 注册后为待审核（PENDING）状态：可登录但功能受限，明确提示而不是让司机
-    // 进入一个什么都做不了的 /home（避免"登录进去了但一直有问题"的困惑）。
     if (String(res?.driver?.status || '').toUpperCase().includes('PENDING')) {
-      driverStore.logout()
-      showToast('账号待审核，审核通过后即可登录使用')
-      return
+      showToast('账号待审核，可补充车辆和资质信息，审核通过后可听单')
+    } else {
+      showToast('登录成功')
     }
-    showToast('登录成功')
     router.replace('/home')
   } catch (error) {
     closeToast()

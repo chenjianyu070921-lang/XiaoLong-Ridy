@@ -18,6 +18,7 @@ type fakeDriverClient struct {
 	updateVehicleRequest        *driversproto.UpdateVehicleRequest
 	deleteVehicleRequest        *driversproto.DeleteVehicleRequest
 	getVehicleRequest           *driversproto.GetVehicleRequest
+	getDriverRequest            *driversproto.GetDriverRequest
 	uploadCertificationRequest  *driversproto.UploadCertificationRequest
 	getDriverByPhoneRequest     *driversproto.GetDriverByPhoneRequest
 	nearbyDriversRequest        *driversproto.ListNearbyDriversRequest
@@ -30,6 +31,7 @@ type fakeDriverClient struct {
 	updateVehicleResponse       *driversproto.UpdateVehicleResponse
 	deleteVehicleResponse       *driversproto.DeleteVehicleResponse
 	getVehicleResponse          *driversproto.GetVehicleResponse
+	getDriverResponse           *driversproto.GetDriverResponse
 	uploadCertificationResponse *driversproto.UploadCertificationResponse
 	getDriverByPhoneResponse    *driversproto.GetDriverByPhoneResponse
 	nearbyDriversResponse       *driversproto.ListNearbyDriversResponse
@@ -55,8 +57,18 @@ func (f *fakeDriverClient) UpdateDriver(context.Context, *driversproto.UpdateDri
 	return nil, nil
 }
 
-func (f *fakeDriverClient) GetDriver(context.Context, *driversproto.GetDriverRequest) (*driversproto.GetDriverResponse, error) {
-	return nil, nil
+func (f *fakeDriverClient) GetDriver(_ context.Context, req *driversproto.GetDriverRequest) (*driversproto.GetDriverResponse, error) {
+	f.getDriverRequest = req
+	if f.getDriverResponse != nil {
+		return f.getDriverResponse, nil
+	}
+	return &driversproto.GetDriverResponse{
+		Driver: &driversproto.Driver{
+			Id:     req.GetId(),
+			Phone:  "13800000001",
+			Status: driversproto.DriverStatus_DRIVER_STATUS_NORMAL,
+		},
+	}, nil
 }
 
 func (f *fakeDriverClient) SetDriverOnline(_ context.Context, req *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error) {
