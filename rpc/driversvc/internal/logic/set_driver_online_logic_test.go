@@ -24,12 +24,13 @@ func TestSetDriverOnlineClearsBusyAndMarksOnline(t *testing.T) {
 	}
 
 	repo := &setDriverOnlineRepository{
-		driver: &model.Driver{Id: 25},
+		driver: &model.Driver{Id: 25, Status: int8(proto.DriverStatus_DRIVER_STATUS_NORMAL)},
 	}
 	logic := NewSetDriverOnlineLogic(context.Background(), &svc.ServiceContext{
-		DriverRepository: repo,
-		OnlineStore:      onlinestore.NewStore(rdb, 0),
-		RedisClient:      rdb,
+		DriverRepository:        repo,
+		CertificationRepository: &setDriverOnlineCertificationRepository{certification: &model.DriverCertification{DriverId: 25, AuditStatus: AuditStatusPassed}},
+		OnlineStore:             onlinestore.NewStore(rdb, 0),
+		RedisClient:             rdb,
 	})
 
 	resp, err := logic.SetDriverOnline(&proto.SetDriverOnlineRequest{
@@ -67,10 +68,85 @@ func TestSetDriverOnlineClearsBusyAndMarksOnline(t *testing.T) {
 	}
 }
 
+func TestSetDriverOnlineRejectsUnapprovedCertification(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	repo := &setDriverOnlineRepository{
+		driver: &model.Driver{Id: 25, Status: int8(proto.DriverStatus_DRIVER_STATUS_NORMAL)},
+	}
+	certRepo := &setDriverOnlineCertificationRepository{
+		certification: &model.DriverCertification{DriverId: 25, AuditStatus: AuditStatusPending},
+	}
+	logic := NewSetDriverOnlineLogic(context.Background(), &svc.ServiceContext{
+		DriverRepository:        repo,
+		CertificationRepository: certRepo,
+		OnlineStore:             onlinestore.NewStore(rdb, 0),
+		RedisClient:             rdb,
+	})
+
+	if _, err := logic.SetDriverOnline(&proto.SetDriverOnlineRequest{
+		DriverId:  25,
+		DeviceId:  "device-1",
+		Longitude: 116.397,
+		Latitude:  39.908,
+	}); err == nil {
+		t.Fatal("SetDriverOnline() accepted unapproved certification")
+	}
+	busy, err := rdb.SIsMember(context.Background(), constants.RedisDriverOnline, "25").Result()
+	if err != nil {
+		t.Fatalf("SIsMember(online) error = %v", err)
+	}
+	if busy {
+		t.Fatalf("driver should not be added to %s", constants.RedisDriverOnline)
+	}
+	if repo.location != nil || repo.updatedStatus != 0 {
+		t.Fatalf("driver repository should not be updated: location=%+v status=%d", repo.location, repo.updatedStatus)
+	}
+}
+
+func TestSetDriverOnlineRejectsInactiveDriver(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	repo := &setDriverOnlineRepository{
+		driver: &model.Driver{Id: 25, Status: int8(proto.DriverStatus_DRIVER_STATUS_PENDING)},
+	}
+	logic := NewSetDriverOnlineLogic(context.Background(), &svc.ServiceContext{
+		DriverRepository:        repo,
+		CertificationRepository: &setDriverOnlineCertificationRepository{certification: &model.DriverCertification{DriverId: 25, AuditStatus: AuditStatusPassed}},
+		OnlineStore:             onlinestore.NewStore(rdb, 0),
+		RedisClient:             rdb,
+	})
+
+	if _, err := logic.SetDriverOnline(&proto.SetDriverOnlineRequest{
+		DriverId:  25,
+		DeviceId:  "device-1",
+		Longitude: 116.397,
+		Latitude:  39.908,
+	}); err == nil {
+		t.Fatal("SetDriverOnline() accepted inactive driver")
+	}
+	online, err := rdb.SIsMember(context.Background(), constants.RedisDriverOnline, "25").Result()
+	if err != nil {
+		t.Fatalf("SIsMember(online) error = %v", err)
+	}
+	if online {
+		t.Fatalf("driver should not be added to %s", constants.RedisDriverOnline)
+	}
+	if repo.location != nil || repo.updatedStatus != 0 {
+		t.Fatalf("driver repository should not be updated: location=%+v status=%d", repo.location, repo.updatedStatus)
+	}
+}
+
 type setDriverOnlineRepository struct {
 	driver        *model.Driver
 	location      *model.DriverLocation
 	updatedStatus int8
+}
+
+type setDriverOnlineCertificationRepository struct {
+	certification *model.DriverCertification
 }
 
 func (r *setDriverOnlineRepository) Create(context.Context, *model.Driver) error { return nil }
@@ -120,5 +196,20 @@ func (r *setDriverOnlineRepository) Update(_ context.Context, _ uint64, updates 
 }
 
 func (r *setDriverOnlineRepository) Delete(context.Context, *model.Driver) error {
+	return nil
+}
+
+func (r *setDriverOnlineCertificationRepository) Upsert(context.Context, *model.DriverCertification) (*model.DriverCertification, error) {
+	return r.certification, nil
+}
+
+func (r *setDriverOnlineCertificationRepository) GetByDriverID(_ context.Context, driverID uint64) (*model.DriverCertification, error) {
+	if r.certification == nil || r.certification.DriverId != driverID {
+		return nil, repository.ErrCertificationNotFound
+	}
+	return r.certification, nil
+}
+
+func (r *setDriverOnlineCertificationRepository) UpdateAudit(context.Context, int64, int64, string, int8) error {
 	return nil
 }

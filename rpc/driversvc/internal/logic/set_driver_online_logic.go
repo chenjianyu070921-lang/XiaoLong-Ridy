@@ -6,10 +6,13 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
+	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -44,8 +47,28 @@ func (l *SetDriverOnlineLogic) SetDriverOnline(in *proto.SetDriverOnlineRequest)
 	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil || l.svcCtx.OnlineStore == nil {
 		return nil, errors.New("driver dependencies not ready")
 	}
-	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.DriverId)); err != nil {
+	driver, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.DriverId))
+	if err != nil {
 		return nil, err
+	}
+	if driver == nil {
+		return nil, status.Error(codes.PermissionDenied, "driver account is not active")
+	}
+	if driver.Status != int8(proto.DriverStatus_DRIVER_STATUS_NORMAL) {
+		return nil, status.Error(codes.PermissionDenied, "driver account is not active")
+	}
+	if l.svcCtx.CertificationRepository == nil {
+		return nil, errors.New("driver dependencies not ready")
+	}
+	cert, err := l.svcCtx.CertificationRepository.GetByDriverID(l.ctx, uint64(in.DriverId))
+	if err != nil {
+		if errors.Is(err, repository.ErrCertificationNotFound) {
+			return nil, status.Error(codes.PermissionDenied, "driver certification not approved")
+		}
+		return nil, err
+	}
+	if cert == nil || cert.AuditStatus != AuditStatusPassed {
+		return nil, status.Error(codes.PermissionDenied, "driver certification not approved")
 	}
 	if err := l.svcCtx.OnlineStore.SetOnline(l.ctx, in.GetDriverId(), in.GetDeviceId(), in.GetLongitude(), in.GetLatitude()); err != nil {
 		return nil, err

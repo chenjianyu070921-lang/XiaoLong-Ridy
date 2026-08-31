@@ -580,3 +580,41 @@ func TestDriverPushWebSocketForwardsRedisMessages(t *testing.T) {
 		t.Fatalf("ws payload = %s, want %s", got, payload)
 	}
 }
+
+func TestAuthRateLimitAppliedToPublicEndpoints(t *testing.T) {
+	svcCtx := &svc.ServiceContext{
+		SigningKey: "rate-limit-test-key",
+		CodeCache:  svc.NewLocalCodeCache(time.Minute),
+	}
+	handler := newHTTPHandler(svcCtx)
+
+	// send-sms-code：5 次/分钟/IP，第 6 次应 429。
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/driver/v1/auth/send-sms-code", bytes.NewBufferString(`{"phone":"13800138000"}`))
+		resp := httptest.NewRecorder()
+		handler.ServeHTTP(resp, req)
+		if resp.Code == http.StatusTooManyRequests {
+			t.Fatalf("send-sms-code request %d unexpectedly limited", i+1)
+		}
+	}
+	limited := httptest.NewRecorder()
+	handler.ServeHTTP(limited, httptest.NewRequest(http.MethodPost, "/api/driver/v1/auth/send-sms-code", bytes.NewBufferString(`{"phone":"13800138000"}`)))
+	if limited.Code != http.StatusTooManyRequests {
+		t.Fatalf("6th send-sms-code status = %d, want 429", limited.Code)
+	}
+
+	// login-by-password：10 次/分钟/IP，第 11 次应 429。
+	for i := 0; i < 10; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/driver/v1/auth/login-by-password", bytes.NewBufferString(`{"phone":"13800138000","password":"wrong"}`))
+		resp := httptest.NewRecorder()
+		handler.ServeHTTP(resp, req)
+		if resp.Code == http.StatusTooManyRequests {
+			t.Fatalf("login request %d unexpectedly limited", i+1)
+		}
+	}
+	limited = httptest.NewRecorder()
+	handler.ServeHTTP(limited, httptest.NewRequest(http.MethodPost, "/api/driver/v1/auth/login-by-password", bytes.NewBufferString(`{"phone":"13800138000","password":"wrong"}`)))
+	if limited.Code != http.StatusTooManyRequests {
+		t.Fatalf("11th login status = %d, want 429", limited.Code)
+	}
+}
