@@ -2,12 +2,16 @@ package logic
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 )
+
+// incomeConcurrency 限制并发查询订单数，避免打挂 ordersvc
+const incomeConcurrency = 10
 
 var incomeNow = time.Now
 
@@ -42,12 +46,17 @@ func (l *IncomeLogic) GetIncomeSummary(driverID int64) (*types.GetIncomeSummaryR
 		if err != nil {
 			return nil, err
 		}
+		// 收集本页订单 ID，并发查询收入（替代原串行 N+1）
+		orderIDs := make([]int64, 0, len(resp.GetList()))
 		for _, order := range resp.GetList() {
-			incomeCents, err := l.orderIncomeCents(client, order.GetOrderId())
-			if err != nil {
-				return nil, err
-			}
-			totalIncome += incomeCents
+			orderIDs = append(orderIDs, order.GetOrderId())
+		}
+		incomeMap, err := l.batchOrderIncomeCents(client, orderIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range orderIDs {
+			totalIncome += incomeMap[id]
 			completedOrders++
 		}
 		if int64(page)*int64(pageSize) >= resp.GetTotal() || len(resp.GetList()) == 0 {
@@ -99,16 +108,21 @@ func (l *IncomeLogic) getPeriodIncome(driverID int64, period string, start, end 
 		if err != nil {
 			return nil, err
 		}
+		// 筛选时间范围内的订单，并发查询收入
+		var orderIDs []int64
 		for _, order := range resp.GetList() {
 			createdAt := order.GetCreatedAt()
 			if createdAt >= startAt && createdAt < endAt {
-				incomeCents, err := l.orderIncomeCents(client, order.GetOrderId())
-				if err != nil {
-					return nil, err
-				}
-				totalIncome += incomeCents
-				completedOrders++
+				orderIDs = append(orderIDs, order.GetOrderId())
 			}
+		}
+		incomeMap, err := l.batchOrderIncomeCents(client, orderIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range orderIDs {
+			totalIncome += incomeMap[id]
+			completedOrders++
 		}
 		if int64(page)*int64(pageSize) >= resp.GetTotal() || len(resp.GetList()) == 0 {
 			break
@@ -154,6 +168,15 @@ func (l *IncomeLogic) ListIncomeBills(driverID int64, req *types.ListIncomeBills
 	if err != nil {
 		return nil, err
 	}
+	// 并发查询本页订单收入
+	orderIDs := make([]int64, 0, len(resp.GetList()))
+	for _, order := range resp.GetList() {
+		orderIDs = append(orderIDs, order.GetOrderId())
+	}
+	incomeMap, err := l.batchOrderIncomeCents(client, orderIDs)
+	if err != nil {
+		return nil, err
+	}
 	result := &types.ListIncomeBillsResponse{
 		Total:    resp.GetTotal(),
 		Page:     resp.GetPage(),
@@ -161,19 +184,54 @@ func (l *IncomeLogic) ListIncomeBills(driverID int64, req *types.ListIncomeBills
 		Source:   "ordersvc.completed_orders",
 	}
 	for _, order := range resp.GetList() {
-		incomeCents, err := l.orderIncomeCents(client, order.GetOrderId())
-		if err != nil {
-			return nil, err
-		}
 		result.List = append(result.List, types.IncomeBill{
 			OrderID:     order.GetOrderId(),
 			OrderNo:     order.GetOrderNo(),
-			IncomeCents: incomeCents,
+			IncomeCents: incomeMap[order.GetOrderId()],
 			Status:      int32(order.GetStatus()),
 			CreatedAt:   order.GetCreatedAt(),
 		})
 	}
 	return result, nil
+}
+
+// batchOrderIncomeCents 并发查询多个订单的司机收入，限制并发度避免打挂 ordersvc。
+// 替代原串行 N+1 调用（每个订单单独调 GetOrder）。
+func (l *IncomeLogic) batchOrderIncomeCents(client svc.OrderClient, orderIDs []int64) (map[int64]int64, error) {
+	if len(orderIDs) == 0 {
+		return map[int64]int64{}, nil
+	}
+	results := make(map[int64]int64, len(orderIDs))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, incomeConcurrency)
+	var firstErr error
+
+	for _, id := range orderIDs {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(orderID int64) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			amount, err := l.orderIncomeCents(client, orderID)
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				mu.Unlock()
+				return
+			}
+			mu.Lock()
+			results[orderID] = amount
+			mu.Unlock()
+		}(id)
+	}
+	wg.Wait()
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return results, nil
 }
 
 func (l *IncomeLogic) orderIncomeCents(client svc.OrderClient, orderID int64) (int64, error) {

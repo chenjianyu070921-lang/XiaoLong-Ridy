@@ -51,25 +51,3 @@ func TestSetOfflineForwardsDeviceAndLocation(t *testing.T) {
 		t.Fatalf("SetOffline() request = %+v", req)
 	}
 }
-
-func TestSetOnlineForwardsListenPreference(t *testing.T) {
-	acceptRealtime := false
-	acceptReservation := true
-	driverClient := &fakeDriverClient{}
-	logic := NewOnlineLogic(context.Background(), &svc.ServiceContext{DriverClient: driverClient})
-
-	_, err := logic.SetOnline(25, &types.SetOnlineRequest{
-		DeviceID:          "device-1",
-		Longitude:         116.397,
-		Latitude:          39.908,
-		AcceptRealtime:    &acceptRealtime,
-		AcceptReservation: &acceptReservation,
-	})
-	if err != nil {
-		t.Fatalf("SetOnline() error = %v", err)
-	}
-	if driverClient.setOnlineRequest.GetAcceptRealtime() || !driverClient.setOnlineRequest.GetAcceptReservation() {
-		t.Fatalf("SetOnline() preference = realtime:%v reservation:%v, want false/true",
-			driverClient.setOnlineRequest.GetAcceptRealtime(), driverClient.setOnlineRequest.GetAcceptReservation())
-	}
-}

@@ -1,46 +1,85 @@
 <template>
   <main class="driver-home-page">
-    <section class="h5-status-hero">
-      <div class="driver-profile-row">
-        <img v-if="driverStore.driver.avatarUrl" :src="driverStore.driver.avatarUrl" alt="司机头像" />
-        <span v-else>{{ driverStore.displayName.slice(0, 1) }}</span>
-        <div>
-          <p>{{ statusLabel }}</p>
-          <h1>{{ driverStore.displayName }}</h1>
-          <small>{{ driverStore.driver.phone || '--' }}</small>
+    <section class="driver-hero">
+      <div class="hero-topline">
+        <div class="driver-profile-row">
+          <img v-if="driverStore.driver.avatarUrl" :src="driverStore.driver.avatarUrl" alt="司机头像" />
+          <span v-else class="avatar-fallback">{{ driverStore.displayName.slice(0, 1) || '--' }}</span>
+          <div class="driver-copy">
+            <p>{{ statusLabel }}</p>
+            <h1>{{ driverStore.displayName || '--' }}</h1>
+            <small>{{ driverStore.driver.phone ? String(driverStore.driver.phone).slice(0, 3) + '****' + String(driverStore.driver.phone).slice(-4) : '--' }}</small>
+          </div>
         </div>
-        <button type="button" class="icon-button" @click="logoutDriver">
+        <button type="button" class="hero-icon-button" aria-label="退出登录" @click="logoutDriver">
           <van-icon name="revoke" />
         </button>
       </div>
 
-      <div class="online-control-card">
-        <div>
-          <small>当前模式</small>
-          <strong>{{ phaseLabel }}</strong>
-        </div>
-        <div class="quick-action-grid">
-          <button type="button" class="go-online" :disabled="workLoading || driverStore.onlineStatus === 1" @click="setOnline">
-            上线
-          </button>
-          <button type="button" class="go-offline" :disabled="workLoading || driverStore.onlineStatus === 0" @click="setOffline">
-            下线
-          </button>
-        </div>
+      <div class="hero-income">
+        <span>今日收入</span>
+        <strong>{{ formatPrice(todayIncome.totalIncomeCents) }}</strong>
+        <small>{{ phaseLabel || '--' }}</small>
       </div>
     </section>
 
+    <section class="hero-metric-row">
+      <div class="hero-metric-card">
+        <span>今日完单</span>
+        <strong>{{ todayIncome.completedOrders ?? incomeSummary.todayCompletedOrders ?? '--' }}</strong>
+      </div>
+      <div class="hero-metric-card">
+        <span>还可拒单</span>
+        <strong>--</strong>
+      </div>
+      <div class="hero-metric-card">
+        <span>服务指标</span>
+        <strong>{{ serviceScore || '--' }}</strong>
+      </div>
+    </section>
+
+    <section class="quick-entry-row">
+      <button type="button"><span><van-icon name="fire-o" /></span><b>热力图</b></button>
+      <button type="button"><span><van-icon name="service-o" /></span><b>听单检测</b></button>
+      <button type="button"><span><van-icon name="gift-o" /></span><b>司机福利社</b></button>
+      <button type="button"><span><van-icon name="friends-o" /></span><b>长期伙伴</b></button>
+    </section>
+
+    <section class="work-status-card">
+      <div class="work-status-heading">
+        <div>
+          <span>接单状态</span>
+          <strong>{{ workStatusText }}</strong>
+        </div>
+        <van-tag :type="workStatusTagType">{{ workStatusTagText }}</van-tag>
+      </div>
+      <p class="work-status-hint">{{ workStatusHint }}</p>
+      <button type="button" class="work-primary-action" :class="workActionClass" :disabled="workActionDisabled" @click="toggleListening">
+        <van-icon :name="workActionIcon" />
+        <span>{{ workActionText }}</span>
+      </button>
+    </section>
+
     <section class="mini-stat-grid">
-      <div><span>服务分</span><strong>{{ serviceScore }}</strong></div>
-      <div><span>订单</span><strong>{{ driverStore.currentOrderId || '--' }}</strong></div>
-      <div><span>车辆</span><strong>{{ driverStore.vehicleId || '--' }}</strong></div>
+      <div><span>服务分</span><strong>{{ serviceScore || '--' }}</strong></div>
+      <div><span>当前订单</span><strong>{{ driverStore.currentOrderId || '--' }}</strong></div>
+      <div><span>车辆</span><strong>{{ driverStore.vehicle?.plateNo || driverStore.vehicleId || '--' }}</strong></div>
     </section>
 
     <section class="tab-panel-scroll">
       <section v-show="activeTab === 0" class="h5-panel">
         <div class="section-title">
-          <h2>当前行程</h2>
-          <van-tag type="primary">{{ phaseLabel }}</van-tag>
+          <h2>工作台</h2>
+          <button type="button" @click="loadDashboardData">刷新</button>
+        </div>
+        <div class="current-trip-card">
+          <div class="section-subtitle">
+            <strong>当前行程</strong>
+            <van-tag type="primary">{{ formatOrderStatus(driverStore.currentOrder?.status) }}</van-tag>
+          </div>
+          <p><b>上车点</b><span>{{ driverStore.currentOrder?.fromAddress || '--' }}</span></p>
+          <p><b>目的地</b><span>{{ driverStore.currentOrder?.toAddress || '--' }}</span></p>
+          <p><b>订单号</b><span>{{ driverStore.currentOrder?.orderNo || driverStore.currentOrderId || '--' }}</span></p>
         </div>
         <div class="map-surface">
           <span class="road road-a"></span>
@@ -49,22 +88,41 @@
           <span class="pin order"></span>
           <p>接单区域</p>
         </div>
-        <div class="route-card">
-          <p><b>上车点</b><span>{{ driverStore.currentOrder?.fromAddress || '--' }}</span></p>
-          <p><b>目的地</b><span>{{ driverStore.currentOrder?.toAddress || '--' }}</span></p>
-          <p><b>状态</b><span>{{ formatOrderStatus(driverStore.currentOrder?.status) }}</span></p>
-        </div>
-        <button type="button" class="secondary-action" @click="loadDashboardData">刷新工作台</button>
+        <section class="home-order-section">
+          <div class="section-title">
+            <h2>附近可接订单</h2>
+            <button type="button" :disabled="homeAvailableLoading" @click="loadHomeAvailableOrders">刷新</button>
+          </div>
+          <div v-if="homeAvailableLoading" class="home-order-loading"><van-loading size="20px" /></div>
+          <div v-else-if="homeAvailableOrders.length === 0" class="home-order-empty">
+            {{ driverStore.onlineStatus === 1 ? '暂无附近订单' : '开始听单后查看附近订单' }}
+          </div>
+          <article v-for="order in homeAvailableOrders" :key="'home-' + order.orderId" class="home-order-card">
+            <div class="order-heading">
+              <strong>{{ order.orderNo || '订单 ' + order.orderId }}</strong>
+              <span class="order-distance">距您{{ formatDistance(order.distanceMeters) }}公里</span>
+            </div>
+            <p class="route-line">{{ order.fromAddress || '--' }} -> {{ order.toAddress || '--' }}</p>
+            <div class="meta-row">
+              <span>{{ formatPrice(order.estimatedPriceCents) }}</span>
+              <button type="button" class="home-order-accept" @click="handleOrderAction('accept', order)">接单</button>
+            </div>
+          </article>
+        </section>
       </section>
 
       <section v-show="activeTab === 1" class="h5-panel">
+        <div class="section-title">
+          <h2>订单</h2>
+          <button type="button" @click="loadOrders(orderPage)">刷新</button>
+        </div>
         <div class="filter-bar">
           <van-dropdown-menu>
             <van-dropdown-item v-model="orderMode" :options="orderModeOptions" @change="loadOrders(1)" />
             <van-dropdown-item v-model="orderStatus" :options="orderStatusOptions" @change="loadOrders(1)" />
           </van-dropdown-menu>
         </div>
-        <div v-if="orders.length === 0" class="empty-state">等待后端返回订单</div>
+        <div v-if="orders.length === 0" class="empty-state">--</div>
         <article v-for="order in orders" :key="String(order.source || 'order') + '-' + String(order.orderId)" class="order-card">
           <div class="order-heading">
             <strong>{{ order.orderNo || '订单 ' + order.orderId }}</strong>
@@ -73,6 +131,7 @@
           <p class="route-line">{{ order.fromAddress || '--' }} -> {{ order.toAddress || '--' }}</p>
           <div class="meta-row">
             <span>{{ formatPrice(order.estimatedPriceCents) }}</span>
+            <span v-if="order.source === 'available'">距您{{ formatDistance(order.distanceMeters) }}公里</span>
             <span>{{ formatTime(order.createdAt) }}</span>
           </div>
           <div class="order-actions">
@@ -93,10 +152,7 @@
       </section>
 
       <section v-show="activeTab === 2" class="h5-panel">
-        <div class="section-title">
-          <h2>车辆</h2>
-          <button type="button" @click="loadVehicle()">查询</button>
-        </div>
+        <div class="section-title"><h2>车辆</h2><button type="button" @click="loadVehicle()">查询</button></div>
         <div class="info-list">
           <p><b>车辆ID</b><span>{{ driverStore.vehicle?.id || '--' }}</span></p>
           <p><b>车牌号</b><span>{{ driverStore.vehicle?.plateNo || '--' }}</span></p>
@@ -114,114 +170,91 @@
           <van-field v-model="vehicleForm.insuranceExpireAt" type="date" label="保险到期" />
           <button class="primary-action" type="submit">提交车辆</button>
         </van-form>
-        <div class="two-actions">
-          <button type="button" @click="submitVehicleUpdate">更新</button>
-          <button type="button" class="danger" @click="removeVehicle">删除</button>
-        </div>
+        <div class="two-actions"><button type="button" @click="submitVehicleUpdate">更新</button><button type="button" class="danger" @click="removeVehicle">删除</button></div>
       </section>
 
-      <section v-show="activeTab === 3" class="h5-panel">
-        <div class="section-title">
-          <h2>认证</h2>
-          <button type="button" @click="loadCertification()">查询</button>
-        </div>
-        <div class="info-list">
-          <p><b>认证ID</b><span>{{ driverStore.certification?.id || '--' }}</span></p>
-          <p><b>车辆ID</b><span>{{ driverStore.certification?.vehicleId || driverStore.vehicleId || '--' }}</span></p>
-          <p><b>审核状态</b><span>{{ formatCertificationStatus(driverStore.certification?.auditStatus) }}</span></p>
-          <p><b>审核备注</b><span>{{ driverStore.certification?.auditRemark || '--' }}</span></p>
-        </div>
-        <van-form class="form-stack" @submit="submitCertification">
-          <van-field v-model.number="certificationForm.vehicleId" type="number" label="车辆ID" placeholder="请输入车辆ID" />
-          <div class="file-grid">
-            <label>身份证正面<input type="file" accept="image/*" @change="readCertFile($event, 'idCardFront')" /></label>
-            <label>身份证反面<input type="file" accept="image/*" @change="readCertFile($event, 'idCardBack')" /></label>
-            <label>驾驶证<input type="file" accept="image/*" @change="readCertFile($event, 'driverLicense')" /></label>
-            <label>行驶证<input type="file" accept="image/*" @change="readCertFile($event, 'vehicleLicense')" /></label>
+      <section v-show="activeTab === 3" class="h5-panel cert-panel">
+        <div class="section-title"><h2>车辆资质</h2><button type="button" @click="loadCertification()">刷新</button></div>
+        <div v-if="driverStore.certification" class="cert-status-card" :class="'status-' + (driverStore.certification.auditStatus || 0)">
+          <div class="cert-status-icon"><van-icon :name="certStatusIcon" /></div>
+          <div class="cert-status-info">
+            <strong>{{ formatCertificationStatus(driverStore.certification.auditStatus) }}</strong>
+            <span v-if="driverStore.certification.auditRemark">{{ driverStore.certification.auditRemark }}</span>
           </div>
-          <button class="primary-action" type="submit">上传资质</button>
-        </van-form>
+        </div>
+        <div class="cert-vehicle-card">
+          <div class="cert-vehicle-label">认证车辆</div>
+          <div v-if="driverStore.vehicle" class="cert-vehicle-info">
+            <span class="cert-plate">{{ driverStore.vehicle.plateNo || '未绑定' }}</span>
+            <span class="cert-vehicle-model">{{ driverStore.vehicle.brand || '' }} {{ driverStore.vehicle.model || '' }}</span>
+          </div>
+          <div v-else class="cert-vehicle-empty"><span>请先在「车辆」页面绑定车辆</span></div>
+        </div>
+        <div class="cert-upload-grid">
+          <div v-for="item in certItems" :key="item.key" class="cert-upload-card">
+            <div class="cert-upload-header">
+              <span class="cert-upload-title">{{ item.title }}</span>
+              <span class="cert-upload-tip">{{ item.tip }}</span>
+            </div>
+            <div class="cert-upload-area" :class="{ uploaded: certificationForm[item.key], uploading: certUploading[item.key] }" @click="triggerCertUpload(item.key)">
+              <template v-if="certUploading[item.key]"><van-loading size="24px" color="#6d4aff" /><span class="cert-upload-text">上传中...</span></template>
+              <template v-else-if="certificationForm[item.key]">
+                <img :src="certificationForm[item.key]" :alt="item.title" class="cert-preview-img" />
+                <div class="cert-upload-mask"><van-icon name="photograph" /><span>重新上传</span></div>
+                <button type="button" class="cert-delete-btn" @click.stop="removeCertImage(item.key)"><van-icon name="cross" /></button>
+              </template>
+              <template v-else><van-icon name="photograph" class="cert-upload-icon" /><span class="cert-upload-text">点击上传</span></template>
+            </div>
+            <input type="file" :ref="el => certFileRefs[item.key] = el" accept="image/*" class="cert-file-input" @change="readCertFile($event, item.key)" />
+          </div>
+        </div>
+        <button class="primary-action cert-submit-btn" :disabled="certSubmitting" type="button" @click="submitCertification">{{ certSubmitting ? '提交中...' : '提交资质审核' }}</button>
       </section>
 
       <section v-show="activeTab === 4" class="h5-panel">
-        <div class="section-title">
-          <h2>钱包</h2>
-          <button type="button" @click="loadIncome()">刷新</button>
+        <div class="section-title"><h2>钱包</h2><button type="button" @click="loadIncome()">刷新</button></div>
+        <div class="income-today-card">
+          <div>
+            <span>今日收入</span>
+            <strong>{{ formatPrice(todayIncome.totalIncomeCents) }}</strong>
+            <small>已完成订单 {{ todayIncome.completedOrders ?? '--' }}</small>
+          </div>
+          <button type="button" class="withdraw-entry" @click="openWithdraw">
+            <van-icon name="cash-back-record" />
+            <span>提现</span>
+          </button>
         </div>
-        <div class="wallet-card">
-          <p>累计收入</p>
-          <strong>{{ formatPrice(incomeSummary.totalIncomeCents || walletSummary.balanceCents) }}</strong>
-          <span>已完成订单 {{ incomeSummary.completedOrders ?? '--' }}</span>
-        </div>
+        <div class="wallet-card"><span>累计收入</span><strong>{{ formatPrice(incomeSummary.totalIncomeCents ?? walletSummary.balanceCents) }}</strong><p>已完成订单 {{ incomeSummary.completedOrders ?? '--' }}</p></div>
         <div class="income-grid">
-          <div><span>今日</span><strong>{{ formatPrice(todayIncome.incomeCents || todayIncome.totalIncomeCents) }}</strong></div>
-          <div><span>本周</span><strong>{{ formatPrice(weekIncome.incomeCents || weekIncome.totalIncomeCents) }}</strong></div>
+          <div><span>今日</span><strong>{{ formatPrice(todayIncome.totalIncomeCents) }}</strong></div>
+          <div><span>本周</span><strong>{{ formatPrice(weekIncome.totalIncomeCents) }}</strong></div>
         </div>
-        <div v-if="incomeBills.length === 0" class="empty-state">等待后端返回收入账单</div>
-        <article v-for="bill in incomeBills" :key="bill.id || bill.orderId" class="compact-card">
-          <strong>{{ bill.orderNo || '订单 ' + bill.orderId }}</strong>
-          <span>{{ formatPrice(bill.incomeCents) }} · {{ formatTime(bill.createdAt) }}</span>
-        </article>
+        <div v-if="incomeBills.length === 0" class="empty-state">--</div>
+        <article v-for="bill in incomeBills" :key="bill.id || bill.orderId" class="compact-card"><strong>{{ bill.orderNo || '订单 ' + bill.orderId }}</strong><span>{{ formatPrice(bill.incomeCents) }} · {{ formatTime(bill.createdAt) }}</span></article>
       </section>
 
       <section v-show="activeTab === 5" class="h5-panel">
-        <div class="section-title">
-          <h2>评价</h2>
-          <button type="button" @click="loadReviews()">刷新</button>
-        </div>
-        <div v-if="reviews.length === 0" class="empty-state">等待后端返回评价</div>
-        <article v-for="review in reviews" :key="review.id || review.reviewId || review.orderId" class="compact-card">
-          <strong>订单 {{ review.orderId || '--' }} · {{ review.rating || '--' }} 分</strong>
-          <span>{{ review.comment || '未填写评价' }}</span>
-          <small>{{ formatTime(review.createdAt) }}</small>
-        </article>
+        <div class="section-title"><h2>评价</h2><button type="button" @click="loadReviews()">刷新</button></div>
+        <div v-if="reviews.length === 0" class="empty-state">--</div>
+        <article v-for="review in reviews" :key="review.id || review.reviewId || review.orderId" class="compact-card"><strong>订单 {{ review.orderId || '--' }} · {{ review.rating || '--' }} 分</strong><span>{{ review.comment || '--' }}</span><small>{{ formatTime(review.createdAt) }}</small></article>
       </section>
 
       <section v-show="activeTab === 6" class="h5-panel">
-        <div class="section-title">
-          <h2>轨迹</h2>
-        </div>
-        <div class="trajectory-form">
-          <van-field v-model.number="trajectoryOrderId" type="number" label="订单ID" placeholder="输入订单ID" />
-          <p v-if="trajectoryError" class="trajectory-error">{{ trajectoryError }}</p>
-          <button class="primary-action trajectory-action" type="button" @click="loadTrajectory">查询轨迹</button>
-        </div>
-        <div v-if="trajectoryPoints.length === 0" class="empty-state">暂无轨迹点</div>
-        <article
-          v-for="point in trajectoryPoints"
-          :key="String(point.longitude) + '-' + String(point.latitude) + '-' + String(point.createdAt)"
-          class="compact-card"
-        >
-          <strong>{{ point.longitude }}, {{ point.latitude }}</strong>
-          <span>速度 {{ point.speedKmh || 0 }} km/h · 方向 {{ point.heading || 0 }}</span>
-          <small>{{ formatTime(point.createdAt) }}</small>
-        </article>
+        <div class="section-title"><h2>轨迹</h2></div>
+        <div class="trajectory-form"><van-field v-model.number="trajectoryOrderId" type="number" label="订单ID" placeholder="输入订单ID" /><p v-if="trajectoryError" class="trajectory-error">{{ trajectoryError }}</p><button class="primary-action" type="button" @click="loadTrajectory">查询轨迹</button></div>
+        <div v-if="trajectoryPoints.length === 0" class="empty-state">--</div>
+        <article v-for="point in trajectoryPoints" :key="point.id || point.reportTime || point.createdAt" class="compact-card"><strong>{{ point.latitude || '--' }}, {{ point.longitude || '--' }}</strong><span>速度 {{ point.speedKmh ?? '--' }} km/h · {{ formatTime(point.reportTime || point.createdAt) }}</span></article>
       </section>
 
       <section v-show="activeTab === 7" class="h5-panel">
-        <div class="section-title">
-          <h2>我的</h2>
-          <button type="button" @click="refreshProfile">刷新</button>
-        </div>
-        <div class="info-list">
-          <p><b>手机号</b><span>{{ driverStore.driver.phone || '--' }}</span></p>
-          <p><b>驾驶证号</b><span>{{ driverStore.driver.driverLicenseNo || '--' }}</span></p>
-          <p><b>账号状态</b><span>{{ formatDriverStatus(driverStore.driver.status) }}</span></p>
-          <p><b>司机ID</b><span>{{ driverStore.driverId || '--' }}</span></p>
-        </div>
-        <van-form class="form-stack" @submit="submitProfile">
-          <van-field v-model="profileForm.realName" label="姓名" placeholder="司机姓名" />
-          <van-field v-model="profileForm.avatarUrl" label="头像地址" placeholder="头像 URL" />
-          <van-field v-model="profileForm.driverLicenseNo" label="驾驶证号" placeholder="驾驶证号" />
-          <button class="primary-action" type="submit">保存资料</button>
-        </van-form>
+        <div class="section-title"><h2>我的</h2><button type="button" @click="loadDashboardData">刷新</button></div>
+        <div class="info-list"><p><b>司机ID</b><span>{{ driverStore.driverId || '--' }}</span></p><p><b>手机号</b><span>{{ driverStore.driver.phone || '--' }}</span></p><p><b>状态</b><span>{{ formatDriverStatus(driverStore.driver.status) }}</span></p></div>
+        <van-form class="form-stack" @submit="submitProfile"><van-field v-model="profileForm.realName" label="姓名" placeholder="司机姓名" /><van-field v-model="profileForm.avatarUrl" label="头像地址" placeholder="头像 URL" /><van-field v-model="profileForm.driverLicenseNo" label="驾驶证号" placeholder="驾驶证号" /><button class="primary-action" type="submit">保存资料</button></van-form>
       </section>
     </section>
 
     <van-tabbar v-model="activeTab" class="driver-tabbar" fixed safe-area-inset-bottom>
-      <van-tabbar-item v-for="item in tabItems" :key="item.title" :icon="item.icon">
-        {{ item.title }}
-      </van-tabbar-item>
+      <van-tabbar-item v-for="item in tabItems" :key="item.title" :icon="item.icon">{{ item.title }}</van-tabbar-item>
     </van-tabbar>
 
     <van-popup v-model:show="finishVisible" round position="bottom">
@@ -230,8 +263,21 @@
         <van-form @submit="submitFinishTrip">
           <van-field v-model.number="finishForm.actualDistanceM" type="number" label="实际里程(米)" />
           <van-field v-model.number="finishForm.actualDurationS" type="number" label="实际时长(秒)" />
-          <van-field v-model.number="finishForm.actualPriceCents" type="number" label="实际金额(分)" />
           <button class="primary-action" type="submit">确认结束</button>
+        </van-form>
+      </section>
+    </van-popup>
+
+    <van-popup v-model:show="withdrawVisible" round position="bottom">
+      <section class="withdraw-panel">
+        <h2>申请提现</h2>
+        <van-form @submit="submitWithdraw">
+          <van-field v-model="withdrawForm.amount" type="number" label="提现金额" placeholder="请输入金额" />
+          <van-field v-model="withdrawForm.payeeName" label="收款人" placeholder="请输入收款人姓名" />
+          <van-field v-model="withdrawForm.payAccount" label="收款账号" placeholder="请输入收款账号" />
+          <button class="primary-action" type="submit" :disabled="withdrawLoading">
+            {{ withdrawLoading ? '提交中...' : '确认提现' }}
+          </button>
         </van-form>
       </section>
     </van-popup>
@@ -245,6 +291,7 @@ import { closeToast, showConfirmDialog, showDialog, showLoadingToast, showToast 
 import {
   acceptOrder,
   confirmArrive,
+  createWithdraw,
   createVehicle,
   deleteVehicle,
   finishTrip,
@@ -291,6 +338,8 @@ const activeTab = ref(0)
 const workLoading = ref(false)
 const serviceScore = ref('--')
 const orders = ref([])
+const homeAvailableOrders = ref([])
+const homeAvailableLoading = ref(false)
 const orderMode = ref('orders')
 const orderStatus = ref(0)
 const orderPage = ref(1)
@@ -307,6 +356,9 @@ const trajectoryPoints = ref([])
 const trajectoryError = ref('')
 const finishVisible = ref(false)
 const finishOrder = ref(null)
+const withdrawVisible = ref(false)
+const withdrawLoading = ref(false)
+const withdrawForm = reactive({ amount: '', payeeName: '', payAccount: '' })
 
 const orderModeOptions = [
   { text: '我的订单', value: 'orders' },
@@ -334,15 +386,26 @@ const vehicleForm = reactive({
   insuranceNo: '',
   insuranceExpireAt: ''
 })
-const certificationForm = reactive({ vehicleId: 0, idCardFront: '', idCardBack: '', driverLicense: '', vehicleLicense: '' })
+const certificationForm = reactive({ idCardFront: '', idCardBack: '', driverLicense: '', vehicleLicense: '' })
+const certUploading = reactive({ idCardFront: false, idCardBack: false, driverLicense: false, vehicleLicense: false })
+const certFileRefs = reactive({})
+const certSubmitting = ref(false)
+const certItems = [
+  { key: 'idCardFront', title: '身份证正面', tip: '人像面，信息清晰' },
+  { key: 'idCardBack', title: '身份证反面', tip: '国徽面，有效期清晰' },
+  { key: 'driverLicense', title: '驾驶证', tip: '正副页，准驾车型清晰' },
+  { key: 'vehicleLicense', title: '行驶证', tip: '正副页，车牌号清晰' }
+]
 const profileForm = reactive({ realName: '', avatarUrl: '', driverLicenseNo: '' })
-const finishForm = reactive({ actualDistanceM: 0, actualDurationS: 0, actualPriceCents: 0 })
+const finishForm = reactive({ actualDistanceM: 0, actualDurationS: 0 })
 
 let heartbeatTimer = null
 let locationTimer = null
 let tripTimer = null
 let geoWatchId = null
 let pushSocket = null
+let reconnectTimer = null
+let reconnectAttempts = 0
 let lastLatitude = null
 let lastLongitude = null
 
@@ -358,6 +421,35 @@ const phaseLabel = computed(() => {
   if (driverStore.tripPhase === 'trip') return '行程中'
   return driverStore.onlineStatus === 1 ? '听单中' : '未上线'
 })
+
+const workStatusText = computed(() => {
+  if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return '行程中服务'
+  return driverStore.onlineStatus === 1 ? '在线听单中' : '已下线'
+})
+
+const workStatusTagText = computed(() => {
+  if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return '行程中'
+  return driverStore.onlineStatus === 1 ? '已开启' : '未开启'
+})
+
+const workStatusTagType = computed(() => {
+  if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return 'warning'
+  return driverStore.onlineStatus === 1 ? 'success' : 'default'
+})
+
+const workStatusHint = computed(() => {
+  if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return '当前有进行中的订单，请完成行程后再调整听单状态'
+  return driverStore.onlineStatus === 1 ? '正在接收附近订单，可随时停止听单' : '上线后将接收附近订单推送'
+})
+
+const workActionText = computed(() => {
+  if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return '行程中服务'
+  return driverStore.onlineStatus === 1 ? '停止听单' : '开始听单'
+})
+
+const workActionIcon = computed(() => driverStore.onlineStatus === 1 ? 'pause-circle-o' : 'play-circle-o')
+const workActionClass = computed(() => driverStore.onlineStatus === 1 ? 'go-offline' : 'go-online')
+const workActionDisabled = computed(() => workLoading.value || driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip')
 
 onMounted(async () => {
   await loadDashboardData()
@@ -383,6 +475,7 @@ async function loadDashboardData() {
 
 async function loadCurrentTabData() {
   const config = { silentError: true }
+  if (activeTab.value === 0) return safeApiCall(() => loadHomeAvailableOrders(config), null, { silent: true })
   if (activeTab.value === 1) return safeApiCall(() => loadOrders(1, config), null, { silent: true })
   if (activeTab.value === 2) return safeApiCall(() => loadVehicle(config), null, { silent: true })
   if (activeTab.value === 3) return safeApiCall(() => loadCertification(config), null, { silent: true })
@@ -405,15 +498,21 @@ function syncForms() {
       insuranceNo: driverStore.vehicle.insuranceNo || ''
     })
   }
-  certificationForm.vehicleId = driverStore.certification?.vehicleId || driverStore.vehicleId || 0
 }
 
 async function setOnline() {
+  await ensureWorkLocation()
   await setWorkStatus(() => setDriverOnline(workStatusPayload()), 1, '已上线，开始听单')
 }
 
 async function setOffline() {
+  await ensureWorkLocation()
   await setWorkStatus(() => setDriverOffline(workStatusPayload()), 0, '已下线')
+}
+
+function toggleListening() {
+  if (driverStore.onlineStatus === 1) return setOffline()
+  if (driverStore.onlineStatus === 0) return setOnline()
 }
 
 async function setWorkStatus(request, status, message) {
@@ -425,6 +524,7 @@ async function setWorkStatus(request, status, message) {
     driverStore.setWorkState(status)
     if (status > 0) startRealtimeWork()
     else stopRealtimeWork()
+    await loadHomeAvailableOrders({ silentError: true })
     showToast(message)
   } catch (error) {
     closeToast()
@@ -432,6 +532,31 @@ async function setWorkStatus(request, status, message) {
   } finally {
     workLoading.value = false
   }
+}
+
+
+// workLocationDefault 仅在浏览器无法获取定位时作为兜底，保证司机能上线听单（演示/同步环境可重新配置）。
+const workLocationDefault = { longitude: 116.397128, latitude: 39.916527 }
+function ensureWorkLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(workLocationDefault)
+      return
+    }
+    if (lastLongitude != null && lastLatitude != null) {
+      resolve({ longitude: lastLongitude, latitude: lastLatitude })
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        lastLatitude = position.coords.latitude
+        lastLongitude = position.coords.longitude
+        resolve({ longitude: lastLongitude, latitude: lastLatitude })
+      },
+      () => resolve(workLocationDefault),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+    )
+  })
 }
 
 function workStatusPayload() {
@@ -449,6 +574,11 @@ function stopRealtimeWork() {
   stopHeartbeat()
   stopLocationReporting()
   stopTripRealtime()
+  if (reconnectTimer) {
+    window.clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  reconnectAttempts = 0
   if (pushSocket) {
     pushSocket.close()
     pushSocket = null
@@ -515,22 +645,45 @@ function connectPushChannel() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const url = protocol + '//' + window.location.host + '/api/driver/v1/ws?token=' + encodeURIComponent(driverStore.token)
   pushSocket = new WebSocket(url)
+  pushSocket.onopen = () => { reconnectAttempts = 0 }
   pushSocket.onmessage = (event) => handlePushMessage(event.data)
   pushSocket.onclose = () => {
     pushSocket = null
+    scheduleReconnect()
   }
   pushSocket.onerror = () => {
     pushSocket?.close()
   }
 }
 
+function scheduleReconnect() {
+  if (reconnectTimer || !driverStore.token || !driverStore.onlineStatus) return
+  const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000)
+  reconnectAttempts += 1
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null
+    connectPushChannel()
+  }, delay)
+}
+
 function handlePushMessage(raw) {
   try {
     const payload = JSON.parse(raw)
-    if (payload.order || payload.data?.order) {
-      const order = payload.order || payload.data.order
+    if (payload.type === 'dispatch_order') {
+      const order = {
+        orderId: payload.orderId,
+        orderNo: payload.orderNo,
+        fromAddress: payload.fromAddress,
+        toAddress: payload.toAddress,
+        status: payload.status,
+        estimatedPriceCents: payload.estimatedPriceCents,
+        createdAt: payload.createdAt
+      }
       driverStore.setCurrentOrder(order, Number(order.status) === 3 ? 'trip' : 'pickup')
       if (activeTab.value === 1) loadOrders(orderPage.value)
+    } else if (payload.type === 'dispatch.new') {
+      showToast('收到新的派单')
+      void loadHomeAvailableOrders({ silentError: true })
     }
   } catch {
     // Push messages are best-effort; malformed messages should not block the H5 page.
@@ -581,6 +734,22 @@ async function loadAvailableOrders(payload, config = {}) {
   }
 }
 
+async function loadHomeAvailableOrders(config = {}) {
+  if (driverStore.onlineStatus !== 1) {
+    homeAvailableOrders.value = []
+    return
+  }
+  homeAvailableLoading.value = true
+  try {
+    const data = await listAvailableOrders({ page: 1, pageSize: 3, status: 1 }, config)
+    homeAvailableOrders.value = Array.isArray(data?.list)
+      ? data.list.map((item) => ({ ...item, source: 'available' }))
+      : []
+  } finally {
+    homeAvailableLoading.value = false
+  }
+}
+
 function syncCurrentTripFromOrders(list) {
   const current = list.find((item) => String(item.orderId) === String(driverStore.currentOrderId)) || list.find((item) => [2, 3].includes(Number(item.status)))
   if (!current) return
@@ -593,6 +762,7 @@ function canAccept(order) {
   if (order.source === 'available') return Number(order.status || 1) === 1
   return Number(order.status) === 1
 }
+
 
 async function handleOrderAction(action, order) {
   const orderId = Number(order?.orderId || 0)
@@ -623,6 +793,7 @@ async function handleOrderAction(action, order) {
   if (config.phase === 'idle' && driverStore.onlineStatus === 2) driverStore.setWorkState(1)
   showToast(config.message)
   await loadOrders(orderPage.value)
+  await loadHomeAvailableOrders({ silentError: true })
 }
 
 async function loadOrderDetail(orderId) {
@@ -654,17 +825,23 @@ async function submitFinishTrip() {
     return
   }
 
-  await finishTrip({
-    orderId,
-    actualDistanceM: Number(finishForm.actualDistanceM || 0),
-    actualDurationS: Number(finishForm.actualDurationS || 0),
-    actualPriceCents: Number(finishForm.actualPriceCents || 0)
-  })
-  finishVisible.value = false
-  driverStore.setCurrentOrder(null, 'idle')
-  if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
-  showToast('行程已结束')
-  await loadOrders(orderPage.value)
+  try {
+    const res = await finishTrip({
+      orderId,
+      actualDistanceM: Number(finishForm.actualDistanceM || 0),
+      actualDurationS: Number(finishForm.actualDurationS || 0)
+    })
+    finishVisible.value = false
+    driverStore.setCurrentOrder(null, 'idle')
+    if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
+    showToast('行程已结束，应收' + formatPrice(res?.payableAmountCents))
+    await loadOrders(orderPage.value)
+  } catch (error) {
+    showDialog({
+      title: '结束行程失败',
+      message: apiErrorMessage(error, '结束行程失败')
+    }).catch(() => {})
+  }
 }
 
 async function loadVehicle(config = {}) {
@@ -728,46 +905,119 @@ async function loadCertification(config = {}) {
 }
 
 async function submitCertification() {
-  if (!certificationForm.vehicleId) {
-    showToast('请输入车辆ID')
+  const vehicleId = driverStore.vehicleId || driverStore.certification?.vehicleId
+  if (!vehicleId) {
+    showToast('请先在「车辆」页面绑定车辆')
     return
   }
+  const hasImage = certItems.some(item => certificationForm[item.key])
+  if (!hasImage) {
+    showToast('请至少上传一项资质图片')
+    return
+  }
+  certSubmitting.value = true
   const payload = compact({
-    vehicleId: Number(certificationForm.vehicleId),
+    vehicleId: Number(vehicleId),
     idCardFront: certificationForm.idCardFront,
     idCardBack: certificationForm.idCardBack,
     driverLicense: certificationForm.driverLicense,
     vehicleLicense: certificationForm.vehicleLicense
   })
-  if (Object.keys(payload).length <= 1) {
-    showToast('请至少上传一项资质图片')
-    return
+  try {
+    const res = await safeApiCall(() => uploadCertification(payload), '资质上传失败')
+    if (!res) return
+    showToast('资质已提交，请等待审核')
+    await loadCertification()
+  } finally {
+    certSubmitting.value = false
   }
-  const res = await safeApiCall(() => uploadCertification(payload), '资质上传失败')
-  if (!res) return
-  showToast('资质已上传，请等待审核')
-  await loadCertification()
 }
+
+const certStatusIcon = computed(() => {
+  const status = driverStore.certification?.auditStatus
+  if (status === 2) return 'checked'
+  if (status === 3) return 'warning-o'
+  return 'clock-o'
+})
 
 async function readCertFile(event, field) {
   const file = event.target.files?.[0]
   if (!file) return
-  certificationForm[field] = await fileToBase64(file)
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('图片不能超过5MB')
+    event.target.value = ''
+    return
+  }
+  certUploading[field] = true
+  try {
+    certificationForm[field] = await fileToBase64(file)
+  } finally {
+    certUploading[field] = false
+    event.target.value = ''
+  }
+}
+
+function triggerCertUpload(field) {
+  certFileRefs[field]?.click()
+}
+
+function removeCertImage(field) {
+  certificationForm[field] = ''
 }
 
 async function loadIncome(config = {}) {
-  const [summary, wallet, today, week, bills] = await Promise.allSettled([
-    getIncomeSummary(config),
-    getWalletSummary(config),
-    getTodayIncome(config),
-    getWeekIncome(config),
-    listIncomeBills({ page: 1, pageSize: 20 }, config)
-  ])
+  const incomeRequests = [
+    { label: '收入汇总', task: () => getIncomeSummary(config) },
+    { label: '钱包余额', task: () => getWalletSummary(config) },
+    { label: '今日收入', task: () => getTodayIncome(config) },
+    { label: '本周收入', task: () => getWeekIncome(config) },
+    { label: '收入明细', task: () => listIncomeBills({ page: 1, pageSize: 20 }, config) }
+  ]
+  const [summary, wallet, today, week, bills] = await Promise.allSettled(incomeRequests.map((item) => item.task()))
   incomeSummary.value = summary.status === 'fulfilled' ? summary.value : {}
   walletSummary.value = wallet.status === 'fulfilled' ? wallet.value : {}
   todayIncome.value = today.status === 'fulfilled' ? today.value : {}
   weekIncome.value = week.status === 'fulfilled' ? week.value : {}
   incomeBills.value = bills.status === 'fulfilled' && Array.isArray(bills.value.list) ? bills.value.list : []
+
+  const failures = [summary, wallet, today, week, bills]
+    .map((result, index) => result.status === 'rejected' ? incomeRequests[index].label + ': ' + apiErrorMessage(result.reason, '请求失败') : '')
+    .filter(Boolean)
+  if (failures.length) showIncomeLoadFailure(failures)
+}
+
+function openWithdraw() {
+  withdrawVisible.value = true
+}
+
+async function submitWithdraw() {
+  const amount = Number(withdrawForm.amount)
+  if (!Number.isFinite(amount) || amount <= 0 || !withdrawForm.payeeName.trim() || !withdrawForm.payAccount.trim()) {
+    showToast('请填写完整的提现信息')
+    return
+  }
+  withdrawLoading.value = true
+  try {
+    const res = await safeApiCall(() => createWithdraw({
+      amount,
+      payeeName: withdrawForm.payeeName.trim(),
+      payAccount: withdrawForm.payAccount.trim()
+    }), '提现申请失败')
+    if (!res) return
+    withdrawVisible.value = false
+    Object.assign(withdrawForm, { amount: '', payeeName: '', payAccount: '' })
+    showToast('提现申请已提交')
+    await loadIncome({ silentError: true })
+  } finally {
+    withdrawLoading.value = false
+  }
+}
+
+function showIncomeLoadFailure(failures) {
+  showDialog({
+    title: '收入数据加载失败',
+    message: failures.join('\n')
+  }).catch(() => {})
 }
 
 async function loadReviews(config = {}) {
@@ -853,6 +1103,12 @@ function formatPrice(cents) {
   return Number.isFinite(value) ? '¥' + (value / 100).toFixed(2) : '--'
 }
 
+function formatDistance(meters) {
+  const value = Number(meters)
+  if (!Number.isFinite(value) || value < 0) return '--'
+  return (value / 1000).toFixed(value >= 10000 ? 0 : 1)
+}
+
 function formatTime(timestamp) {
   const value = Number(timestamp)
   if (!value) return '--'
@@ -900,495 +1156,175 @@ function deviceId() {
 </script>
 
 <style scoped>
-.driver-home-page {
-  min-height: 100vh;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
-  background: #eef2f7;
-  color: #111827;
-}
-
-.h5-status-hero {
-  padding: 14px 12px 28px;
-  border-radius: 0 0 24px 24px;
-  background: linear-gradient(160deg, #6d4aff 0%, #4b2bc5 100%);
-  color: #fff;
-}
-
-.driver-profile-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.driver-profile-row img,
-.driver-profile-row > span {
-  width: 48px;
-  height: 48px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border: 2px solid rgba(255, 255, 255, .7);
-  border-radius: 50%;
-  background: #fff;
-  color: #6d4aff;
-  font-size: 21px;
-  font-weight: 900;
-  object-fit: cover;
-}
-
-.driver-profile-row div {
-  min-width: 0;
-  flex: 1;
-}
-
-.driver-profile-row p,
-.driver-profile-row small {
-  margin: 0;
-  color: rgba(255, 255, 255, .76);
-  font-size: 12px;
-}
-
-.driver-profile-row h1 {
-  margin: 3px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 20px;
-  line-height: 1.15;
-  letter-spacing: 0;
-}
-
-.icon-button {
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, .16);
-  color: #fff;
-}
-
-.online-control-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, .14);
-}
-
-.online-control-card small {
-  display: block;
-  color: rgba(255, 255, 255, .72);
-  font-size: 12px;
-}
-
-.online-control-card strong {
-  display: block;
-  margin-top: 3px;
-  font-size: 22px;
-  line-height: 1.1;
-}
-
-.quick-action-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  min-width: 148px;
-}
-
-.quick-action-grid button {
-  min-height: 44px;
-  border: 0;
-  border-radius: 10px;
-  font-weight: 900;
-}
-
-.quick-action-grid .go-online {
-  background: #ffbe2e;
-  color: #3f2b00;
-}
-
-.quick-action-grid .go-offline {
-  background: #fff;
-  color: #4b2bc5;
-}
-
-.mini-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: -18px 12px 10px;
-}
-
-.mini-stat-grid div {
-  min-width: 0;
-  padding: 10px 8px;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 10px 26px rgba(77, 48, 160, .11);
-  text-align: center;
-}
-
-.mini-stat-grid span {
-  display: block;
-  color: #667085;
-  font-size: 11px;
-}
-
-.mini-stat-grid strong {
-  display: block;
-  margin-top: 5px;
-  overflow-wrap: anywhere;
-  font-size: 15px;
-}
-
-.tab-panel-scroll {
-  min-height: 0;
-}
-
-.h5-panel {
-  display: grid;
-  gap: 10px;
-  padding: 2px 12px 12px;
-}
-
-.section-title,
-.order-heading,
-.meta-row,
-.pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.section-title h2 {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.2;
-  letter-spacing: 0;
-}
-
-.section-title button,
-.secondary-action,
-.pager button,
-.order-actions button,
-.two-actions button {
-  min-height: 38px;
-  border: 1px solid #d8deea;
-  border-radius: 10px;
-  background: #fff;
-  color: #6d4aff;
-  font-weight: 800;
-}
-
-.map-surface {
-  position: relative;
-  min-height: 156px;
-  overflow: hidden;
-  border: 1px solid #ded6ff;
-  border-radius: 14px;
-  background-color: #f1edff;
-  background-image:
-    linear-gradient(24deg, transparent 46%, rgba(255, 255, 255, .9) 47%, rgba(255, 255, 255, .9) 51%, transparent 52%),
-    linear-gradient(112deg, transparent 42%, rgba(255, 255, 255, .72) 43%, rgba(255, 255, 255, .72) 47%, transparent 48%);
-}
-
-.map-surface p {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  margin: 0;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .9);
-  color: #6d4aff;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.road {
-  position: absolute;
-  height: 7px;
-  border-radius: 999px;
-  background: rgba(109, 74, 255, .18);
-}
-
-.road-a {
-  top: 42%;
-  left: -8%;
-  width: 62%;
-  transform: rotate(-18deg);
-}
-
-.road-b {
-  top: 66%;
-  right: -8%;
-  width: 70%;
-  transform: rotate(19deg);
-}
-
-.pin {
-  position: absolute;
-  width: 15px;
-  height: 15px;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 4px 12px rgba(77, 48, 160, .2);
-}
-
-.pin.current {
-  top: 50%;
-  left: 31%;
-  background: #6d4aff;
-}
-
-.pin.order {
-  top: 29%;
-  right: 23%;
-  background: #ffbe2e;
-}
-
-.route-card,
-.order-card,
-.compact-card,
-.info-list,
-.wallet-card,
-.income-grid > div,
-.trajectory-form {
-  padding: 12px;
-  border: 1px solid #e6eaf2;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.route-card,
-.info-list {
-  display: grid;
-  gap: 9px;
-}
-
-.route-card p,
-.info-list p {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0;
-}
-
-.route-card span,
-.info-list span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  color: #475467;
-  text-align: right;
-}
-
-.filter-bar {
-  overflow: hidden;
-  border-radius: 12px;
-}
-
-.driver-home-page :deep(.van-dropdown-menu) {
-  box-shadow: none;
-}
-
-.driver-home-page :deep(.van-field) {
-  --van-field-label-width: 74px;
-  overflow: hidden;
-  border-radius: 10px;
-}
-
-.order-card,
-.compact-card {
-  display: grid;
-  gap: 8px;
-}
-
-.order-heading strong,
-.compact-card strong {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.route-line,
-.meta-row,
-.compact-card span,
-.compact-card small {
-  margin: 0;
-  color: #667085;
-  font-size: 12px;
-}
-
-.order-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.order-actions button {
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-.order-actions .primary,
-.primary-action {
-  border: 0;
-  background: #6d4aff;
-  color: #fff;
-}
-
-.primary-action {
-  width: 100%;
-  min-height: 48px;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.secondary-action {
-  width: 100%;
-}
-
-.empty-state {
-  min-height: 92px;
-  display: grid;
-  place-items: center;
-  border: 1px dashed #d9d2ee;
-  border-radius: 12px;
-  background: #fbfaff;
-  color: #667085;
-  font-size: 13px;
-}
-
-.form-stack {
-  display: grid;
-  gap: 8px;
-}
-
-.two-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.two-actions .danger {
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-.file-grid {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.file-grid label {
-  display: grid;
-  gap: 8px;
-  color: #475467;
-  font-size: 12px;
-}
-
-.wallet-card {
-  background: #4b2bc5;
-  color: #fff;
-}
-
-.wallet-card p {
-  margin: 0;
-  color: rgba(255, 255, 255, .72);
-  font-size: 12px;
-}
-
-.wallet-card strong {
-  display: block;
-  margin-top: 6px;
-  font-size: 30px;
-  line-height: 1.1;
-}
-
-.wallet-card span {
-  display: block;
-  margin-top: 6px;
-  color: rgba(255, 255, 255, .76);
-  font-size: 12px;
-}
-
-.income-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.income-grid span {
-  color: #667085;
-  font-size: 12px;
-}
-
-.income-grid strong {
-  display: block;
-  margin-top: 5px;
-  font-size: 18px;
-}
-
-.trajectory-form {
-  display: grid;
-  gap: 8px;
-}
-
-.trajectory-error {
-  margin: 0;
-  color: #dc2626;
-  font-size: 13px;
-  word-break: break-word;
-}
-
-.finish-panel {
-  padding: 14px 12px 18px;
-}
-
-.finish-panel h2 {
-  margin: 0 0 12px;
-  font-size: 17px;
-  text-align: center;
-}
-
-.driver-tabbar {
-  left: 50%;
-  right: auto;
-  width: min(100vw, 390px);
-  height: calc(60px + env(safe-area-inset-bottom));
-  border-top: 1px solid #e6eaf2;
-  box-shadow: 0 -8px 24px rgba(15, 23, 42, .08);
-  transform: translateX(-50%);
-  --van-tabbar-item-active-color: #6d4aff;
-}
-
-.driver-tabbar :deep(.van-tabbar-item) {
-  min-width: 0;
-  padding: 5px 0 4px;
-  color: #667085;
-  font-size: 10px;
-}
-
-.driver-tabbar :deep(.van-tabbar-item__icon) {
-  margin-bottom: 2px;
-  font-size: 18px;
-}
-
-button:disabled {
-  opacity: .55;
-}
-
-@media (max-width: 430px) {
-  .driver-tabbar {
-    width: 100vw;
-  }
+.driver-home-page { min-height: 100vh; padding: 0 12px 86px; background: #f6f7fb; color: #172033; }
+.driver-hero { margin: 0 -12px; padding: 18px 18px 72px; border-radius: 0 0 28px 28px; background: linear-gradient(135deg, #7B61FF 0%, #5B5CFF 100%); color: #fff; }
+.hero-topline, .driver-profile-row, .work-action-card, .section-title, .section-subtitle, .order-heading, .meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.driver-profile-row { justify-content: flex-start; min-width: 0; }
+.driver-profile-row img, .avatar-fallback { width: 52px; height: 52px; flex: 0 0 52px; border: 2px solid rgba(255,255,255,.72); border-radius: 50%; background: rgba(255,255,255,.22); object-fit: cover; }
+.avatar-fallback { display: grid; place-items: center; color: #fff; font-size: 22px; font-weight: 800; }
+.driver-copy { min-width: 0; }
+.driver-copy p, .driver-copy h1, .driver-copy small, .hero-income span, .hero-income small, .wallet-card span, .wallet-card p { margin: 0; }
+.driver-copy p, .driver-copy small, .hero-income span, .hero-income small { color: rgba(255,255,255,.78); }
+.driver-copy h1 { margin: 4px 0; overflow: hidden; font-size: 20px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.hero-icon-button { width: 38px; height: 38px; flex: 0 0 38px; border: 0; border-radius: 50%; background: rgba(255,255,255,.18); color: #fff; font-size: 20px; }
+.hero-income { margin-top: 26px; }
+.hero-income strong { display: block; margin: 6px 0; font-size: 38px; line-height: 1; letter-spacing: 0; }
+.hero-metric-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: -46px; }
+.hero-metric-card, .quick-entry-row, .work-action-card, .work-status-card, .home-order-section, .income-today-card, .mini-stat-grid, .h5-panel, .current-trip-card, .order-card, .info-list, .wallet-card, .compact-card, .trajectory-form { border-radius: 18px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,42,.07); }
+.hero-metric-card { min-height: 84px; padding: 14px 10px; text-align: center; }
+.hero-metric-card span, .mini-stat-grid span, .work-action-card span, .income-grid span, .meta-row, .compact-card span, .compact-card small { color: #7a8496; font-size: 12px; }
+.hero-metric-card strong, .mini-stat-grid strong, .income-grid strong { display: block; margin-top: 8px; color: #172033; font-size: 20px; line-height: 1.1; }
+.quick-entry-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding: 16px 10px; }
+.quick-entry-row button { min-width: 0; border: 0; background: transparent; color: #344054; font-size: 12px; font-weight: 700; }
+.quick-entry-row span { display: grid; width: 46px; height: 46px; margin: 0 auto 8px; place-items: center; border-radius: 50%; background: #f0efff; color: #5B5CFF; font-size: 23px; }
+.quick-entry-row b { display: block; overflow-wrap: anywhere; font-weight: 700; line-height: 1.2; }
+.work-action-card, .mini-stat-grid, .tab-panel-scroll { margin-top: 12px; }
+.work-action-card { padding: 16px; }
+.work-action-card strong { display: block; margin-top: 4px; font-size: 18px; }
+.work-status-card { display: grid; gap: 12px; margin-top: 12px; padding: 18px; }
+.work-status-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.work-status-heading > div { display: grid; gap: 4px; min-width: 0; }
+.work-status-heading span, .work-status-hint { color: #7a8496; font-size: 12px; }
+.work-status-heading strong { color: #172033; font-size: 26px; line-height: 1.15; }
+.work-status-hint { margin: 0; line-height: 1.5; }
+.work-primary-action { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 56px; border: 0; border-radius: 999px; font-size: 17px; font-weight: 800; }
+.work-primary-action .van-icon { font-size: 21px; }
+.work-action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; max-width: 210px; }
+.go-online, .go-offline, .primary-action, .secondary-action, .order-actions button, .pager button, .section-title button, .two-actions button { min-height: 40px; border-radius: 999px; font-weight: 800; }
+.go-online { border: 0; background: #ffb72c; color: #fff; box-shadow: 0 8px 16px rgba(255,183,44,.28); }
+.go-offline, .secondary-action, .pager button, .section-title button, .two-actions button, .order-actions button { border: 1px solid #d7dce5; background: #fff; color: #344054; }
+.mini-stat-grid, .income-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mini-stat-grid div, .income-grid div { min-width: 0; padding: 14px 10px; border-radius: 16px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,42,.06); text-align: center; }
+.h5-panel { display: grid; gap: 12px; padding: 14px; }
+.section-title h2 { margin: 0; font-size: 18px; }
+.current-trip-card, .info-list, .order-card, .compact-card, .trajectory-form { display: grid; gap: 10px; padding: 14px; }
+.current-trip-card p, .info-list p { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-size: 14px; }
+.current-trip-card span, .info-list span { min-width: 0; color: #667085; overflow-wrap: anywhere; text-align: right; }
+.map-surface { position: relative; min-height: 138px; overflow: hidden; border-radius: 20px; background: linear-gradient(135deg, #f4f2ff, #ffffff); }
+.map-surface p { position: absolute; left: 14px; bottom: 14px; margin: 0; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.9); color: #5B5CFF; font-weight: 800; }
+.road { position: absolute; height: 16px; border-radius: 999px; background: rgba(91,92,255,.16); }
+.road-a { left: -24px; right: 32px; top: 46px; transform: rotate(-14deg); }
+.road-b { left: 40px; right: -20px; top: 90px; transform: rotate(18deg); }
+.pin { position: absolute; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 6px 14px rgba(15,23,42,.18); }
+.pin.current { left: 70px; top: 52px; background: #5B5CFF; }
+.pin.order { right: 72px; top: 92px; background: #ffb72c; }
+.home-order-section { display: grid; gap: 12px; margin-top: 12px; padding: 14px; }
+.home-order-loading, .home-order-empty { min-height: 64px; display: grid; place-items: center; color: #98a2b3; font-size: 13px; }
+.home-order-card { display: grid; gap: 8px; padding: 12px; border: 1px solid #e6eaf2; border-radius: 14px; }
+.home-order-card .route-line { margin: 0; }
+.order-distance { color: #7a8496; font-size: 12px; white-space: nowrap; }
+.home-order-accept { min-height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: #5B5CFF; color: #fff; font-weight: 800; }
+.filter-bar { overflow: hidden; border-radius: 14px; }
+.driver-home-page :deep(.van-dropdown-menu) { box-shadow: none; }
+.driver-home-page :deep(.van-cell) { border-radius: 12px; background: #f8fafc; }
+.route-line, .order-heading strong, .compact-card strong { margin: 0; overflow-wrap: anywhere; }
+.order-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.order-actions button { padding: 0 12px; }
+.order-actions .primary, .primary-action { border: 0; background: #5B5CFF; color: #fff; }
+.primary-action { width: 100%; min-height: 46px; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 10px; color: #667085; }
+.empty-state { min-height: 92px; display: grid; place-items: center; border-radius: 18px; background: #fff; color: #98a2b3; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
+.form-stack, .file-grid { display: grid; gap: 10px; }
+.two-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.two-actions .danger { border-color: #fecaca; color: #dc2626; }
+.file-grid label { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: #fff; color: #344054; font-weight: 700; }
+.wallet-card { padding: 18px; color: #fff; background: linear-gradient(135deg, #7B61FF 0%, #5B5CFF 100%); }
+.wallet-card span, .wallet-card p { color: rgba(255,255,255,.78); }
+.wallet-card strong { display: block; margin: 8px 0; font-size: 32px; line-height: 1; }
+.income-today-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px; }
+.income-today-card > div { display: grid; gap: 4px; min-width: 0; }
+.income-today-card span, .income-today-card small { color: #7a8496; font-size: 12px; }
+.income-today-card strong { color: #172033; font-size: 38px; line-height: 1; }
+.withdraw-entry { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 78px; min-height: 40px; padding: 0 14px; border: 1px solid #d7dce5; border-radius: 999px; background: #fff; color: #344054; font-weight: 800; }
+.income-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.trajectory-error { margin: 0; color: #dc2626; font-size: 13px; }
+.finish-panel { padding: 18px 14px 22px; background: #f6f7fb; }
+.finish-panel h2 { margin: 0 0 14px; text-align: center; }
+.withdraw-panel { padding: 18px 14px 22px; background: #f6f7fb; }
+.withdraw-panel h2 { margin: 0 0 14px; text-align: center; }
+.driver-tabbar { left: 50%; right: auto; width: min(100vw, 430px); height: calc(60px + env(safe-area-inset-bottom)); border-top: 1px solid #e6eaf2; box-shadow: 0 -8px 24px rgba(15,23,42,.08); transform: translateX(-50%); --van-tabbar-item-active-color: #5B5CFF; --van-tabbar-item-text-color: #98a2b3; }
+button:disabled { opacity: .48; }
+@media (max-width: 360px) { .driver-home-page { padding-inline: 10px; } .driver-hero { margin-inline: -10px; } .hero-income strong { font-size: 32px; } .quick-entry-row { gap: 4px; } .work-action-card, .work-status-card { display: grid; } .work-action-buttons { max-width: none; width: 100%; } .work-status-heading strong, .income-today-card strong { font-size: 30px; } .income-today-card { align-items: flex-start; } .withdraw-entry { min-width: 68px; padding-inline: 10px; } }
+
+/* ===== 车辆资质上传页面 ===== */
+.cert-panel { gap: 14px; }
+.cert-status-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 14px;
+  background: linear-gradient(135deg, #f0efff, #e8e6ff);
+}
+.cert-status-card.status-2 { background: linear-gradient(135deg, #e6f7ee, #d4f5e0); }
+.cert-status-card.status-3 { background: linear-gradient(135deg, #fff4e6, #ffe8cc); }
+.cert-status-icon {
+  width: 40px; height: 40px; flex: 0 0 40px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: #fff; font-size: 20px; color: #6d4aff;
+}
+.cert-status-card.status-2 .cert-status-icon { color: #16a34a; }
+.cert-status-card.status-3 .cert-status-icon { color: #f59e0b; }
+.cert-status-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cert-status-info strong { font-size: 15px; color: #172033; }
+.cert-status-info span { font-size: 12px; color: #667085; overflow-wrap: anywhere; }
+
+.cert-vehicle-card {
+  padding: 14px 16px; border-radius: 14px; background: #fff;
+  box-shadow: 0 4px 12px rgba(15,23,42,.05);
+}
+.cert-vehicle-label { font-size: 12px; color: #98a2b3; margin-bottom: 8px; }
+.cert-vehicle-info { display: flex; align-items: center; gap: 10px; }
+.cert-plate {
+  font-size: 18px; font-weight: 800; color: #172033;
+  padding: 4px 10px; border-radius: 6px; background: #f0efff;
+}
+.cert-vehicle-model { font-size: 13px; color: #667085; }
+.cert-vehicle-empty { font-size: 13px; color: #98a2b3; }
+
+.cert-upload-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+}
+.cert-upload-card {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cert-upload-header { display: flex; flex-direction: column; gap: 2px; padding: 0 2px; }
+.cert-upload-title { font-size: 14px; font-weight: 700; color: #172033; }
+.cert-upload-tip { font-size: 11px; color: #98a2b3; }
+
+.cert-upload-area {
+  position: relative; width: 100%; aspect-ratio: 3 / 2;
+  border: 2px dashed #d7dce5; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; background: #f8fafc; cursor: pointer;
+  transition: all .2s ease; overflow: hidden;
+}
+.cert-upload-area:hover { border-color: #6d4aff; background: #f5f3ff; }
+.cert-upload-area.uploaded { border-style: solid; border-color: #e6eaf2; background: #fff; padding: 0; }
+.cert-upload-area.uploading { pointer-events: none; opacity: .7; }
+.cert-upload-icon { font-size: 28px; color: #98a2b3; }
+.cert-upload-text { font-size: 12px; color: #98a2b3; }
+
+.cert-preview-img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 10px;
+}
+.cert-upload-mask {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  background: rgba(0,0,0,.45); color: #fff; font-size: 12px;
+  opacity: 0; transition: opacity .2s ease;
+}
+.cert-upload-area:hover .cert-upload-mask { opacity: 1; }
+.cert-delete-btn {
+  position: absolute; top: 6px; right: 6px;
+  width: 24px; height: 24px; flex: 0 0 24px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff;
+  font-size: 14px; cursor: pointer; z-index: 2;
+}
+.cert-delete-btn:hover { background: #dc2626; }
+.cert-file-input { display: none; }
+
+.cert-submit-btn { margin-top: 4px; }
+@media (max-width: 360px) {
+  .cert-upload-grid { gap: 8px; }
+  .cert-upload-title { font-size: 13px; }
 }
 </style>

@@ -9,6 +9,8 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // buildAdminDriverPB 将司机基础资料、车辆、认证和 Redis 在线状态聚合为后台查询模型。
@@ -33,9 +35,8 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 	if svcCtx.OnlineStore != nil {
 		state, err := svcCtx.OnlineStore.Get(ctx, int64(d.Id))
 		if err != nil {
-			return nil, err
-		}
-		if state == nil {
+			logx.WithContext(ctx).Errorf("buildAdminDriverPB: get online state for driver %d failed: %v", d.Id, err)
+		} else if state == nil {
 			item.OnlineStatus = onlinestore.Offline
 		} else {
 			item.OnlineStatus = state.OnlineStatus
@@ -44,7 +45,7 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 	if svcCtx.DriverVehicleRepository != nil {
 		vehicle, err := svcCtx.DriverVehicleRepository.GetByDriverID(ctx, d.Id)
 		if err != nil && !errors.Is(err, repository.ErrVehicleNotFound) {
-			return nil, err
+			logx.WithContext(ctx).Errorf("buildAdminDriverPB: get vehicle for driver %d failed: %v", d.Id, err)
 		}
 		if vehicle != nil {
 			item.VehicleId = int64(vehicle.Id)
@@ -55,7 +56,7 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 	if svcCtx.CertificationRepository != nil {
 		cert, err := svcCtx.CertificationRepository.GetByDriverID(ctx, d.Id)
 		if err != nil && !errors.Is(err, repository.ErrCertificationNotFound) {
-			return nil, err
+			logx.WithContext(ctx).Errorf("buildAdminDriverPB: get certification for driver %d failed: %v", d.Id, err)
 		}
 		if cert != nil {
 			item.CertificationId = int64(cert.Id)

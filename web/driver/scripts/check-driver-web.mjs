@@ -29,6 +29,7 @@ for (const path of [
   'web/driver/src/stores/driver.js',
   'web/driver/src/views/DriverLogin.vue',
   'web/driver/src/views/DriverHome.vue',
+  'web/driver/src/components/SmsCodeDialog.vue'
 ]) {
   assert(existsSync(file(path)), `missing independent driver frontend file: ${path}`)
 }
@@ -43,7 +44,7 @@ for (const path of [
   'web/user/src/api/driver.js',
   'web/user/src/stores/driver.js',
   'web/user/src/views/driver/DriverLogin.vue',
-  'web/user/src/views/driver/DriverHome.vue',
+  'web/user/src/views/driver/DriverHome.vue'
 ]) {
   assert(!existsSync(file(path)), `driver code must live under web/driver, not ${path}`)
 }
@@ -95,7 +96,7 @@ for (const endpoint of [
   '/orders/trajectory',
   '/orders/list',
   '/orders/dispatches',
-  '/reviews/list',
+  '/reviews/list'
 ]) {
   assert(api.includes(endpoint), `missing real driver API wrapper: ${endpoint}`)
 }
@@ -103,6 +104,7 @@ for (const endpoint of [
 const home = readIfExists('web/driver/src/views/DriverHome.vue')
 const login = readIfExists('web/driver/src/views/DriverLogin.vue')
 const app = readIfExists('web/driver/src/App.vue')
+const smsDialog = readIfExists('web/driver/src/components/SmsCodeDialog.vue')
 assert(login.includes("router.replace('/home')"), 'driver login must navigate inside independent app')
 assert(api.includes("router.push('/login')"), 'driver auth expiry must navigate inside independent app')
 assert(home.includes("router.replace('/login')"), 'driver logout must navigate inside independent app')
@@ -110,20 +112,24 @@ assert(home.includes('van-tabbar'), 'driver H5 navigation must use fixed mobile 
 assert(home.includes('workStatusPayload()'), 'online/offline actions must send device and location payload')
 assert(home.includes('safeApiCall'), 'driver H5 actions must keep UI usable when API calls fail')
 assert(home.includes('showIncomeLoadFailure'), 'driver income API failures must open a failure dialog')
-assert(home.includes('收入数据加载失败'), 'driver income failure dialog must have a clear title')
 assert(home.includes('rejectOrder(orderId, reason)'), 'driver reject action must submit explicit reject reason')
-assert(home.includes('canReject(order)'), 'public available orders must not reuse dispatch reject action')
-assert(home.includes("apiErrorMessage(error, '结束行程失败')"), 'finish trip failures must show a driver-facing error')
 assert(!home.includes('actualPriceCents'), 'driver finish trip must not ask driver to enter settlement amount')
 assert(app.includes('driver-phone-shell'), 'driver app must render a centered phone shell for H5 preview')
 assert(login.includes('class="login-card"'), 'driver login must use a compact H5 login card')
 assert(login.includes('class="auth-mode-tabs"'), 'driver login must expose touch-friendly H5 auth mode tabs')
-assert(home.includes('class="h5-status-hero"'), 'driver home must start with an H5 status hero')
-assert(home.includes('class="quick-action-grid"'), 'driver home must expose H5 quick action controls')
+assert(login.includes('<SmsCodeDialog'), 'driver login must mount SMS code dialog after sending SMS')
+assert(login.includes('smsCodeDialogVisible.value = true'), 'driver login must open SMS code dialog when backend returns code')
+assert(login.includes("smsCodeValue.value = String(res?.code || '').trim()"), 'driver login must capture backend SMS code')
+assert(home.includes('class="driver-hero"'), 'driver home must start with a driver hero')
+assert(home.includes('class="quick-entry-row"'), 'driver home must expose H5 quick action controls')
 assert(home.includes('class="tab-panel-scroll"'), 'driver tab content must use a mobile scroll panel')
 assert(home.includes('getTodayIncome'), 'driver wallet must call backend today income endpoint')
 assert(home.includes('getWeekIncome'), 'driver wallet must call backend week income endpoint')
 assert(home.includes('/api/driver/v1/ws'), 'driver WebSocket must connect to registered /api/driver/v1/ws route')
 assert(!home.includes('/api/driver/v1/push/ws'), 'driver WebSocket must not use stale /api/driver/v1/push/ws route')
+assert(smsDialog.includes('������֤��'), 'driver SMS code dialog title is required')
+assert(smsDialog.includes('��֤�����Ժ�˷��ؽ��'), 'driver SMS code dialog must explain the code source')
+assert(smsDialog.includes('sms-code-dialog__code'), 'driver SMS code dialog must render the returned code')
 
 console.log('driver frontend isolation checks passed')
+

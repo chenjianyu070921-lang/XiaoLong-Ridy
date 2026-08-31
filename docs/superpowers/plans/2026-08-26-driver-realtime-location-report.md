@@ -27,26 +27,11 @@
 
 **Interfaces:**
 - Consumes: `constants.RedisDriverPos`, `constants.RedisDriverOnline`, `constants.RedisDriverGeo`.
-- Produces: `syncDispatchDriverOnlineWithPreference(ctx, svcCtx, driverID, longitude, latitude, pref)` writes hash `driver:pos:<driver_id>` with `driver_id`, `longitude`, `latitude`, `report_time`; `syncDispatchDriverOffline` deletes the hash.
+- Produces: `syncDispatchDriverOnline(ctx, svcCtx, driverID, longitude, latitude)` writes hash `driver:pos:<driver_id>` with `driver_id`, `longitude`, `latitude`, `report_time`; `syncDispatchDriverOffline` deletes the hash.
 
-- [ ] Add failing test `TestSyncDispatchDriverOnlineWritesPositionSnapshot` that calls `syncDispatchDriverOnlineWithPreference` and asserts Redis hash fields under `fmt.Sprintf(constants.RedisDriverPos, 25)`.
+- [ ] Add failing test `TestSyncDispatchDriverOnlineWritesPositionSnapshot` that calls `syncDispatchDriverOnline` and asserts Redis hash fields under `fmt.Sprintf(constants.RedisDriverPos, 25)`.
 - [ ] Run `go test ./rpc/driversvc/internal/logic -run TestSyncDispatchDriverOnlineWritesPositionSnapshot -count=1` and confirm it fails because the hash is missing.
 - [ ] Add `HSet` and `Expire`/`Del` behavior to the existing Redis pipeline.
-- [ ] Re-run the focused test and confirm it passes.
-
-### Task 2: Preserve Listen Preference During Location Report
-
-**Files:**
-- Modify: `rpc/driversvc/internal/logic/report_location_logic.go`
-- Modify: `rpc/driversvc/internal/logic/report_location_logic_test.go`
-
-**Interfaces:**
-- Consumes: `resolveDriverListenPreference(ctx, svcCtx, driverID, nil, nil)`.
-- Produces: `ReportLocation` refreshes Redis with saved preference instead of defaulting to both order types.
-
-- [ ] Add failing test `TestReportLocationPreservesListenPreference` using miniredis and a test preference repository where driver 25 accepts reservation only.
-- [ ] Run `go test ./rpc/driversvc/internal/logic -run TestReportLocationPreservesListenPreference -count=1` and confirm it fails because realtime preference membership is incorrectly written.
-- [ ] Update `ReportLocation` so the online branch resolves saved preference and calls `syncDispatchDriverOnlineWithPreference`.
 - [ ] Re-run the focused test and confirm it passes.
 
 ### Task 3: Contract And Docs
@@ -70,6 +55,6 @@
 - Produces: evidence that driver location reporting still compiles and dispatch consumers remain compatible.
 
 - [ ] Run `gofmt` on touched Go files.
-- [ ] Run `go test ./rpc/driversvc/internal/logic -run "TestSyncDispatchDriverOnlineWritesPositionSnapshot|TestReportLocationPreservesListenPreference" -count=1`.
+- [ ] Run `go test ./rpc/driversvc/internal/logic -run "TestSyncDispatchDriverOnlineWritesPositionSnapshot" -count=1`.
 - [ ] Run `go test ./api/driver/... ./rpc/driversvc/... ./rpc/dispatchsvc/... -count=1`.
 - [ ] Run `git diff --check`.

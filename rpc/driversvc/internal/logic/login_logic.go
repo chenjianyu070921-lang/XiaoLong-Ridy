@@ -41,6 +41,12 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 
 // Login 校验手机号、账号状态与密码，成功则签发 JWT 并返回司机简要信息。
 func (l *LoginLogic) Login(in *proto.LoginRequest) (*proto.LoginResponse, error) {
+	if in == nil {
+		return nil, errors.New("请求参数不能为空")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
+		return nil, errors.New("driver repository not ready")
+	}
 	// 按手机号查询司机（不存在时统一返回账号不存在）。
 	d, err := l.svcCtx.DriverRepository.GetByPhone(l.ctx, in.GetPhone())
 	if err != nil {
@@ -90,6 +96,12 @@ func (l *LoginLogic) Login(in *proto.LoginRequest) (*proto.LoginResponse, error)
 
 // LoginBySMS signs a driver token after the API layer has verified the SMS code.
 func (l *LoginLogic) LoginBySMS(in *proto.LoginBySMSRequest) (*proto.LoginResponse, error) {
+	if in == nil {
+		return nil, errors.New("请求参数不能为空")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
+		return nil, errors.New("driver repository not ready")
+	}
 	d, err := l.svcCtx.DriverRepository.GetByPhone(l.ctx, in.GetPhone())
 	if err != nil {
 		return nil, ErrLoginAccountNotFound

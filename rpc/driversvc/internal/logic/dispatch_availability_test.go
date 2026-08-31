@@ -18,8 +18,18 @@ func TestSyncDispatchDriverAvailability(t *testing.T) {
 	svcCtx := &svc.ServiceContext{RedisClient: rdb}
 	ctx := context.Background()
 
+	if err := rdb.SAdd(ctx, constants.RedisDriverBusy, "25").Err(); err != nil {
+		t.Fatalf("SAdd busy() error = %v", err)
+	}
 	if err := syncDispatchDriverOnline(ctx, svcCtx, 25, 116.397, 39.908); err != nil {
 		t.Fatalf("syncDispatchDriverOnline() error = %v", err)
+	}
+	busy, err := rdb.SIsMember(ctx, constants.RedisDriverBusy, "25").Result()
+	if err != nil {
+		t.Fatalf("SIsMember() busy error = %v", err)
+	}
+	if busy {
+		t.Fatalf("driver should be removed from %s", constants.RedisDriverBusy)
 	}
 	online, err := rdb.SIsMember(ctx, constants.RedisDriverOnline, "25").Result()
 	if err != nil {
@@ -56,48 +66,14 @@ func TestSyncDispatchDriverAvailability(t *testing.T) {
 	}
 }
 
-func TestSyncDispatchDriverOnlinePreferenceSets(t *testing.T) {
-	mr := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	svcCtx := &svc.ServiceContext{RedisClient: rdb}
-	ctx := context.Background()
-
-	pref := driverListenPreference{AcceptRealtime: false, AcceptReservation: true}
-	if err := syncDispatchDriverOnlineWithPreference(ctx, svcCtx, 25, 116.397, 39.908, pref); err != nil {
-		t.Fatalf("syncDispatchDriverOnlineWithPreference() error = %v", err)
-	}
-	realtime, err := rdb.SIsMember(ctx, constants.RedisDriverPrefRealtime, "25").Result()
-	if err != nil {
-		t.Fatalf("SIsMember realtime error = %v", err)
-	}
-	reservation, err := rdb.SIsMember(ctx, constants.RedisDriverPrefReservation, "25").Result()
-	if err != nil {
-		t.Fatalf("SIsMember reservation error = %v", err)
-	}
-	if realtime || !reservation {
-		t.Fatalf("preference sets realtime=%v reservation=%v, want false/true", realtime, reservation)
-	}
-
-	if err := syncDispatchDriverOffline(ctx, svcCtx, 25); err != nil {
-		t.Fatalf("syncDispatchDriverOffline() error = %v", err)
-	}
-	reservation, err = rdb.SIsMember(ctx, constants.RedisDriverPrefReservation, "25").Result()
-	if err != nil {
-		t.Fatalf("SIsMember reservation after offline error = %v", err)
-	}
-	if reservation {
-		t.Fatal("offline driver should be removed from reservation preference set")
-	}
-}
 func TestSyncDispatchDriverOnlineWritesPositionSnapshot(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	svcCtx := &svc.ServiceContext{RedisClient: rdb}
 	ctx := context.Background()
 
-	pref := driverListenPreference{AcceptRealtime: true, AcceptReservation: true}
-	if err := syncDispatchDriverOnlineWithPreference(ctx, svcCtx, 25, 116.397, 39.908, pref); err != nil {
-		t.Fatalf("syncDispatchDriverOnlineWithPreference() error = %v", err)
+	if err := syncDispatchDriverOnline(ctx, svcCtx, 25, 116.397, 39.908); err != nil {
+		t.Fatalf("syncDispatchDriverOnline() error = %v", err)
 	}
 
 	posKey := fmt.Sprintf(constants.RedisDriverPos, 25)

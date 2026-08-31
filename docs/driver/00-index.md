@@ -31,7 +31,6 @@
 | 司机账号 | `POST /drivers/delete` | [08-driver-delete.md](08-driver-delete.md) |
 | 司机账号 | `GET /drivers/ai-score` | [09-driver-ai-score.md](09-driver-ai-score.md) |
 | 在线状态 | `POST /drivers/online` | [10-driver-online.md](10-driver-online.md) |
-| Driver listen preference | `GET/POST /drivers/listen-preference` | [27-driver-listen-preference.md](27-driver-listen-preference.md) |
 | 在线状态 | `POST /drivers/offline` | [11-driver-offline.md](11-driver-offline.md) |
 | 在线状态 | `POST /drivers/heartbeat` | [12-driver-heartbeat.md](12-driver-heartbeat.md) |
 | 在线状态 | `POST /drivers/location/report` | [13-driver-location-report.md](13-driver-location-report.md) |

@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -28,10 +29,14 @@ type fakeOrderClient struct {
 	listOrdersRequest         *orderproto.ListOrdersRequest
 	listOrdersResponse        *orderproto.ListOrdersResponse
 	getOrderResponses         map[int64]*orderproto.GetOrderResponse
+	getOrderErr               error
 }
 
 func (f *fakeOrderClient) GetOrder(_ context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
 	f.getOrderRequest = req
+	if f.getOrderErr != nil {
+		return nil, f.getOrderErr
+	}
 	if f.getOrderResponses != nil {
 		if resp, ok := f.getOrderResponses[req.GetOrderId()]; ok {
 			return resp, nil
@@ -203,10 +208,9 @@ func TestFinishTripForwardsTripMetrics(t *testing.T) {
 	driverClient := &fakeDriverClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client, DriverClient: driverClient})
 	req := &types.FinishTripRequest{
-		OrderID:          1001,
-		ActualDistanceM:  12500,
-		ActualDurationS:  1800,
-		ActualPriceCents: 3200,
+		OrderID:         1001,
+		ActualDistanceM: 12500,
+		ActualDurationS: 1800,
 	}
 
 	resp, err := logic.FinishTrip(25, req)
@@ -217,8 +221,7 @@ func TestFinishTripForwardsTripMetrics(t *testing.T) {
 		t.Fatalf("FinishTrip() response = %+v", resp)
 	}
 	if client.finishRequest.GetDriverId() != 25 || client.finishRequest.GetOrderId() != 1001 ||
-		client.finishRequest.GetActualDistanceM() != 12500 || client.finishRequest.GetActualDurationS() != 1800 ||
-		client.finishRequest.GetActualPriceCents() != 0 {
+		client.finishRequest.GetActualDistanceM() != 12500 || client.finishRequest.GetActualDurationS() != 1800 {
 		t.Fatalf("FinishTrip() request = %+v", client.finishRequest)
 	}
 	if len(driverClient.serviceStatusRequests) != 1 ||
@@ -246,9 +249,6 @@ func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 	}
 	if _, err := logic.FinishTrip(25, &types.FinishTripRequest{OrderID: 1001, ActualDistanceM: -1}); err != ErrInvalidParam {
 		t.Fatalf("FinishTrip(negative distance) error = %v, want %v", err, ErrInvalidParam)
-	}
-	if _, err := logic.FinishTrip(25, &types.FinishTripRequest{OrderID: 1001, ActualDistanceM: 1, ActualDurationS: 1, ActualPriceCents: -1}); err != nil {
-		t.Fatalf("FinishTrip(negative reported price) error = %v, want success", err)
 	}
 }
 
@@ -282,7 +282,7 @@ func (f *fakeDispatchClient) RejectDispatch(_ context.Context, req *dispatchprot
 
 func (f *fakeDispatchClient) ListDispatchRecords(_ context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
 	f.listRequest = req
-	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{{Id: 7, OrderId: 1001, DriverId: req.DriverId, Status: 1, Remark: "too far"}}, Total: 1, Page: req.Page, PageSize: req.PageSize}, nil
+	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{{Id: 7, OrderId: 1001, DriverId: req.DriverId, Status: 1, Remark: "dispatch note", RejectReason: "too far"}}, Total: 1, Page: req.Page, PageSize: req.PageSize}, nil
 }
 
 func TestRejectOrderForwardsDispatchRequest(t *testing.T) {
@@ -339,6 +339,31 @@ func TestListMyDispatchesCombinesDispatchAndOrder(t *testing.T) {
 	if dispatchClient.listRequest.GetDriverId() != 25 || dispatchClient.listRequest.GetStatus() != 1 {
 		t.Fatalf("ListMyDispatches() request = %+v", dispatchClient.listRequest)
 	}
+	if !resp.OrderQueryOk {
+		t.Fatalf("ListMyDispatches() orderQueryOk = false, want true")
+	}
+}
+
+func TestListMyDispatchesMarksOrderQueryFailed(t *testing.T) {
+	dispatchClient := &fakeDispatchClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
+		DispatchClient: dispatchClient,
+		OrderClient:    &fakeOrderClient{getOrderErr: errors.New("ordersvc unavailable")},
+	})
+
+	resp, err := logic.ListMyDispatches(25, 1, 20, 1)
+	if err != nil {
+		t.Fatalf("ListMyDispatches() error = %v", err)
+	}
+	if resp.OrderQueryOk {
+		t.Fatalf("ListMyDispatches() orderQueryOk = true, want false")
+	}
+	if len(resp.List) != 1 || resp.List[0].Dispatch.OrderID != 1001 {
+		t.Fatalf("ListMyDispatches() should keep dispatch record when order query fails: %+v", resp)
+	}
+	if resp.List[0].Order.OrderID != 0 || resp.List[0].Order.OrderNo != "" {
+		t.Fatalf("ListMyDispatches() order should be zero value on query failure: %+v", resp.List[0].Order)
+	}
 }
 
 func TestListMyOrdersUsesOrderService(t *testing.T) {
@@ -360,7 +385,9 @@ func TestListMyOrdersUsesOrderService(t *testing.T) {
 	}
 }
 
-func TestListAvailableOrdersUsesWaitAcceptWithoutDriverFilter(t *testing.T) {
+// TestListAvailableOrdersReadsAvailableSetAndGetOrder 验证 D3/D8 修复后：
+// ListAvailableOrders 读 driver:available:%d 集合 + GetOrder，而非全局 ListOrders。
+func TestListAvailableOrdersReadsAvailableSetAndGetOrder(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	ctx := context.Background()
@@ -373,6 +400,10 @@ func TestListAvailableOrdersUsesWaitAcceptWithoutDriverFilter(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
+	// 派单消费者写入的 available 集合
+	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, 25), "1001").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
 	client := &fakeOrderClient{getOrderResponseStatus: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT}
 	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
 
@@ -383,11 +414,12 @@ func TestListAvailableOrdersUsesWaitAcceptWithoutDriverFilter(t *testing.T) {
 	if resp.Total != 1 || len(resp.List) != 1 || resp.List[0].OrderNo != "NO-1001" {
 		t.Fatalf("ListAvailableOrders() response = %+v", resp)
 	}
-	if client.listOrdersRequest.GetDriverId() != 0 ||
-		client.listOrdersRequest.GetPage() != 1 ||
-		client.listOrdersRequest.GetPageSize() != 100 ||
-		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
-		t.Fatalf("ListAvailableOrders() request = %+v", client.listOrdersRequest)
+	// 新逻辑不调用 ListOrders，而是读 available 集合 + GetOrder
+	if client.listOrdersRequest != nil {
+		t.Fatalf("ListAvailableOrders() should not call ListOrders, got %+v", client.listOrdersRequest)
+	}
+	if client.getOrderRequest == nil || client.getOrderRequest.GetOrderId() != 1001 {
+		t.Fatalf("ListAvailableOrders() should GetOrder(1001), got %+v", client.getOrderRequest)
 	}
 }
 
@@ -409,6 +441,7 @@ func TestListAvailableOrdersReturnsEmptyWhenDriverOffline(t *testing.T) {
 	}
 }
 
+// TestListAvailableOrdersFiltersAndSortsByDriverPosition 验证距离过滤与排序仍然生效（新逻辑保留距离计算）。
 func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
@@ -423,17 +456,11 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
+	// 派单消费者写入的 available 集合（3 个订单，其中 1002 距离超过 3km 应被过滤）
+	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, driverID), "1001", "1002", "1003").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
 	client := &fakeOrderClient{
-		listOrdersResponse: &orderproto.ListOrdersResponse{
-			List: []*orderproto.OrderSummary{
-				{OrderId: 1001, OrderNo: "far-but-in-range", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 3000, CreatedAt: 100},
-				{OrderId: 1002, OrderNo: "too-far", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 5000, CreatedAt: 101},
-				{OrderId: 1003, OrderNo: "nearest", Status: orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT, EstimatedPriceCents: 2800, CreatedAt: 102},
-			},
-			Total:    3,
-			Page:     1,
-			PageSize: 100,
-		},
 		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
 			1001: availableOrderDetail(1001, "far-but-in-range", 116.415, 39.908),
 			1002: availableOrderDetail(1002, "too-far", 116.520, 39.908),
@@ -455,11 +482,9 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	if resp.List[0].DistanceMeters <= 0 || resp.List[0].DistanceMeters >= resp.List[1].DistanceMeters {
 		t.Fatalf("ListAvailableOrders() distances = %d/%d, want nearest first", resp.List[0].DistanceMeters, resp.List[1].DistanceMeters)
 	}
-	if client.listOrdersRequest.GetDriverId() != 0 ||
-		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT ||
-		client.listOrdersRequest.GetPage() != 1 ||
-		client.listOrdersRequest.GetPageSize() != 100 {
-		t.Fatalf("ListAvailableOrders() request = %+v", client.listOrdersRequest)
+	// 新逻辑不调用 ListOrders
+	if client.listOrdersRequest != nil {
+		t.Fatalf("ListAvailableOrders() should not call ListOrders, got %+v", client.listOrdersRequest)
 	}
 }
 
@@ -482,6 +507,7 @@ func availableOrderDetail(orderID int64, orderNo string, longitude, latitude flo
 		CreatedAt:           100,
 	}
 }
+
 func TestGetMyOrderDetailRequiresOrderOwnedByDriver(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
@@ -495,7 +521,7 @@ func TestGetMyOrderDetailRequiresOrderOwnedByDriver(t *testing.T) {
 	}
 	if resp.Order.OrderID != 1001 ||
 		resp.Order.DriverID != 25 ||
-		resp.Order.UserID != 300 ||
+		resp.Order.UserID != 0 || // UserID 对司机隐藏，应为 0
 		resp.Order.FromLongitude != 116.391 ||
 		resp.Order.ToLatitude != 39.991 ||
 		resp.Order.EstimatedDistanceM != 12500 ||

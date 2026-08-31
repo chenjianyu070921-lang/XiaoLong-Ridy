@@ -1,4 +1,4 @@
-syntax = "v1"
+﻿syntax = "v1"
 
 info (
 	title:  "driver api"
@@ -106,6 +106,7 @@ type SendSMSCodeRequest {
 type SendSMSCodeResponse {
 	Success  bool `json:"success"`
 	ExpireIn int  `json:"expireIn"`
+	Code     string `json:"code"`
 }
 
 type LoginByPasswordRequest {
@@ -134,8 +135,6 @@ type SetOnlineRequest {
 	DeviceID          string  `json:"deviceId"`
 	Longitude         float64 `json:"longitude"`
 	Latitude          float64 `json:"latitude"`
-	AcceptRealtime    *bool   `json:"acceptRealtime,omitempty"`
-	AcceptReservation *bool   `json:"acceptReservation,omitempty"`
 }
 
 type SetOfflineRequest {
@@ -148,18 +147,6 @@ type SetOnlineResponse {
 	DriverID     int64 `json:"driverId"`
 	OnlineStatus int   `json:"onlineStatus"`
 	Kicked       bool  `json:"kicked"`
-}
-
-type DriverListenPreferenceRequest {
-	AcceptRealtime    bool `json:"acceptRealtime"`
-	AcceptReservation bool `json:"acceptReservation"`
-}
-
-type DriverListenPreferenceResponse {
-	DriverID          int64 `json:"driverId"`
-	AcceptRealtime    bool  `json:"acceptRealtime"`
-	AcceptReservation bool  `json:"acceptReservation"`
-	UpdatedAt         int64 `json:"updatedAt"`
 }
 
 type SetOfflineResponse {
@@ -332,6 +319,7 @@ type ListNearbyDriversRequest {
 }
 
 type ListNearbyDriversResponse {
+	List    []NearbyDriver `json:"list"`
 	Drivers []NearbyDriver `json:"drivers"`
 }
 
@@ -367,7 +355,7 @@ type WithdrawRecord {
 }
 
 type ListWithdrawsResponse {
-	Records []WithdrawRecord `json:"records"`
+	List  []WithdrawRecord `json:"list"`
 	Total   int64            `json:"total"`
 }
 
@@ -446,10 +434,9 @@ type StartTripResponse {
 }
 
 type FinishTripRequest {
-	OrderID          int64 `json:"orderId"`
-	ActualDistanceM  int64 `json:"actualDistanceM"`
-	ActualDurationS  int64 `json:"actualDurationS"`
-	ActualPriceCents int64 `json:"actualPriceCents"`
+	OrderID         int64 `json:"orderId"`
+	ActualDistanceM int64 `json:"actualDistanceM"`
+	ActualDurationS int64 `json:"actualDurationS"`
 }
 
 type FinishTripResponse {
@@ -470,6 +457,7 @@ type RejectOrderResponse {
 }
 
 type ListMyDispatchesRequest {
+	DriverID int64 `json:"driverId,omitempty"`
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"pageSize"`
 	Status   int32 `json:"status"`
@@ -504,10 +492,11 @@ type MyDispatchItem {
 }
 
 type ListMyDispatchesResponse {
-	List     []MyDispatchItem `json:"list"`
-	Total    int64            `json:"total"`
-	Page     int32            `json:"page"`
-	PageSize int32            `json:"pageSize"`
+	List         []MyDispatchItem `json:"list"`
+	Total        int64            `json:"total"`
+	Page         int32            `json:"page"`
+	PageSize     int32            `json:"pageSize"`
+	OrderQueryOk bool             `json:"orderQueryOk"`
 }
 
 type ListMyOrdersRequest {
@@ -649,12 +638,6 @@ service driver-api {
 
 	@handler SetOnlineHandler
 	post /api/driver/v1/drivers/online (SetOnlineRequest) returns (SetOnlineResponse)
-
-	@handler SetListenPreferenceHandler
-	post /api/driver/v1/drivers/listen-preference (DriverListenPreferenceRequest) returns (DriverListenPreferenceResponse)
-
-	@handler GetListenPreferenceHandler
-	get /api/driver/v1/drivers/listen-preference returns (DriverListenPreferenceResponse)
 
 	@handler SetOfflineHandler
 	post /api/driver/v1/drivers/offline (SetOfflineRequest) returns (SetOfflineResponse)

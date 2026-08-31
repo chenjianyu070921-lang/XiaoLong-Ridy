@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
@@ -28,6 +29,9 @@ func (l *SetDriverOfflineLogic) SetDriverOffline(in *proto.SetDriverOfflineReque
 	if in == nil || in.GetDriverId() <= 0 {
 		return nil, errInvalidDriverID
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil || l.svcCtx.OnlineStore == nil {
+		return nil, errors.New("driver dependencies not ready")
+	}
 	// 先校验司机存在（软删不可见）。
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.GetDriverId())); err != nil {
 		return nil, err
@@ -35,11 +39,8 @@ func (l *SetDriverOfflineLogic) SetDriverOffline(in *proto.SetDriverOfflineReque
 	if err := l.svcCtx.OnlineStore.SetOffline(l.ctx, in.GetDriverId()); err != nil {
 		return nil, err
 	}
-	updates := map[string]interface{}{"online_status": DriverOffline}
-	if err := l.svcCtx.DriverRepository.Update(l.ctx, uint64(in.GetDriverId()), updates); err != nil {
-		return nil, err
-	}
-	if err := l.svcCtx.DriverRepository.UpdateLocationStatus(l.ctx, uint64(in.GetDriverId()), DriverOffline); err != nil {
+	// 合并为一个事务，避免中间状态不一致
+	if err := l.svcCtx.DriverRepository.UpdateStatusAndLocation(l.ctx, uint64(in.GetDriverId()), DriverOffline); err != nil {
 		return nil, err
 	}
 	if err := syncDispatchDriverOffline(l.ctx, l.svcCtx, in.GetDriverId()); err != nil {

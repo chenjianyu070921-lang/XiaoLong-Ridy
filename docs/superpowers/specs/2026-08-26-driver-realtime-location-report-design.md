@@ -23,15 +23,13 @@ Redis sync must include:
 - GEO position under `driver:geo:<city>` for dispatch candidate lookup.
 - Online membership under `driver:online`.
 - Latest position snapshot under `driver:pos:<driver_id>` for direct lookup by future dispatch hall/navigation paths.
-- Existing listen preference membership must be preserved. A location heartbeat must not reset a driver who only accepts reservation orders back to both realtime and reservation.
 
 ## Reusable Interface
 
 The reusable unit is in driversvc logic, not in the HTTP handler:
 
-- `resolveDriverListenPreference(ctx, svcCtx, driverID, nil, nil)` loads saved preference or returns the default both-true preference.
-- `syncDispatchDriverOnlineWithPreference(ctx, svcCtx, driverID, longitude, latitude, pref)` updates Redis online/GEO/preference and latest position snapshot.
-- `syncDispatchDriverOffline(ctx, svcCtx, driverID)` removes online/GEO/preference/position snapshot.
+- `syncDispatchDriverOnline(ctx, svcCtx, driverID, longitude, latitude)` updates Redis online/GEO and latest position snapshot.
+- `syncDispatchDriverOffline(ctx, svcCtx, driverID)` removes online/GEO/position snapshot.
 
 Other driver-side RPC logic can call these helpers directly without going through `api/driver`.
 

@@ -3,7 +3,9 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
@@ -16,11 +18,16 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// activeWSConnections 当前活跃 WS 连接数，用于最大连接数限流
+var activeWSConnections int64
+
 const (
-	pushAuthTimeout  = 10 * time.Second
-	pushPingEvery    = 25 * time.Second
-	pushPollEvery    = 3 * time.Second
-	pushPollPageSize = 20
+	pushAuthTimeout   = 10 * time.Second
+	pushPingEvery     = 25 * time.Second
+	pushPollEvery     = 3 * time.Second
+	pushPollPageSize  = 20
+	maxSeenOrdersCache = 2000 // seenOrders 容量上限，超过后清空，避免长连接内存泄漏
+	maxWSConnections    = 5000 // 最大并发 WS 连接数，防止资源耗尽
 )
 
 type wsAuthMessage struct {
@@ -56,6 +63,13 @@ func DriverPushWSHandler(svcCtx *svc.ServiceContext) http.Handler {
 		},
 		Handler: func(conn *websocket.Conn) {
 			defer conn.Close()
+			// 最大连接数限制，防止 WS 连接耗尽服务器资源
+			if atomic.AddInt64(&activeWSConnections, 1) > maxWSConnections {
+				atomic.AddInt64(&activeWSConnections, -1)
+				_ = sendWSJSON(conn, wsEnvelope{Type: "error", Message: "too many connections", ServerTime: time.Now().Unix()})
+				return
+			}
+			defer atomic.AddInt64(&activeWSConnections, -1)
 			serveDriverPushWS(conn, svcCtx)
 		},
 	}
@@ -143,30 +157,71 @@ func serveDriverPushLoop(conn *websocket.Conn, svcCtx *svc.ServiceContext, drive
 	}
 }
 
+// sendPolledDispatchOrders 轮询兜底：优先读 driver:available:%d 集合（派单消费者写入），
+// Redis 不可用时降级为 ListOrders(driver_id+WAIT_ACCEPT)。推送待接单订单到 WS。
 func sendPolledDispatchOrders(conn *websocket.Conn, svcCtx *svc.ServiceContext, driverID int64, seen map[int64]struct{}) bool {
 	if svcCtx == nil || svcCtx.OrderClient == nil || driverID <= 0 {
 		return true
 	}
-	pageSize := svcCtx.PushPollPageSize
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = pushPollPageSize
-	}
-	resp, err := svcCtx.OrderClient.ListOrders(conn.Request().Context(), &orderproto.ListOrdersRequest{
-		DriverId: driverID,
-		Status:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
-		Page:     1,
-		PageSize: pageSize,
-	})
-	if err != nil {
-		return sendWSJSON(conn, wsEnvelope{Type: "push_poll_error", Degraded: true, Message: err.Error(), ServerTime: time.Now().Unix()}) == nil
-	}
-	for _, order := range resp.GetList() {
-		orderID := order.GetOrderId()
-		if orderID <= 0 {
-			continue
+
+	var orders []*orderproto.OrderSummary
+
+	if svcCtx.RedisClient != nil {
+		// 优先路径：读 driver:available:%d 集合 + GetOrder（D2 修复，避免 ListOrders 恒为空）
+		availableKey := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
+		orderIDStrs, err := svcCtx.RedisClient.SMembers(conn.Request().Context(), availableKey).Result()
+		if err != nil {
+			return sendWSJSON(conn, wsEnvelope{Type: "push_poll_error", Degraded: true, Message: err.Error(), ServerTime: time.Now().Unix()}) == nil
 		}
+		for _, idStr := range orderIDStrs {
+			orderID, err := strconv.ParseInt(idStr, 10, 64)
+			if err != nil || orderID <= 0 {
+				continue
+			}
+			order, err := svcCtx.OrderClient.GetOrder(conn.Request().Context(), &orderproto.GetOrderRequest{OrderId: orderID})
+			if err != nil || order == nil {
+				continue
+			}
+			if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
+				continue
+			}
+			orders = append(orders, &orderproto.OrderSummary{
+				OrderId:             order.GetOrderId(),
+				OrderNo:             order.GetOrderNo(),
+				FromAddress:         order.GetFromAddress(),
+				ToAddress:           order.GetToAddress(),
+				Status:              order.GetStatus(),
+				EstimatedPriceCents: order.GetEstimatedPriceCents(),
+				CreatedAt:           order.GetCreatedAt(),
+			})
+		}
+	} else {
+		// 降级路径：ListOrders（Redis 不可用时的兼容路径）
+		resp, err := svcCtx.OrderClient.ListOrders(conn.Request().Context(), &orderproto.ListOrdersRequest{
+			DriverId: driverID,
+			Status:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+			Page:     1,
+			PageSize: pushPollPageSize,
+		})
+		if err != nil {
+			return sendWSJSON(conn, wsEnvelope{Type: "push_poll_error", Degraded: true, Message: err.Error(), ServerTime: time.Now().Unix()}) == nil
+		}
+		orders = resp.GetList()
+	}
+
+	for _, order := range orders {
+		orderID := order.GetOrderId()
 		if _, ok := seen[orderID]; ok {
 			continue
+		}
+		if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
+			continue
+		}
+		// seenOrders 超过容量后清空，避免长连接内存泄漏
+		if len(seen) >= maxSeenOrdersCache {
+			for k := range seen {
+				delete(seen, k)
+			}
 		}
 		seen[orderID] = struct{}{}
 		if err := sendWSJSON(conn, wsDispatchOrder{

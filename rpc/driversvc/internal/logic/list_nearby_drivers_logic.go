@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
@@ -28,11 +29,17 @@ func NewListNearbyDriversLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 
 // ListNearbyDrivers 按经纬度 + 半径查找在线司机，返回按距离升序的列表。
 func (l *ListNearbyDriversLogic) ListNearbyDrivers(in *proto.ListNearbyDriversRequest) (*proto.ListNearbyDriversResponse, error) {
+	if in == nil {
+		return nil, errors.New("请求参数不能为空")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
+		return nil, errors.New("driver repository not ready")
+	}
 	filter := repository.NearbyDriverFilter{
-		Longitude: in.GetLongitude(),
-		Latitude:  in.GetLatitude(),
+		Longitude:    in.GetLongitude(),
+		Latitude:     in.GetLatitude(),
 		RadiusMeters: in.GetRadiusMeters(),
-		Limit:     int(in.GetLimit()),
+		Limit:        int(in.GetLimit()),
 	}
 
 	locations, err := l.svcCtx.DriverRepository.ListNearbyDrivers(l.ctx, filter)

@@ -11,14 +11,15 @@ func TestValidPhone(t *testing.T) {
 		phone string
 		want  bool
 	}{
-		{"13800000001", true},   // 常规 11 位手机号
-		{"19912345678", true},   // 19 开头（第二位 9）
-		{"14712345678", true},   // 14 开头（第二位 4）
-		{"12800000001", false},  // 第二位 2 非法
-		{"1380000000", false},   // 10 位
-		{"138000000011", false}, // 12 位
+		{"13800000001", true},
+		{"19912345678", true},
+		{"14712345678", true},
+		{"852656554556", true},
+		{"12800000001", false},
+		{"1380000000", false},
+		{"1380000000111111", false},
 		{"", false},
-		{"1380000000a", false}, // 含字母
+		{"1380000000a", false}, // invalid characters
 	}
 	for _, c := range cases {
 		if got := validPhone(c.phone); got != c.want {

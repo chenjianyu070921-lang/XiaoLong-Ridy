@@ -30,8 +30,6 @@ service DriverService {
 
   rpc SetDriverOnline(SetDriverOnlineRequest) returns (SetDriverOnlineResponse);
   rpc SetDriverOffline(SetDriverOfflineRequest) returns (SetDriverOfflineResponse);
-  rpc SetDriverListenPreference(SetDriverListenPreferenceRequest) returns (DriverListenPreferenceResponse);
-  rpc GetDriverListenPreference(GetDriverListenPreferenceRequest) returns (DriverListenPreferenceResponse);
   rpc ReportLocation(ReportLocationRequest) returns (ReportLocationResponse);
   rpc SetDriverServiceStatus(SetDriverServiceStatusRequest) returns (SetDriverServiceStatusResponse);
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
@@ -137,8 +135,6 @@ message SetDriverOnlineRequest {
   string device_id = 2;
   double longitude = 3;
   double latitude = 4;
-  optional bool accept_realtime = 5;
-  optional bool accept_reservation = 6;
 }
 
 message SetDriverOnlineResponse {
@@ -160,26 +156,6 @@ message SetDriverOfflineResponse {
   bool kicked = 3;
 }
 
-message DriverListenPreference {
-  int64 driver_id = 1;
-  bool accept_realtime = 2;
-  bool accept_reservation = 3;
-  int64 updated_at = 4;
-}
-
-message SetDriverListenPreferenceRequest {
-  int64 driver_id = 1;
-  bool accept_realtime = 2;
-  bool accept_reservation = 3;
-}
-
-message GetDriverListenPreferenceRequest {
-  int64 driver_id = 1;
-}
-
-message DriverListenPreferenceResponse {
-  DriverListenPreference preference = 1;
-}
 message ReportLocationRequest {
   int64 driver_id = 1;
   string device_id = 2;

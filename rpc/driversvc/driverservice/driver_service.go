@@ -12,66 +12,61 @@ import (
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
-
 type (
-	AiScoreFactor                    = __proto.AiScoreFactor
-	AuditCertificationRequest        = __proto.AuditCertificationRequest
-	CertificationInfo                = __proto.CertificationInfo
-	CommonResponse                   = __proto.CommonResponse
-	CreateDriverRequest              = __proto.CreateDriverRequest
-	CreateDriverResponse             = __proto.CreateDriverResponse
-	CreateVehicleRequest             = __proto.CreateVehicleRequest
-	CreateVehicleResponse            = __proto.CreateVehicleResponse
-	CreateWithdrawRequest            = __proto.CreateWithdrawRequest
-	CreateWithdrawResponse           = __proto.CreateWithdrawResponse
-	DeleteDriverRequest              = __proto.DeleteDriverRequest
-	DeleteDriverResponse             = __proto.DeleteDriverResponse
-	DeleteVehicleRequest             = __proto.DeleteVehicleRequest
-	DeleteVehicleResponse            = __proto.DeleteVehicleResponse
-	Driver                           = __proto.Driver
-	DriverListenPreference           = __proto.DriverListenPreference
-	DriverListenPreferenceResponse   = __proto.DriverListenPreferenceResponse
-	GetCertificationRequest          = __proto.GetCertificationRequest
-	GetCertificationResponse         = __proto.GetCertificationResponse
-	GetDriverAiScoreRequest          = __proto.GetDriverAiScoreRequest
-	GetDriverAiScoreResponse         = __proto.GetDriverAiScoreResponse
-	GetDriverByPhoneRequest          = __proto.GetDriverByPhoneRequest
-	GetDriverByPhoneResponse         = __proto.GetDriverByPhoneResponse
-	FreezeDriverRequest              = __proto.FreezeDriverRequest
-	GetDriverListenPreferenceRequest = __proto.GetDriverListenPreferenceRequest
-	GetDriverRequest                 = __proto.GetDriverRequest
-	GetDriverResponse                = __proto.GetDriverResponse
-	GetVehicleRequest                = __proto.GetVehicleRequest
-	GetVehicleResponse               = __proto.GetVehicleResponse
-	HeartbeatRequest                 = __proto.HeartbeatRequest
-	HeartbeatResponse                = __proto.HeartbeatResponse
-	ListDriversRequest               = __proto.ListDriversRequest
-	ListDriversResponse              = __proto.ListDriversResponse
-	ListNearbyDriversRequest         = __proto.ListNearbyDriversRequest
-	ListNearbyDriversResponse        = __proto.ListNearbyDriversResponse
-	ListWithdrawsRequest             = __proto.ListWithdrawsRequest
-	ListWithdrawsResponse            = __proto.ListWithdrawsResponse
-	LoginBySMSRequest                = __proto.LoginBySMSRequest
-	LoginRequest                     = __proto.LoginRequest
-	LoginResponse                    = __proto.LoginResponse
-	NearbyDriver                     = __proto.NearbyDriver
-	ReportLocationRequest            = __proto.ReportLocationRequest
-	ReportLocationResponse           = __proto.ReportLocationResponse
-	SetDriverListenPreferenceRequest = __proto.SetDriverListenPreferenceRequest
-	SetDriverOfflineRequest          = __proto.SetDriverOfflineRequest
-	SetDriverOfflineResponse         = __proto.SetDriverOfflineResponse
-	SetDriverOnlineRequest           = __proto.SetDriverOnlineRequest
-	SetDriverOnlineResponse          = __proto.SetDriverOnlineResponse
-	SetDriverServiceStatusRequest    = __proto.SetDriverServiceStatusRequest
-	SetDriverServiceStatusResponse   = __proto.SetDriverServiceStatusResponse
-	UpdateDriverRequest              = __proto.UpdateDriverRequest
-	UpdateDriverResponse             = __proto.UpdateDriverResponse
-	UpdateVehicleRequest             = __proto.UpdateVehicleRequest
-	UpdateVehicleResponse            = __proto.UpdateVehicleResponse
-	UploadCertificationRequest       = __proto.UploadCertificationRequest
-	UploadCertificationResponse      = __proto.UploadCertificationResponse
-	Vehicle                          = __proto.Vehicle
-	WithdrawRecord                   = __proto.WithdrawRecord
+	AiScoreFactor                  = __proto.AiScoreFactor
+	AuditCertificationRequest      = __proto.AuditCertificationRequest
+	CertificationInfo              = __proto.CertificationInfo
+	CommonResponse                 = __proto.CommonResponse
+	CreateDriverRequest            = __proto.CreateDriverRequest
+	CreateDriverResponse           = __proto.CreateDriverResponse
+	CreateVehicleRequest           = __proto.CreateVehicleRequest
+	CreateVehicleResponse          = __proto.CreateVehicleResponse
+	CreateWithdrawRequest          = __proto.CreateWithdrawRequest
+	CreateWithdrawResponse         = __proto.CreateWithdrawResponse
+	DeleteDriverRequest            = __proto.DeleteDriverRequest
+	DeleteDriverResponse           = __proto.DeleteDriverResponse
+	DeleteVehicleRequest           = __proto.DeleteVehicleRequest
+	DeleteVehicleResponse          = __proto.DeleteVehicleResponse
+	Driver                         = __proto.Driver
+	FreezeDriverRequest            = __proto.FreezeDriverRequest
+	GetCertificationRequest        = __proto.GetCertificationRequest
+	GetCertificationResponse       = __proto.GetCertificationResponse
+	GetDriverAiScoreRequest        = __proto.GetDriverAiScoreRequest
+	GetDriverAiScoreResponse       = __proto.GetDriverAiScoreResponse
+	GetDriverByPhoneRequest        = __proto.GetDriverByPhoneRequest
+	GetDriverByPhoneResponse       = __proto.GetDriverByPhoneResponse
+	GetDriverRequest               = __proto.GetDriverRequest
+	GetDriverResponse              = __proto.GetDriverResponse
+	GetVehicleRequest              = __proto.GetVehicleRequest
+	GetVehicleResponse             = __proto.GetVehicleResponse
+	HeartbeatRequest               = __proto.HeartbeatRequest
+	HeartbeatResponse              = __proto.HeartbeatResponse
+	ListDriversRequest             = __proto.ListDriversRequest
+	ListDriversResponse            = __proto.ListDriversResponse
+	ListNearbyDriversRequest       = __proto.ListNearbyDriversRequest
+	ListNearbyDriversResponse      = __proto.ListNearbyDriversResponse
+	ListWithdrawsRequest           = __proto.ListWithdrawsRequest
+	ListWithdrawsResponse          = __proto.ListWithdrawsResponse
+	LoginBySMSRequest              = __proto.LoginBySMSRequest
+	LoginRequest                   = __proto.LoginRequest
+	LoginResponse                  = __proto.LoginResponse
+	NearbyDriver                   = __proto.NearbyDriver
+	ReportLocationRequest          = __proto.ReportLocationRequest
+	ReportLocationResponse         = __proto.ReportLocationResponse
+	SetDriverOfflineRequest        = __proto.SetDriverOfflineRequest
+	SetDriverOfflineResponse       = __proto.SetDriverOfflineResponse
+	SetDriverOnlineRequest         = __proto.SetDriverOnlineRequest
+	SetDriverOnlineResponse        = __proto.SetDriverOnlineResponse
+	SetDriverServiceStatusRequest  = __proto.SetDriverServiceStatusRequest
+	SetDriverServiceStatusResponse = __proto.SetDriverServiceStatusResponse
+	UpdateDriverRequest            = __proto.UpdateDriverRequest
+	UpdateDriverResponse           = __proto.UpdateDriverResponse
+	UpdateVehicleRequest           = __proto.UpdateVehicleRequest
+	UpdateVehicleResponse          = __proto.UpdateVehicleResponse
+	UploadCertificationRequest     = __proto.UploadCertificationRequest
+	UploadCertificationResponse    = __proto.UploadCertificationResponse
+	Vehicle                        = __proto.Vehicle
+	WithdrawRecord                 = __proto.WithdrawRecord
 
 	DriverService interface {
 		CreateDriver(ctx context.Context, in *CreateDriverRequest, opts ...grpc.CallOption) (*CreateDriverResponse, error)
@@ -83,8 +78,6 @@ type (
 		FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		SetDriverOnline(ctx context.Context, in *SetDriverOnlineRequest, opts ...grpc.CallOption) (*SetDriverOnlineResponse, error)
 		SetDriverOffline(ctx context.Context, in *SetDriverOfflineRequest, opts ...grpc.CallOption) (*SetDriverOfflineResponse, error)
-		SetDriverListenPreference(ctx context.Context, in *SetDriverListenPreferenceRequest, opts ...grpc.CallOption) (*DriverListenPreferenceResponse, error)
-		GetDriverListenPreference(ctx context.Context, in *GetDriverListenPreferenceRequest, opts ...grpc.CallOption) (*DriverListenPreferenceResponse, error)
 		ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error)
 		SetDriverServiceStatus(ctx context.Context, in *SetDriverServiceStatusRequest, opts ...grpc.CallOption) (*SetDriverServiceStatusResponse, error)
 		Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
@@ -159,16 +152,6 @@ func (m *defaultDriverService) SetDriverOnline(ctx context.Context, in *SetDrive
 func (m *defaultDriverService) SetDriverOffline(ctx context.Context, in *SetDriverOfflineRequest, opts ...grpc.CallOption) (*SetDriverOfflineResponse, error) {
 	client := __proto.NewDriverServiceClient(m.cli.Conn())
 	return client.SetDriverOffline(ctx, in, opts...)
-}
-
-func (m *defaultDriverService) SetDriverListenPreference(ctx context.Context, in *SetDriverListenPreferenceRequest, opts ...grpc.CallOption) (*DriverListenPreferenceResponse, error) {
-	client := __proto.NewDriverServiceClient(m.cli.Conn())
-	return client.SetDriverListenPreference(ctx, in, opts...)
-}
-
-func (m *defaultDriverService) GetDriverListenPreference(ctx context.Context, in *GetDriverListenPreferenceRequest, opts ...grpc.CallOption) (*DriverListenPreferenceResponse, error) {
-	client := __proto.NewDriverServiceClient(m.cli.Conn())
-	return client.GetDriverListenPreference(ctx, in, opts...)
 }
 
 func (m *defaultDriverService) ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error) {

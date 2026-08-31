@@ -41,6 +41,9 @@ func (l *SetDriverServiceStatusLogic) SetDriverServiceStatus(in *proto.SetDriver
 	if !validOnlineStatus(in.GetOnlineStatus()) {
 		return nil, errInvalidOnlineStatus
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil || l.svcCtx.OnlineStore == nil {
+		return nil, errors.New("driver dependencies not ready")
+	}
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.GetDriverId())); err != nil {
 		return nil, err
 	}
@@ -49,12 +52,30 @@ func (l *SetDriverServiceStatusLogic) SetDriverServiceStatus(in *proto.SetDriver
 	if err := l.svcCtx.OnlineStore.SetStatus(l.ctx, in.GetDriverId(), in.GetOnlineStatus()); err != nil {
 		return nil, err
 	}
-	if err := l.svcCtx.DriverRepository.Update(l.ctx, uint64(in.GetDriverId()), map[string]interface{}{"online_status": statusValue}); err != nil {
+	// #3 修复：driver 表和 driver_location 表合并为一个事务，避免中间状态不一致
+	if err := l.svcCtx.DriverRepository.UpdateStatusAndLocation(l.ctx, uint64(in.GetDriverId()), statusValue); err != nil {
 		return nil, err
 	}
-	if err := l.svcCtx.DriverRepository.UpdateLocationStatus(l.ctx, uint64(in.GetDriverId()), statusValue); err != nil {
-		return nil, err
+
+	// #1 修复：同步派单侧可派单池状态。
+	// OnTrip：从 GEO / driver:online SET 移除，避免行程中被派新单（一司多单）。
+	// Online：使用上次上报位置加回可派单池。
+	// Offline：由调用方（SetDriverOffline）负责清理，此处不重复操作。
+	// 派单侧同步失败仅告警，不阻断主流程（DB/onlinestore 已更新）。
+	switch in.GetOnlineStatus() {
+	case onlinestore.OnTrip:
+		if err := syncDispatchDriverOffline(l.ctx, l.svcCtx, in.GetDriverId()); err != nil {
+			l.Errorf("sync dispatch offline on OnTrip failed: %v", err)
+		}
+	case onlinestore.Online:
+		st, _ := l.svcCtx.OnlineStore.Get(l.ctx, in.GetDriverId())
+		if st != nil {
+			if err := syncDispatchDriverOnline(l.ctx, l.svcCtx, in.GetDriverId(), st.Longitude, st.Latitude); err != nil {
+				l.Errorf("sync dispatch online on Online failed: %v", err)
+			}
+		}
 	}
+
 	return &proto.SetDriverServiceStatusResponse{
 		DriverId:     in.GetDriverId(),
 		OnlineStatus: in.GetOnlineStatus(),

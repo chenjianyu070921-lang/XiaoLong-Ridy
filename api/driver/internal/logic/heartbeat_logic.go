@@ -1,16 +1,12 @@
-package logic
+﻿package logic
 
 import (
 	"context"
-	"errors"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 )
-
-// errInvalidDeviceID 表示心跳请求缺少设备标识。
-var errInvalidDeviceID = errors.New("设备标识缺失")
 
 // HeartbeatLogic 封装司机心跳上报逻辑，持有请求上下文与下游 driversvc 客户端。
 type HeartbeatLogic struct {
@@ -26,8 +22,8 @@ func NewHeartbeatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Heartbe
 // Heartbeat 上报司机心跳：透传 deviceID 与位置到 driversvc，刷新在线状态保活并判定多端互踢。
 // driverID 由鉴权中间件从 JWT 解析得到；deviceID 取自请求体，用于互踢判定。
 func (l *HeartbeatLogic) Heartbeat(driverID int64, req *types.HeartbeatRequest) (*types.HeartbeatResponse, error) {
-	if req.DeviceID == "" {
-		return nil, errInvalidDeviceID
+	if driverID <= 0 || req == nil || req.DeviceID == "" || !validLocation(req.Longitude, req.Latitude) {
+		return nil, ErrInvalidParam
 	}
 	client, err := l.driverClient()
 	if err != nil {

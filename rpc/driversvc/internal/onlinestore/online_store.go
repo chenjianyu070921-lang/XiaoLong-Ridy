@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // 在线状态常量，与 driver_location.online_status 语义一致。
@@ -69,10 +70,16 @@ func (s *Store) SetOnline(ctx context.Context, driverID int64, deviceID string, 
 	return err
 }
 
-// SetOffline 记录司机下线：仅置离线状态（保留设备标识供互踢判定），不清除 key 以便弱化离线状态。
+// SetOffline 记录司机下线：置离线状态并清除经纬度（避免误判在线时用旧位置派单），不删除 key 以便弱化离线状态。
 func (s *Store) SetOffline(ctx context.Context, driverID int64) error {
 	key := s.key(driverID)
-	return s.rdb.HSet(ctx, key, "online_status", Offline).Err()
+	_, err := s.rdb.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		pipe.HSet(ctx, key, "online_status", Offline)
+		// #11 修复：下线时清除经纬度，避免 TTL 内误判在线时用旧位置派单
+		pipe.HDel(ctx, key, "longitude", "latitude")
+		return nil
+	})
+	return err
 }
 
 // SetStatus 更新司机服务状态，保留已有设备与位置；在线/行程中状态会续期 TTL。
@@ -99,6 +106,8 @@ func (s *Store) Get(ctx context.Context, driverID int64) (*State, error) {
 	}
 	st, err := strconv.ParseInt(vals["online_status"], 10, 32)
 	if err != nil {
+		// #9 修复：解析失败打日志，避免脏数据被静默忽略
+		logx.WithContext(ctx).Errorf("onlinestore.Get: parse online_status for driver %d failed, raw=%q, fallback to Offline: %v", driverID, vals["online_status"], err)
 		st = int64(Offline)
 	}
 	lon, _ := strconv.ParseFloat(vals["longitude"], 64)

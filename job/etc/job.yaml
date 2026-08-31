@@ -25,7 +25,7 @@ mysql:
   maxLifeTime: 3600
 redis:
   host: 115.191.16.159:6379
-  pass: ""
+  pass: "4ay1nkal3u8ed77y"
   db: 0
   poolSize: 20
 timeoutseconds: 300

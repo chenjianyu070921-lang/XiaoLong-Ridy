@@ -9,8 +9,6 @@ import (
 type fakeDriverClient struct {
 	setOnlineRequest            *driversproto.SetDriverOnlineRequest
 	setOfflineRequest           *driversproto.SetDriverOfflineRequest
-	setListenPreferenceRequest  *driversproto.SetDriverListenPreferenceRequest
-	getListenPreferenceRequest  *driversproto.GetDriverListenPreferenceRequest
 	reportLocationRequest       *driversproto.ReportLocationRequest
 	serviceStatusRequests       []*driversproto.SetDriverServiceStatusRequest
 	loginRequest                *driversproto.LoginRequest
@@ -31,8 +29,6 @@ type fakeDriverClient struct {
 	getVehicleResponse          *driversproto.GetVehicleResponse
 	getDriverByPhoneResponse    *driversproto.GetDriverByPhoneResponse
 	nearbyDriversResponse       *driversproto.ListNearbyDriversResponse
-	setListenPreferenceResponse *driversproto.DriverListenPreferenceResponse
-	getListenPreferenceResponse *driversproto.DriverListenPreferenceResponse
 }
 
 func (f *fakeDriverClient) CreateDriver(context.Context, *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
@@ -65,30 +61,6 @@ func (f *fakeDriverClient) SetDriverOffline(_ context.Context, req *driversproto
 		DriverId:     req.GetDriverId(),
 		OnlineStatus: 0,
 	}, nil
-}
-
-func (f *fakeDriverClient) SetDriverListenPreference(_ context.Context, req *driversproto.SetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error) {
-	f.setListenPreferenceRequest = req
-	if f.setListenPreferenceResponse != nil {
-		return f.setListenPreferenceResponse, nil
-	}
-	return &driversproto.DriverListenPreferenceResponse{Preference: &driversproto.DriverListenPreference{
-		DriverId:          req.GetDriverId(),
-		AcceptRealtime:    req.GetAcceptRealtime(),
-		AcceptReservation: req.GetAcceptReservation(),
-	}}, nil
-}
-
-func (f *fakeDriverClient) GetDriverListenPreference(_ context.Context, req *driversproto.GetDriverListenPreferenceRequest) (*driversproto.DriverListenPreferenceResponse, error) {
-	f.getListenPreferenceRequest = req
-	if f.getListenPreferenceResponse != nil {
-		return f.getListenPreferenceResponse, nil
-	}
-	return &driversproto.DriverListenPreferenceResponse{Preference: &driversproto.DriverListenPreference{
-		DriverId:          req.GetDriverId(),
-		AcceptRealtime:    true,
-		AcceptReservation: true,
-	}}, nil
 }
 
 func (f *fakeDriverClient) Login(_ context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error) {

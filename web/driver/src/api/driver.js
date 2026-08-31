@@ -58,6 +58,7 @@ function clearDriverSession() {
   }
 }
 
+
 export function sendDriverSMSCode(phone, config = {}) {
   return driverRequest.post('/auth/send-sms-code', { phone }, config)
 }
@@ -116,6 +117,10 @@ export function updateVehicle(data) {
 
 export function deleteVehicle(id) {
   return driverRequest.post('/vehicles/delete', { id })
+}
+
+export function createWithdraw(data) {
+  return driverRequest.post('/withdraws', data)
 }
 
 export function uploadCertification(data) {

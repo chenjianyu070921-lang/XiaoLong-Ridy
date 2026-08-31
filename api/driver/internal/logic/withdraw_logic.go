@@ -1,4 +1,4 @@
-package logic
+﻿package logic
 
 import (
 	"context"
@@ -19,6 +19,10 @@ func NewWithdrawLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Withdraw
 
 func (l *WithdrawLogic) CreateWithdraw(driverID int64, req *types.CreateWithdrawRequest) (*types.CreateWithdrawResponse, error) {
 	if driverID <= 0 || req == nil {
+		return nil, ErrInvalidParam
+	}
+	// #7 修复：提现金额必须为正数，防止负数/零金额提现
+	if req.Amount <= 0 {
 		return nil, ErrInvalidParam
 	}
 	client, err := l.driverClient()
@@ -61,7 +65,7 @@ func (l *WithdrawLogic) ListWithdraws(driverID int64, req *types.ListWithdrawsRe
 	}
 	result := &types.ListWithdrawsResponse{Total: resp.GetTotal()}
 	for _, record := range resp.GetRecords() {
-		result.Records = append(result.Records, types.WithdrawRecord{
+		result.List = append(result.List, types.WithdrawRecord{
 			ID:         record.GetId(),
 			WithdrawNo: record.GetWithdrawNo(),
 			Amount:     record.GetAmount(),

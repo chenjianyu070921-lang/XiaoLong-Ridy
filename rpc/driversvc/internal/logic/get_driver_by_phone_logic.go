@@ -2,6 +2,8 @@ package logic
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
@@ -25,6 +27,12 @@ func NewGetDriverByPhoneLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 
 // GetDriverByPhone 根据手机号查询司机完整信息（登录场景使用）。
 func (l *GetDriverByPhoneLogic) GetDriverByPhone(in *proto.GetDriverByPhoneRequest) (*proto.GetDriverByPhoneResponse, error) {
+	if in == nil || strings.TrimSpace(in.Phone) == "" {
+		return nil, errors.New("手机号不合法")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
+		return nil, errors.New("driver repository not ready")
+	}
 	d, err := l.svcCtx.DriverRepository.GetByPhone(l.ctx, in.Phone)
 	if err != nil {
 		return nil, err

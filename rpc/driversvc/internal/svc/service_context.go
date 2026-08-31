@@ -19,7 +19,6 @@ type ServiceContext struct {
 	DriverVehicleRepository          repository.DriverVehicleRepository
 	CertificationRepository          repository.CertificationRepository
 	DriverWithdrawRepository         repository.DriverWithdrawRepository
-	DriverListenPreferenceRepository repository.DriverListenPreferenceRepository
 	RedisClient                      *redis.Client
 	OnlineStore                      *onlinestore.Store
 	MinioClient                      *minio.Client
@@ -52,7 +51,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		DriverVehicleRepository:          repository.NewGormVehicleRepository(db),
 		CertificationRepository:          repository.NewGormCertificationRepository(db),
 		DriverWithdrawRepository:         repository.NewGormDriverWithdrawRepository(db),
-		DriverListenPreferenceRepository: repository.NewGormDriverListenPreferenceRepository(db),
 		RedisClient:                      rdb,
 		OnlineStore:                      onlinestore.NewStore(rdb, 0),
 		MinioClient:                      mc,

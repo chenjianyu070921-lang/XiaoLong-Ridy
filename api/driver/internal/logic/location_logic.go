@@ -8,6 +8,8 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/types"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // LocationLogic 封装司机位置上报逻辑，负责校验坐标并调用 driversvc 刷新在线状态与位置。
@@ -41,8 +43,10 @@ func (l *LocationLogic) ReportLocation(driverID int64, req *types.ReportLocation
 	if err != nil {
 		return nil, err
 	}
+	// 辅助操作失败不阻断主流程：driversvc 已成功更新位置和在线状态，
+	// locationsvc / 轨迹记录失败仅告警，避免司机端收到"上报失败"但实际已成功的状态错乱。
 	if l.svcCtx != nil && l.svcCtx.LocationClient != nil {
-		if _, err := l.svcCtx.LocationClient.ReportLocation(l.ctx, &locationproto.ReportLocationReq{
+		if _, locErr := l.svcCtx.LocationClient.ReportLocation(l.ctx, &locationproto.ReportLocationReq{
 			DriverId:     driverID,
 			Lng:          req.Longitude,
 			Lat:          req.Latitude,
@@ -50,23 +54,22 @@ func (l *LocationLogic) ReportLocation(driverID int64, req *types.ReportLocation
 			SpeedKmh:     req.SpeedKmh,
 			OnlineStatus: resp.GetOnlineStatus(),
 			OrderId:      req.OrderID,
-		}); err != nil {
-			return nil, err
+		}); locErr != nil {
+			logx.WithContext(l.ctx).Errorf("location svc report failed (driver location already updated): %v", locErr)
 		}
 	}
 	if req.OrderID > 0 {
-		if l.svcCtx == nil || l.svcCtx.TrajectoryRepository == nil {
-			return nil, ErrTrajectoryStorageNotConfigured
-		}
-		if err := l.svcCtx.TrajectoryRepository.RecordPoint(l.ctx, &svc.TrajectoryRecord{
-			OrderID:   req.OrderID,
-			DriverID:  driverID,
-			Longitude: req.Longitude,
-			Latitude:  req.Latitude,
-			SpeedKmh:  req.SpeedKmh,
-			Heading:   req.Heading,
-		}); err != nil {
-			return nil, err
+		if l.svcCtx != nil && l.svcCtx.TrajectoryRepository != nil {
+			if trajErr := l.svcCtx.TrajectoryRepository.RecordPoint(l.ctx, &svc.TrajectoryRecord{
+				OrderID:   req.OrderID,
+				DriverID:  driverID,
+				Longitude: req.Longitude,
+				Latitude:  req.Latitude,
+				SpeedKmh:  req.SpeedKmh,
+				Heading:   req.Heading,
+			}); trajErr != nil {
+				logx.WithContext(l.ctx).Errorf("trajectory record failed (driver location already updated): %v", trajErr)
+			}
 		}
 	}
 	return &types.ReportLocationResponse{
@@ -83,9 +86,4 @@ func (l *LocationLogic) driverClient() (svc.DriverClient, error) {
 		return nil, ErrDriverClientNotConfigured
 	}
 	return l.svcCtx.DriverClient, nil
-}
-
-// validLocation 校验经纬度是否落在合法范围内。
-func validLocation(longitude, latitude float64) bool {
-	return longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90
 }

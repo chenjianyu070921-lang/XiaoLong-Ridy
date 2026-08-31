@@ -39,13 +39,34 @@ func (l *ReportLocationLogic) ReportLocation(in *proto.ReportLocationRequest) (*
 	if !validLongitudeLatitude(in.GetLongitude(), in.GetLatitude()) {
 		return nil, errInvalidLongitudeLatitude
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil || l.svcCtx.OnlineStore == nil {
+		return nil, errors.New("driver dependencies not ready")
+	}
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.GetDriverId())); err != nil {
 		return nil, err
 	}
 
 	onlineStatus, kicked, err := l.svcCtx.OnlineStore.Heartbeat(l.ctx, in.GetDriverId(), in.GetDeviceId(), in.GetLongitude(), in.GetLatitude())
 	if err != nil {
-		return nil, err
+		// Redis 在线存储异常：降级为仅写 DB 位置，不阻断位置上报主流程（#8 修复）。
+		// 否则 Redis 瞬时抖动会导致司机 GEO 不更新、从派单池消失。
+		l.Errorf("online store heartbeat failed, fallback to DB-only location update: %v", err)
+		reportTime := time.Now()
+		if dbErr := l.svcCtx.DriverRepository.UpsertLocation(l.ctx, &model.DriverLocation{
+			DriverID:     uint64(in.GetDriverId()),
+			Longitude:    in.GetLongitude(),
+			Latitude:     in.GetLatitude(),
+			OnlineStatus: locationStatusFromOnline(int32(DriverOnline)),
+			ReportTime:   reportTime,
+		}); dbErr != nil {
+			return nil, dbErr
+		}
+		return &proto.ReportLocationResponse{
+			DriverId:     in.GetDriverId(),
+			OnlineStatus: int32(DriverOnline),
+			Kicked:       false,
+			ReportTime:   reportTime.Unix(),
+		}, nil
 	}
 	reportTime := time.Now()
 	if !kicked {
@@ -62,11 +83,7 @@ func (l *ReportLocationLogic) ReportLocation(in *proto.ReportLocationRequest) (*
 			return nil, err
 		}
 		if onlineStatus == int32(DriverOnline) {
-			pref, err := resolveDriverListenPreference(l.ctx, l.svcCtx, in.GetDriverId(), nil, nil)
-			if err != nil {
-				return nil, err
-			}
-			if err := syncDispatchDriverOnlineWithPreference(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude(), pref); err != nil {
+			if err := syncDispatchDriverOnline(l.ctx, l.svcCtx, in.GetDriverId(), in.GetLongitude(), in.GetLatitude()); err != nil {
 				return nil, err
 			}
 		} else if onlineStatus == int32(DriverOffline) {

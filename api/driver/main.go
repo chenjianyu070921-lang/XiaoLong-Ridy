@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime/debug"
+	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/handler"
 	"XiaoLong-Ridy/api/driver/internal/middleware"
@@ -18,14 +20,14 @@ import (
 
 const defaultHTTPAddress = ":8082"
 
-// driversvc listens on rpc/driversvc/etc/driversvc.yaml ListenOn by default.
-const defaultDriverGRPCAddr = "127.0.0.1:5055"
+// Driver-side backend services use the shared development server by default.
+const defaultDriverGRPCAddr = "115.191.16.159:50055"
 
-const defaultOrderGRPCAddr = "127.0.0.1:50051"
+const defaultOrderGRPCAddr = "115.191.16.159:50051"
 
-const defaultDispatchGRPCAddr = "127.0.0.1:50056"
+const defaultDispatchGRPCAddr = "115.191.16.159:50056"
 
-const defaultLocationGRPCAddr = "127.0.0.1:5056"
+const defaultLocationGRPCAddr = "115.191.16.159:9001"
 
 const defaultRedisAddr = ""
 
@@ -36,7 +38,9 @@ type driverConfig struct {
 	DispatchGRPCAddr string                 `yaml:"dispatchGrpcAddr"`
 	LocationGRPCAddr string                 `yaml:"locationGrpcAddr"`
 	RedisAddr        string                 `yaml:"redisAddr"`
+	RedisPassword    string                 `yaml:"redisPassword"`
 	Mysql            commonconfig.MysqlConf `yaml:"mysql"`
+	InternalAuth     svc.InternalAuthConfig `yaml:"internalAuth"`
 }
 
 func main() {
@@ -53,24 +57,50 @@ func main() {
 	dispatchGRPCAddr := envOr("DISPATCH_GRPC_ADDR", cfg.DispatchGRPCAddr)
 	locationGRPCAddr := envOr("LOCATION_GRPC_ADDR", cfg.LocationGRPCAddr)
 	redisAddr := envOr("DRIVER_REDIS_ADDR", cfg.RedisAddr)
+	redisPassword := envOr("DRIVER_REDIS_PASSWORD", cfg.RedisPassword)
+	if internalToken := envOr("DRIVER_INTERNAL_SERVICE_TOKEN", ""); internalToken != "" {
+		cfg.InternalAuth.ServiceToken = internalToken
+	}
 	if mysqlDSN := envOr("DRIVER_MYSQL_DSN", ""); mysqlDSN != "" {
 		cfg.Mysql.Dsn = mysqlDSN
 	}
 
-	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, cfg.Mysql)
+	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword, cfg.Mysql)
+	svcCtx.InternalAuth = cfg.InternalAuth
 	if err := svcCtx.ValidateSigningKey(); err != nil {
 		panic(fmt.Errorf("driver api signing key check: %w", err))
 	}
+	if err := svcCtx.ValidateInternalAuth(); err != nil {
+		panic(fmt.Errorf("driver api internal auth check: %w", err))
+	}
 
 	server := &http.Server{
-		Addr:    address,
-		Handler: newHTTPHandler(svcCtx),
+		Addr:         address,
+		Handler:      recoverMiddleware(newHTTPHandler(svcCtx)),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(fmt.Errorf("start driver api: %w", err))
 	}
+}
+
+// recoverMiddleware 捕获 handler panic，返回 500 而非让连接异常断开。
+func recoverMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("panic recovered: %v\n%s", rec, debug.Stack())
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"code":50000,"message":"internal server error","data":null,"timestamp":0,"traceId":""}`))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func loadDriverConfig(path string) (driverConfig, error) {
@@ -132,7 +162,6 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/drivers/by-phone", protected(methodSwitch("POST", handler.GetDriverByPhoneHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/delete", protected(handler.DeleteDriverHandler(svcCtx)))
 	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/listen-preference", protected(handler.ListenPreferenceHandler(svcCtx)))
 	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/heartbeat", protected(methodSwitch("POST", handler.HeartbeatHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/location/report", protected(methodSwitch("POST", handler.ReportLocationHandler(svcCtx))))
@@ -166,7 +195,7 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/ws", handler.DriverPushWSHandler(svcCtx))
 	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", handler.AgentChatHandler())))
 
-	return mux
+	return middleware.InternalServiceAuth(svcCtx)(mux)
 }
 
 func internalOrDriverAuth(svcCtx *svc.ServiceContext, h http.HandlerFunc) http.Handler {

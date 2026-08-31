@@ -124,8 +124,9 @@ type SendSMSCodeRequest struct {
 }
 
 type SendSMSCodeResponse struct {
-	Success  bool `json:"success"`
-	ExpireIn int  `json:"expireIn"`
+	Success  bool   `json:"success"`
+	ExpireIn int    `json:"expireIn"`
+	Code     string `json:"code"`
 }
 
 type LoginByPasswordRequest struct {
@@ -154,8 +155,6 @@ type SetOnlineRequest struct {
 	DeviceID          string  `json:"deviceId"`
 	Longitude         float64 `json:"longitude"`
 	Latitude          float64 `json:"latitude"`
-	AcceptRealtime    *bool   `json:"acceptRealtime,omitempty"`
-	AcceptReservation *bool   `json:"acceptReservation,omitempty"`
 }
 
 type SetOfflineRequest struct {
@@ -168,18 +167,6 @@ type SetOnlineResponse struct {
 	DriverID     int64 `json:"driverId"`
 	OnlineStatus int   `json:"onlineStatus"`
 	Kicked       bool  `json:"kicked"`
-}
-
-type DriverListenPreferenceRequest struct {
-	AcceptRealtime    bool `json:"acceptRealtime"`
-	AcceptReservation bool `json:"acceptReservation"`
-}
-
-type DriverListenPreferenceResponse struct {
-	DriverID          int64 `json:"driverId"`
-	AcceptRealtime    bool  `json:"acceptRealtime"`
-	AcceptReservation bool  `json:"acceptReservation"`
-	UpdatedAt         int64 `json:"updatedAt"`
 }
 
 type SetOfflineResponse struct {
@@ -360,6 +347,7 @@ type ListNearbyDriversRequest struct {
 }
 
 type ListNearbyDriversResponse struct {
+	List    []NearbyDriver `json:"list"`
 	Drivers []NearbyDriver `json:"drivers"`
 }
 
@@ -401,8 +389,8 @@ type WithdrawRecord struct {
 }
 
 type ListWithdrawsResponse struct {
-	Records []WithdrawRecord `json:"records"`
-	Total   int64            `json:"total"`
+	List  []WithdrawRecord `json:"list"`
+	Total int64            `json:"total"`
 }
 
 type GetIncomeSummaryResponse struct {
@@ -480,10 +468,9 @@ type StartTripResponse struct {
 }
 
 type FinishTripRequest struct {
-	OrderID          int64 `json:"orderId"`
-	ActualDistanceM  int64 `json:"actualDistanceM"`
-	ActualDurationS  int64 `json:"actualDurationS"`
-	ActualPriceCents int64 `json:"actualPriceCents"`
+	OrderID         int64 `json:"orderId"`
+	ActualDistanceM int64 `json:"actualDistanceM"`
+	ActualDurationS int64 `json:"actualDurationS"`
 }
 
 type FinishTripResponse struct {
@@ -504,6 +491,7 @@ type RejectOrderResponse struct {
 }
 
 type ListMyDispatchesRequest struct {
+	DriverID int64 `json:"driverId,omitempty"`
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"pageSize"`
 	Status   int32 `json:"status"`
@@ -538,10 +526,11 @@ type MyDispatchItem struct {
 }
 
 type ListMyDispatchesResponse struct {
-	List     []MyDispatchItem `json:"list"`
-	Total    int64            `json:"total"`
-	Page     int32            `json:"page"`
-	PageSize int32            `json:"pageSize"`
+	List         []MyDispatchItem `json:"list"`
+	Total        int64            `json:"total"`
+	Page         int32            `json:"page"`
+	PageSize     int32            `json:"pageSize"`
+	OrderQueryOk bool             `json:"orderQueryOk"`
 }
 
 type ListMyOrdersRequest struct {

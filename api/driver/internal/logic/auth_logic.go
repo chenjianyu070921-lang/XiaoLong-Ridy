@@ -40,9 +40,15 @@ func NewAuthLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AuthLogic {
 
 // SendSMSCode 生成验证码并存入本地缓存（联调阶段顶替短信通道）。
 func (l *AuthLogic) SendSMSCode(req *types.SendSMSCodeRequest) (*types.SendSMSCodeResponse, error) {
-	// 校验手机号格式。
-	if !validPhone(strings.TrimSpace(req.Phone)) {
+	if req == nil {
+		return nil, ErrInvalidParam
+	}
+	phone := strings.TrimSpace(req.Phone)
+	if !validPhone(phone) {
 		return nil, errors.New("手机号格式不合法")
+	}
+	if l.svcCtx == nil || l.svcCtx.CodeCache == nil {
+		return nil, ErrCodeSendFailed
 	}
 	// 生成 6 位随机数字验证码。
 	code, err := randomNumericCode(6)
@@ -50,12 +56,13 @@ func (l *AuthLogic) SendSMSCode(req *types.SendSMSCodeRequest) (*types.SendSMSCo
 		return nil, ErrCodeSendFailed
 	}
 	// 存入本地验证码缓存。
-	l.svcCtx.CodeCache.Set(req.Phone, code)
+	l.svcCtx.CodeCache.Set(phone, code)
 	// 联调阶段将验证码打印到日志，方便用 curl/Postman 获取（顶替真实短信）。
-	logSMS(req.Phone, code)
+	logSMS(phone, code)
 	return &types.SendSMSCodeResponse{
 		Success:  true,
 		ExpireIn: int(l.svcCtx.CodeCache.TTL().Seconds()),
+		Code:     code,
 	}, nil
 }
 
@@ -82,6 +89,9 @@ func (l *AuthLogic) LoginByPassword(req *types.LoginByPasswordRequest) (*types.L
 func (l *AuthLogic) LoginBySMS(req *types.LoginBySMSRequest) (*types.LoginResponse, error) {
 	if req == nil || !validPhone(strings.TrimSpace(req.Phone)) {
 		return nil, ErrDriverAuthFailed
+	}
+	if l.svcCtx == nil || l.svcCtx.CodeCache == nil {
+		return nil, ErrCodeInvalid
 	}
 	if !l.svcCtx.CodeCache.Verify(req.Phone, strings.TrimSpace(req.Code)) {
 		return nil, ErrCodeInvalid

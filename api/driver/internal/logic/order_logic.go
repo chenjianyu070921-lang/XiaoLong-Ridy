@@ -14,6 +14,8 @@ import (
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type OrderLogic struct {
@@ -40,6 +42,8 @@ func (l *OrderLogic) AcceptOrder(driverID, orderID int64) (*types.AcceptOrderRes
 	if err != nil {
 		return nil, err
 	}
+	// 接单后从 available 集合移除，避免大厅/WS 重复展示已接订单
+	l.removeFromAvailable(driverID, orderID)
 	return &types.AcceptOrderResponse{
 		OrderID: resp.GetOrderId(),
 		Status:  int32(resp.GetStatus()),
@@ -52,7 +56,7 @@ func (l *OrderLogic) CancelOrder(driverID int64, req *types.CancelOrderRequest) 
 	}
 	reason := strings.TrimSpace(req.Reason)
 	if reason == "" {
-		reason = "鍙告満鍙栨秷璁㈠崟"
+		reason = "司机取消订单"
 	}
 	client, err := l.orderClient()
 	if err != nil {
@@ -68,12 +72,11 @@ func (l *OrderLogic) CancelOrder(driverID int64, req *types.CancelOrderRequest) 
 		return nil, err
 	}
 	if driverClient, err := l.driverClient(); err == nil {
-		_, err = driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
 			DriverId:     driverID,
 			OnlineStatus: 1,
-		})
-		if err != nil {
-			return nil, err
+		}); sErr != nil {
+			logx.WithContext(l.ctx).Errorf("set driver online after cancel failed (order already cancelled): %v", sErr)
 		}
 	}
 	return &types.CancelOrderResponse{
@@ -98,12 +101,11 @@ func (l *OrderLogic) StartTrip(driverID, orderID int64) (*types.StartTripRespons
 		return nil, err
 	}
 	if driverClient, err := l.driverClient(); err == nil {
-		_, err = driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
 			DriverId:     driverID,
 			OnlineStatus: 2,
-		})
-		if err != nil {
-			return nil, err
+		}); sErr != nil {
+			logx.WithContext(l.ctx).Errorf("set driver on-trip after start failed (order already started): %v", sErr)
 		}
 	}
 	return &types.StartTripResponse{
@@ -142,22 +144,20 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 		return nil, err
 	}
 	resp, err := client.FinishTrip(l.ctx, &orderproto.FinishTripRequest{
-		OrderId:          req.OrderID,
-		DriverId:         driverID,
-		ActualDistanceM:  req.ActualDistanceM,
-		ActualDurationS:  req.ActualDurationS,
-		ActualPriceCents: 0,
+		OrderId:         req.OrderID,
+		DriverId:        driverID,
+		ActualDistanceM: req.ActualDistanceM,
+		ActualDurationS: req.ActualDurationS,
 	})
 	if err != nil {
 		return nil, err
 	}
 	if driverClient, err := l.driverClient(); err == nil {
-		_, err = driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
 			DriverId:     driverID,
 			OnlineStatus: 1,
-		})
-		if err != nil {
-			return nil, err
+		}); sErr != nil {
+			logx.WithContext(l.ctx).Errorf("set driver online after finish failed (order already finished): %v", sErr)
 		}
 	}
 	return &types.FinishTripResponse{
@@ -187,6 +187,8 @@ func (l *OrderLogic) RejectOrder(driverID int64, req *types.RejectOrderRequest) 
 	if err != nil {
 		return nil, err
 	}
+	// 拒单后从 available 集合移除，避免大厅/WS 在 TTL 过期前重复展示已拒订单
+	l.removeFromAvailable(driverID, req.OrderID)
 	return &types.RejectOrderResponse{
 		OrderID:  resp.GetOrderId(),
 		DriverID: resp.GetDriverId(),
@@ -217,6 +219,7 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 		return nil, err
 	}
 	items := make([]types.MyDispatchItem, 0, len(resp.GetList()))
+	orderQueryOk := true
 	for _, record := range resp.GetList() {
 		item := types.MyDispatchItem{
 			Dispatch: types.DispatchRecord{
@@ -227,31 +230,34 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 				Status:       record.GetStatus(),
 				MatchScore:   record.GetMatchScore(),
 				Remark:       record.GetRemark(),
-				RejectReason: record.GetRemark(),
+				RejectReason: record.GetRejectReason(),
 				CreatedAt:    record.GetCreatedAt(),
 				UpdatedAt:    record.GetUpdatedAt(),
 			},
 		}
 		order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: record.GetOrderId()})
 		if err != nil {
-			return nil, err
-		}
-		item.Order = types.OrderBrief{
-			OrderID:             order.GetOrderId(),
-			OrderNo:             order.GetOrderNo(),
-			FromAddress:         order.GetFromAddress(),
-			ToAddress:           order.GetToAddress(),
-			Status:              int32(order.GetStatus()),
-			EstimatedPriceCents: order.GetEstimatedPriceCents(),
-			CreatedAt:           order.GetCreatedAt(),
+			orderQueryOk = false
+			logx.WithContext(l.ctx).Errorf("get order for dispatch record failed (orderId=%d): %v", record.GetOrderId(), err)
+		} else {
+			item.Order = types.OrderBrief{
+				OrderID:             order.GetOrderId(),
+				OrderNo:             order.GetOrderNo(),
+				FromAddress:         order.GetFromAddress(),
+				ToAddress:           order.GetToAddress(),
+				Status:              int32(order.GetStatus()),
+				EstimatedPriceCents: order.GetEstimatedPriceCents(),
+				CreatedAt:           order.GetCreatedAt(),
+			}
 		}
 		items = append(items, item)
 	}
 	return &types.ListMyDispatchesResponse{
-		List:     items,
-		Total:    resp.GetTotal(),
-		Page:     resp.GetPage(),
-		PageSize: resp.GetPageSize(),
+		List:         items,
+		Total:        resp.GetTotal(),
+		Page:         resp.GetPage(),
+		PageSize:     resp.GetPageSize(),
+		OrderQueryOk: orderQueryOk,
 	}, nil
 }
 
@@ -294,6 +300,8 @@ func (l *OrderLogic) ListMyOrders(driverID int64, page, pageSize, status int32) 
 	}, nil
 }
 
+// ListAvailableOrders 司机端"可接单列表"：读取派单消费者写入的 driver:available:%d 集合，
+// 只展示派给当前司机的待接单订单（与推送链路统一），确保大厅展示的订单司机一定能接单（D3/D8 修复）。
 func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (*types.ListMyOrdersResponse, error) {
 	if driverID <= 0 {
 		return nil, ErrInvalidParam
@@ -303,16 +311,23 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 		return emptyOrderList(page, pageSize), nil
 	}
 
+	// 校验司机在线
 	online, err := l.svcCtx.RedisClient.SIsMember(l.ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Result()
 	if err != nil || !online {
 		return emptyOrderList(page, pageSize), nil
 	}
+
+	// 获取司机当前位置（用于距离展示与排序）
 	pos, err := l.svcCtx.RedisClient.HGetAll(l.ctx, fmt.Sprintf(constants.RedisDriverPos, driverID)).Result()
 	if err != nil {
 		return emptyOrderList(page, pageSize), nil
 	}
-	driverLongitude, driverLatitude, ok := parseDriverPosition(pos)
-	if !ok {
+	driverLongitude, driverLatitude, _ := parseDriverPosition(pos)
+
+	// 读取派给当前司机的订单 ID 集合（dispatch_consumer 在派单时 SAdd，90s TTL）
+	availableKey := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
+	orderIDStrs, err := l.svcCtx.RedisClient.SMembers(l.ctx, availableKey).Result()
+	if err != nil {
 		return emptyOrderList(page, pageSize), nil
 	}
 
@@ -320,25 +335,25 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 	if err != nil {
 		return nil, err
 	}
-	resp, err := orderClient.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
-		Status:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
-		Page:     1,
-		PageSize: 100,
-	})
-	if err != nil {
-		return nil, err
-	}
 
-	items := make([]types.OrderBrief, 0, len(resp.GetList()))
-	for _, summary := range resp.GetList() {
-		detail, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: summary.GetOrderId()})
-		if err != nil {
-			return nil, err
+	items := make([]types.OrderBrief, 0, len(orderIDStrs))
+	for _, idStr := range orderIDStrs {
+		orderID, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil || orderID <= 0 {
+			continue
 		}
+		detail, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: orderID})
+		if err != nil {
+			continue
+		}
+		// 只展示仍处于待接单状态的订单（已被其他司机接走/已取消的自动过滤）
 		if detail.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
 			continue
 		}
-		distance := haversineMeters(driverLongitude, driverLatitude, detail.GetFromLongitude(), detail.GetFromLatitude())
+		distance := 0.0
+		if driverLongitude != 0 || driverLatitude != 0 {
+			distance = haversineMeters(driverLongitude, driverLatitude, detail.GetFromLongitude(), detail.GetFromLatitude())
+		}
 		if distance > availableOrderRadiusMeters {
 			continue
 		}
@@ -436,7 +451,7 @@ func (l *OrderLogic) GetMyOrderDetail(driverID, orderID int64) (*types.GetMyOrde
 	return &types.GetMyOrderDetailResponse{Order: types.OrderDetail{
 		OrderID:             order.GetOrderId(),
 		OrderNo:             order.GetOrderNo(),
-		UserID:              order.GetUserId(),
+		UserID:              0, // 对司机隐藏乘客 UserID，避免隐私泄露
 		DriverID:            order.GetDriverId(),
 		CarType:             order.GetCarType(),
 		FromAddress:         order.GetFromAddress(),
@@ -482,7 +497,17 @@ func (l *OrderLogic) driverClient() (svc.DriverClient, error) {
 
 func (l *OrderLogic) dispatchClient() (svc.DispatchClient, error) {
 	if l.svcCtx == nil || l.svcCtx.DispatchClient == nil {
-		return nil, ErrOrderClientNotConfigured
+		return nil, ErrDispatchClientNotConfigured
 	}
 	return l.svcCtx.DispatchClient, nil
+}
+
+// removeFromAvailable 从 driver:available:%d 集合移除指定订单，接单/拒单后调用，
+// 避免大厅和 WS 在集合 TTL 过期前重复展示已处理的订单。
+func (l *OrderLogic) removeFromAvailable(driverID, orderID int64) {
+	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || driverID <= 0 || orderID <= 0 {
+		return
+	}
+	key := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
+	_ = l.svcCtx.RedisClient.SRem(l.ctx, key, fmt.Sprint(orderID)).Err()
 }

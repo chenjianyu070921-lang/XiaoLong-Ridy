@@ -50,6 +50,9 @@ func (l *HeartbeatLogic) Heartbeat(in *proto.HeartbeatRequest) (*proto.Heartbeat
 	if !validLongitudeLatitude(in.GetLongitude(), in.GetLatitude()) {
 		return nil, errInvalidLongitudeLatitude
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil || l.svcCtx.OnlineStore == nil {
+		return nil, errors.New("driver dependencies not ready")
+	}
 	if _, err := l.svcCtx.DriverRepository.GetByID(l.ctx, uint64(in.DriverId)); err != nil {
 		return nil, err
 	}
@@ -81,6 +84,11 @@ func (l *HeartbeatLogic) Heartbeat(in *proto.HeartbeatRequest) (*proto.Heartbeat
 			if err := syncDispatchDriverOffline(l.ctx, l.svcCtx, in.GetDriverId()); err != nil {
 				return nil, err
 			}
+		}
+	} else {
+		// 被踢：旧设备位置已失效，清理 GEO 和在线集合，避免派单到错误位置（#7 修复）
+		if err := syncDispatchDriverOffline(l.ctx, l.svcCtx, in.GetDriverId()); err != nil {
+			l.Errorf("sync dispatch offline on kick failed: %v", err)
 		}
 	}
 	return &proto.HeartbeatResponse{

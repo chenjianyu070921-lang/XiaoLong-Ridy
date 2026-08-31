@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
@@ -24,17 +25,20 @@ func NewUpdateVehicleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 	}
 }
 
-// UpdateVehicle 更新车辆信息，仅修改请求中显式传入的字段（optional 字段为指针，nil 表示不更新）。
+// UpdateVehicle updates vehicle information by applying only explicitly set optional fields.
 func (l *UpdateVehicleLogic) UpdateVehicle(in *proto.UpdateVehicleRequest) (*proto.UpdateVehicleResponse, error) {
+	if in == nil || in.Id <= 0 {
+		return nil, errors.New("vehicle id is invalid")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
+		return nil, errors.New("driver vehicle repository not ready")
+	}
 	v, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, uint64(in.Id))
 	if err != nil {
 		return nil, err
 	}
 
 	updates := map[string]interface{}{}
-	if in.DriverId != nil {
-		updates["driver_id"] = in.GetDriverId()
-	}
 	if in.PlateNo != nil {
 		updates["plate_no"] = in.GetPlateNo()
 	}
@@ -65,6 +69,9 @@ func (l *UpdateVehicleLogic) UpdateVehicle(in *proto.UpdateVehicleRequest) (*pro
 		updates["status"] = int8(in.GetStatus())
 	}
 
+	if len(updates) == 0 {
+		return nil, errors.New("no updatable fields")
+	}
 	if err := l.svcCtx.DriverVehicleRepository.Update(l.ctx, uint64(in.Id), updates); err != nil {
 		return nil, err
 	}

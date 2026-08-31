@@ -32,6 +32,9 @@ func (l *CreateVehicleLogic) CreateVehicle(in *proto.CreateVehicleRequest) (*pro
 	if in == nil || in.GetDriverId() <= 0 {
 		return nil, errors.New("invalid driver id")
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
+		return nil, errors.New("driver vehicle repository not ready")
+	}
 	if err := validateCreateVehicle(in.GetPlateNo(), in.GetBrand(), in.GetModel(), in.GetColor(), in.GetVehicleType(), in.GetInsuranceNo()); err != nil {
 		return nil, err
 	}

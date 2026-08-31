@@ -309,7 +309,7 @@ func (l *DriverLogic) ListNearbyDrivers(req *types.ListNearbyDriversRequest) (*t
 			DistanceMeters: driver.GetDistanceMeters(),
 		})
 	}
-	return &types.ListNearbyDriversResponse{Drivers: items}, nil
+	return &types.ListNearbyDriversResponse{List: items, Drivers: items}, nil
 }
 
 func maskIDCard(id string) string {

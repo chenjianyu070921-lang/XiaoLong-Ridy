@@ -74,17 +74,22 @@ func (r *gormDriverRepository) List(ctx context.Context, filter DriverListFilter
 	// 构造带过滤条件的查询作用域。
 	query := r.db.WithContext(ctx).Model(&model.Driver{})
 	if filter.Status != nil {
-		query = query.Where("status = ?", *filter.Status)
+		query = query.Where("driver.status = ?", *filter.Status)
 	}
 	if filter.Keyword != "" {
-		// 模糊匹配手机号或姓名。
+		// 模糊匹配司机身份字段和车牌号，保持后台司机查询的搜索语义。
 		like := "%" + filter.Keyword + "%"
-		query = query.Where("phone LIKE ? OR real_name LIKE ?", like, like)
+		query = query.Joins("LEFT JOIN driver_vehicle v ON v.driver_id = driver.id").
+			Where("driver.phone LIKE ? OR driver.real_name LIKE ? OR driver.id_card_no LIKE ? OR driver.driver_license_no LIKE ? OR v.plate_no LIKE ?", like, like, like, like, like)
 	}
 
 	// 统计符合条件的总记录数。
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	countQuery := query
+	if filter.Keyword != "" {
+		countQuery = countQuery.Distinct("driver.id")
+	}
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -103,7 +108,10 @@ func (r *gormDriverRepository) List(ctx context.Context, filter DriverListFilter
 
 	// 查询本页数据（按 ID 倒序，新注册的靠前）。
 	var drivers []*model.Driver
-	if err := query.Order("id DESC").
+	if filter.Keyword != "" {
+		query = query.Select("driver.*").Group("driver.id")
+	}
+	if err := query.Order("driver.id DESC").
 		Offset(int((page - 1) * pageSize)).
 		Limit(int(pageSize)).
 		Find(&drivers).Error; err != nil {
@@ -189,7 +197,17 @@ func (r *gormDriverRepository) UpsertLocation(ctx context.Context, location *mod
 	if result.RowsAffected > 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).Create(location).Error
+	// 司机首次上报位置时走 INSERT；显式指定真实表列，避免把仅用于附近查询映射的
+	// distance_meters 幻影列（见 DriverLocation.DistanceMeters）写入不存在的表列。
+	return r.db.WithContext(ctx).Model(&model.DriverLocation{}).Create(map[string]interface{}{
+		"driver_id":     location.DriverID,
+		"longitude":     location.Longitude,
+		"latitude":      location.Latitude,
+		"heading":       location.Heading,
+		"speed_kmh":     location.SpeedKmh,
+		"online_status": location.OnlineStatus,
+		"report_time":   location.ReportTime,
+	}).Error
 }
 
 // UpdateLocationStatus updates the cached location row status for a driver.
@@ -201,6 +219,26 @@ func (r *gormDriverRepository) UpdateLocationStatus(ctx context.Context, driverI
 			"online_status": status,
 			"report_time":   time.Now(),
 		}).Error
+}
+
+// UpdateStatusAndLocation 在一个事务里同时更新 driver 表和 driver_location 表的 online_status，避免中间状态不一致。
+func (r *gormDriverRepository) UpdateStatusAndLocation(ctx context.Context, driverID uint64, status int8) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Driver{}).
+			Where("id = ?", driverID).
+			Updates(map[string]interface{}{"online_status": status}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.DriverLocation{}).
+			Where("driver_id = ?", driverID).
+			Updates(map[string]interface{}{
+				"online_status": status,
+				"report_time":   time.Now(),
+			}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // GetDriverScore returns the driver's scoring metrics.

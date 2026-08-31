@@ -34,6 +34,9 @@ func (l *CreateDriverLogic) CreateDriver(in *proto.CreateDriverRequest) (*proto.
 	if in == nil {
 		return nil, errors.New("请求参数不能为空")
 	}
+	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
+		return nil, errors.New("driver repository not ready")
+	}
 	if err := validateDriverIdentity(in.Phone, in.RealName, in.IdCardNo, in.DriverLicenseNo); err != nil {
 		return nil, err
 	}
