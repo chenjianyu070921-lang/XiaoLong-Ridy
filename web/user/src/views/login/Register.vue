@@ -85,6 +85,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
 import { sendSMSCode, loginBySMS } from '@/api/auth'
+import { setPassword } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -127,6 +128,10 @@ const sendCode = async () => {
 }
 
 const handleRegister = async () => {
+  if (form.value.password && !/^(?=.*[A-Za-z])(?=.*\d).{8,64}$/.test(form.value.password)) {
+    showToast('密码需为8-64位，且同时包含字母和数字')
+    return
+  }
   try {
     loading.value = true
     showLoadingToast({
@@ -165,6 +170,11 @@ const handleRegister = async () => {
     localStorage.setItem('token', res.token)
     localStorage.setItem('refreshToken', res.refreshToken)
     localStorage.setItem('userInfo', JSON.stringify(res.user))
+
+    // 新用户填写可选密码时，在短信登录已建立的可信会话内立即保存密码哈希。
+    if (form.value.password) {
+      await setPassword({ newPassword: form.value.password })
+    }
     
     closeToast()
     showToast('注册成功')

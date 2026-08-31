@@ -12,18 +12,20 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // orderRefundedEvent 退款成功事件载荷，由 order-event-consumer 处理支付通道回款等。
 type orderRefundedEvent struct {
-	OrderId      int64   `json:"order_id"`
-	OrderNo      string  `json:"order_no"`
-	RefundNo     string  `json:"refund_no"`
-	RefundCents  int64   `json:"refund_cents"`
-	OperatorId   int64   `json:"operator_id"`
-	OperatorType string  `json:"operator_type"`
+	OrderId       int64  `json:"order_id"`
+	OrderNo       string `json:"order_no"`
+	RefundNo      string `json:"refund_no"`
+	RefundCents   int64  `json:"refund_cents"`
+	OperatorId    int64  `json:"operator_id"`
+	OperatorType  string `json:"operator_type"`
 	RefundTimeout int64  `json:"refund_timeout"`
+	Attempt       int    `json:"attempt"`
 }
 
 type ForceRefundOrderLogic struct {
@@ -95,7 +97,8 @@ func (l *ForceRefundOrderLogic) ForceRefundOrder(in *proto.ForceRefundOrderReque
 		}
 	}
 
-	// 发布 order.refunded 事件（由 order-event-consumer 处理支付通道回款等，pay 服务未到位时仅记日志）。
+	// 发布 order.refunded 事件，由 order-event-consumer 查询支付单并调用 paysvc 完成通道退款；
+	// 发布失败仍记录日志，后续由消息基础设施或人工补偿处理。
 	if l.svcCtx.EventBus != nil {
 		payload, _ := json.Marshal(orderRefundedEvent{
 			OrderId:       in.OrderId,
@@ -108,6 +111,7 @@ func (l *ForceRefundOrderLogic) ForceRefundOrder(in *proto.ForceRefundOrderReque
 		})
 		if pubErr := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderRefunded, payload); pubErr != nil {
 			l.Logger.Errorf("publish order.refunded failed: %v", pubErr)
+			l.enqueueRefundRetry(payload)
 		}
 	}
 
@@ -116,4 +120,25 @@ func (l *ForceRefundOrderLogic) ForceRefundOrder(in *proto.ForceRefundOrderReque
 		Status:      constants.OrderStatusRefunded,
 		RefundCents: refundCents,
 	}, nil
+}
+
+// enqueueRefundRetry 将退款事件写入 Redis 延迟队列，交由 job 负责重试投递 Kafka。
+func (l *ForceRefundOrderLogic) enqueueRefundRetry(payload []byte) {
+	if l.svcCtx.Redis == nil {
+		l.Logger.Errorf("refund retry queue unavailable, event lost: %s", payload)
+		return
+	}
+	var event orderRefundedEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		l.Logger.Errorf("decode refund retry event failed: %v", err)
+		return
+	}
+	event.Attempt = 0
+	retryPayload, _ := json.Marshal(event)
+	if err := l.svcCtx.Redis.ZAdd(l.ctx, constants.RefundRetryQueueKey, redis.Z{
+		Score:  float64(time.Now().Unix()),
+		Member: string(retryPayload),
+	}).Err(); err != nil {
+		l.Logger.Errorf("enqueue refund retry failed: %v", err)
+	}
 }

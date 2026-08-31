@@ -162,11 +162,13 @@ const handleSOS = () => {
 // 轮询订单状态
 const pollStatus = async () => {
   try {
-    const status = await pollOrderStatus(orderStore.currentOrder?.orderId)
-    
-    if (status === 'COMPLETED') {
+    const result = await pollOrderStatus(orderStore.currentOrder?.orderId)
+    const status = Number(result?.status)
+    orderStore.setCurrentOrder({ ...orderStore.currentOrder, ...result })
+
+    if (status === 4) {
       router.replace('/order/payment')
-    } else if (status === 'CANCELLED') {
+    } else if (status === 6 || status === 7) {
       showToast('订单已被取消')
       router.replace('/home')
     }
@@ -192,7 +194,8 @@ const parsePolyline = (polyline) => String(polyline || '').split(';').map(point 
 
 // 更新司机标记、剩余路线和行程统计，地图对象只创建一次。
 const renderTracking = (snapshot) => {
-  if (!mapInstance || !snapshot) return
+  // 追踪接口可能先于地图完成初始化返回，必须等待地图实例就绪。
+  if (!mapInstance || typeof mapInstance.add !== 'function' || !snapshot) return
   const position = [Number(snapshot.driverLongitude), Number(snapshot.driverLatitude)]
   if (!position.every(Number.isFinite)) return
 
@@ -217,7 +220,7 @@ const renderTracking = (snapshot) => {
   }
 
   tripStats.value.distance = formatDistance(snapshot.travelledDistanceM)
-  tripStats.value.duration = formatDuration(snapshot.elapsedDurationS)
+  tripStats.value.duration = formatDuration(snapshot.elapsedDurationS ?? snapshot.durationS ?? 0)
   tripStats.value.estimatedPrice = (Number(snapshot.estimatedPriceCents || 0) / 100).toFixed(2)
   if (snapshot.remainingDurationS) {
     tripStats.value.estimatedArrival = formatDuration(snapshot.remainingDurationS)

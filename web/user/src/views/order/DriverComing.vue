@@ -1,7 +1,9 @@
 <template>
   <div class="driver-coming-page">
     <!-- 地图 -->
-    <div class="map-container" id="driver-map"></div>
+    <div class="map-container" id="driver-map">
+      <div v-if="mapError" class="map-error">{{ mapError }}</div>
+    </div>
 
     <!-- 司机信息卡片 -->
     <div class="driver-card animate-slideUp">
@@ -76,31 +78,66 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showDialog, showLoadingToast, closeToast } from 'vant'
+import AMapLoader from '@amap/amap-jsapi-loader'
+import { getAmapConfig } from '@/config/amap'
 import { useOrderStore } from '@/stores/order'
-import { cancelOrder, pollOrderStatus } from '@/api/order'
+import { cancelOrder, pollOrderStatus, getOrderTracking } from '@/api/order'
 
 const router = useRouter()
 const orderStore = useOrderStore()
 
-// 司机信息（模拟数据）
+// 乘客接口当前只提供司机 ID；不伪造姓名、车牌等身份信息。
 const driverInfo = ref({
-  name: '张师傅',
+  name: '司机待定',
   avatar: '',
-  rating: 4.9,
-  carColor: '白色',
-  carModel: '大众·大众朗逸',
-  plateNumber: '渝A·12345',
-  phone: '138****5678'
+  rating: 0,
+  carColor: '',
+  carModel: '',
+  plateNumber: '',
+  phone: ''
 })
 
-const arrivalMinutes = ref(5)
-const distance = ref(1200)
+const arrivalMinutes = ref(0)
+const distance = ref(0)
 const showCancelDialog = ref(false)
+const mapError = ref('')
 
 let pollTimer = null
+let trackingTimer = null
+let mapInstance = null
+let driverMarker = null
+
+// 使用真实追踪快照更新司机位置、距离和预计到达时间。
+const refreshTracking = async () => {
+  const orderId = orderStore.currentOrder?.orderId
+  if (!orderId) return
+  try {
+    const snapshot = await getOrderTracking(orderId)
+    if (snapshot?.driverId) driverInfo.value.name = `司机 #${snapshot.driverId}`
+    distance.value = Number(snapshot?.remainingDistanceM || 0)
+    arrivalMinutes.value = Math.max(0, Math.ceil(Number(snapshot?.remainingDurationS || 0) / 60))
+    const position = [Number(snapshot?.driverLongitude), Number(snapshot?.driverLatitude)]
+    if (mapInstance && position.every(Number.isFinite)) {
+      if (!driverMarker) {
+        driverMarker = new window.AMap.Marker({ position, title: '司机当前位置', anchor: 'center' })
+        mapInstance.add(driverMarker)
+      } else {
+        driverMarker.setPosition(position)
+      }
+      mapInstance.setCenter(position)
+    }
+  } catch (error) {
+    mapError.value = '司机位置暂不可用，正在重试...'
+    console.error('获取司机追踪失败:', error)
+  }
+}
 
 // 联系司机
 const callDriver = () => {
+  if (!driverInfo.value.phone) {
+    showToast('司机暂未提供联系电话')
+    return
+  }
   showDialog({
     title: '联系司机',
     message: `是否拨打司机电话：${driverInfo.value.phone}`,
@@ -148,36 +185,52 @@ const handleCancel = async () => {
 const pollStatus = async () => {
   try {
     const result = await pollOrderStatus(orderStore.currentOrder?.orderId)
-    if (Number(result?.status) === 3) {
+    const status = Number(result?.status)
+    orderStore.setCurrentOrder({ ...orderStore.currentOrder, ...result })
+    if (status === 3) {
       router.replace('/order/trip')
+    } else if (status === 6 || status === 7) {
+      showToast('订单已取消')
+      router.replace('/home')
     }
   } catch (error) {
     console.error(error)
   }
 }
 
-onMounted(() => {
-  // 初始化地图显示司机位置
-  initDriverMap()
+onMounted(async () => {
+  // 初始化地图并立即拉取一次真实司机位置。
+  await initDriverMap()
+  await refreshTracking()
   
   // 开始轮询状态
   pollTimer = setInterval(pollStatus, 3000)
-  
-  // 模拟倒计时
-  setInterval(() => {
-    if (arrivalMinutes.value > 0) {
-      arrivalMinutes.value--
-      distance.value = Math.max(0, distance.value - 200)
-    }
-  }, 60000)
+  trackingTimer = setInterval(refreshTracking, 5000)
 })
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (trackingTimer) clearInterval(trackingTimer)
+  mapInstance?.destroy()
+  mapInstance = null
 })
 
-const initDriverMap = () => {
-  // 初始化地图，显示司机位置和路线
+// 初始化高德地图；地图中心会在追踪接口返回后移动到司机坐标。
+const initDriverMap = async () => {
+  const { key, securityCode } = getAmapConfig()
+  if (!key) {
+    mapError.value = '未配置高德地图 Key，无法显示司机位置'
+    return
+  }
+  try {
+    if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
+    const AMap = await AMapLoader.load({ key, version: '2.0' })
+    window.AMap = AMap
+    mapInstance = new AMap.Map('driver-map', { zoom: 15, viewMode: '2D' })
+  } catch (error) {
+    mapError.value = '高德地图加载失败，请检查配置'
+    console.error('AMap map error:', error)
+  }
 }
 </script>
 
@@ -190,6 +243,20 @@ const initDriverMap = () => {
 .map-container {
   height: 55vh;
   background: #E5E7EB;
+  position: relative;
+}
+
+.map-error {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #92400E;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .driver-card {

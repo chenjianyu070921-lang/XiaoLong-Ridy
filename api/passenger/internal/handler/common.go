@@ -55,6 +55,14 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, codeInvalidRequest, "invalid real name info")
 	case matchesBusinessErrorMessage(err, "real name verification failed"):
 		writeError(w, http.StatusBadRequest, codeRealNameVerifyFailed, "real name verification failed")
+	case matchesBusinessErrorMessage(err, "invalid password"):
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "密码需为8-64位，且同时包含字母和数字")
+	case matchesBusinessErrorMessage(err, "current password incorrect"):
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "当前密码不正确")
+	case matchesBusinessErrorMessage(err, "insufficient wallet balance"):
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "钱包余额不足")
+	case matchesBusinessErrorMessage(err, "wallet repository not configured"):
+		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "wallet service unavailable")
 	case errors.Is(err, logic.ErrReviewAlreadyExists):
 		writeError(w, http.StatusBadRequest, codeReviewAlreadyExists, "review already exists")
 	case errors.Is(err, logic.ErrReviewRepositoryNotConfigured):

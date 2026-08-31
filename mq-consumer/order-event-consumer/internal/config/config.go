@@ -11,6 +11,7 @@ type Config struct {
 	Kafka       cfg.KafkaConf      `yaml:"kafka" json:"kafka"`
 	DispatchRPC zrpc.RpcClientConf `yaml:"dispatchrpc" json:"dispatchrpc"`
 	OrderRPC    zrpc.RpcClientConf `yaml:"orderrpc" json:"orderrpc"`
+	PayRPC      zrpc.RpcClientConf `yaml:"payrpc" json:"payrpc"`
 	Log         LogConfig          `yaml:"log" json:"log"`
 }
 

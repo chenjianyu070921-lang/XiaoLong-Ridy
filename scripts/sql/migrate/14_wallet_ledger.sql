@@ -17,5 +17,5 @@ CREATE TABLE IF NOT EXISTS `user_wallet_transaction` (
   PRIMARY KEY (`id`), KEY `idx_wallet_user_time` (`user_id`,`created_at`), KEY `idx_wallet_order` (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户钱包分类流水';
 
--- 防止订单支付或回调重试造成重复记账。
-ALTER TABLE `user_wallet_transaction` ADD UNIQUE KEY `uk_wallet_order_type` (`user_id`,`order_id`,`type`);
+-- 充值和提现的 order_id 为 0，不能使用订单维度唯一索引，否则同一用户只能充值/提现一次。
+-- 订单支付的幂等性由支付单和业务请求幂等号负责。

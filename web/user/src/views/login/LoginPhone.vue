@@ -12,6 +12,10 @@
       </div>
 
       <div class="form-card">
+        <div class="login-mode-tabs">
+          <button type="button" :class="{ active: loginMode === 'sms' }" @click="loginMode = 'sms'">验证码登录</button>
+          <button type="button" :class="{ active: loginMode === 'password' }" @click="loginMode = 'password'">密码登录</button>
+        </div>
         <div class="input-row">
           <button class="country-code" type="button" @click="showCountryPicker = true">
             <span>{{ countryCode }}</span>
@@ -29,10 +33,14 @@
           </button>
         </div>
 
+        <div v-if="loginMode === 'password'" class="input-row password-row">
+          <input v-model="password" type="password" class="phone-input" placeholder="请输入登录密码" maxlength="64" autocomplete="current-password" />
+        </div>
+
         <p class="hint">未注册手机号验证后自动创建账号</p>
 
-        <button class="primary-btn" type="button" :disabled="!isPhoneValid || loading" @click="sendCode">
-          {{ loading ? '发送中...' : '获取验证码' }}
+        <button class="primary-btn" type="button" :disabled="!canSubmit || loading" @click="submitLogin">
+          {{ loading ? '登录中...' : loginMode === 'sms' ? '获取验证码' : '登录' }}
         </button>
       </div>
 
@@ -56,12 +64,16 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
 import { sendSMSCode } from '@/api/auth'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const phone = ref('')
 const countryCode = ref('+86')
 const showCountryPicker = ref(false)
 const loading = ref(false)
+const loginMode = ref('sms')
+const password = ref('')
+const userStore = useUserStore()
 
 const countryCodes = [
   { text: '+86 中国大陆', value: '+86' },
@@ -70,6 +82,7 @@ const countryCodes = [
 ]
 
 const isPhoneValid = computed(() => /^1[3-9]\d{9}$/.test(phone.value))
+const canSubmit = computed(() => isPhoneValid.value && (loginMode.value === 'sms' || password.value.length >= 8))
 
 const goBack = () => router.back()
 
@@ -78,7 +91,7 @@ const onCountryConfirm = ({ selectedOptions }) => {
   showCountryPicker.value = false
 }
 
-const sendCode = async () => {
+const submitLogin = async () => {
   if (!isPhoneValid.value) {
     showToast('请输入正确的手机号')
     return
@@ -92,6 +105,13 @@ const sendCode = async () => {
       duration: 0
     })
 
+    if (loginMode.value === 'password') {
+      await userStore.loginWithPassword(phone.value, password.value)
+      closeToast()
+      showToast('登录成功')
+      router.replace('/home')
+      return
+    }
     await sendSMSCode(phone.value)
     closeToast()
     showToast('验证码已发送')
@@ -177,6 +197,30 @@ const sendCode = async () => {
   padding-bottom: 14px;
   border-bottom: 1px solid #f3f4f6;
 }
+
+.login-mode-tabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.login-mode-tabs button {
+  padding: 0 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 15px;
+}
+
+.login-mode-tabs button.active {
+  border-bottom-color: #7c3aed;
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.password-row { margin-top: 14px; }
 
 .country-code {
   display: inline-flex;

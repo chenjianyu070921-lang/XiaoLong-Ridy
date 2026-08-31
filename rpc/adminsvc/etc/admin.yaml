@@ -178,7 +178,7 @@ DispatchRPC:
   Target: 127.0.0.1:50056
   NonBlock: true
 DriversRPC:
-  Target: 127.0.0.1:5055
+  Target: 127.0.0.1:50055
   NonBlock: true
 LocationsRPC:
   Target: 127.0.0.1:9001

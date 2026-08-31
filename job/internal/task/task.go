@@ -137,6 +137,56 @@ type dispatchRetryTask struct {
 	Attempt       int     `json:"attempt"`
 }
 
+// refundRetryTask 描述一条待重新投递的订单退款事件。
+type refundRetryTask struct {
+	OrderId       int64  `json:"order_id"`
+	OrderNo       string `json:"order_no"`
+	RefundNo      string `json:"refund_no"`
+	RefundCents   int64  `json:"refund_cents"`
+	OperatorId    int64  `json:"operator_id"`
+	OperatorType  string `json:"operator_type"`
+	RefundTimeout int64  `json:"refund_timeout"`
+	Attempt       int    `json:"attempt"`
+}
+
+// RetryRefundEvents 扫描退款事件延迟队列并重新投递 Kafka。
+func (t *Task) RetryRefundEvents(max int) error {
+	if t.svcCtx.Redis == nil || t.svcCtx.EventProducer == nil {
+		return fmt.Errorf("refund event retry dependencies not configured")
+	}
+	if max <= 0 {
+		max = 50
+	}
+	ctx := context.Background()
+	items, err := t.svcCtx.Redis.ZRangeByScore(ctx, constants.RefundRetryQueueKey, &redis.ZRangeBy{
+		Min: "-inf", Max: strconv.FormatInt(time.Now().Unix(), 10), Count: int64(max),
+	}).Result()
+	if err != nil {
+		return fmt.Errorf("读取退款事件重试队列失败: %w", err)
+	}
+	for _, member := range items {
+		var item refundRetryTask
+		if err := json.Unmarshal([]byte(member), &item); err != nil {
+			_ = t.svcCtx.Redis.ZRem(ctx, constants.RefundRetryQueueKey, member).Err()
+			continue
+		}
+		if err := t.svcCtx.EventProducer.Send(constants.TopicOrderRefunded, item.RefundNo, []byte(member)); err == nil {
+			_ = t.svcCtx.Redis.ZRem(ctx, constants.RefundRetryQueueKey, member).Err()
+			continue
+		}
+		item.Attempt++
+		itemPayload, _ := json.Marshal(item)
+		delay := time.Duration(5*int(math.Pow(3, float64(item.Attempt-1)))) * time.Second
+		if item.Attempt > constants.MaxRefundRetryAttempt {
+			delay = time.Hour
+		}
+		_ = t.svcCtx.Redis.ZAdd(ctx, constants.RefundRetryQueueKey, redis.Z{
+			Score: float64(time.Now().Add(delay).Unix()), Member: string(itemPayload),
+		}).Err()
+	}
+	return nil
+}
+
 // RetryPendingDispatches 扫描派单失败延迟重试队列（dispatch:retry:orders），
 // 对已到期任务重新调用派单服务：成功移除、失败按指数退避（5s/15s/45s）重排（P1-M4-2）。
 // 超过最大尝试次数后保留在队列（score 延后 1h），由告警/人工介入，避免死循环。

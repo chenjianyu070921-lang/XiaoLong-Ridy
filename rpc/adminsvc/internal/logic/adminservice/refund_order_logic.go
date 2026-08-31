@@ -51,6 +51,21 @@ func (l *RefundOrderLogic) RefundOrder(in *adminsvc.AdminRefundOrderRequest) (*a
 	if l.svcCtx.OrdersSvc == nil {
 		return nil, status.Error(codes.FailedPrecondition, "ordersvc client not ready")
 	}
+	// 退款属于不可安全重放的资金动作，后台入口必须先做幂等登记。
+	// 同一个管理员使用同一个 request_id 重试时直接返回幂等成功，
+	// 避免因网络超时或页面重复点击再次触发下游退款。
+	idempotencyKey := adminOrderActionIdempotencyKey("refund_order", in.GetAdminId(), requestID)
+	acquired, err := acquireCancelOrderIdempotency(l.ctx, l.svcCtx, idempotencyKey)
+	if err != nil {
+		return nil, err
+	}
+	if !acquired {
+		return &adminsvc.AdminRefundOrderResponse{
+			OrderId:  in.GetOrderId(),
+			RefundNo: requestID,
+			Message:  "ok",
+		}, nil
+	}
 	resp, err := l.svcCtx.OrdersSvc.ForceRefundOrder(l.ctx, &orderproto.ForceRefundOrderRequest{
 		OrderId:           in.GetOrderId(),
 		OperatorId:        in.GetAdminId(),
@@ -59,6 +74,8 @@ func (l *RefundOrderLogic) RefundOrder(in *adminsvc.AdminRefundOrderRequest) (*a
 		Reason:            reason,
 	})
 	if err != nil {
+		// 下游未完成退款时释放幂等键，允许调用方使用同一个 request_id 安全重试。
+		releaseCancelOrderIdempotency(l.ctx, l.svcCtx, idempotencyKey)
 		return nil, err
 	}
 	if err := writeAuditAfterCommitted(
@@ -72,6 +89,8 @@ func (l *RefundOrderLogic) RefundOrder(in *adminsvc.AdminRefundOrderRequest) (*a
 		fmt.Sprintf("后台订单退款：refund_no=%s，refund_amount_cents=%d，reason=%s", requestID, in.GetRefundAmountCents(), reason),
 		in.GetIp(),
 	); err != nil {
+		// 业务退款已经提交，不能释放幂等键，否则审计失败重试会再次触发退款。
+		// writeAuditAfterCommitted 已经负责写入 admin_audit_outbox，后续由 job 补偿审计。
 		return nil, err
 	}
 	return &adminsvc.AdminRefundOrderResponse{

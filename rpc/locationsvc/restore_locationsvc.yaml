@@ -14,7 +14,7 @@ Mysql:
 
 RedisConf:
   Host: "115.191.16.159:6379"
-  Pass: ""
+  Pass: "4ay1nkal3u8ed77y"
   Db: 0
   PoolSize: 10
 

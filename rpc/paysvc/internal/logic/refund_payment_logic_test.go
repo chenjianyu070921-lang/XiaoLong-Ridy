@@ -10,6 +10,8 @@ import (
 	"XiaoLong-Ridy/rpc/paysvc/proto"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 func TestRefundPayment_Success(t *testing.T) {
@@ -41,6 +43,44 @@ func TestRefundPayment_Success(t *testing.T) {
 	}
 	if resp.RefundedAmountCents != 3000 {
 		t.Errorf("refunded = %d, want 3000", resp.RefundedAmountCents)
+	}
+}
+
+// TestRefundPayment_IdempotentCachedResponse 验证同一退款单号重复请求直接返回缓存结果，不重复查询和更新支付单。
+func TestRefundPayment_IdempotentCachedResponse(t *testing.T) {
+	db, mock := newMockDB(t)
+	mini, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("miniredis.Run: %v", err)
+	}
+	defer mini.Close()
+	redisClient := redis.NewClient(&redis.Options{Addr: mini.Addr()})
+	defer redisClient.Close()
+
+	mock.ExpectQuery("SELECT \\* FROM `payment` WHERE payment_no = \\?").
+		WithArgs("PAY123", 1).
+		WillReturnRows(sqlmock.NewRows(paymentColumns).
+			AddRow(1, "PAY123", 1001, 2001, 100.00, "wechat", 2, "tx_1", 0.00, nil, time.Now(), time.Now()))
+	mock.ExpectBegin()
+	mock.ExpectExec("UPDATE `payment`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	svcCtx := newTestSvcCtx(db, nil, nil)
+	svcCtx.Redis = redisClient
+	request := &proto.RefundPaymentRequest{PaymentNo: "PAY123", RefundAmountCents: 3000, RefundNo: "RF123"}
+	first, err := NewRefundPaymentLogic(context.Background(), svcCtx).RefundPayment(request)
+	if err != nil {
+		t.Fatalf("first refund: %v", err)
+	}
+	second, err := NewRefundPaymentLogic(context.Background(), svcCtx).RefundPayment(request)
+	if err != nil {
+		t.Fatalf("second refund: %v", err)
+	}
+	if first.RefundNo != second.RefundNo || first.RefundedAmountCents != second.RefundedAmountCents {
+		t.Fatalf("cached response = %+v, first = %+v", second, first)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unexpected repeated database operation: %v", err)
 	}
 }
 

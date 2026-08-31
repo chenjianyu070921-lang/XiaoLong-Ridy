@@ -203,6 +203,16 @@ func (s *AdminServiceServer) RefundOrder(ctx context.Context, in *adminsvc.Admin
 	return l.RefundOrder(in)
 }
 
+// ListRefundRetryTasks 查询退款事件补偿队列。
+func (s *AdminServiceServer) ListRefundRetryTasks(ctx context.Context, in *adminsvc.RefundRetryTaskListRequest) (*adminsvc.RefundRetryTaskListResponse, error) {
+	return adminservicelogic.NewRefundRetryLogic(ctx, s.svcCtx).ListRefundRetryTasks(in)
+}
+
+// RetryRefundTask 立即触发指定退款事件补偿任务。
+func (s *AdminServiceServer) RetryRefundTask(ctx context.Context, in *adminsvc.RefundRetryTaskRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewRefundRetryLogic(ctx, s.svcCtx).RetryRefundTask(in)
+}
+
 // 查询异常订单列表。
 func (s *AdminServiceServer) ListAbnormalOrders(ctx context.Context, in *adminsvc.AbnormalOrderListRequest) (*adminsvc.AbnormalOrderListResponse, error) {
 	l := adminservicelogic.NewListAbnormalOrdersLogic(ctx, s.svcCtx)

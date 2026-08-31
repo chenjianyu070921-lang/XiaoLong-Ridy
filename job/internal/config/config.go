@@ -13,6 +13,7 @@ type Config struct {
 	Mysql cconfig.MysqlConf `yaml:"mysql" json:"mysql"`
 	// RedisConf Redis 连接配置
 	RedisConf cconfig.RedisConf `yaml:"redis" json:"redis"`
+	Kafka     cconfig.KafkaConf `yaml:"kafka" json:"kafka"`
 
 	// OrderRPC ordersvc 客户端，超时未接单订单自动取消任务使用
 	OrderRPC zrpc.RpcClientConf `yaml:"orderrpc" json:"orderrpc"`

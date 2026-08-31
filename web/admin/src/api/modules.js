@@ -29,6 +29,10 @@ export const ordersApi = {
   redispatch: (id, data) => request.post(`/orders/${id}/redispatch`, data),
   refund: (id, data) => request.post(`/orders/${id}/refund`, data),
 }
+export const refundRetryApi = {
+  list: (params) => list('/refund-retry-tasks', params),
+  retry: (refundNo) => request.post(`/refund-retry-tasks/${refundNo}`),
+}
 export const marketingApi = {
   coupons: (params) => list('/coupons', params),
   createCoupon: (data) => request.post('/coupons', data),
