@@ -123,10 +123,11 @@ type SendSMSCodeRequest struct {
 	Phone string `json:"phone"`
 }
 
+// SendSMSCodeResponse 发码结果。联调阶段验证码仅打印到服务端日志，不随响应返回给客户端，
+// 避免验证码明文泄露。
 type SendSMSCodeResponse struct {
-	Success  bool   `json:"success"`
-	ExpireIn int    `json:"expireIn"`
-	Code     string `json:"code"`
+	Success  bool `json:"success"`
+	ExpireIn int  `json:"expireIn"`
 }
 
 type LoginByPasswordRequest struct {
@@ -152,9 +153,9 @@ type LoginResponse struct {
 }
 
 type SetOnlineRequest struct {
-	DeviceID          string  `json:"deviceId"`
-	Longitude         float64 `json:"longitude"`
-	Latitude          float64 `json:"latitude"`
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
 }
 
 type SetOfflineRequest struct {
@@ -355,7 +356,7 @@ type CommonResponse struct {
 	Message string `json:"message"`
 }
 
-// ---- 閹绘劗骞囬惄绋垮彠 ----
+// ---- Withdraw and income ----
 
 type CreateWithdrawRequest struct {
 	Amount     float64 `json:"amount"`

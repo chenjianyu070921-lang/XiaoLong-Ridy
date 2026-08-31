@@ -1,4 +1,4 @@
-﻿syntax = "v1"
+syntax = "v1"
 
 info (
 	title:  "driver api"
@@ -615,20 +615,11 @@ service driver-api {
 	@handler RegisterDriverHandler
 	post /api/driver/v1/drivers/register (RegisterDriverRequest) returns (RegisterDriverResponse)
 
-	@handler CreateDriverHandler
-	post /api/driver/v1/drivers (CreateDriverRequest) returns (CreateDriverResponse)
-
 	@handler UpdateDriverHandler
 	post /api/driver/v1/drivers/update (UpdateDriverRequest) returns (UpdateDriverResponse)
 
 	@handler GetDriverHandler
 	get /api/driver/v1/drivers/get (GetDriverRequest) returns (GetDriverResponse)
-
-	@handler GetDriverByPhoneHandler
-	post /api/driver/v1/drivers/by-phone (GetDriverByPhoneRequest) returns (GetDriverByPhoneResponse)
-
-	@handler DeleteDriverHandler
-	post /api/driver/v1/drivers/delete (DeleteDriverRequest) returns (DeleteResponse)
 
 	@handler GetDriverAiScoreHandler
 	get /api/driver/v1/drivers/ai-score (GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse)
@@ -674,9 +665,6 @@ service driver-api {
 
 	@handler GetIncomeSummaryHandler
 	get /api/driver/v1/income/summary returns (GetIncomeSummaryResponse)
-
-	@handler GetIncomeSummaryHandler
-	get /api/driver/v1/wallet/summary returns (GetIncomeSummaryResponse)
 
 	@handler GetTodayIncomeHandler
 	get /api/driver/v1/income/today returns (PeriodIncomeResponse)
@@ -729,6 +717,4 @@ service driver-api {
 	@handler AgentChatHandler
 	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 }
-
-
 

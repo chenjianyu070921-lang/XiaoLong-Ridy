@@ -51,8 +51,15 @@ func (c *LocalCodeCache) Verify(phone, code string) bool {
 	if !ok {
 		return false
 	}
+	if time.Now().After(entry.expiresAt) {
+		delete(c.entries, phone)
+		return false
+	}
+	if entry.code != code {
+		return false
+	}
 	delete(c.entries, phone)
-	return entry.code == code && time.Now().Before(entry.expiresAt)
+	return true
 }
 
 // ---------- Redis 实现（多实例/生产） ----------
@@ -89,7 +96,10 @@ func (c *RedisCodeCache) Verify(phone, code string) bool {
 		// 不存在或已过期。
 		return false
 	}
-	// 校验后立即删除，防止重放。
+	if stored != code {
+		return false
+	}
+	// 校验成功后立即删除，防止重放。
 	c.rdb.Del(ctx, k)
-	return stored == code
+	return true
 }

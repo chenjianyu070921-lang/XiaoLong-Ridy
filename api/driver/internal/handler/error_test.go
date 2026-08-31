@@ -22,6 +22,7 @@ func TestWriteParamErrorMapsDriverRPCFailures(t *testing.T) {
 		{"duplicate", status.Error(codes.Unknown, "driver already exists"), http.StatusConflict, codeDriverAlreadyExists, "手机号或驾驶证号已存在"},
 		{"unavailable", status.Error(codes.Unavailable, "connection refused"), http.StatusBadGateway, 50001, "下游 driversvc 不可用"},
 		{"not found", status.Error(codes.NotFound, "司机不存在"), http.StatusNotFound, codeDriverNotFound, "司机不存在"},
+		{"permission denied", status.Error(codes.PermissionDenied, "vehicle does not belong to driver"), http.StatusForbidden, 40301, "无权访问该司机资源"},
 	}
 
 	for _, testCase := range cases {

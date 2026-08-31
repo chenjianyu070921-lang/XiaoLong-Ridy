@@ -47,6 +47,7 @@ function clearDriverSession() {
   for (const key of [
     'driverToken',
     'driverProfile',
+    'driverOnlineStatus',
     'driverVehicle',
     'driverVehicleId',
     'driverCertification',
@@ -133,10 +134,6 @@ export function getCertification(config = {}) {
 
 export function getIncomeSummary(config = {}) {
   return driverRequest.get('/income/summary', config)
-}
-
-export function getWalletSummary(config = {}) {
-  return driverRequest.get('/wallet/summary', config)
 }
 
 export function getTodayIncome(config = {}) {

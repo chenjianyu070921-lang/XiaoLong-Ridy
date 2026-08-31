@@ -1,4 +1,4 @@
-﻿package logic
+package logic
 
 import (
 	"context"
@@ -9,9 +9,12 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func TestUpdateVehicleIgnoresDriverIDAndUpdatesFields(t *testing.T) {
+func TestUpdateVehicleUsesDriverIDAndUpdatesFields(t *testing.T) {
 	repo := &updateVehicleRepository{
 		vehicle: &model.DriverVehicle{
 			Id:        77,
@@ -28,7 +31,7 @@ func TestUpdateVehicleIgnoresDriverIDAndUpdatesFields(t *testing.T) {
 	plateNo := "粤B54321"
 	resp, err := logic.UpdateVehicle(&proto.UpdateVehicleRequest{
 		Id:       77,
-		DriverId: int64Ptr(99),
+		DriverId: int64Ptr(25),
 		PlateNo:  &plateNo,
 	})
 	if err != nil {
@@ -45,6 +48,32 @@ func TestUpdateVehicleIgnoresDriverIDAndUpdatesFields(t *testing.T) {
 	}
 }
 
+func TestUpdateVehicleRejectsOwnershipMismatch(t *testing.T) {
+	repo := &updateVehicleRepository{
+		vehicle: &model.DriverVehicle{
+			Id:        77,
+			DriverId:  25,
+			Status:    int8(proto.VehicleStatus_VEHICLE_STATUS_PENDING),
+			UpdatedAt: time.Unix(123, 0),
+		},
+	}
+	logic := NewUpdateVehicleLogic(context.Background(), &svc.ServiceContext{DriverVehicleRepository: repo})
+
+	plateNo := "粤B54321"
+	if _, err := logic.UpdateVehicle(&proto.UpdateVehicleRequest{
+		Id:       77,
+		DriverId: int64Ptr(99),
+		PlateNo:  &plateNo,
+	}); err == nil {
+		t.Fatal("UpdateVehicle() accepted vehicle ownership mismatch")
+	} else if st, ok := status.FromError(err); !ok || st.Code() != codes.PermissionDenied {
+		t.Fatalf("UpdateVehicle() error = %v, want PermissionDenied", err)
+	}
+	if repo.updates != nil {
+		t.Fatalf("UpdateVehicle() should not write updates for mismatched ownership: %+v", repo.updates)
+	}
+}
+
 func TestUpdateVehicleRejectsDriverIDOnly(t *testing.T) {
 	repo := &updateVehicleRepository{
 		vehicle: &model.DriverVehicle{
@@ -56,7 +85,7 @@ func TestUpdateVehicleRejectsDriverIDOnly(t *testing.T) {
 	}
 	logic := NewUpdateVehicleLogic(context.Background(), &svc.ServiceContext{DriverVehicleRepository: repo})
 
-	if _, err := logic.UpdateVehicle(&proto.UpdateVehicleRequest{Id: 77, DriverId: int64Ptr(99)}); err == nil || err.Error() != "no updatable fields" {
+	if _, err := logic.UpdateVehicle(&proto.UpdateVehicleRequest{Id: 77, DriverId: int64Ptr(25)}); err == nil || err.Error() != "no updatable fields" {
 		t.Fatalf("UpdateVehicle() error = %v, want %q", err, "no updatable fields")
 	}
 	if repo.updates != nil {
@@ -106,4 +135,3 @@ func (r *updateVehicleRepository) Update(_ context.Context, id uint64, updates m
 func (r *updateVehicleRepository) Delete(context.Context, *model.DriverVehicle) error { return nil }
 
 func int64Ptr(v int64) *int64 { return &v }
-

@@ -34,6 +34,9 @@ Start-Svc "dispatchsvc" "$root\rpc\dispatchsvc" "go run .\dispatchsvc.go -f .\et
 Start-Svc "adminsvc"   "$root\rpc\adminsvc"   "go run .\admin.go -f .\etc\admin.yaml"          "adminsvc.log"
 
 # ---- API 网关 ----
+$env:DRIVER_GRPC_ADDR = "127.0.0.1:50055"
+$env:ORDER_GRPC_ADDR = "127.0.0.1:50051"
+$env:DISPATCH_GRPC_ADDR = "127.0.0.1:50056"
 Start-Svc "api-driver"   "$root\api\driver"   "go run ."  "api-driver.log"
 Start-Svc "api-passenger" "$root\api\passenger" "go run ." "api-passenger.log"
 Start-Svc "api-admin"    "$root\api\admin"    "go run ."  "api-admin.log"
@@ -43,5 +46,6 @@ Write-Host "所有后端服务已在后台启动，等待编译+监听..."
 Write-Host "日志目录: $logDir"
 Write-Host "driver api 默认 :8082 | passenger api :8091 | admin api :8717"
 Write-Host "前端请另开终端启动："
-Write-Host "  后台web: cd web/admin && pnpm install && pnpm dev  -> http://127.0.0.1:5173"
+Write-Host "  后台web: cd web/admin; pnpm install; pnpm dev  -> http://127.0.0.1:5173"
+Write-Host "  司机端web: cd web/driver; pnpm install; pnpm dev  -> http://127.0.0.1:5175"
 Write-Host "=========================================="

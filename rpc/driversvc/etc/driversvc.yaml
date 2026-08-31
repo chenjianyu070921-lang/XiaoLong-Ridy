@@ -1,15 +1,15 @@
-﻿Name: driversvc.rpc
+Name: driversvc.rpc
 ListenOn: 0.0.0.0:50055
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
-# 鏈湴鑱旇皟 JWT 绛惧悕瀵嗛挜锛岄渶涓?api/driver 绔繚鎸佷竴鑷翠互渚夸簰鐩告牎楠屻€?
+# 本地联调 JWT 签名密钥，需与 api/driver 端保持一致以便互相校验。
 signingKey: local-development-signing-key
-# Redis锛氱淮鎶ゅ徃鏈哄湪绾跨姸鎬佷笌澶氱浜掕涪锛坉eviceID 缁戝畾锛夈€?
+# Redis：维护司机在线状态与多端互踢（deviceID 绑定）。
 driverRedis:
   host: 115.191.16.159:6379
   password: "4ay1nkal3u8ed77y"
   db: 0
-# MinIO锛氬徃鏈鸿祫璐ㄥ浘鐗囷紙韬唤璇?椹鹃┒璇?琛岄┒璇侊級瀵硅薄瀛樺偍銆?
+# MinIO：司机资质图片（身份证、驾驶证、行驶证）对象存储。
 minio:
   endpoint: 115.191.16.159:9000
   accessKey: minioadmin

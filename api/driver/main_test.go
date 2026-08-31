@@ -16,6 +16,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/jwtx"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
 	"github.com/alicebob/miniredis/v2"
@@ -180,7 +181,6 @@ func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 		{http.MethodGet, "/api/driver/v1/vehicles/get?id=77"},
 		{http.MethodPost, "/api/driver/v1/vehicles/update"},
 		{http.MethodPost, "/api/driver/v1/vehicles/delete?id=77"},
-		{http.MethodPost, "/api/driver/v1/drivers/by-phone?phone=13800000000"},
 		{http.MethodPost, "/api/driver/v1/drivers/nearby"},
 		{http.MethodPost, "/api/driver/v1/orders/cancel"},
 		{http.MethodPost, "/api/driver/v1/orders/reject"},
@@ -249,6 +249,87 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 	}
 }
 
+func TestWalletSummaryRouteIsNotRegisteredWithoutWalletHandler(t *testing.T) {
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "wallet-route-test-key"})
+	request := httptest.NewRequest(http.MethodGet, "/api/driver/v1/wallet/summary", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("wallet summary status = %d, want %d: %s", response.Code, http.StatusNotFound, response.Body.String())
+	}
+}
+
+// TestDriverManagementRoutesAreNotExposedToDrivers 防止司机端管理接口泄漏：
+// 创建/删除/按手机号查询司机属于 admin 端能力，不应在司机端 API 暴露，否则任意登录司机可越权操作其他司机。
+func TestDriverManagementRoutesAreNotExposedToDrivers(t *testing.T) {
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "mgmt-route-test-key"})
+	routes := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/driver/v1/drivers"},
+		{http.MethodGet, "/api/driver/v1/drivers/delete?id=25"},
+		{http.MethodPost, "/api/driver/v1/drivers/by-phone"},
+	}
+	for _, route := range routes {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			request := httptest.NewRequest(route.method, route.path, bytes.NewBufferString(`{}`))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("driver management route must not be exposed to driver app, status = %d: %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestUpdateDriverRouteForcesSelfIdentityAndIgnoresStatus(t *testing.T) {
+	client := &recordingUpdateDriverClient{}
+	const signingKey = "update-driver-route-test-key"
+	handler := newHTTPHandler(&svc.ServiceContext{
+		SigningKey:   signingKey,
+		DriverClient: client,
+	})
+
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/drivers/update", bytes.NewBufferString(`{
+		"id": 99,
+		"phone": "13800000002",
+		"status": "DRIVER_STATUS_FROZEN"
+	}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if client.updateDriverRequest == nil {
+		t.Fatal("UpdateDriver() was not called")
+	}
+	if got := client.updateDriverRequest.GetId(); got != 25 {
+		t.Fatalf("UpdateDriver() id = %d, want 25", got)
+	}
+	if got := client.updateDriverRequest.GetStatus(); got != driversproto.DriverStatus_DRIVER_STATUS_UNSPECIFIED {
+		t.Fatalf("UpdateDriver() status = %v, want unspecified", got)
+	}
+	if got := client.updateDriverRequest.GetPhone(); got != "13800000002" {
+		t.Fatalf("UpdateDriver() phone = %q, want 13800000002", got)
+	}
+}
+
 func TestDriverPushWebSocketPollsAssignedOrdersWithoutRedisPublisher(t *testing.T) {
 	const signingKey = "driver-ws-poll-test-key"
 	orderClient := &pollingOrderClient{}
@@ -301,6 +382,107 @@ func TestDriverPushWebSocketPollsAssignedOrdersWithoutRedisPublisher(t *testing.
 	if orderClient.listOrdersRequest.GetDriverId() != 25 {
 		t.Fatalf("ListOrders() driver id = %d, want 25", orderClient.listOrdersRequest.GetDriverId())
 	}
+}
+
+type recordingUpdateDriverClient struct {
+	updateDriverRequest *driversproto.UpdateDriverRequest
+}
+
+func (r *recordingUpdateDriverClient) CreateDriver(context.Context, *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) RegisterDriver(context.Context, *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) UpdateDriver(_ context.Context, req *driversproto.UpdateDriverRequest) (*driversproto.UpdateDriverResponse, error) {
+	r.updateDriverRequest = req
+	return &driversproto.UpdateDriverResponse{
+		Id:        req.GetId(),
+		Status:    driversproto.DriverStatus_DRIVER_STATUS_NORMAL,
+		UpdatedAt: 123,
+	}, nil
+}
+
+func (r *recordingUpdateDriverClient) GetDriver(context.Context, *driversproto.GetDriverRequest) (*driversproto.GetDriverResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) GetDriverByPhone(context.Context, *driversproto.GetDriverByPhoneRequest) (*driversproto.GetDriverByPhoneResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) SetDriverOnline(context.Context, *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) SetDriverOffline(context.Context, *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) ReportLocation(context.Context, *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) SetDriverServiceStatus(context.Context, *driversproto.SetDriverServiceStatusRequest) (*driversproto.SetDriverServiceStatusResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) Heartbeat(context.Context, *driversproto.HeartbeatRequest) (*driversproto.HeartbeatResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) DeleteDriver(context.Context, *driversproto.DeleteDriverRequest) (*driversproto.DeleteDriverResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) Login(context.Context, *driversproto.LoginRequest) (*driversproto.LoginResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) LoginBySMS(context.Context, *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) CreateVehicle(context.Context, *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) UpdateVehicle(context.Context, *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) DeleteVehicle(context.Context, *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) GetVehicle(context.Context, *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) ListNearbyDrivers(context.Context, *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) GetDriverAiScore(context.Context, *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) UploadCertification(context.Context, *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) GetCertification(context.Context, *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) CreateWithdraw(context.Context, *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) ListWithdraws(context.Context, *driversproto.ListWithdrawsRequest) (*driversproto.ListWithdrawsResponse, error) {
+	return nil, nil
 }
 
 func TestDriverPushWebSocketAuth(t *testing.T) {
