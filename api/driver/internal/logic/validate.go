@@ -35,7 +35,9 @@ func validPhone(phone string) bool {
 
 // validLocation 校验经纬度是否落在合法范围内。
 func validLocation(longitude, latitude float64) bool {
-	return longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90
+	return longitude >= -180 && longitude <= 180 &&
+		latitude >= -90 && latitude <= 90 &&
+		(longitude != 0 || latitude != 0)
 }
 
 func validIDCard(no string) bool {

@@ -72,7 +72,22 @@ func (e *geoDispatchEngine) FindCandidates(ctx context.Context, _ uint64, fromLo
 	if cityCode != "" && cityCode != e.city {
 		keys = append(keys, fmt.Sprintf(constants.RedisDriverGeo, cityCode))
 	}
-
+	// 兼容：driversvc 上线统一把司机 GEO 写入 default 城市 key（driver:geo:default），
+	// 而派单默认城市取 defaultCityCode 配置值，二者不一致会导致派单搜不到在线司机。
+	// 这里把 default 城市也加入搜索范围，保证 default 里的司机能被正常匹配到。
+	defaultKey := fmt.Sprintf(constants.RedisDriverGeo, "default")
+	if defaultKey != keys[0] {
+		dup := false
+		for _, k := range keys {
+			if k == defaultKey {
+				dup = true
+				break
+			}
+		}
+		if !dup {
+			keys = append(keys, defaultKey)
+		}
+	}
 	byID := make(map[uint64]redis.GeoLocation)
 	for _, key := range keys {
 		locs, err := e.rdb.GeoSearchLocation(ctx, key, &redis.GeoSearchLocationQuery{

@@ -90,6 +90,15 @@ func TestValidDriverStatus(t *testing.T) {
 	}
 }
 
+func TestValidLocationRejectsZeroCoordinatePair(t *testing.T) {
+	if validLocation(0, 0) {
+		t.Fatal("validLocation() accepted empty decoded coordinates 0,0")
+	}
+	if !validLocation(116.397, 39.908) {
+		t.Fatal("validLocation() rejected a valid Beijing coordinate")
+	}
+}
+
 func TestClampPage(t *testing.T) {
 	cases := []struct {
 		page, pageSize     int32

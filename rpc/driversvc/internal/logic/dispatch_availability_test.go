@@ -109,3 +109,30 @@ func TestSyncDispatchDriverOnlineWritesPositionSnapshot(t *testing.T) {
 		t.Fatalf("position snapshot should be removed, exists=%d", exists)
 	}
 }
+
+func TestSyncDispatchDriverOnlineRejectsZeroCoordinatePair(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	svcCtx := &svc.ServiceContext{RedisClient: rdb}
+	ctx := context.Background()
+
+	if err := syncDispatchDriverOnline(ctx, svcCtx, 25, 0, 0); err == nil {
+		t.Fatal("syncDispatchDriverOnline() accepted empty decoded coordinates 0,0")
+	}
+
+	posKey := fmt.Sprintf(constants.RedisDriverPos, 25)
+	exists, err := rdb.Exists(ctx, posKey).Result()
+	if err != nil {
+		t.Fatalf("Exists() error = %v", err)
+	}
+	if exists != 0 {
+		t.Fatalf("position snapshot should not be written for 0,0, exists=%d", exists)
+	}
+	online, err := rdb.SIsMember(ctx, constants.RedisDriverOnline, "25").Result()
+	if err != nil {
+		t.Fatalf("SIsMember() error = %v", err)
+	}
+	if online {
+		t.Fatalf("driver should not be added to %s for 0,0", constants.RedisDriverOnline)
+	}
+}
