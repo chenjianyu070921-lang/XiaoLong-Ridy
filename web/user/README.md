@@ -126,6 +126,7 @@ pnpm build
 #### 认证模块 (无需Token)
 - POST `/api/passenger/v1/auth/send-sms-code` - 发送验证码
 - POST `/api/passenger/v1/auth/login-by-sms` - 短信登录
+- POST `/api/passenger/v1/auth/login-by-password` - 手机号密码登录（密码需先在个人中心设置）
 - POST `/api/passenger/v1/auth/refresh-token` - 刷新Token
 
 #### 用户模块 (需要Token)

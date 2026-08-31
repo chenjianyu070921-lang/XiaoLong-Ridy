@@ -17,6 +17,12 @@ type LoginBySMSRequest struct {
 	Code  string `json:"code"`
 }
 
+// LoginByPasswordRequest 对应手机号密码登录请求。
+type LoginByPasswordRequest struct {
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
+}
+
 // UserInfo 是登录接口返回的用户基础信息。
 type UserInfo struct {
 	UserID         uint64 `json:"userId"`

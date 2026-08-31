@@ -146,7 +146,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
-import { getWalletLedger, recordWalletTransaction } from '@/api/wallet'
+import { getWallet, rechargeWallet, withdrawWallet } from '@/api/wallet'
 
 const router = useRouter()
 
@@ -202,8 +202,7 @@ const handleRecharge = async () => {
       duration: 0
     })
 
-    // 记录充值流水；生产环境可将该调用替换为钱包服务 API。
-    recordWalletTransaction({ type: 'recharge', title: '钱包充值', amount: parseFloat(rechargeAmount.value) })
+    await rechargeWallet(parseFloat(rechargeAmount.value))
     
     closeToast()
     showToast('充值成功')
@@ -238,7 +237,7 @@ const handleWithdraw = async () => {
       duration: 0
     })
 
-    recordWalletTransaction({ type: 'withdraw', title: '钱包提现', amount: -parseFloat(withdrawAmount.value) })
+    await withdrawWallet(parseFloat(withdrawAmount.value))
     
     closeToast()
     showToast('提现申请已提交')
@@ -256,15 +255,16 @@ const handleWithdraw = async () => {
 }
 
 // 将账本流水映射为页面展示字段，保证刷新后数据仍然存在。
-const loadWallet = () => {
-  const ledger = getWalletLedger()
-  walletInfo.value = ledger
+const loadWallet = async () => {
+  const ledger = await getWallet()
+  const transactionsFromServer = Array.isArray(ledger?.transactions) ? ledger.transactions : []
+  walletInfo.value = { ...ledger, balance: Number(ledger?.balance || 0).toFixed(2), pending: '0.00', couponDiscount: transactionsFromServer.filter(item => item.type === 'coupon' && item.amount < 0).reduce((sum, item) => sum + Math.abs(Number(item.amount)), 0).toFixed(2), recharged: transactionsFromServer.filter(item => item.type === 'recharge' && item.amount > 0).reduce((sum, item) => sum + Number(item.amount), 0).toFixed(2) }
   // 保留原始分类 type 供筛选使用，displayType 只负责图标背景样式。
-  transactions.value = ledger.transactions.map(item => ({
+  transactions.value = transactionsFromServer.map(item => ({
     ...item,
     icon: item.type === 'recharge' ? 'plus' : item.type === 'withdraw' ? 'refund-o' : item.type === 'coupon' ? 'coupon-o' : 'balance-o',
     color: item.amount > 0 ? '#059669' : '#7C3AED',
-    time: new Date(item.time).toLocaleString(),
+    time: item.createdAt ? new Date(Number(item.createdAt) * 1000).toLocaleString() : '--',
     displayType: item.amount > 0 ? 'income' : item.type === 'coupon' ? 'expense' : 'refund'
   }))
 }
@@ -278,7 +278,7 @@ const handleTransactionScroll = event => {
 // 切换分类后重置分页，从最新流水开始展示。
 const selectFilter = value => { activeFilter.value = value; visibleCount.value = 20; showFilter.value = false }
 
-onMounted(loadWallet)
+onMounted(() => { loadWallet().catch(error => { console.error('加载钱包失败:', error); showToast('钱包数据加载失败，请稍后重试') }) })
 </script>
 
 <style scoped>

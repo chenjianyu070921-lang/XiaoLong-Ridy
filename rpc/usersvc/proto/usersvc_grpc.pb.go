@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.35.1
-// source: usersvc.proto
+// source: rpc/usersvc/proto/usersvc.proto
 
 package proto
 
@@ -21,6 +21,8 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	User_SendSMSCode_FullMethodName          = "/usersvc.User/SendSMSCode"
 	User_LoginBySMS_FullMethodName           = "/usersvc.User/LoginBySMS"
+	User_LoginByPassword_FullMethodName      = "/usersvc.User/LoginByPassword"
+	User_SetPassword_FullMethodName          = "/usersvc.User/SetPassword"
 	User_RefreshToken_FullMethodName         = "/usersvc.User/RefreshToken"
 	User_Logout_FullMethodName               = "/usersvc.User/Logout"
 	User_GetProfile_FullMethodName           = "/usersvc.User/GetProfile"
@@ -37,6 +39,9 @@ const (
 	User_ReleaseUserCoupon_FullMethodName    = "/usersvc.User/ReleaseUserCoupon"
 	User_AdminListUsers_FullMethodName       = "/usersvc.User/AdminListUsers"
 	User_AdminGetUser_FullMethodName         = "/usersvc.User/AdminGetUser"
+	User_GetWallet_FullMethodName            = "/usersvc.User/GetWallet"
+	User_RechargeWallet_FullMethodName       = "/usersvc.User/RechargeWallet"
+	User_WithdrawWallet_FullMethodName       = "/usersvc.User/WithdrawWallet"
 )
 
 // UserClient is the client API for User service.
@@ -47,6 +52,10 @@ type UserClient interface {
 	SendSMSCode(ctx context.Context, in *SendSMSCodeRequest, opts ...grpc.CallOption) (*SendSMSCodeResponse, error)
 	// LoginBySMS 通过短信验证码登录；首次登录自动创建乘客账号。
 	LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginBySMSResponse, error)
+	// LoginByPassword 通过手机号和已设置密码登录。
+	LoginByPassword(ctx context.Context, in *LoginByPasswordRequest, opts ...grpc.CallOption) (*LoginBySMSResponse, error)
+	// SetPassword 为已登录乘客设置或修改登录密码。
+	SetPassword(ctx context.Context, in *SetPasswordRequest, opts ...grpc.CallOption) (*SetPasswordResponse, error)
 	// RefreshToken 刷新访问令牌。
 	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
 	// Logout 注销当前登录态。
@@ -79,6 +88,12 @@ type UserClient interface {
 	AdminListUsers(ctx context.Context, in *AdminUserListRequest, opts ...grpc.CallOption) (*AdminUserListResponse, error)
 	// AdminGetUser 为管理后台提供指定用户详情查询能力。
 	AdminGetUser(ctx context.Context, in *AdminUserDetailRequest, opts ...grpc.CallOption) (*AdminUser, error)
+	// GetWallet 查询当前用户钱包余额和流水。
+	GetWallet(ctx context.Context, in *GetWalletRequest, opts ...grpc.CallOption) (*GetWalletResponse, error)
+	// RechargeWallet 充值并写入钱包流水。
+	RechargeWallet(ctx context.Context, in *ChangeWalletRequest, opts ...grpc.CallOption) (*ChangeWalletResponse, error)
+	// WithdrawWallet 提现并写入钱包流水。
+	WithdrawWallet(ctx context.Context, in *ChangeWalletRequest, opts ...grpc.CallOption) (*ChangeWalletResponse, error)
 }
 
 type userClient struct {
@@ -103,6 +118,26 @@ func (c *userClient) LoginBySMS(ctx context.Context, in *LoginBySMSRequest, opts
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LoginBySMSResponse)
 	err := c.cc.Invoke(ctx, User_LoginBySMS_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) LoginByPassword(ctx context.Context, in *LoginByPasswordRequest, opts ...grpc.CallOption) (*LoginBySMSResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoginBySMSResponse)
+	err := c.cc.Invoke(ctx, User_LoginByPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) SetPassword(ctx context.Context, in *SetPasswordRequest, opts ...grpc.CallOption) (*SetPasswordResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetPasswordResponse)
+	err := c.cc.Invoke(ctx, User_SetPassword_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -269,6 +304,36 @@ func (c *userClient) AdminGetUser(ctx context.Context, in *AdminUserDetailReques
 	return out, nil
 }
 
+func (c *userClient) GetWallet(ctx context.Context, in *GetWalletRequest, opts ...grpc.CallOption) (*GetWalletResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWalletResponse)
+	err := c.cc.Invoke(ctx, User_GetWallet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) RechargeWallet(ctx context.Context, in *ChangeWalletRequest, opts ...grpc.CallOption) (*ChangeWalletResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangeWalletResponse)
+	err := c.cc.Invoke(ctx, User_RechargeWallet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) WithdrawWallet(ctx context.Context, in *ChangeWalletRequest, opts ...grpc.CallOption) (*ChangeWalletResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangeWalletResponse)
+	err := c.cc.Invoke(ctx, User_WithdrawWallet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServer is the server API for User service.
 // All implementations must embed UnimplementedUserServer
 // for forward compatibility.
@@ -277,6 +342,10 @@ type UserServer interface {
 	SendSMSCode(context.Context, *SendSMSCodeRequest) (*SendSMSCodeResponse, error)
 	// LoginBySMS 通过短信验证码登录；首次登录自动创建乘客账号。
 	LoginBySMS(context.Context, *LoginBySMSRequest) (*LoginBySMSResponse, error)
+	// LoginByPassword 通过手机号和已设置密码登录。
+	LoginByPassword(context.Context, *LoginByPasswordRequest) (*LoginBySMSResponse, error)
+	// SetPassword 为已登录乘客设置或修改登录密码。
+	SetPassword(context.Context, *SetPasswordRequest) (*SetPasswordResponse, error)
 	// RefreshToken 刷新访问令牌。
 	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
 	// Logout 注销当前登录态。
@@ -309,6 +378,12 @@ type UserServer interface {
 	AdminListUsers(context.Context, *AdminUserListRequest) (*AdminUserListResponse, error)
 	// AdminGetUser 为管理后台提供指定用户详情查询能力。
 	AdminGetUser(context.Context, *AdminUserDetailRequest) (*AdminUser, error)
+	// GetWallet 查询当前用户钱包余额和流水。
+	GetWallet(context.Context, *GetWalletRequest) (*GetWalletResponse, error)
+	// RechargeWallet 充值并写入钱包流水。
+	RechargeWallet(context.Context, *ChangeWalletRequest) (*ChangeWalletResponse, error)
+	// WithdrawWallet 提现并写入钱包流水。
+	WithdrawWallet(context.Context, *ChangeWalletRequest) (*ChangeWalletResponse, error)
 	mustEmbedUnimplementedUserServer()
 }
 
@@ -324,6 +399,12 @@ func (UnimplementedUserServer) SendSMSCode(context.Context, *SendSMSCodeRequest)
 }
 func (UnimplementedUserServer) LoginBySMS(context.Context, *LoginBySMSRequest) (*LoginBySMSResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LoginBySMS not implemented")
+}
+func (UnimplementedUserServer) LoginByPassword(context.Context, *LoginByPasswordRequest) (*LoginBySMSResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LoginByPassword not implemented")
+}
+func (UnimplementedUserServer) SetPassword(context.Context, *SetPasswordRequest) (*SetPasswordResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetPassword not implemented")
 }
 func (UnimplementedUserServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RefreshToken not implemented")
@@ -372,6 +453,15 @@ func (UnimplementedUserServer) AdminListUsers(context.Context, *AdminUserListReq
 }
 func (UnimplementedUserServer) AdminGetUser(context.Context, *AdminUserDetailRequest) (*AdminUser, error) {
 	return nil, status.Error(codes.Unimplemented, "method AdminGetUser not implemented")
+}
+func (UnimplementedUserServer) GetWallet(context.Context, *GetWalletRequest) (*GetWalletResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWallet not implemented")
+}
+func (UnimplementedUserServer) RechargeWallet(context.Context, *ChangeWalletRequest) (*ChangeWalletResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RechargeWallet not implemented")
+}
+func (UnimplementedUserServer) WithdrawWallet(context.Context, *ChangeWalletRequest) (*ChangeWalletResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method WithdrawWallet not implemented")
 }
 func (UnimplementedUserServer) mustEmbedUnimplementedUserServer() {}
 func (UnimplementedUserServer) testEmbeddedByValue()              {}
@@ -426,6 +516,42 @@ func _User_LoginBySMS_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserServer).LoginBySMS(ctx, req.(*LoginBySMSRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_LoginByPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginByPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).LoginByPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_LoginByPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).LoginByPassword(ctx, req.(*LoginByPasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_SetPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).SetPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_SetPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).SetPassword(ctx, req.(*SetPasswordRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -718,6 +844,60 @@ func _User_AdminGetUser_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _User_GetWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWalletRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).GetWallet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_GetWallet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).GetWallet(ctx, req.(*GetWalletRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_RechargeWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeWalletRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).RechargeWallet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_RechargeWallet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).RechargeWallet(ctx, req.(*ChangeWalletRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_WithdrawWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeWalletRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).WithdrawWallet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_WithdrawWallet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).WithdrawWallet(ctx, req.(*ChangeWalletRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // User_ServiceDesc is the grpc.ServiceDesc for User service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -732,6 +912,14 @@ var User_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LoginBySMS",
 			Handler:    _User_LoginBySMS_Handler,
+		},
+		{
+			MethodName: "LoginByPassword",
+			Handler:    _User_LoginByPassword_Handler,
+		},
+		{
+			MethodName: "SetPassword",
+			Handler:    _User_SetPassword_Handler,
 		},
 		{
 			MethodName: "RefreshToken",
@@ -797,7 +985,19 @@ var User_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "AdminGetUser",
 			Handler:    _User_AdminGetUser_Handler,
 		},
+		{
+			MethodName: "GetWallet",
+			Handler:    _User_GetWallet_Handler,
+		},
+		{
+			MethodName: "RechargeWallet",
+			Handler:    _User_RechargeWallet_Handler,
+		},
+		{
+			MethodName: "WithdrawWallet",
+			Handler:    _User_WithdrawWallet_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "usersvc.proto",
+	Metadata: "rpc/usersvc/proto/usersvc.proto",
 }

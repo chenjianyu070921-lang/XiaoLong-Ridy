@@ -14,3 +14,8 @@ export function submitRealName(realName, idCardNo) {
 export function updateProfile({ nickname, avatarUrl } = {}) {
   return request.post('/profile/update', { nickname, avatarUrl })
 }
+
+// 设置或修改当前已登录乘客的密码。
+export function setPassword({ currentPassword = '', newPassword } = {}) {
+  return request.post('/profile/password', { currentPassword, newPassword })
+}

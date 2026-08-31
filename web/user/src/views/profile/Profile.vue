@@ -5,7 +5,7 @@
       <div class="user-info">
         <div class="avatar" @click="editAvatar">
           <input ref="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" class="avatar-file-input" @change="onAvatarSelected" />
-          <img :src="userInfo.avatarUrl || '/default-avatar.png'" alt="" />
+          <img :src="normalizeAvatarUrl(userInfo.avatarUrl) || '/default-avatar.png'" alt="用户头像" @error="handleAvatarError" />
           <van-icon name="photograph" class="camera-icon" />
         </div>
         <div class="info">
@@ -63,7 +63,7 @@
         <p class="edit-dialog-hint">{{ dialogType === 'nickname' ? '设置一个容易记住的昵称' : '选择本地图片作为头像' }}</p>
         <input v-if="dialogType === 'nickname'" v-model="dialogValue" class="edit-dialog-input" maxlength="20" placeholder="请输入昵称" autofocus @keyup.enter="saveEditDialog" />
         <div v-else class="avatar-upload-preview">
-          <img :src="dialogValue" alt="头像预览" />
+          <img :src="dialogValue" alt="头像预览" @error="handleAvatarError" />
           <button type="button" class="choose-avatar-btn" @click="chooseAvatar">重新选择图片</button>
         </div>
         <div class="edit-dialog-actions">
@@ -184,6 +184,20 @@ const closeEditDialog = () => {
   }
 }
 
+// 头像地址可能来自旧 CDN 或已失效的对象；加载失败时回退到本地占位图，避免显示破图。
+const handleAvatarError = (event) => {
+  const image = event?.target
+  if (!image || image.dataset.fallbackApplied === 'true') return
+  image.dataset.fallbackApplied = 'true'
+  image.src = '/default-avatar.png'
+}
+
+// 兼容历史数据：旧头像可能保存为 HTTPS，但当前七牛测试域名仅提供 HTTP 证书。
+const normalizeAvatarUrl = (url) => String(url || '').replace(/^https:\/\//i, 'http://')
+
+// 统一拼接七牛域名与对象 key，避免配置中尾部斜杠导致地址出现双斜杠。
+const buildAvatarUrl = (domain, key) => `${normalizeAvatarUrl(String(domain || '').replace(/\/+$/, ''))}/${String(key || '').replace(/^\/+/, '')}`
+
 // 保存昵称或头像，并同步 Pinia 与本地缓存，确保刷新后仍能显示最新资料。
 const saveEditDialog = async () => {
   const value = dialogValue.value.trim()
@@ -203,7 +217,7 @@ const saveEditDialog = async () => {
       const extension = pendingAvatarFile.value.name.split('.').pop().toLowerCase()
       const tokenInfo = await getAvatarUploadToken(extension)
       await uploadToQiniu(tokenInfo.uploadUrl, tokenInfo.uploadToken, tokenInfo.key, pendingAvatarFile.value)
-      payload = { avatarUrl: `${tokenInfo.domain}/${tokenInfo.key}` }
+      payload = { avatarUrl: buildAvatarUrl(tokenInfo.domain, tokenInfo.key) }
     } else {
       payload = { nickname: value }
     }

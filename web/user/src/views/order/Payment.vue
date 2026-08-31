@@ -113,35 +113,49 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showLoadingToast, closeToast, showDialog } from 'vant'
 import { useOrderStore } from '@/stores/order'
-import { payOrder, getPaymentStatus } from '@/api/order'
-import { recordWalletTransaction } from '@/api/wallet'
+import { payOrder, getPaymentStatus, getOrderDetail } from '@/api/order'
 
 const router = useRouter()
 const orderStore = useOrderStore()
 
-// 订单详情（模拟数据）
+// 订单详情由 ordersvc 返回，避免支付页展示脱离真实订单的演示金额。
 const orderDetail = ref({
-  totalPrice: '20.6',
-  baseDistance: 3,
-  basePrice: '10.0',
-  distance: 8.2,
-  distanceFee: '8.2',
-  duration: 25,
-  timeFee: '4.0',
-  discount: '-1.6',
-  driverName: '张师傅',
-  driverAvatar: '',
-  plateNumber: '渝A·12345',
-  fromAddress: '',
-  toAddress: ''
+  totalPrice: '0.00', baseDistance: '0.0', basePrice: '0.00', distance: '0.0',
+  distanceFee: '0.00', duration: 0, timeFee: '0.00', discount: '0.00',
+  driverName: '司机', driverAvatar: '', plateNumber: '', fromAddress: '', toAddress: '', orderId: 0
 })
+
+const orderId = computed(() => Number(orderStore.currentOrder?.orderId || orderDetail.value.orderId || 0))
+
+// 将后端订单金额和里程字段转换为页面展示模型；后端金额统一以分为单位。
+const mapOrderDetail = (data) => {
+  const distanceM = Number(data?.estimatedDistanceM || 0)
+  const original = Number(data?.estimatedPriceCents || 0)
+  const discount = Number(data?.discountCents || 0)
+  const payable = Number(data?.payableCents || original - discount)
+  return {
+    orderId: Number(data?.orderId || 0),
+    totalPrice: (Math.max(0, payable) / 100).toFixed(2),
+    baseDistance: (Math.min(distanceM, 3000) / 1000).toFixed(1),
+    basePrice: (Math.max(0, original - Math.round(distanceM / 1000) * 100) / 100).toFixed(2),
+    distance: (distanceM / 1000).toFixed(1),
+    distanceFee: (Math.max(0, original - Math.round(distanceM / 1000) * 100) / 100).toFixed(2),
+    duration: Math.max(0, Math.ceil(Number(data?.estimatedDurationS || 0) / 60)),
+    timeFee: '0.00',
+    discount: (Math.max(0, discount) / 100).toFixed(2),
+    driverName: data?.driverId ? `司机 #${data.driverId}` : '司机待定',
+    driverAvatar: '', plateNumber: '',
+    fromAddress: data?.fromAddress || '', toAddress: data?.toAddress || ''
+  }
+}
 
 const selectedMethod = ref('alipay')
 const loading = ref(false)
+let paymentPollTimer = null
 
 // 支付方式列表
 const payMethods = ref([
@@ -163,6 +177,10 @@ const callDriver = () => {
 
 // 确认支付
 const handlePay = async () => {
+  if (!orderId.value || orderDetail.value.totalPrice === '0.00') {
+    showToast('订单金额尚未加载完成')
+    return
+  }
   try {
     loading.value = true
     const toast = showLoadingToast({
@@ -172,34 +190,36 @@ const handlePay = async () => {
     })
 
     // 调用支付接口
-    await payOrder(orderStore.currentOrder?.orderId, selectedMethod.value)
+    await payOrder(orderId.value, selectedMethod.value)
     
     // 轮询支付结果
     let pollCount = 0
-    const pollTimer = setInterval(async () => {
+    paymentPollTimer = setInterval(async () => {
       pollCount++
       if (pollCount > 10) {
-        clearInterval(pollTimer)
+        clearInterval(paymentPollTimer)
         closeToast()
+        loading.value = false
         showToast('支付超时，请重试')
         return
       }
 
-      const status = await getPaymentStatus(orderStore.currentOrder?.orderId)
-      if (status === 'PAID') {
-        clearInterval(pollTimer)
+      const status = await getPaymentStatus(orderId.value)
+      // paysvc 状态：1 待支付、2 支付成功、3 失败、4 已退款。
+      if (Number(status?.status) === 2) {
+        clearInterval(paymentPollTimer)
         closeToast()
+        loading.value = false
         showToast('支付成功')
-        // 支付成功后写入下单支付流水；优惠券抵扣单独记录，便于钱包分类统计。
-        const orderId = orderStore.currentOrder?.orderId || ''
-        recordWalletTransaction({ type: 'order', title: '下单支付', amount: -Number(orderDetail.value.totalPrice || 0), orderId })
-        const discount = Math.abs(Number(orderDetail.value.discount || 0))
-        if (discount > 0) recordWalletTransaction({ type: 'coupon', title: '优惠券扣减', amount: -discount, orderId })
-        
         // 跳转到支付成功页
         setTimeout(() => {
           router.replace('/order/success')
         }, 500)
+      } else if (Number(status?.status) === 3 || Number(status?.status) === 4) {
+        clearInterval(paymentPollTimer)
+        closeToast()
+        loading.value = false
+        showToast(Number(status.status) === 4 ? '订单已退款' : '支付失败，请重试')
       }
     }, 1000)
 
@@ -212,8 +232,23 @@ const handlePay = async () => {
 
 const goBack = () => router.back()
 
-onMounted(() => {
-  // 加载订单详情
+onMounted(async () => {
+  if (!orderId.value) {
+    showToast('未找到待支付订单')
+    return
+  }
+  try {
+    const detail = await getOrderDetail(orderId.value)
+    orderDetail.value = mapOrderDetail(detail)
+  } catch (error) {
+    console.error('加载待支付订单详情失败:', error)
+    showToast('订单详情加载失败，请稍后重试')
+  }
+})
+
+onUnmounted(() => {
+  if (paymentPollTimer) clearInterval(paymentPollTimer)
+  paymentPollTimer = null
 })
 </script>
 

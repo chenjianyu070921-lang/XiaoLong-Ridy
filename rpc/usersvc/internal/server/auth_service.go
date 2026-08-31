@@ -33,6 +33,17 @@ func (s *UserServer) LoginBySMS(ctx context.Context, req *userproto.LoginBySMSRe
 	return l.LoginBySMS(req)
 }
 
+// LoginByPassword 转发手机号密码登录请求。
+func (s *UserServer) LoginByPassword(ctx context.Context, req *userproto.LoginByPasswordRequest) (*userproto.LoginBySMSResponse, error) {
+	return logic.NewLoginByPasswordLogic(ctx, s.svcCtx).LoginByPassword(req)
+}
+
+// SetPassword 转发已登录乘客的密码设置请求。
+func (s *UserServer) SetPassword(ctx context.Context, req *userproto.SetPasswordRequest) (*userproto.SetPasswordResponse, error) {
+	l := logic.NewSetPasswordLogic(ctx, s.svcCtx)
+	return l.SetPassword(req)
+}
+
 // RefreshToken 转发刷新令牌请求到对应 logic。
 func (s *UserServer) RefreshToken(ctx context.Context, req *userproto.RefreshTokenRequest) (*userproto.RefreshTokenResponse, error) {
 	l := logic.NewRefreshTokenLogic(ctx, s.svcCtx)
@@ -126,4 +137,19 @@ func (s *UserServer) AdminListUsers(ctx context.Context, req *userproto.AdminUse
 func (s *UserServer) AdminGetUser(ctx context.Context, req *userproto.AdminUserDetailRequest) (*userproto.AdminUser, error) {
 	l := logic.NewAdminUserLogic(ctx, s.svcCtx)
 	return l.GetUser(req)
+}
+
+// GetWallet 查询当前用户钱包余额与流水。
+func (s *UserServer) GetWallet(ctx context.Context, req *userproto.GetWalletRequest) (*userproto.GetWalletResponse, error) {
+	return logic.NewWalletLogic(ctx, s.svcCtx).GetWallet(req)
+}
+
+// RechargeWallet 执行钱包充值。
+func (s *UserServer) RechargeWallet(ctx context.Context, req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
+	return logic.NewWalletLogic(ctx, s.svcCtx).RechargeWallet(req)
+}
+
+// WithdrawWallet 执行钱包提现。
+func (s *UserServer) WithdrawWallet(ctx context.Context, req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
+	return logic.NewWalletLogic(ctx, s.svcCtx).WithdrawWallet(req)
 }

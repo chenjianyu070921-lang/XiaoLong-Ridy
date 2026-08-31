@@ -17,7 +17,15 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	registerAddressRoutes(mux, svcCtx)
 	registerCouponRoutes(mux, svcCtx)
 	registerReviewRoutes(mux, svcCtx)
+	registerWalletRoutes(mux, svcCtx)
 	return mux
+}
+
+// registerWalletRoutes 注册乘客钱包查询、充值和提现接口。
+func registerWalletRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
+	mux.HandleFunc("/api/passenger/v1/wallet", handler.GetWalletHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/wallet/recharge", handler.RechargeWalletHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/wallet/withdraw", handler.WithdrawWalletHandler(svcCtx))
 }
 
 // registerUploadRoutes 注册需要登录后申请的文件上传凭证接口。
@@ -31,6 +39,7 @@ func registerAuthRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/auth/send-sms-code", handler.SendSMSCodeHandler(svcCtx))
 	// 短信验证码登录接口，验证码校验通过后签发乘客 JWT。
 	mux.HandleFunc("/api/passenger/v1/auth/login-by-sms", handler.LoginBySMSHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/auth/login-by-password", handler.LoginByPasswordHandler(svcCtx))
 	// 刷新登录令牌接口，用 refreshToken 换取新的访问令牌。
 	mux.HandleFunc("/api/passenger/v1/auth/refresh-token", handler.RefreshTokenHandler(svcCtx))
 	// 退出登录接口，用于注销当前乘客登录态。
@@ -45,6 +54,8 @@ func registerProfileRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/profile/real-name", handler.SubmitRealNameHandler(svcCtx))
 	// 更新个人资料接口，支持修改昵称与头像，空字段表示不修改。
 	mux.HandleFunc("/api/passenger/v1/profile/update", handler.UpdateProfileHandler(svcCtx))
+	// 设置或修改密码接口，仅允许当前已登录乘客调用。
+	mux.HandleFunc("/api/passenger/v1/profile/password", handler.SetPasswordHandler(svcCtx))
 }
 
 // registerOrderRoutes 注册乘客订单接口。

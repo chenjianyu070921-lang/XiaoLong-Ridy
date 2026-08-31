@@ -44,9 +44,10 @@ export function cancelOrder(orderId, reason = '') {
   return request.post('/orders/cancel', { orderId, reason })
 }
 
-// 发起支付
+// 发起支付；后端使用 paysvc 的数字枚举：微信 1、支付宝 2、余额 3。
 export function payOrder(orderId, payMethod = 'alipay') {
-  return request.post('/orders/pay', { orderId, payMethod })
+  const channelMap = { wechat: 1, alipay: 2, balance: 3 }
+  return request.post('/orders/pay', { orderId, channel: channelMap[payMethod] || 2 })
 }
 
 // 查询支付状态
