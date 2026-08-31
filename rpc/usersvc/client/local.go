@@ -53,6 +53,16 @@ func (c *LocalClient) LoginBySMS(ctx context.Context, req *userproto.LoginBySMSR
 	return c.service.LoginBySMS(ctx, req)
 }
 
+// LoginByPassword 转发手机号密码登录 RPC。
+func (c *LocalClient) LoginByPassword(ctx context.Context, req *userproto.LoginByPasswordRequest) (*userproto.LoginBySMSResponse, error) {
+	return c.service.LoginByPassword(ctx, req)
+}
+
+// SetPassword 转发设置或修改密码 RPC。
+func (c *LocalClient) SetPassword(ctx context.Context, req *userproto.SetPasswordRequest) (*userproto.SetPasswordResponse, error) {
+	return c.service.SetPassword(ctx, req)
+}
+
 // RefreshToken 转发刷新令牌 RPC。
 func (c *LocalClient) RefreshToken(ctx context.Context, req *userproto.RefreshTokenRequest) (*userproto.RefreshTokenResponse, error) {
 	return c.service.RefreshToken(ctx, req)
@@ -116,6 +126,18 @@ func (c *LocalClient) LockUserCoupon(ctx context.Context, req *userproto.LockUse
 // ReleaseUserCoupon 转发释放锁券 RPC。
 func (c *LocalClient) ReleaseUserCoupon(ctx context.Context, req *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error) {
 	return c.service.ReleaseUserCoupon(ctx, req)
+}
+
+func (c *LocalClient) GetWallet(ctx context.Context, req *userproto.GetWalletRequest) (*userproto.GetWalletResponse, error) {
+	return c.service.GetWallet(ctx, req)
+}
+
+func (c *LocalClient) RechargeWallet(ctx context.Context, req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
+	return c.service.RechargeWallet(ctx, req)
+}
+
+func (c *LocalClient) WithdrawWallet(ctx context.Context, req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
+	return c.service.WithdrawWallet(ctx, req)
 }
 
 // AdminListUsers 转发管理后台用户列表 RPC。

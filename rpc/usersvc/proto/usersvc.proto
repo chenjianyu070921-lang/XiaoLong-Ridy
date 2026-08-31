@@ -9,6 +9,10 @@ service User {
   rpc SendSMSCode(SendSMSCodeRequest) returns (SendSMSCodeResponse);
   // LoginBySMS 通过短信验证码登录；首次登录自动创建乘客账号。
   rpc LoginBySMS(LoginBySMSRequest) returns (LoginBySMSResponse);
+  // LoginByPassword 通过手机号和已设置密码登录。
+  rpc LoginByPassword(LoginByPasswordRequest) returns (LoginBySMSResponse);
+  // SetPassword 为已登录乘客设置或修改登录密码。
+  rpc SetPassword(SetPasswordRequest) returns (SetPasswordResponse);
   // RefreshToken 刷新访问令牌。
   rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
   // Logout 注销当前登录态。
@@ -41,6 +45,12 @@ service User {
   rpc AdminListUsers(AdminUserListRequest) returns (AdminUserListResponse);
   // AdminGetUser 为管理后台提供指定用户详情查询能力。
   rpc AdminGetUser(AdminUserDetailRequest) returns (AdminUser);
+  // GetWallet 查询当前用户钱包余额和流水。
+  rpc GetWallet(GetWalletRequest) returns (GetWalletResponse);
+  // RechargeWallet 充值并写入钱包流水。
+  rpc RechargeWallet(ChangeWalletRequest) returns (ChangeWalletResponse);
+  // WithdrawWallet 提现并写入钱包流水。
+  rpc WithdrawWallet(ChangeWalletRequest) returns (ChangeWalletResponse);
 }
 
 // SendSMSCodeRequest 发送短信验证码请求。
@@ -77,6 +87,24 @@ message LoginBySMSResponse {
   string refresh_token = 2; // Refresh Token
   bool is_new_user = 3; // 是否为首次创建的用户
   UserInfo user = 4; // 用户基础信息
+}
+
+// LoginByPasswordRequest 描述手机号密码登录请求。
+message LoginByPasswordRequest {
+  string phone = 1;
+  string password = 2;
+}
+
+// SetPasswordRequest 设置密码；已设置密码时必须提供 current_password。
+message SetPasswordRequest {
+  uint64 user_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+// SetPasswordResponse 返回密码设置结果，不返回任何敏感信息。
+message SetPasswordResponse {
+  bool success = 1;
 }
 
 // RefreshTokenRequest 刷新令牌请求。
@@ -314,4 +342,39 @@ message AdminUserListResponse {
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;
+}
+
+// GetWalletRequest 查询钱包请求。
+message GetWalletRequest { uint64 user_id = 1; }
+
+// WalletTransaction 钱包流水明细，金额单位为元，收入为正、支出为负。
+message WalletTransaction {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  string type = 3;
+  double amount = 4;
+  uint64 order_id = 5;
+  string title = 6;
+  int64 created_at = 7;
+}
+
+// GetWalletResponse 钱包余额和流水列表。
+message GetWalletResponse {
+  uint64 user_id = 1;
+  double balance = 2;
+  repeated WalletTransaction transactions = 3;
+  int64 total = 4;
+}
+
+// ChangeWalletRequest 钱包充值或提现请求，amount 单位为元且必须大于 0。
+message ChangeWalletRequest {
+  uint64 user_id = 1;
+  double amount = 2;
+}
+
+// ChangeWalletResponse 钱包变更后的余额和新增流水。
+message ChangeWalletResponse {
+  bool success = 1;
+  double balance = 2;
+  WalletTransaction transaction = 3;
 }

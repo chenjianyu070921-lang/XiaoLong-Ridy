@@ -32,6 +32,7 @@ type ServiceContext struct {
 	Addresses     repository.AddressRepository
 	Coupons       repository.CouponRepository
 	RiskBlacklist repository.RiskBlacklistRepository
+	Wallets       repository.WalletRepository
 	SMSSender     SMSCodeSender
 	SMSVerifier   SMSCodeVerifier
 	Tokens        TokenManager

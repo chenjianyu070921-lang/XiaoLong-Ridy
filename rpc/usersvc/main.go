@@ -99,7 +99,10 @@ func newServiceContext(c config.Config) *svc.ServiceContext {
 		panic(fmt.Errorf("初始化腾讯云实名认证失败: %w", err))
 	}
 
-	return svc.NewServiceContext(c, users, addresses, coupons, repository.NewGormRiskBlacklistRepository(db), smsService, smsService, tokens, realNameVer)
+	ctx := svc.NewServiceContext(c, users, addresses, coupons, repository.NewGormRiskBlacklistRepository(db), smsService, smsService, tokens, realNameVer)
+	// 钱包余额和流水使用同一 MySQL 连接，保证账户数据持久化。
+	ctx.Wallets = repository.NewGormWalletRepository(db)
+	return ctx
 }
 
 // newRealNameVerifier 根据配置创建实名认证实例；未配置时返回 nil 表示跳过核验。

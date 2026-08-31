@@ -257,6 +257,13 @@ type OrderStatusPollResponse {
 	Dispatch DispatchStatusResponse `json:"dispatch,optional"`
 }
 
+type LoginByPasswordRequest {
+  Phone string `json:"phone"`
+  Password string `json:"password"`
+}
+
+type LoginByPasswordResponse = LoginBySMSResponse
+
 type AvatarUploadTokenRequest {
 	Extension string `json:"extension"`
 }
@@ -383,12 +390,38 @@ type CouponInfo {
 	ExpireAt int64 `json:"expireAt"`
 }
 
+type WalletTransaction {
+	ID uint64 `json:"id"`
+	Type string `json:"type"`
+	Amount float64 `json:"amount"`
+	OrderID uint64 `json:"orderId"`
+	Title string `json:"title"`
+	CreatedAt int64 `json:"createdAt"`
+}
+
+type WalletResponse {
+	UserID uint64 `json:"userId"`
+	Balance float64 `json:"balance"`
+	Transactions []WalletTransaction `json:"transactions"`
+	Total int64 `json:"total"`
+}
+
+type GetWalletRequest {}
+type WalletChangeRequest { Amount float64 `json:"amount"` }
+type WalletChangeResponse {
+	Success bool `json:"success"`
+	Balance float64 `json:"balance"`
+	Transaction WalletTransaction `json:"transaction"`
+}
+
 service passenger-api {
 	@handler SendSMSCodeHandler
 	post /api/passenger/v1/auth/send-sms-code (SendSMSCodeRequest) returns (SendSMSCodeResponse)
 
 	@handler LoginBySMSHandler
 	post /api/passenger/v1/auth/login-by-sms (LoginBySMSRequest) returns (LoginBySMSResponse)
+	@handler LoginByPasswordHandler
+	post /api/passenger/v1/auth/login-by-password (LoginByPasswordRequest) returns (LoginByPasswordResponse)
 
 	@handler RefreshTokenHandler
 	post /api/passenger/v1/auth/refresh-token (RefreshTokenRequest) returns (RefreshTokenResponse)
@@ -458,5 +491,12 @@ service passenger-api {
 
 	@handler SubmitReviewHandler
 	post /api/passenger/v1/reviews/submit (SubmitReviewRequest) returns (SubmitReviewResponse)
+
+	@handler GetWalletHandler
+	post /api/passenger/v1/wallet (GetWalletRequest) returns (WalletResponse)
+	@handler RechargeWalletHandler
+	post /api/passenger/v1/wallet/recharge (WalletChangeRequest) returns (WalletChangeResponse)
+	@handler WithdrawWalletHandler
+	post /api/passenger/v1/wallet/withdraw (WalletChangeRequest) returns (WalletChangeResponse)
 }
 

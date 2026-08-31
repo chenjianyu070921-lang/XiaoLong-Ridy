@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.35.1
-// source: usersvc.proto
+// source: rpc/usersvc/proto/usersvc.proto
 
 package proto
 
@@ -31,7 +31,7 @@ type SendSMSCodeRequest struct {
 
 func (x *SendSMSCodeRequest) Reset() {
 	*x = SendSMSCodeRequest{}
-	mi := &file_usersvc_proto_msgTypes[0]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *SendSMSCodeRequest) String() string {
 func (*SendSMSCodeRequest) ProtoMessage() {}
 
 func (x *SendSMSCodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[0]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *SendSMSCodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendSMSCodeRequest.ProtoReflect.Descriptor instead.
 func (*SendSMSCodeRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{0}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SendSMSCodeRequest) GetPhone() string {
@@ -77,7 +77,7 @@ type SendSMSCodeResponse struct {
 
 func (x *SendSMSCodeResponse) Reset() {
 	*x = SendSMSCodeResponse{}
-	mi := &file_usersvc_proto_msgTypes[1]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -89,7 +89,7 @@ func (x *SendSMSCodeResponse) String() string {
 func (*SendSMSCodeResponse) ProtoMessage() {}
 
 func (x *SendSMSCodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[1]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -102,7 +102,7 @@ func (x *SendSMSCodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendSMSCodeResponse.ProtoReflect.Descriptor instead.
 func (*SendSMSCodeResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{1}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SendSMSCodeResponse) GetSuccess() bool {
@@ -130,7 +130,7 @@ type LoginBySMSRequest struct {
 
 func (x *LoginBySMSRequest) Reset() {
 	*x = LoginBySMSRequest{}
-	mi := &file_usersvc_proto_msgTypes[2]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -142,7 +142,7 @@ func (x *LoginBySMSRequest) String() string {
 func (*LoginBySMSRequest) ProtoMessage() {}
 
 func (x *LoginBySMSRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[2]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -155,7 +155,7 @@ func (x *LoginBySMSRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginBySMSRequest.ProtoReflect.Descriptor instead.
 func (*LoginBySMSRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{2}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *LoginBySMSRequest) GetPhone() string {
@@ -188,7 +188,7 @@ type UserInfo struct {
 
 func (x *UserInfo) Reset() {
 	*x = UserInfo{}
-	mi := &file_usersvc_proto_msgTypes[3]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -200,7 +200,7 @@ func (x *UserInfo) String() string {
 func (*UserInfo) ProtoMessage() {}
 
 func (x *UserInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[3]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -213,7 +213,7 @@ func (x *UserInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserInfo.ProtoReflect.Descriptor instead.
 func (*UserInfo) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{3}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UserInfo) GetUserId() uint64 {
@@ -278,7 +278,7 @@ type LoginBySMSResponse struct {
 
 func (x *LoginBySMSResponse) Reset() {
 	*x = LoginBySMSResponse{}
-	mi := &file_usersvc_proto_msgTypes[4]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -290,7 +290,7 @@ func (x *LoginBySMSResponse) String() string {
 func (*LoginBySMSResponse) ProtoMessage() {}
 
 func (x *LoginBySMSResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[4]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -303,7 +303,7 @@ func (x *LoginBySMSResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginBySMSResponse.ProtoReflect.Descriptor instead.
 func (*LoginBySMSResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{4}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *LoginBySMSResponse) GetToken() string {
@@ -334,6 +334,165 @@ func (x *LoginBySMSResponse) GetUser() *UserInfo {
 	return nil
 }
 
+// LoginByPasswordRequest 描述手机号密码登录请求。
+type LoginByPasswordRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Phone         string                 `protobuf:"bytes,1,opt,name=phone,proto3" json:"phone,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginByPasswordRequest) Reset() {
+	*x = LoginByPasswordRequest{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginByPasswordRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginByPasswordRequest) ProtoMessage() {}
+
+func (x *LoginByPasswordRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginByPasswordRequest.ProtoReflect.Descriptor instead.
+func (*LoginByPasswordRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *LoginByPasswordRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *LoginByPasswordRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+// SetPasswordRequest 设置密码；已设置密码时必须提供 current_password。
+type SetPasswordRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	UserId          uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	CurrentPassword string                 `protobuf:"bytes,2,opt,name=current_password,json=currentPassword,proto3" json:"current_password,omitempty"`
+	NewPassword     string                 `protobuf:"bytes,3,opt,name=new_password,json=newPassword,proto3" json:"new_password,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SetPasswordRequest) Reset() {
+	*x = SetPasswordRequest{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPasswordRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPasswordRequest) ProtoMessage() {}
+
+func (x *SetPasswordRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPasswordRequest.ProtoReflect.Descriptor instead.
+func (*SetPasswordRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SetPasswordRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *SetPasswordRequest) GetCurrentPassword() string {
+	if x != nil {
+		return x.CurrentPassword
+	}
+	return ""
+}
+
+func (x *SetPasswordRequest) GetNewPassword() string {
+	if x != nil {
+		return x.NewPassword
+	}
+	return ""
+}
+
+// SetPasswordResponse 返回密码设置结果，不返回任何敏感信息。
+type SetPasswordResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPasswordResponse) Reset() {
+	*x = SetPasswordResponse{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPasswordResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPasswordResponse) ProtoMessage() {}
+
+func (x *SetPasswordResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPasswordResponse.ProtoReflect.Descriptor instead.
+func (*SetPasswordResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SetPasswordResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 // RefreshTokenRequest 刷新令牌请求。
 type RefreshTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -344,7 +503,7 @@ type RefreshTokenRequest struct {
 
 func (x *RefreshTokenRequest) Reset() {
 	*x = RefreshTokenRequest{}
-	mi := &file_usersvc_proto_msgTypes[5]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -356,7 +515,7 @@ func (x *RefreshTokenRequest) String() string {
 func (*RefreshTokenRequest) ProtoMessage() {}
 
 func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[5]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -369,7 +528,7 @@ func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshTokenRequest.ProtoReflect.Descriptor instead.
 func (*RefreshTokenRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{5}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RefreshTokenRequest) GetRefreshToken() string {
@@ -390,7 +549,7 @@ type RefreshTokenResponse struct {
 
 func (x *RefreshTokenResponse) Reset() {
 	*x = RefreshTokenResponse{}
-	mi := &file_usersvc_proto_msgTypes[6]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +561,7 @@ func (x *RefreshTokenResponse) String() string {
 func (*RefreshTokenResponse) ProtoMessage() {}
 
 func (x *RefreshTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[6]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -415,7 +574,7 @@ func (x *RefreshTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshTokenResponse.ProtoReflect.Descriptor instead.
 func (*RefreshTokenResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{6}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RefreshTokenResponse) GetToken() string {
@@ -442,7 +601,7 @@ type LogoutRequest struct {
 
 func (x *LogoutRequest) Reset() {
 	*x = LogoutRequest{}
-	mi := &file_usersvc_proto_msgTypes[7]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -454,7 +613,7 @@ func (x *LogoutRequest) String() string {
 func (*LogoutRequest) ProtoMessage() {}
 
 func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[7]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -467,7 +626,7 @@ func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
 func (*LogoutRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{7}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *LogoutRequest) GetToken() string {
@@ -487,7 +646,7 @@ type LogoutResponse struct {
 
 func (x *LogoutResponse) Reset() {
 	*x = LogoutResponse{}
-	mi := &file_usersvc_proto_msgTypes[8]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -499,7 +658,7 @@ func (x *LogoutResponse) String() string {
 func (*LogoutResponse) ProtoMessage() {}
 
 func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[8]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -512,7 +671,7 @@ func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
 func (*LogoutResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{8}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *LogoutResponse) GetSuccess() bool {
@@ -532,7 +691,7 @@ type GetProfileRequest struct {
 
 func (x *GetProfileRequest) Reset() {
 	*x = GetProfileRequest{}
-	mi := &file_usersvc_proto_msgTypes[9]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +703,7 @@ func (x *GetProfileRequest) String() string {
 func (*GetProfileRequest) ProtoMessage() {}
 
 func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[9]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +716,7 @@ func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetProfileRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{9}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetProfileRequest) GetUserId() uint64 {
@@ -577,7 +736,7 @@ type GetProfileResponse struct {
 
 func (x *GetProfileResponse) Reset() {
 	*x = GetProfileResponse{}
-	mi := &file_usersvc_proto_msgTypes[10]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -589,7 +748,7 @@ func (x *GetProfileResponse) String() string {
 func (*GetProfileResponse) ProtoMessage() {}
 
 func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[10]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -602,7 +761,7 @@ func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileResponse.ProtoReflect.Descriptor instead.
 func (*GetProfileResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{10}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetProfileResponse) GetUser() *UserInfo {
@@ -624,7 +783,7 @@ type SubmitRealNameRequest struct {
 
 func (x *SubmitRealNameRequest) Reset() {
 	*x = SubmitRealNameRequest{}
-	mi := &file_usersvc_proto_msgTypes[11]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -636,7 +795,7 @@ func (x *SubmitRealNameRequest) String() string {
 func (*SubmitRealNameRequest) ProtoMessage() {}
 
 func (x *SubmitRealNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[11]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -649,7 +808,7 @@ func (x *SubmitRealNameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitRealNameRequest.ProtoReflect.Descriptor instead.
 func (*SubmitRealNameRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{11}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SubmitRealNameRequest) GetUserId() uint64 {
@@ -683,7 +842,7 @@ type SubmitRealNameResponse struct {
 
 func (x *SubmitRealNameResponse) Reset() {
 	*x = SubmitRealNameResponse{}
-	mi := &file_usersvc_proto_msgTypes[12]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +854,7 @@ func (x *SubmitRealNameResponse) String() string {
 func (*SubmitRealNameResponse) ProtoMessage() {}
 
 func (x *SubmitRealNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[12]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +867,7 @@ func (x *SubmitRealNameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitRealNameResponse.ProtoReflect.Descriptor instead.
 func (*SubmitRealNameResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{12}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SubmitRealNameResponse) GetUser() *UserInfo {
@@ -730,7 +889,7 @@ type UpdateProfileRequest struct {
 
 func (x *UpdateProfileRequest) Reset() {
 	*x = UpdateProfileRequest{}
-	mi := &file_usersvc_proto_msgTypes[13]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -742,7 +901,7 @@ func (x *UpdateProfileRequest) String() string {
 func (*UpdateProfileRequest) ProtoMessage() {}
 
 func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[13]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -755,7 +914,7 @@ func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileRequest.ProtoReflect.Descriptor instead.
 func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{13}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateProfileRequest) GetUserId() uint64 {
@@ -789,7 +948,7 @@ type UpdateProfileResponse struct {
 
 func (x *UpdateProfileResponse) Reset() {
 	*x = UpdateProfileResponse{}
-	mi := &file_usersvc_proto_msgTypes[14]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -801,7 +960,7 @@ func (x *UpdateProfileResponse) String() string {
 func (*UpdateProfileResponse) ProtoMessage() {}
 
 func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[14]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -814,7 +973,7 @@ func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileResponse.ProtoReflect.Descriptor instead.
 func (*UpdateProfileResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{14}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UpdateProfileResponse) GetUser() *UserInfo {
@@ -842,7 +1001,7 @@ type AddressInfo struct {
 
 func (x *AddressInfo) Reset() {
 	*x = AddressInfo{}
-	mi := &file_usersvc_proto_msgTypes[15]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +1013,7 @@ func (x *AddressInfo) String() string {
 func (*AddressInfo) ProtoMessage() {}
 
 func (x *AddressInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[15]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +1026,7 @@ func (x *AddressInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressInfo.ProtoReflect.Descriptor instead.
 func (*AddressInfo) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{15}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AddressInfo) GetId() uint64 {
@@ -950,7 +1109,7 @@ type CreateAddressRequest struct {
 
 func (x *CreateAddressRequest) Reset() {
 	*x = CreateAddressRequest{}
-	mi := &file_usersvc_proto_msgTypes[16]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -962,7 +1121,7 @@ func (x *CreateAddressRequest) String() string {
 func (*CreateAddressRequest) ProtoMessage() {}
 
 func (x *CreateAddressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[16]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -975,7 +1134,7 @@ func (x *CreateAddressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAddressRequest.ProtoReflect.Descriptor instead.
 func (*CreateAddressRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{16}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CreateAddressRequest) GetUserId() uint64 {
@@ -1044,7 +1203,7 @@ type ListAddressesRequest struct {
 
 func (x *ListAddressesRequest) Reset() {
 	*x = ListAddressesRequest{}
-	mi := &file_usersvc_proto_msgTypes[17]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1215,7 @@ func (x *ListAddressesRequest) String() string {
 func (*ListAddressesRequest) ProtoMessage() {}
 
 func (x *ListAddressesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[17]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1228,7 @@ func (x *ListAddressesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAddressesRequest.ProtoReflect.Descriptor instead.
 func (*ListAddressesRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{17}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListAddressesRequest) GetUserId() uint64 {
@@ -1089,7 +1248,7 @@ type ListAddressesResponse struct {
 
 func (x *ListAddressesResponse) Reset() {
 	*x = ListAddressesResponse{}
-	mi := &file_usersvc_proto_msgTypes[18]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1101,7 +1260,7 @@ func (x *ListAddressesResponse) String() string {
 func (*ListAddressesResponse) ProtoMessage() {}
 
 func (x *ListAddressesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[18]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1114,7 +1273,7 @@ func (x *ListAddressesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAddressesResponse.ProtoReflect.Descriptor instead.
 func (*ListAddressesResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{18}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListAddressesResponse) GetList() []*AddressInfo {
@@ -1142,7 +1301,7 @@ type UpdateAddressRequest struct {
 
 func (x *UpdateAddressRequest) Reset() {
 	*x = UpdateAddressRequest{}
-	mi := &file_usersvc_proto_msgTypes[19]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1154,7 +1313,7 @@ func (x *UpdateAddressRequest) String() string {
 func (*UpdateAddressRequest) ProtoMessage() {}
 
 func (x *UpdateAddressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[19]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1167,7 +1326,7 @@ func (x *UpdateAddressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAddressRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAddressRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{19}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *UpdateAddressRequest) GetId() uint64 {
@@ -1244,7 +1403,7 @@ type DeleteAddressRequest struct {
 
 func (x *DeleteAddressRequest) Reset() {
 	*x = DeleteAddressRequest{}
-	mi := &file_usersvc_proto_msgTypes[20]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1256,7 +1415,7 @@ func (x *DeleteAddressRequest) String() string {
 func (*DeleteAddressRequest) ProtoMessage() {}
 
 func (x *DeleteAddressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[20]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1269,7 +1428,7 @@ func (x *DeleteAddressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAddressRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAddressRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{20}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *DeleteAddressRequest) GetId() uint64 {
@@ -1296,7 +1455,7 @@ type DeleteAddressResponse struct {
 
 func (x *DeleteAddressResponse) Reset() {
 	*x = DeleteAddressResponse{}
-	mi := &file_usersvc_proto_msgTypes[21]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1308,7 +1467,7 @@ func (x *DeleteAddressResponse) String() string {
 func (*DeleteAddressResponse) ProtoMessage() {}
 
 func (x *DeleteAddressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[21]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1321,7 +1480,7 @@ func (x *DeleteAddressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAddressResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAddressResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{21}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DeleteAddressResponse) GetSuccess() bool {
@@ -1352,7 +1511,7 @@ type CouponInfo struct {
 
 func (x *CouponInfo) Reset() {
 	*x = CouponInfo{}
-	mi := &file_usersvc_proto_msgTypes[22]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1364,7 +1523,7 @@ func (x *CouponInfo) String() string {
 func (*CouponInfo) ProtoMessage() {}
 
 func (x *CouponInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[22]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1377,7 +1536,7 @@ func (x *CouponInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CouponInfo.ProtoReflect.Descriptor instead.
 func (*CouponInfo) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{22}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CouponInfo) GetUserCouponId() uint64 {
@@ -1475,7 +1634,7 @@ type ClaimCouponRequest struct {
 
 func (x *ClaimCouponRequest) Reset() {
 	*x = ClaimCouponRequest{}
-	mi := &file_usersvc_proto_msgTypes[23]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1487,7 +1646,7 @@ func (x *ClaimCouponRequest) String() string {
 func (*ClaimCouponRequest) ProtoMessage() {}
 
 func (x *ClaimCouponRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[23]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1500,7 +1659,7 @@ func (x *ClaimCouponRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimCouponRequest.ProtoReflect.Descriptor instead.
 func (*ClaimCouponRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{23}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ClaimCouponRequest) GetUserId() uint64 {
@@ -1527,7 +1686,7 @@ type ClaimCouponResponse struct {
 
 func (x *ClaimCouponResponse) Reset() {
 	*x = ClaimCouponResponse{}
-	mi := &file_usersvc_proto_msgTypes[24]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1539,7 +1698,7 @@ func (x *ClaimCouponResponse) String() string {
 func (*ClaimCouponResponse) ProtoMessage() {}
 
 func (x *ClaimCouponResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[24]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1552,7 +1711,7 @@ func (x *ClaimCouponResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimCouponResponse.ProtoReflect.Descriptor instead.
 func (*ClaimCouponResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{24}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ClaimCouponResponse) GetUserCoupon() *CouponInfo {
@@ -1575,7 +1734,7 @@ type ListMyCouponsRequest struct {
 
 func (x *ListMyCouponsRequest) Reset() {
 	*x = ListMyCouponsRequest{}
-	mi := &file_usersvc_proto_msgTypes[25]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1587,7 +1746,7 @@ func (x *ListMyCouponsRequest) String() string {
 func (*ListMyCouponsRequest) ProtoMessage() {}
 
 func (x *ListMyCouponsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[25]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1600,7 +1759,7 @@ func (x *ListMyCouponsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyCouponsRequest.ProtoReflect.Descriptor instead.
 func (*ListMyCouponsRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{25}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListMyCouponsRequest) GetUserId() uint64 {
@@ -1644,7 +1803,7 @@ type ListMyCouponsResponse struct {
 
 func (x *ListMyCouponsResponse) Reset() {
 	*x = ListMyCouponsResponse{}
-	mi := &file_usersvc_proto_msgTypes[26]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1656,7 +1815,7 @@ func (x *ListMyCouponsResponse) String() string {
 func (*ListMyCouponsResponse) ProtoMessage() {}
 
 func (x *ListMyCouponsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[26]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1669,7 +1828,7 @@ func (x *ListMyCouponsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyCouponsResponse.ProtoReflect.Descriptor instead.
 func (*ListMyCouponsResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{26}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListMyCouponsResponse) GetList() []*CouponInfo {
@@ -1716,7 +1875,7 @@ type AdminListUserCouponsRequest struct {
 
 func (x *AdminListUserCouponsRequest) Reset() {
 	*x = AdminListUserCouponsRequest{}
-	mi := &file_usersvc_proto_msgTypes[27]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1728,7 +1887,7 @@ func (x *AdminListUserCouponsRequest) String() string {
 func (*AdminListUserCouponsRequest) ProtoMessage() {}
 
 func (x *AdminListUserCouponsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[27]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1741,7 +1900,7 @@ func (x *AdminListUserCouponsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListUserCouponsRequest.ProtoReflect.Descriptor instead.
 func (*AdminListUserCouponsRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{27}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *AdminListUserCouponsRequest) GetUserId() uint64 {
@@ -1806,7 +1965,7 @@ type AdminListUserCouponsResponse struct {
 
 func (x *AdminListUserCouponsResponse) Reset() {
 	*x = AdminListUserCouponsResponse{}
-	mi := &file_usersvc_proto_msgTypes[28]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1818,7 +1977,7 @@ func (x *AdminListUserCouponsResponse) String() string {
 func (*AdminListUserCouponsResponse) ProtoMessage() {}
 
 func (x *AdminListUserCouponsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[28]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1831,7 +1990,7 @@ func (x *AdminListUserCouponsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListUserCouponsResponse.ProtoReflect.Descriptor instead.
 func (*AdminListUserCouponsResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{28}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *AdminListUserCouponsResponse) GetList() []*CouponInfo {
@@ -1876,7 +2035,7 @@ type LockUserCouponRequest struct {
 
 func (x *LockUserCouponRequest) Reset() {
 	*x = LockUserCouponRequest{}
-	mi := &file_usersvc_proto_msgTypes[29]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1888,7 +2047,7 @@ func (x *LockUserCouponRequest) String() string {
 func (*LockUserCouponRequest) ProtoMessage() {}
 
 func (x *LockUserCouponRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[29]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1901,7 +2060,7 @@ func (x *LockUserCouponRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LockUserCouponRequest.ProtoReflect.Descriptor instead.
 func (*LockUserCouponRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{29}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *LockUserCouponRequest) GetUserId() uint64 {
@@ -1949,7 +2108,7 @@ type LockUserCouponResponse struct {
 
 func (x *LockUserCouponResponse) Reset() {
 	*x = LockUserCouponResponse{}
-	mi := &file_usersvc_proto_msgTypes[30]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1961,7 +2120,7 @@ func (x *LockUserCouponResponse) String() string {
 func (*LockUserCouponResponse) ProtoMessage() {}
 
 func (x *LockUserCouponResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[30]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1974,7 +2133,7 @@ func (x *LockUserCouponResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LockUserCouponResponse.ProtoReflect.Descriptor instead.
 func (*LockUserCouponResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{30}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *LockUserCouponResponse) GetCoupon() *CouponInfo {
@@ -1996,7 +2155,7 @@ type ReleaseUserCouponRequest struct {
 
 func (x *ReleaseUserCouponRequest) Reset() {
 	*x = ReleaseUserCouponRequest{}
-	mi := &file_usersvc_proto_msgTypes[31]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2008,7 +2167,7 @@ func (x *ReleaseUserCouponRequest) String() string {
 func (*ReleaseUserCouponRequest) ProtoMessage() {}
 
 func (x *ReleaseUserCouponRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[31]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2021,7 +2180,7 @@ func (x *ReleaseUserCouponRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseUserCouponRequest.ProtoReflect.Descriptor instead.
 func (*ReleaseUserCouponRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{31}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ReleaseUserCouponRequest) GetUserId() uint64 {
@@ -2055,7 +2214,7 @@ type ReleaseUserCouponResponse struct {
 
 func (x *ReleaseUserCouponResponse) Reset() {
 	*x = ReleaseUserCouponResponse{}
-	mi := &file_usersvc_proto_msgTypes[32]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2067,7 +2226,7 @@ func (x *ReleaseUserCouponResponse) String() string {
 func (*ReleaseUserCouponResponse) ProtoMessage() {}
 
 func (x *ReleaseUserCouponResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[32]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2080,7 +2239,7 @@ func (x *ReleaseUserCouponResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseUserCouponResponse.ProtoReflect.Descriptor instead.
 func (*ReleaseUserCouponResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{32}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ReleaseUserCouponResponse) GetSuccess() bool {
@@ -2102,7 +2261,7 @@ type AdminUserListRequest struct {
 
 func (x *AdminUserListRequest) Reset() {
 	*x = AdminUserListRequest{}
-	mi := &file_usersvc_proto_msgTypes[33]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2114,7 +2273,7 @@ func (x *AdminUserListRequest) String() string {
 func (*AdminUserListRequest) ProtoMessage() {}
 
 func (x *AdminUserListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[33]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2127,7 +2286,7 @@ func (x *AdminUserListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminUserListRequest.ProtoReflect.Descriptor instead.
 func (*AdminUserListRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{33}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *AdminUserListRequest) GetPage() int32 {
@@ -2161,7 +2320,7 @@ type AdminUserDetailRequest struct {
 
 func (x *AdminUserDetailRequest) Reset() {
 	*x = AdminUserDetailRequest{}
-	mi := &file_usersvc_proto_msgTypes[34]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2173,7 +2332,7 @@ func (x *AdminUserDetailRequest) String() string {
 func (*AdminUserDetailRequest) ProtoMessage() {}
 
 func (x *AdminUserDetailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[34]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2186,7 +2345,7 @@ func (x *AdminUserDetailRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminUserDetailRequest.ProtoReflect.Descriptor instead.
 func (*AdminUserDetailRequest) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{34}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *AdminUserDetailRequest) GetId() uint64 {
@@ -2216,7 +2375,7 @@ type AdminUser struct {
 
 func (x *AdminUser) Reset() {
 	*x = AdminUser{}
-	mi := &file_usersvc_proto_msgTypes[35]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2228,7 +2387,7 @@ func (x *AdminUser) String() string {
 func (*AdminUser) ProtoMessage() {}
 
 func (x *AdminUser) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[35]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2241,7 +2400,7 @@ func (x *AdminUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminUser.ProtoReflect.Descriptor instead.
 func (*AdminUser) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{35}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *AdminUser) GetId() uint64 {
@@ -2334,7 +2493,7 @@ type AdminUserListResponse struct {
 
 func (x *AdminUserListResponse) Reset() {
 	*x = AdminUserListResponse{}
-	mi := &file_usersvc_proto_msgTypes[36]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2346,7 +2505,7 @@ func (x *AdminUserListResponse) String() string {
 func (*AdminUserListResponse) ProtoMessage() {}
 
 func (x *AdminUserListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usersvc_proto_msgTypes[36]
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2359,7 +2518,7 @@ func (x *AdminUserListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminUserListResponse.ProtoReflect.Descriptor instead.
 func (*AdminUserListResponse) Descriptor() ([]byte, []int) {
-	return file_usersvc_proto_rawDescGZIP(), []int{36}
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *AdminUserListResponse) GetList() []*AdminUser {
@@ -2390,11 +2549,332 @@ func (x *AdminUserListResponse) GetPageSize() int32 {
 	return 0
 }
 
-var File_usersvc_proto protoreflect.FileDescriptor
+// GetWalletRequest 查询钱包请求。
+type GetWalletRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_usersvc_proto_rawDesc = "" +
+func (x *GetWalletRequest) Reset() {
+	*x = GetWalletRequest{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWalletRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWalletRequest) ProtoMessage() {}
+
+func (x *GetWalletRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWalletRequest.ProtoReflect.Descriptor instead.
+func (*GetWalletRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *GetWalletRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+// WalletTransaction 钱包流水明细，金额单位为元，收入为正、支出为负。
+type WalletTransaction struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Amount        float64                `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	OrderId       uint64                 `protobuf:"varint,5,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	Title         string                 `protobuf:"bytes,6,opt,name=title,proto3" json:"title,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WalletTransaction) Reset() {
+	*x = WalletTransaction{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WalletTransaction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WalletTransaction) ProtoMessage() {}
+
+func (x *WalletTransaction) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WalletTransaction.ProtoReflect.Descriptor instead.
+func (*WalletTransaction) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *WalletTransaction) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *WalletTransaction) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *WalletTransaction) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *WalletTransaction) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *WalletTransaction) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *WalletTransaction) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *WalletTransaction) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+// GetWalletResponse 钱包余额和流水列表。
+type GetWalletResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Balance       float64                `protobuf:"fixed64,2,opt,name=balance,proto3" json:"balance,omitempty"`
+	Transactions  []*WalletTransaction   `protobuf:"bytes,3,rep,name=transactions,proto3" json:"transactions,omitempty"`
+	Total         int64                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWalletResponse) Reset() {
+	*x = GetWalletResponse{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWalletResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWalletResponse) ProtoMessage() {}
+
+func (x *GetWalletResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWalletResponse.ProtoReflect.Descriptor instead.
+func (*GetWalletResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *GetWalletResponse) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetWalletResponse) GetBalance() float64 {
+	if x != nil {
+		return x.Balance
+	}
+	return 0
+}
+
+func (x *GetWalletResponse) GetTransactions() []*WalletTransaction {
+	if x != nil {
+		return x.Transactions
+	}
+	return nil
+}
+
+func (x *GetWalletResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// ChangeWalletRequest 钱包充值或提现请求，amount 单位为元且必须大于 0。
+type ChangeWalletRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Amount        float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeWalletRequest) Reset() {
+	*x = ChangeWalletRequest{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeWalletRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeWalletRequest) ProtoMessage() {}
+
+func (x *ChangeWalletRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeWalletRequest.ProtoReflect.Descriptor instead.
+func (*ChangeWalletRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ChangeWalletRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ChangeWalletRequest) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+// ChangeWalletResponse 钱包变更后的余额和新增流水。
+type ChangeWalletResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Balance       float64                `protobuf:"fixed64,2,opt,name=balance,proto3" json:"balance,omitempty"`
+	Transaction   *WalletTransaction     `protobuf:"bytes,3,opt,name=transaction,proto3" json:"transaction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeWalletResponse) Reset() {
+	*x = ChangeWalletResponse{}
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeWalletResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeWalletResponse) ProtoMessage() {}
+
+func (x *ChangeWalletResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_usersvc_proto_usersvc_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeWalletResponse.ProtoReflect.Descriptor instead.
+func (*ChangeWalletResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ChangeWalletResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *ChangeWalletResponse) GetBalance() float64 {
+	if x != nil {
+		return x.Balance
+	}
+	return 0
+}
+
+func (x *ChangeWalletResponse) GetTransaction() *WalletTransaction {
+	if x != nil {
+		return x.Transaction
+	}
+	return nil
+}
+
+var File_rpc_usersvc_proto_usersvc_proto protoreflect.FileDescriptor
+
+const file_rpc_usersvc_proto_usersvc_proto_rawDesc = "" +
 	"\n" +
-	"\rusersvc.proto\x12\ausersvc\"*\n" +
+	"\x1frpc/usersvc/proto/usersvc.proto\x12\ausersvc\"*\n" +
 	"\x12SendSMSCodeRequest\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\"L\n" +
 	"\x13SendSMSCodeResponse\x12\x18\n" +
@@ -2417,7 +2897,16 @@ const file_usersvc_proto_rawDesc = "" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1e\n" +
 	"\vis_new_user\x18\x03 \x01(\bR\tisNewUser\x12%\n" +
-	"\x04user\x18\x04 \x01(\v2\x11.usersvc.UserInfoR\x04user\":\n" +
+	"\x04user\x18\x04 \x01(\v2\x11.usersvc.UserInfoR\x04user\"J\n" +
+	"\x16LoginByPasswordRequest\x12\x14\n" +
+	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"{\n" +
+	"\x12SetPasswordRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12)\n" +
+	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\x12!\n" +
+	"\fnew_password\x18\x03 \x01(\tR\vnewPassword\"/\n" +
+	"\x13SetPasswordResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\":\n" +
 	"\x13RefreshTokenRequest\x12#\n" +
 	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"Q\n" +
 	"\x14RefreshTokenResponse\x12\x14\n" +
@@ -2573,12 +3062,36 @@ const file_usersvc_proto_rawDesc = "" +
 	"\x04list\x18\x01 \x03(\v2\x12.usersvc.AdminUserR\x04list\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x03R\x05total\x12\x12\n" +
 	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x04 \x01(\x05R\bpageSize2\xf9\n" +
+	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\"+\n" +
+	"\x10GetWalletRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\"\xb8\x01\n" +
+	"\x11WalletTransaction\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x16\n" +
+	"\x06amount\x18\x04 \x01(\x01R\x06amount\x12\x19\n" +
+	"\border_id\x18\x05 \x01(\x04R\aorderId\x12\x14\n" +
+	"\x05title\x18\x06 \x01(\tR\x05title\x12\x1d\n" +
 	"\n" +
+	"created_at\x18\a \x01(\x03R\tcreatedAt\"\x9c\x01\n" +
+	"\x11GetWalletResponse\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x18\n" +
+	"\abalance\x18\x02 \x01(\x01R\abalance\x12>\n" +
+	"\ftransactions\x18\x03 \x03(\v2\x1a.usersvc.WalletTransactionR\ftransactions\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"F\n" +
+	"\x13ChangeWalletRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x16\n" +
+	"\x06amount\x18\x02 \x01(\x01R\x06amount\"\x88\x01\n" +
+	"\x14ChangeWalletResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\abalance\x18\x02 \x01(\x01R\abalance\x12<\n" +
+	"\vtransaction\x18\x03 \x01(\v2\x1a.usersvc.WalletTransactionR\vtransaction2\xf6\r\n" +
 	"\x04User\x12H\n" +
 	"\vSendSMSCode\x12\x1b.usersvc.SendSMSCodeRequest\x1a\x1c.usersvc.SendSMSCodeResponse\x12E\n" +
 	"\n" +
-	"LoginBySMS\x12\x1a.usersvc.LoginBySMSRequest\x1a\x1b.usersvc.LoginBySMSResponse\x12K\n" +
+	"LoginBySMS\x12\x1a.usersvc.LoginBySMSRequest\x1a\x1b.usersvc.LoginBySMSResponse\x12O\n" +
+	"\x0fLoginByPassword\x12\x1f.usersvc.LoginByPasswordRequest\x1a\x1b.usersvc.LoginBySMSResponse\x12H\n" +
+	"\vSetPassword\x12\x1b.usersvc.SetPasswordRequest\x1a\x1c.usersvc.SetPasswordResponse\x12K\n" +
 	"\fRefreshToken\x12\x1c.usersvc.RefreshTokenRequest\x1a\x1d.usersvc.RefreshTokenResponse\x129\n" +
 	"\x06Logout\x12\x16.usersvc.LogoutRequest\x1a\x17.usersvc.LogoutResponse\x12E\n" +
 	"\n" +
@@ -2595,135 +3108,158 @@ const file_usersvc_proto_rawDesc = "" +
 	"\x0eLockUserCoupon\x12\x1e.usersvc.LockUserCouponRequest\x1a\x1f.usersvc.LockUserCouponResponse\x12Z\n" +
 	"\x11ReleaseUserCoupon\x12!.usersvc.ReleaseUserCouponRequest\x1a\".usersvc.ReleaseUserCouponResponse\x12O\n" +
 	"\x0eAdminListUsers\x12\x1d.usersvc.AdminUserListRequest\x1a\x1e.usersvc.AdminUserListResponse\x12C\n" +
-	"\fAdminGetUser\x12\x1f.usersvc.AdminUserDetailRequest\x1a\x12.usersvc.AdminUserB\n" +
+	"\fAdminGetUser\x12\x1f.usersvc.AdminUserDetailRequest\x1a\x12.usersvc.AdminUser\x12B\n" +
+	"\tGetWallet\x12\x19.usersvc.GetWalletRequest\x1a\x1a.usersvc.GetWalletResponse\x12M\n" +
+	"\x0eRechargeWallet\x12\x1c.usersvc.ChangeWalletRequest\x1a\x1d.usersvc.ChangeWalletResponse\x12M\n" +
+	"\x0eWithdrawWallet\x12\x1c.usersvc.ChangeWalletRequest\x1a\x1d.usersvc.ChangeWalletResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
 var (
-	file_usersvc_proto_rawDescOnce sync.Once
-	file_usersvc_proto_rawDescData []byte
+	file_rpc_usersvc_proto_usersvc_proto_rawDescOnce sync.Once
+	file_rpc_usersvc_proto_usersvc_proto_rawDescData []byte
 )
 
-func file_usersvc_proto_rawDescGZIP() []byte {
-	file_usersvc_proto_rawDescOnce.Do(func() {
-		file_usersvc_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_usersvc_proto_rawDesc), len(file_usersvc_proto_rawDesc)))
+func file_rpc_usersvc_proto_usersvc_proto_rawDescGZIP() []byte {
+	file_rpc_usersvc_proto_usersvc_proto_rawDescOnce.Do(func() {
+		file_rpc_usersvc_proto_usersvc_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_rpc_usersvc_proto_usersvc_proto_rawDesc), len(file_rpc_usersvc_proto_usersvc_proto_rawDesc)))
 	})
-	return file_usersvc_proto_rawDescData
+	return file_rpc_usersvc_proto_usersvc_proto_rawDescData
 }
 
-var file_usersvc_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
-var file_usersvc_proto_goTypes = []any{
+var file_rpc_usersvc_proto_usersvc_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_rpc_usersvc_proto_usersvc_proto_goTypes = []any{
 	(*SendSMSCodeRequest)(nil),           // 0: usersvc.SendSMSCodeRequest
 	(*SendSMSCodeResponse)(nil),          // 1: usersvc.SendSMSCodeResponse
 	(*LoginBySMSRequest)(nil),            // 2: usersvc.LoginBySMSRequest
 	(*UserInfo)(nil),                     // 3: usersvc.UserInfo
 	(*LoginBySMSResponse)(nil),           // 4: usersvc.LoginBySMSResponse
-	(*RefreshTokenRequest)(nil),          // 5: usersvc.RefreshTokenRequest
-	(*RefreshTokenResponse)(nil),         // 6: usersvc.RefreshTokenResponse
-	(*LogoutRequest)(nil),                // 7: usersvc.LogoutRequest
-	(*LogoutResponse)(nil),               // 8: usersvc.LogoutResponse
-	(*GetProfileRequest)(nil),            // 9: usersvc.GetProfileRequest
-	(*GetProfileResponse)(nil),           // 10: usersvc.GetProfileResponse
-	(*SubmitRealNameRequest)(nil),        // 11: usersvc.SubmitRealNameRequest
-	(*SubmitRealNameResponse)(nil),       // 12: usersvc.SubmitRealNameResponse
-	(*UpdateProfileRequest)(nil),         // 13: usersvc.UpdateProfileRequest
-	(*UpdateProfileResponse)(nil),        // 14: usersvc.UpdateProfileResponse
-	(*AddressInfo)(nil),                  // 15: usersvc.AddressInfo
-	(*CreateAddressRequest)(nil),         // 16: usersvc.CreateAddressRequest
-	(*ListAddressesRequest)(nil),         // 17: usersvc.ListAddressesRequest
-	(*ListAddressesResponse)(nil),        // 18: usersvc.ListAddressesResponse
-	(*UpdateAddressRequest)(nil),         // 19: usersvc.UpdateAddressRequest
-	(*DeleteAddressRequest)(nil),         // 20: usersvc.DeleteAddressRequest
-	(*DeleteAddressResponse)(nil),        // 21: usersvc.DeleteAddressResponse
-	(*CouponInfo)(nil),                   // 22: usersvc.CouponInfo
-	(*ClaimCouponRequest)(nil),           // 23: usersvc.ClaimCouponRequest
-	(*ClaimCouponResponse)(nil),          // 24: usersvc.ClaimCouponResponse
-	(*ListMyCouponsRequest)(nil),         // 25: usersvc.ListMyCouponsRequest
-	(*ListMyCouponsResponse)(nil),        // 26: usersvc.ListMyCouponsResponse
-	(*AdminListUserCouponsRequest)(nil),  // 27: usersvc.AdminListUserCouponsRequest
-	(*AdminListUserCouponsResponse)(nil), // 28: usersvc.AdminListUserCouponsResponse
-	(*LockUserCouponRequest)(nil),        // 29: usersvc.LockUserCouponRequest
-	(*LockUserCouponResponse)(nil),       // 30: usersvc.LockUserCouponResponse
-	(*ReleaseUserCouponRequest)(nil),     // 31: usersvc.ReleaseUserCouponRequest
-	(*ReleaseUserCouponResponse)(nil),    // 32: usersvc.ReleaseUserCouponResponse
-	(*AdminUserListRequest)(nil),         // 33: usersvc.AdminUserListRequest
-	(*AdminUserDetailRequest)(nil),       // 34: usersvc.AdminUserDetailRequest
-	(*AdminUser)(nil),                    // 35: usersvc.AdminUser
-	(*AdminUserListResponse)(nil),        // 36: usersvc.AdminUserListResponse
+	(*LoginByPasswordRequest)(nil),       // 5: usersvc.LoginByPasswordRequest
+	(*SetPasswordRequest)(nil),           // 6: usersvc.SetPasswordRequest
+	(*SetPasswordResponse)(nil),          // 7: usersvc.SetPasswordResponse
+	(*RefreshTokenRequest)(nil),          // 8: usersvc.RefreshTokenRequest
+	(*RefreshTokenResponse)(nil),         // 9: usersvc.RefreshTokenResponse
+	(*LogoutRequest)(nil),                // 10: usersvc.LogoutRequest
+	(*LogoutResponse)(nil),               // 11: usersvc.LogoutResponse
+	(*GetProfileRequest)(nil),            // 12: usersvc.GetProfileRequest
+	(*GetProfileResponse)(nil),           // 13: usersvc.GetProfileResponse
+	(*SubmitRealNameRequest)(nil),        // 14: usersvc.SubmitRealNameRequest
+	(*SubmitRealNameResponse)(nil),       // 15: usersvc.SubmitRealNameResponse
+	(*UpdateProfileRequest)(nil),         // 16: usersvc.UpdateProfileRequest
+	(*UpdateProfileResponse)(nil),        // 17: usersvc.UpdateProfileResponse
+	(*AddressInfo)(nil),                  // 18: usersvc.AddressInfo
+	(*CreateAddressRequest)(nil),         // 19: usersvc.CreateAddressRequest
+	(*ListAddressesRequest)(nil),         // 20: usersvc.ListAddressesRequest
+	(*ListAddressesResponse)(nil),        // 21: usersvc.ListAddressesResponse
+	(*UpdateAddressRequest)(nil),         // 22: usersvc.UpdateAddressRequest
+	(*DeleteAddressRequest)(nil),         // 23: usersvc.DeleteAddressRequest
+	(*DeleteAddressResponse)(nil),        // 24: usersvc.DeleteAddressResponse
+	(*CouponInfo)(nil),                   // 25: usersvc.CouponInfo
+	(*ClaimCouponRequest)(nil),           // 26: usersvc.ClaimCouponRequest
+	(*ClaimCouponResponse)(nil),          // 27: usersvc.ClaimCouponResponse
+	(*ListMyCouponsRequest)(nil),         // 28: usersvc.ListMyCouponsRequest
+	(*ListMyCouponsResponse)(nil),        // 29: usersvc.ListMyCouponsResponse
+	(*AdminListUserCouponsRequest)(nil),  // 30: usersvc.AdminListUserCouponsRequest
+	(*AdminListUserCouponsResponse)(nil), // 31: usersvc.AdminListUserCouponsResponse
+	(*LockUserCouponRequest)(nil),        // 32: usersvc.LockUserCouponRequest
+	(*LockUserCouponResponse)(nil),       // 33: usersvc.LockUserCouponResponse
+	(*ReleaseUserCouponRequest)(nil),     // 34: usersvc.ReleaseUserCouponRequest
+	(*ReleaseUserCouponResponse)(nil),    // 35: usersvc.ReleaseUserCouponResponse
+	(*AdminUserListRequest)(nil),         // 36: usersvc.AdminUserListRequest
+	(*AdminUserDetailRequest)(nil),       // 37: usersvc.AdminUserDetailRequest
+	(*AdminUser)(nil),                    // 38: usersvc.AdminUser
+	(*AdminUserListResponse)(nil),        // 39: usersvc.AdminUserListResponse
+	(*GetWalletRequest)(nil),             // 40: usersvc.GetWalletRequest
+	(*WalletTransaction)(nil),            // 41: usersvc.WalletTransaction
+	(*GetWalletResponse)(nil),            // 42: usersvc.GetWalletResponse
+	(*ChangeWalletRequest)(nil),          // 43: usersvc.ChangeWalletRequest
+	(*ChangeWalletResponse)(nil),         // 44: usersvc.ChangeWalletResponse
 }
-var file_usersvc_proto_depIdxs = []int32{
+var file_rpc_usersvc_proto_usersvc_proto_depIdxs = []int32{
 	3,  // 0: usersvc.LoginBySMSResponse.user:type_name -> usersvc.UserInfo
 	3,  // 1: usersvc.GetProfileResponse.user:type_name -> usersvc.UserInfo
 	3,  // 2: usersvc.SubmitRealNameResponse.user:type_name -> usersvc.UserInfo
 	3,  // 3: usersvc.UpdateProfileResponse.user:type_name -> usersvc.UserInfo
-	15, // 4: usersvc.ListAddressesResponse.list:type_name -> usersvc.AddressInfo
-	22, // 5: usersvc.ClaimCouponResponse.user_coupon:type_name -> usersvc.CouponInfo
-	22, // 6: usersvc.ListMyCouponsResponse.list:type_name -> usersvc.CouponInfo
-	22, // 7: usersvc.AdminListUserCouponsResponse.list:type_name -> usersvc.CouponInfo
-	22, // 8: usersvc.LockUserCouponResponse.coupon:type_name -> usersvc.CouponInfo
-	35, // 9: usersvc.AdminUserListResponse.list:type_name -> usersvc.AdminUser
-	0,  // 10: usersvc.User.SendSMSCode:input_type -> usersvc.SendSMSCodeRequest
-	2,  // 11: usersvc.User.LoginBySMS:input_type -> usersvc.LoginBySMSRequest
-	5,  // 12: usersvc.User.RefreshToken:input_type -> usersvc.RefreshTokenRequest
-	7,  // 13: usersvc.User.Logout:input_type -> usersvc.LogoutRequest
-	9,  // 14: usersvc.User.GetProfile:input_type -> usersvc.GetProfileRequest
-	11, // 15: usersvc.User.SubmitRealName:input_type -> usersvc.SubmitRealNameRequest
-	13, // 16: usersvc.User.UpdateProfile:input_type -> usersvc.UpdateProfileRequest
-	16, // 17: usersvc.User.CreateAddress:input_type -> usersvc.CreateAddressRequest
-	17, // 18: usersvc.User.ListAddresses:input_type -> usersvc.ListAddressesRequest
-	19, // 19: usersvc.User.UpdateAddress:input_type -> usersvc.UpdateAddressRequest
-	20, // 20: usersvc.User.DeleteAddress:input_type -> usersvc.DeleteAddressRequest
-	23, // 21: usersvc.User.ClaimCoupon:input_type -> usersvc.ClaimCouponRequest
-	25, // 22: usersvc.User.ListMyCoupons:input_type -> usersvc.ListMyCouponsRequest
-	27, // 23: usersvc.User.AdminListUserCoupons:input_type -> usersvc.AdminListUserCouponsRequest
-	29, // 24: usersvc.User.LockUserCoupon:input_type -> usersvc.LockUserCouponRequest
-	31, // 25: usersvc.User.ReleaseUserCoupon:input_type -> usersvc.ReleaseUserCouponRequest
-	33, // 26: usersvc.User.AdminListUsers:input_type -> usersvc.AdminUserListRequest
-	34, // 27: usersvc.User.AdminGetUser:input_type -> usersvc.AdminUserDetailRequest
-	1,  // 28: usersvc.User.SendSMSCode:output_type -> usersvc.SendSMSCodeResponse
-	4,  // 29: usersvc.User.LoginBySMS:output_type -> usersvc.LoginBySMSResponse
-	6,  // 30: usersvc.User.RefreshToken:output_type -> usersvc.RefreshTokenResponse
-	8,  // 31: usersvc.User.Logout:output_type -> usersvc.LogoutResponse
-	10, // 32: usersvc.User.GetProfile:output_type -> usersvc.GetProfileResponse
-	12, // 33: usersvc.User.SubmitRealName:output_type -> usersvc.SubmitRealNameResponse
-	14, // 34: usersvc.User.UpdateProfile:output_type -> usersvc.UpdateProfileResponse
-	15, // 35: usersvc.User.CreateAddress:output_type -> usersvc.AddressInfo
-	18, // 36: usersvc.User.ListAddresses:output_type -> usersvc.ListAddressesResponse
-	15, // 37: usersvc.User.UpdateAddress:output_type -> usersvc.AddressInfo
-	21, // 38: usersvc.User.DeleteAddress:output_type -> usersvc.DeleteAddressResponse
-	24, // 39: usersvc.User.ClaimCoupon:output_type -> usersvc.ClaimCouponResponse
-	26, // 40: usersvc.User.ListMyCoupons:output_type -> usersvc.ListMyCouponsResponse
-	28, // 41: usersvc.User.AdminListUserCoupons:output_type -> usersvc.AdminListUserCouponsResponse
-	30, // 42: usersvc.User.LockUserCoupon:output_type -> usersvc.LockUserCouponResponse
-	32, // 43: usersvc.User.ReleaseUserCoupon:output_type -> usersvc.ReleaseUserCouponResponse
-	36, // 44: usersvc.User.AdminListUsers:output_type -> usersvc.AdminUserListResponse
-	35, // 45: usersvc.User.AdminGetUser:output_type -> usersvc.AdminUser
-	28, // [28:46] is the sub-list for method output_type
-	10, // [10:28] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	18, // 4: usersvc.ListAddressesResponse.list:type_name -> usersvc.AddressInfo
+	25, // 5: usersvc.ClaimCouponResponse.user_coupon:type_name -> usersvc.CouponInfo
+	25, // 6: usersvc.ListMyCouponsResponse.list:type_name -> usersvc.CouponInfo
+	25, // 7: usersvc.AdminListUserCouponsResponse.list:type_name -> usersvc.CouponInfo
+	25, // 8: usersvc.LockUserCouponResponse.coupon:type_name -> usersvc.CouponInfo
+	38, // 9: usersvc.AdminUserListResponse.list:type_name -> usersvc.AdminUser
+	41, // 10: usersvc.GetWalletResponse.transactions:type_name -> usersvc.WalletTransaction
+	41, // 11: usersvc.ChangeWalletResponse.transaction:type_name -> usersvc.WalletTransaction
+	0,  // 12: usersvc.User.SendSMSCode:input_type -> usersvc.SendSMSCodeRequest
+	2,  // 13: usersvc.User.LoginBySMS:input_type -> usersvc.LoginBySMSRequest
+	5,  // 14: usersvc.User.LoginByPassword:input_type -> usersvc.LoginByPasswordRequest
+	6,  // 15: usersvc.User.SetPassword:input_type -> usersvc.SetPasswordRequest
+	8,  // 16: usersvc.User.RefreshToken:input_type -> usersvc.RefreshTokenRequest
+	10, // 17: usersvc.User.Logout:input_type -> usersvc.LogoutRequest
+	12, // 18: usersvc.User.GetProfile:input_type -> usersvc.GetProfileRequest
+	14, // 19: usersvc.User.SubmitRealName:input_type -> usersvc.SubmitRealNameRequest
+	16, // 20: usersvc.User.UpdateProfile:input_type -> usersvc.UpdateProfileRequest
+	19, // 21: usersvc.User.CreateAddress:input_type -> usersvc.CreateAddressRequest
+	20, // 22: usersvc.User.ListAddresses:input_type -> usersvc.ListAddressesRequest
+	22, // 23: usersvc.User.UpdateAddress:input_type -> usersvc.UpdateAddressRequest
+	23, // 24: usersvc.User.DeleteAddress:input_type -> usersvc.DeleteAddressRequest
+	26, // 25: usersvc.User.ClaimCoupon:input_type -> usersvc.ClaimCouponRequest
+	28, // 26: usersvc.User.ListMyCoupons:input_type -> usersvc.ListMyCouponsRequest
+	30, // 27: usersvc.User.AdminListUserCoupons:input_type -> usersvc.AdminListUserCouponsRequest
+	32, // 28: usersvc.User.LockUserCoupon:input_type -> usersvc.LockUserCouponRequest
+	34, // 29: usersvc.User.ReleaseUserCoupon:input_type -> usersvc.ReleaseUserCouponRequest
+	36, // 30: usersvc.User.AdminListUsers:input_type -> usersvc.AdminUserListRequest
+	37, // 31: usersvc.User.AdminGetUser:input_type -> usersvc.AdminUserDetailRequest
+	40, // 32: usersvc.User.GetWallet:input_type -> usersvc.GetWalletRequest
+	43, // 33: usersvc.User.RechargeWallet:input_type -> usersvc.ChangeWalletRequest
+	43, // 34: usersvc.User.WithdrawWallet:input_type -> usersvc.ChangeWalletRequest
+	1,  // 35: usersvc.User.SendSMSCode:output_type -> usersvc.SendSMSCodeResponse
+	4,  // 36: usersvc.User.LoginBySMS:output_type -> usersvc.LoginBySMSResponse
+	4,  // 37: usersvc.User.LoginByPassword:output_type -> usersvc.LoginBySMSResponse
+	7,  // 38: usersvc.User.SetPassword:output_type -> usersvc.SetPasswordResponse
+	9,  // 39: usersvc.User.RefreshToken:output_type -> usersvc.RefreshTokenResponse
+	11, // 40: usersvc.User.Logout:output_type -> usersvc.LogoutResponse
+	13, // 41: usersvc.User.GetProfile:output_type -> usersvc.GetProfileResponse
+	15, // 42: usersvc.User.SubmitRealName:output_type -> usersvc.SubmitRealNameResponse
+	17, // 43: usersvc.User.UpdateProfile:output_type -> usersvc.UpdateProfileResponse
+	18, // 44: usersvc.User.CreateAddress:output_type -> usersvc.AddressInfo
+	21, // 45: usersvc.User.ListAddresses:output_type -> usersvc.ListAddressesResponse
+	18, // 46: usersvc.User.UpdateAddress:output_type -> usersvc.AddressInfo
+	24, // 47: usersvc.User.DeleteAddress:output_type -> usersvc.DeleteAddressResponse
+	27, // 48: usersvc.User.ClaimCoupon:output_type -> usersvc.ClaimCouponResponse
+	29, // 49: usersvc.User.ListMyCoupons:output_type -> usersvc.ListMyCouponsResponse
+	31, // 50: usersvc.User.AdminListUserCoupons:output_type -> usersvc.AdminListUserCouponsResponse
+	33, // 51: usersvc.User.LockUserCoupon:output_type -> usersvc.LockUserCouponResponse
+	35, // 52: usersvc.User.ReleaseUserCoupon:output_type -> usersvc.ReleaseUserCouponResponse
+	39, // 53: usersvc.User.AdminListUsers:output_type -> usersvc.AdminUserListResponse
+	38, // 54: usersvc.User.AdminGetUser:output_type -> usersvc.AdminUser
+	42, // 55: usersvc.User.GetWallet:output_type -> usersvc.GetWalletResponse
+	44, // 56: usersvc.User.RechargeWallet:output_type -> usersvc.ChangeWalletResponse
+	44, // 57: usersvc.User.WithdrawWallet:output_type -> usersvc.ChangeWalletResponse
+	35, // [35:58] is the sub-list for method output_type
+	12, // [12:35] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
-func init() { file_usersvc_proto_init() }
-func file_usersvc_proto_init() {
-	if File_usersvc_proto != nil {
+func init() { file_rpc_usersvc_proto_usersvc_proto_init() }
+func file_rpc_usersvc_proto_usersvc_proto_init() {
+	if File_rpc_usersvc_proto_usersvc_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_usersvc_proto_rawDesc), len(file_usersvc_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_usersvc_proto_usersvc_proto_rawDesc), len(file_rpc_usersvc_proto_usersvc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   37,
+			NumMessages:   45,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_usersvc_proto_goTypes,
-		DependencyIndexes: file_usersvc_proto_depIdxs,
-		MessageInfos:      file_usersvc_proto_msgTypes,
+		GoTypes:           file_rpc_usersvc_proto_usersvc_proto_goTypes,
+		DependencyIndexes: file_rpc_usersvc_proto_usersvc_proto_depIdxs,
+		MessageInfos:      file_rpc_usersvc_proto_usersvc_proto_msgTypes,
 	}.Build()
-	File_usersvc_proto = out.File
-	file_usersvc_proto_goTypes = nil
-	file_usersvc_proto_depIdxs = nil
+	File_rpc_usersvc_proto_usersvc_proto = out.File
+	file_rpc_usersvc_proto_usersvc_proto_goTypes = nil
+	file_rpc_usersvc_proto_usersvc_proto_depIdxs = nil
 }

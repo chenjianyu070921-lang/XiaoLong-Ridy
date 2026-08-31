@@ -1,9 +1,11 @@
 # 乘客端 API 接口测试文档
 
-> **版本**: v1.0  
-> **更新时间**: 2026-08-20  
+> **版本**: v1.1  
+> **更新时间**: 2026-08-31  
 > **服务地址**: `http://localhost:8091`  
 > **Content-Type**: `application/json; charset=utf-8`
+
+> **路径说明**：当前网关统一使用 `/api/passenger/v1` 前缀。早期示例中的 `/api/v1` 旧路径已废弃，请以 `api/passenger/passenger.api` 和当前路由为准。
 
 ---
 
@@ -51,7 +53,7 @@ HEADER_JSON="Content-Type: application/json"
 {
   "code": 0,
   "message": "success",
-  "data": { ... },
+  "data": {"..."},
   "timestamp": 1724150400,
   "traceId": "trace_a1b2c3d4"
 }
@@ -92,6 +94,8 @@ HEADER_JSON="Content-Type: application/json"
 | 42001 | 400 | 实名认证失败 | 姓名与身份证号不一致/身份证号无效/腾讯云服务异常 |
 | 50000 | 500 | 服务器内部错误 | 未预期的异常 |
 | 50001 | 502 | 下游服务不可用 | gRPC连接失败/超时 |
+| 40002 | 400 | 密码格式不合法 | 密码不满足 8-64 位且同时包含字母和数字 |
+| 40103 | 401 | 手机号或密码错误 | 账号不存在、未设置密码或密码校验失败 |
 
 ---
 
@@ -231,7 +235,21 @@ curl -X POST http://localhost:8091/api/v1/auth/login \
 
 ---
 
-### 4.3 刷新令牌
+### 4.3 手机号密码登录
+
+**`POST /api/passenger/v1/auth/login-by-password`**（无需登录）
+
+密码需为 8-64 位且同时包含字母和数字；账号需先通过短信登录后在个人中心设置密码。
+
+```bash
+curl -X POST http://localhost:8091/api/passenger/v1/auth/login-by-password \
+  -H "$HEADER_JSON" \
+  -d '{"phone":"13800138000","password":"Pass1234"}'
+```
+
+响应结构与短信登录一致，返回 `token`、`refreshToken` 和 `user`。账号不存在、未设置密码或密码错误时返回 HTTP 401，客户端可切换验证码登录。
+
+### 4.4 刷新令牌
 
 **`POST /api/v1/auth/refresh-token`**
 

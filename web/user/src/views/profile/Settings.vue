@@ -191,12 +191,15 @@
     </van-dialog>
 
     <!-- 账号信息弹窗：展示当前账号安全信息，敏感内容始终脱敏。 -->
-    <van-dialog v-model:show="showAccountDialog" title="账号与密码" :show-confirm-button="true" confirm-button-text="关闭">
+    <van-dialog v-model:show="showAccountDialog" title="账号与密码" show-cancel-button confirm-button-text="保存" :before-close="onPasswordDialogClose">
       <div class="dialog-content account-dialog">
         <div class="info-row"><span>登录手机号</span><strong>{{ maskedPhone }}</strong></div>
         <div class="info-row"><span>登录方式</span><strong>短信验证码</strong></div>
-        <div class="info-row"><span>密码状态</span><strong>未设置</strong></div>
-        <p class="realname-info-tip">当前账号使用短信验证码登录，暂不支持密码登录。</p>
+        <div class="info-row"><span>密码状态</span><strong>{{ passwordSet ? '已设置' : '未设置' }}</strong></div>
+        <van-field v-if="passwordSet" v-model="passwordForm.currentPassword" type="password" label="当前密码" placeholder="请输入当前密码" autocomplete="current-password" />
+        <van-field v-model="passwordForm.newPassword" type="password" label="新密码" placeholder="8-64位，含字母和数字" autocomplete="new-password" />
+        <van-field v-model="passwordForm.confirmPassword" type="password" label="确认密码" placeholder="请再次输入新密码" autocomplete="new-password" />
+        <p class="realname-info-tip">密码仅以加密哈希形式保存，不会在任何页面展示。</p>
       </div>
     </van-dialog>
 
@@ -233,7 +236,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showDialog, showLoadingToast, closeToast } from 'vant'
 import { useUserStore } from '@/stores/user'
-import { submitRealName } from '@/api/user'
+import { setPassword, submitRealName } from '@/api/user'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -244,6 +247,8 @@ const showChangePhone = ref(false)
 const showRealNameDialog = ref(false)
 const showRealNameInfoDialog = ref(false)
 const showAccountDialog = ref(false)
+const passwordSet = ref(false)
+const passwordForm = ref({ currentPassword: '', newPassword: '', confirmPassword: '' })
 const oldPhoneCode = ref('')
 const realNameForm = ref({
   realName: '',
@@ -289,7 +294,36 @@ const goToPage = (page) => {
     return
   }
   if (page === 'phone') {
+    passwordForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
     showAccountDialog.value = true
+  }
+}
+
+// onPasswordDialogClose 校验密码输入并调用服务端安全地保存 bcrypt 哈希。
+const onPasswordDialogClose = async (action) => {
+  if (action !== 'confirm') return true
+  const { currentPassword, newPassword, confirmPassword } = passwordForm.value
+  if (!/^(?=.*[A-Za-z])(?=.*\d).{8,64}$/.test(newPassword)) {
+    showToast('密码需为8-64位，且同时包含字母和数字')
+    return false
+  }
+  if (newPassword !== confirmPassword) {
+    showToast('两次输入的密码不一致')
+    return false
+  }
+  if (passwordSet.value && !currentPassword) {
+    showToast('请输入当前密码')
+    return false
+  }
+  try {
+    await setPassword({ currentPassword, newPassword })
+    passwordSet.value = true
+    passwordForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
+    showToast('密码设置成功')
+    return true
+  } catch (error) {
+    showToast(error?.response?.data?.message || '密码设置失败')
+    return false
   }
 }
 

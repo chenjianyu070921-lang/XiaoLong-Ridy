@@ -351,7 +351,8 @@ async function loadCommonAddresses() {
   }
 }
 function updateCurrentMarker(lng, lat) {
-  if (!mapInstance.value || !AMapSDK.value) return
+  // 地图异步初始化或页面销毁期间不执行覆盖物操作，避免调用未就绪实例的 add。
+  if (!mapReady.value || !mapInstance.value || typeof mapInstance.value.add !== 'function' || !AMapSDK.value) return
   const position = [Number(lng), Number(lat)]
   if (currentMarker.value) currentMarker.value.setPosition(position)
   else {
@@ -701,7 +702,7 @@ async function selectSearchResult(item) {
     const position = [resolvedDestination.lng, resolvedDestination.lat]
     if (!destinationMarker.value && AMapSDK.value) {
       destinationMarker.value = new AMapSDK.value.Marker({ position })
-      mapInstance.value.add(destinationMarker.value)
+      if (typeof mapInstance.value.add === 'function') mapInstance.value.add(destinationMarker.value)
     } else destinationMarker.value?.setPosition(position)
     mapInstance.value.setCenter(position)
   }

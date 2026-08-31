@@ -35,6 +35,16 @@ func (c *grpcUserClient) LoginBySMS(ctx context.Context, req *userproto.LoginByS
 	return c.cli.LoginBySMS(ctx, req)
 }
 
+// LoginByPassword 调用 usersvc 手机号密码登录 RPC。
+func (c *grpcUserClient) LoginByPassword(ctx context.Context, req *userproto.LoginByPasswordRequest) (*userproto.LoginBySMSResponse, error) {
+	return c.cli.LoginByPassword(ctx, req)
+}
+
+// SetPassword 调用 usersvc 设置或修改当前乘客密码。
+func (c *grpcUserClient) SetPassword(ctx context.Context, req *userproto.SetPasswordRequest) (*userproto.SetPasswordResponse, error) {
+	return c.cli.SetPassword(ctx, req)
+}
+
 func (c *grpcUserClient) RefreshToken(ctx context.Context, req *userproto.RefreshTokenRequest) (*userproto.RefreshTokenResponse, error) {
 	return c.cli.RefreshToken(ctx, req)
 }
@@ -87,6 +97,18 @@ func (c *grpcUserClient) LockUserCoupon(ctx context.Context, req *userproto.Lock
 // ReleaseUserCoupon 调用 usersvc 释放下单失败时已锁定的用户券。
 func (c *grpcUserClient) ReleaseUserCoupon(ctx context.Context, req *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error) {
 	return c.cli.ReleaseUserCoupon(ctx, req)
+}
+
+func (c *grpcUserClient) GetWallet(ctx context.Context, req *userproto.GetWalletRequest) (*userproto.GetWalletResponse, error) {
+	return c.cli.GetWallet(ctx, req)
+}
+
+func (c *grpcUserClient) RechargeWallet(ctx context.Context, req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
+	return c.cli.RechargeWallet(ctx, req)
+}
+
+func (c *grpcUserClient) WithdrawWallet(ctx context.Context, req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
+	return c.cli.WithdrawWallet(ctx, req)
 }
 
 // grpcOrderClient 将 ordersvc 生成的 gRPC 客户端适配为 passenger 的 OrderClient 接口。

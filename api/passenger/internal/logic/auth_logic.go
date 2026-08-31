@@ -59,6 +59,19 @@ func (l *AuthLogic) LoginBySMS(req *types.LoginBySMSRequest) (*types.LoginBySMSR
 	}, nil
 }
 
+// LoginByPassword 转发手机号密码登录并复用短信登录响应结构。
+func (l *AuthLogic) LoginByPassword(req *types.LoginByPasswordRequest) (*types.LoginBySMSResponse, error) {
+	client, err := l.userClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.LoginByPassword(l.ctx, &userproto.LoginByPasswordRequest{Phone: strings.TrimSpace(req.Phone), Password: req.Password})
+	if err != nil {
+		return nil, err
+	}
+	return &types.LoginBySMSResponse{Token: resp.GetToken(), RefreshToken: resp.GetRefreshToken(), IsNewUser: resp.GetIsNewUser(), User: toAPIUserInfo(resp.GetUser())}, nil
+}
+
 // RefreshToken 转发刷新令牌请求。
 func (l *AuthLogic) RefreshToken(req *types.RefreshTokenRequest) (*types.RefreshTokenResponse, error) {
 	client, err := l.userClient()

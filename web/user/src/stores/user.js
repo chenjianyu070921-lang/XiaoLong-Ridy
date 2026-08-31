@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { loginBySMS, refreshToken as refreshApi } from '@/api/auth'
+import { loginBySMS, loginByPassword, refreshToken as refreshApi } from '@/api/auth'
 import { getProfile } from '@/api/user'
 
 export const useUserStore = defineStore('user', () => {
@@ -43,6 +43,18 @@ export const useUserStore = defineStore('user', () => {
       console.error('登录接口失败:', error)
       throw error
     }
+  }
+
+  // 密码登录复用短信登录后的令牌和用户资料落库逻辑。
+  async function loginWithPassword(phoneNum, password) {
+    const res = await loginByPassword(phoneNum, password)
+    token.value = res.token
+    refreshTokenVal.value = res.refreshToken
+    userInfo.value = normalizeUserInfo(res.user, phoneNum)
+    localStorage.setItem('token', res.token)
+    localStorage.setItem('refreshToken', res.refreshToken)
+    localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
+    return res
   }
 
 
@@ -110,6 +122,7 @@ export const useUserStore = defineStore('user', () => {
     nickname,
     avatarUrl,
     login,
+    loginWithPassword,
     refreshTokenAction,
     fetchUserInfo,
     logout
