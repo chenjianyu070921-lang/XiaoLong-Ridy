@@ -1,4 +1,4 @@
-﻿package logic
+package logic
 
 import (
 	"context"
@@ -55,6 +55,7 @@ func (l *VehicleLogic) UpdateVehicle(driverID int64, req *types.UpdateVehicleReq
 	if driverID <= 0 || req == nil || req.ID <= 0 {
 		return nil, ErrInvalidParam
 	}
+	req.DriverID = &driverID
 	normalizeUpdateVehicleRequest(req)
 	if !hasVehicleUpdateFields(req) {
 		return nil, ErrInvalidParam
@@ -94,6 +95,7 @@ func (l *VehicleLogic) UpdateVehicle(driverID int64, req *types.UpdateVehicleReq
 	}
 	resp, err := client.UpdateVehicle(l.ctx, &driversproto.UpdateVehicleRequest{
 		Id:                req.ID,
+		DriverId:          req.DriverID,
 		PlateNo:           req.PlateNo,
 		Brand:             req.Brand,
 		Model:             req.Model,
@@ -101,7 +103,7 @@ func (l *VehicleLogic) UpdateVehicle(driverID int64, req *types.UpdateVehicleReq
 		VehicleType:       req.VehicleType,
 		RegistrationDate:  optionalPositiveInt64Ptr(req.RegistrationDate),
 		InsuranceNo:       req.InsuranceNo,
-		InsuranceExpireAt:  optionalPositiveInt64Ptr(req.InsuranceExpireAt),
+		InsuranceExpireAt: optionalPositiveInt64Ptr(req.InsuranceExpireAt),
 		Status:            enumVehicleStatus(req.Status),
 	})
 	if err != nil {
@@ -258,4 +260,3 @@ func toVehicleInfo(v *driversproto.Vehicle) types.VehicleInfo {
 		UpdatedAt:         v.GetUpdatedAt(),
 	}
 }
-

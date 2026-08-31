@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
@@ -18,6 +18,21 @@ function readIfExists(path) {
   return existsSync(file(path)) ? readFileSync(file(path), 'utf8') : ''
 }
 
+function collectDriverFiles(dir, exts, out = []) {
+  const abs = file(dir)
+  if (!existsSync(abs)) return out
+  for (const entry of readdirSync(abs, { withFileTypes: true })) {
+    const rel = dir + '/' + entry.name
+    if (entry.isDirectory()) {
+      if (entry.name === 'dist' || entry.name === 'node_modules') continue
+      collectDriverFiles(rel, exts, out)
+      continue
+    }
+    if (exts.some((ext) => entry.name.endsWith(ext))) out.push(rel)
+  }
+  return out
+}
+
 for (const path of [
   'web/driver/package.json',
   'web/driver/vite.config.js',
@@ -28,8 +43,7 @@ for (const path of [
   'web/driver/src/api/driver.js',
   'web/driver/src/stores/driver.js',
   'web/driver/src/views/DriverLogin.vue',
-  'web/driver/src/views/DriverHome.vue',
-  'web/driver/src/components/SmsCodeDialog.vue'
+  'web/driver/src/views/DriverHome.vue'
 ]) {
   assert(existsSync(file(path)), `missing independent driver frontend file: ${path}`)
 }
@@ -50,7 +64,7 @@ for (const path of [
 }
 
 const driverRouter = readIfExists('web/driver/src/router/index.js')
-assert(driverRouter.includes("redirect: '/login'"), 'driver frontend root must redirect to /login')
+assert(driverRouter.includes('redirect:'), 'driver frontend root must redirect based on login state')
 assert(driverRouter.includes("path: '/login'"), 'driver frontend must expose /login')
 assert(driverRouter.includes("path: '/home'"), 'driver frontend must expose /home')
 assert(driverRouter.includes('requiresDriverAuth'), 'driver frontend must protect /home')
@@ -82,7 +96,6 @@ for (const endpoint of [
   '/drivers/certification/upload',
   '/drivers/certification',
   '/income/summary',
-  '/wallet/summary',
   '/income/today',
   '/income/week',
   '/income/bills',
@@ -104,7 +117,28 @@ for (const endpoint of [
 const home = readIfExists('web/driver/src/views/DriverHome.vue')
 const login = readIfExists('web/driver/src/views/DriverLogin.vue')
 const app = readIfExists('web/driver/src/App.vue')
-const smsDialog = readIfExists('web/driver/src/components/SmsCodeDialog.vue')
+const driverTextFiles = [
+  'web/driver/index.html',
+  ...collectDriverFiles('web/driver/src', ['.js', '.vue']),
+  ...collectDriverFiles('api/driver', ['.go', '.api', '.yaml']),
+  ...collectDriverFiles('rpc/driversvc', ['.go', '.proto', '.yaml'])
+]
+const mojibakePattern = /�|���|鏄|鏉|鏈|鎵|鍦|绛|瀵|嗛|渶|绔|繚|鎸|鑷|楠|鐮|瘉|銆|锛|€|閹|劗|骞囬|惄|绋|垮|璇|榫|濮|韬|椹|澶|鎻|娉|绠|鍛/
+const unicodeEscapePattern = /\\u[0-9a-fA-F]{4}/
+for (const path of driverTextFiles) {
+  const text = readIfExists(path)
+  assert(!text.startsWith('\uFEFF'), 'driver text file must not start with BOM: ' + path)
+  assert(!mojibakePattern.test(text), 'driver text file contains mojibake text: ' + path)
+  assert(!unicodeEscapePattern.test(text), 'driver text file contains escaped unicode text: ' + path)
+}
+const driverLogicFiles = [
+  ...collectDriverFiles('api/driver/internal/logic', ['.go']),
+  ...collectDriverFiles('rpc/driversvc/internal/logic', ['.go'])
+].filter((path) => !path.endsWith('_test.go'))
+const directSQLPattern = /\.(Raw|Exec|Table)\(|\b(SELECT|INSERT|UPDATE|DELETE)\s+|\bFROM\s+|\bJOIN\s+|\bWHERE\s+|\bORDER BY\b|\bGROUP BY\b/
+for (const path of driverLogicFiles) {
+  assert(!directSQLPattern.test(readIfExists(path)), 'driver logic must not contain direct SQL: ' + path)
+}
 assert(login.includes("router.replace('/home')"), 'driver login must navigate inside independent app')
 assert(api.includes("router.push('/login')"), 'driver auth expiry must navigate inside independent app')
 assert(home.includes("router.replace('/login')"), 'driver logout must navigate inside independent app')
@@ -117,9 +151,8 @@ assert(!home.includes('actualPriceCents'), 'driver finish trip must not ask driv
 assert(app.includes('driver-phone-shell'), 'driver app must render a centered phone shell for H5 preview')
 assert(login.includes('class="login-card"'), 'driver login must use a compact H5 login card')
 assert(login.includes('class="auth-mode-tabs"'), 'driver login must expose touch-friendly H5 auth mode tabs')
-assert(login.includes('<SmsCodeDialog'), 'driver login must mount SMS code dialog after sending SMS')
-assert(login.includes('smsCodeDialogVisible.value = true'), 'driver login must open SMS code dialog when backend returns code')
-assert(login.includes("smsCodeValue.value = String(res?.code || '').trim()"), 'driver login must capture backend SMS code')
+assert(!login.includes('SmsCodeDialog'), 'driver login must not mount SMS code dialog')
+assert(login.includes('验证码已发送（联调验证码见服务端日志）'), 'driver login must not reveal plaintext code')
 assert(home.includes('class="driver-hero"'), 'driver home must start with a driver hero')
 assert(home.includes('class="quick-entry-row"'), 'driver home must expose H5 quick action controls')
 assert(home.includes('class="tab-panel-scroll"'), 'driver tab content must use a mobile scroll panel')
@@ -127,9 +160,6 @@ assert(home.includes('getTodayIncome'), 'driver wallet must call backend today i
 assert(home.includes('getWeekIncome'), 'driver wallet must call backend week income endpoint')
 assert(home.includes('/api/driver/v1/ws'), 'driver WebSocket must connect to registered /api/driver/v1/ws route')
 assert(!home.includes('/api/driver/v1/push/ws'), 'driver WebSocket must not use stale /api/driver/v1/push/ws route')
-assert(smsDialog.includes('������֤��'), 'driver SMS code dialog title is required')
-assert(smsDialog.includes('��֤�����Ժ�˷��ؽ��'), 'driver SMS code dialog must explain the code source')
-assert(smsDialog.includes('sms-code-dialog__code'), 'driver SMS code dialog must render the returned code')
 
 console.log('driver frontend isolation checks passed')
 

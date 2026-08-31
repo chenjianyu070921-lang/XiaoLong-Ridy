@@ -62,7 +62,6 @@ func (l *AuthLogic) SendSMSCode(req *types.SendSMSCodeRequest) (*types.SendSMSCo
 	return &types.SendSMSCodeResponse{
 		Success:  true,
 		ExpireIn: int(l.svcCtx.CodeCache.TTL().Seconds()),
-		Code:     code,
 	}, nil
 }
 

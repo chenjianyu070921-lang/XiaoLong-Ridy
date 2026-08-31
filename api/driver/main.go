@@ -150,17 +150,18 @@ func envOr(key, fallback string) string {
 func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/driver/v1/auth/send-sms-code", methodSwitch("POST", handler.SendSMSCodeHandler(svcCtx)))
-	mux.HandleFunc("/api/driver/v1/auth/login-by-password", methodSwitch("POST", handler.LoginByPasswordHandler(svcCtx)))
-	mux.HandleFunc("/api/driver/v1/auth/login-by-sms", methodSwitch("POST", handler.LoginBySMSHandler(svcCtx)))
-	mux.HandleFunc("/api/driver/v1/drivers/register", methodSwitch("POST", handler.RegisterDriverHandler(svcCtx)))
+	// 登录/注册/发码公开接口：接入 IP 级限流，防止验证码刷发与密码/验证码爆破。
+	// send-sms-code 限流更严（5 次/分钟/IP）；登录与注册 10 次/分钟/IP。
+	smsLimit := middleware.LoginRateLimit(5, time.Minute)
+	authLimit := middleware.LoginRateLimit(10, time.Minute)
+	mux.Handle("/api/driver/v1/auth/send-sms-code", smsLimit(methodSwitch("POST", handler.SendSMSCodeHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/auth/login-by-password", authLimit(methodSwitch("POST", handler.LoginByPasswordHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/auth/login-by-sms", authLimit(methodSwitch("POST", handler.LoginBySMSHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/register", authLimit(methodSwitch("POST", handler.RegisterDriverHandler(svcCtx))))
 
 	protected := middleware.RequireAuth(svcCtx)
-	mux.Handle("/api/driver/v1/drivers", protected(methodSwitch("POST", handler.CreateDriverHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/update", protected(handler.UpdateDriverHandler(svcCtx)))
 	mux.Handle("/api/driver/v1/drivers/get", protected(handler.GetDriverHandler(svcCtx)))
-	mux.Handle("/api/driver/v1/drivers/by-phone", protected(methodSwitch("POST", handler.GetDriverByPhoneHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/delete", protected(handler.DeleteDriverHandler(svcCtx)))
 	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/heartbeat", protected(methodSwitch("POST", handler.HeartbeatHandler(svcCtx))))
@@ -175,7 +176,6 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/withdraws", protected(methodSwitch("POST", handler.CreateWithdrawHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/withdraws/list", protected(methodSwitch("POST", handler.ListWithdrawsHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/income/summary", protected(methodSwitch("GET", handler.GetIncomeSummaryHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/wallet/summary", protected(methodSwitch("GET", handler.GetIncomeSummaryHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/income/today", protected(methodSwitch("GET", handler.GetTodayIncomeHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/income/week", protected(methodSwitch("GET", handler.GetWeekIncomeHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/income/bills", protected(methodSwitch("POST", handler.ListIncomeBillsHandler(svcCtx))))

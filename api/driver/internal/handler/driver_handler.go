@@ -48,6 +48,17 @@ func UpdateDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		if !decodeJSON(w, r, &req) {
 			return
 		}
+		if !middleware.IsInternalCall(r.Context()) {
+			// 司机只能修改自己的资料：强制用 JWT 身份覆盖请求中的 id，防止越权修改其他司机（含改密码/手机号接管账号）。
+			// 审核状态 status 只能由管理员/内部服务变更，司机端一律忽略，防止绕过审核或自行解冻。
+			claims := middleware.ClaimsFromContext(r.Context())
+			if claims == nil {
+				writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+				return
+			}
+			req.ID = int64(claims.AccountID)
+			req.Status = nil
+		}
 		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).UpdateDriver(&req)
 		if err != nil {
 			writeParamError(w, err)

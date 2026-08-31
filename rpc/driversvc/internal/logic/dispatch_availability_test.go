@@ -24,12 +24,13 @@ func TestSyncDispatchDriverAvailability(t *testing.T) {
 	if err := syncDispatchDriverOnline(ctx, svcCtx, 25, 116.397, 39.908); err != nil {
 		t.Fatalf("syncDispatchDriverOnline() error = %v", err)
 	}
+	// sync 只同步 geo/online/pos，绝不清除 busy——服务中司机依赖 busy 防止重复派单。
 	busy, err := rdb.SIsMember(ctx, constants.RedisDriverBusy, "25").Result()
 	if err != nil {
 		t.Fatalf("SIsMember() busy error = %v", err)
 	}
-	if busy {
-		t.Fatalf("driver should be removed from %s", constants.RedisDriverBusy)
+	if !busy {
+		t.Fatalf("syncDispatchDriverOnline must NOT clear busy (service-in-progress driver must stay busy)")
 	}
 	online, err := rdb.SIsMember(ctx, constants.RedisDriverOnline, "25").Result()
 	if err != nil {
@@ -45,6 +46,18 @@ func TestSyncDispatchDriverAvailability(t *testing.T) {
 	}
 	if len(locations) != 1 || locations[0] == nil {
 		t.Fatalf("driver geo position missing: %+v", locations)
+	}
+
+	// 上线入口负责清 busy：clearDispatchDriverBusy 只在上线时调用。
+	if err := clearDispatchDriverBusy(ctx, svcCtx, 25); err != nil {
+		t.Fatalf("clearDispatchDriverBusy() error = %v", err)
+	}
+	busy, err = rdb.SIsMember(ctx, constants.RedisDriverBusy, "25").Result()
+	if err != nil {
+		t.Fatalf("SIsMember() busy after clear error = %v", err)
+	}
+	if busy {
+		t.Fatalf("clearDispatchDriverBusy should remove driver from %s", constants.RedisDriverBusy)
 	}
 
 	if err := syncDispatchDriverOffline(ctx, svcCtx, 25); err != nil {

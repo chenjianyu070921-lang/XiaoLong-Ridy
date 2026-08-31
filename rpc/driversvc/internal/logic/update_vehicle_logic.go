@@ -9,6 +9,8 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type UpdateVehicleLogic struct {
@@ -25,10 +27,13 @@ func NewUpdateVehicleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 	}
 }
 
-// UpdateVehicle updates vehicle information by applying only explicitly set optional fields.
+// UpdateVehicle updates the owner's vehicle by applying only explicitly set optional fields.
 func (l *UpdateVehicleLogic) UpdateVehicle(in *proto.UpdateVehicleRequest) (*proto.UpdateVehicleResponse, error) {
 	if in == nil || in.Id <= 0 {
 		return nil, errors.New("vehicle id is invalid")
+	}
+	if in.GetDriverId() <= 0 {
+		return nil, errors.New("driver id is invalid")
 	}
 	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
 		return nil, errors.New("driver vehicle repository not ready")
@@ -36,6 +41,12 @@ func (l *UpdateVehicleLogic) UpdateVehicle(in *proto.UpdateVehicleRequest) (*pro
 	v, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, uint64(in.Id))
 	if err != nil {
 		return nil, err
+	}
+	if v == nil {
+		return nil, errors.New("vehicle not found")
+	}
+	if v.DriverId != uint64(in.GetDriverId()) {
+		return nil, status.Error(codes.PermissionDenied, "vehicle does not belong to driver")
 	}
 
 	updates := map[string]interface{}{}

@@ -117,7 +117,7 @@ func TestUpdateVehicleRejectsVehicleFromAnotherDriver(t *testing.T) {
 	}
 }
 
-func TestUpdateVehicleIgnoresClientDriverID(t *testing.T) {
+func TestUpdateVehicleUsesCurrentDriverID(t *testing.T) {
 	driverClient := &fakeDriverClient{
 		getVehicleResponse: &driversproto.GetVehicleResponse{
 			Vehicle: &driversproto.Vehicle{Id: 77, DriverId: 25},
@@ -137,7 +137,7 @@ func TestUpdateVehicleIgnoresClientDriverID(t *testing.T) {
 		t.Fatalf("UpdateVehicle() get request = %+v", driverClient.getVehicleRequest)
 	}
 	req := driverClient.updateVehicleRequest
-	if req == nil || req.GetDriverId() != 0 || req.GetPlateNo() != "粤B54321" {
+	if req == nil || req.GetDriverId() != 25 || req.GetPlateNo() != "粤B54321" {
 		t.Fatalf("UpdateVehicle() update request = %+v", req)
 	}
 }

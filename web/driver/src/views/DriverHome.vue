@@ -224,7 +224,7 @@
             <span>提现</span>
           </button>
         </div>
-        <div class="wallet-card"><span>累计收入</span><strong>{{ formatPrice(incomeSummary.totalIncomeCents ?? walletSummary.balanceCents) }}</strong><p>已完成订单 {{ incomeSummary.completedOrders ?? '--' }}</p></div>
+        <div class="wallet-card"><span>累计收入</span><strong>{{ formatPrice(incomeSummary.totalIncomeCents) }}</strong><p>已完成订单 {{ incomeSummary.completedOrders ?? '--' }}</p></div>
         <div class="income-grid">
           <div><span>今日</span><strong>{{ formatPrice(todayIncome.totalIncomeCents) }}</strong></div>
           <div><span>本周</span><strong>{{ formatPrice(weekIncome.totalIncomeCents) }}</strong></div>
@@ -302,7 +302,6 @@ import {
   getOrderTrajectory,
   getTodayIncome,
   getVehicle,
-  getWalletSummary,
   getWeekIncome,
   heartbeatDriver,
   listAvailableOrders,
@@ -346,7 +345,6 @@ const orderPage = ref(1)
 const orderPageSize = ref(8)
 const orderTotal = ref(0)
 const incomeSummary = ref({})
-const walletSummary = ref({})
 const todayIncome = ref({})
 const weekIncome = ref({})
 const incomeBills = ref([])
@@ -968,19 +966,17 @@ function removeCertImage(field) {
 async function loadIncome(config = {}) {
   const incomeRequests = [
     { label: '收入汇总', task: () => getIncomeSummary(config) },
-    { label: '钱包余额', task: () => getWalletSummary(config) },
     { label: '今日收入', task: () => getTodayIncome(config) },
     { label: '本周收入', task: () => getWeekIncome(config) },
     { label: '收入明细', task: () => listIncomeBills({ page: 1, pageSize: 20 }, config) }
   ]
-  const [summary, wallet, today, week, bills] = await Promise.allSettled(incomeRequests.map((item) => item.task()))
+  const [summary, today, week, bills] = await Promise.allSettled(incomeRequests.map((item) => item.task()))
   incomeSummary.value = summary.status === 'fulfilled' ? summary.value : {}
-  walletSummary.value = wallet.status === 'fulfilled' ? wallet.value : {}
   todayIncome.value = today.status === 'fulfilled' ? today.value : {}
   weekIncome.value = week.status === 'fulfilled' ? week.value : {}
   incomeBills.value = bills.status === 'fulfilled' && Array.isArray(bills.value.list) ? bills.value.list : []
 
-  const failures = [summary, wallet, today, week, bills]
+  const failures = [summary, today, week, bills]
     .map((result, index) => result.status === 'rejected' ? incomeRequests[index].label + ': ' + apiErrorMessage(result.reason, '请求失败') : '')
     .filter(Boolean)
   if (failures.length) showIncomeLoadFailure(failures)

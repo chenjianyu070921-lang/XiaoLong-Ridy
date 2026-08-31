@@ -36,6 +36,20 @@ func TestCodeCacheWrongCode(t *testing.T) {
 	}
 }
 
+func TestCodeCacheWrongCodeDoesNotConsume(t *testing.T) {
+	c := NewLocalCodeCache(time.Minute)
+	c.Set("13800000001", "123456")
+	if c.Verify("13800000001", "000000") {
+		t.Fatal("Verify(wrong code) = true, want false")
+	}
+	if !c.Verify("13800000001", "123456") {
+		t.Fatal("Verify(correct code after wrong attempt) = false, want true")
+	}
+	if c.Verify("13800000001", "123456") {
+		t.Fatal("Verify(reused correct code) = true, want false")
+	}
+}
+
 func TestCodeCacheNotFound(t *testing.T) {
 	c := NewLocalCodeCache(time.Minute)
 	if c.Verify("13800000009", "123456") {
@@ -69,6 +83,23 @@ func TestRedisCodeCacheSetAndVerify(t *testing.T) {
 	}
 	if cache.Verify("13800000001", "123456") {
 		t.Fatal("Verify(redis reused code) = true, want false")
+	}
+}
+
+func TestRedisCodeCacheWrongCodeDoesNotConsume(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	cache := NewRedisCodeCache(rdb, time.Minute)
+
+	cache.Set("13800000001", "123456")
+	if cache.Verify("13800000001", "000000") {
+		t.Fatal("Verify(redis wrong code) = true, want false")
+	}
+	if !cache.Verify("13800000001", "123456") {
+		t.Fatal("Verify(redis correct code after wrong attempt) = false, want true")
+	}
+	if cache.Verify("13800000001", "123456") {
+		t.Fatal("Verify(redis reused correct code) = true, want false")
 	}
 }
 

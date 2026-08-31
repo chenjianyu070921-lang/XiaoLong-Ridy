@@ -1,10 +1,10 @@
 <template>
   <main class="driver-login-page">
     <section class="login-hero">
-      <img src="/logo.png" alt="��С��" />
+      <img src="/logo.png" alt="花小龙" />
       <div>
-        <p>��С��˾����</p>
-        <h1>�ӵ�����̨</h1>
+        <p>花小龙司机端</p>
+        <h1>接单工作台</h1>
       </div>
     </section>
 
@@ -22,41 +22,39 @@
       </div>
 
       <van-form v-if="activeTab === 0" class="auth-form" @submit="handlePasswordLogin">
-        <van-field v-model="passwordForm.phone" name="phone" type="tel" label="�ֻ���" placeholder="�������ֻ���" clearable />
-        <van-field v-model="passwordForm.password" name="password" type="password" label="����" placeholder="����������" clearable />
+        <van-field v-model="passwordForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" clearable />
+        <van-field v-model="passwordForm.password" name="password" type="password" label="密码" placeholder="请输入密码" clearable />
         <button class="primary-action" :disabled="loading" type="submit">
-          {{ loading ? '��¼��...' : '�����¼' }}
+          {{ loading ? '登录中...' : '账号登录' }}
         </button>
       </van-form>
 
       <van-form v-else-if="activeTab === 1" class="auth-form" @submit="handleSMSLogin">
-        <van-field v-model="smsForm.phone" name="phone" type="tel" label="�ֻ���" placeholder="�������ֻ���" clearable>
+        <van-field v-model="smsForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" clearable>
           <template #button>
             <van-button size="small" type="primary" native-type="button" :disabled="smsCountdown > 0" @click="sendCode">
-              {{ smsCountdown > 0 ? smsCountdown + 's' : '����' }}
+              {{ smsCountdown > 0 ? smsCountdown + 's' : '获取' }}
             </van-button>
           </template>
         </van-field>
-        <van-field v-model="smsForm.code" name="code" type="tel" label="��֤��" placeholder="��������֤��" clearable />
+        <van-field v-model="smsForm.code" name="code" type="tel" label="验证码" placeholder="请输入验证码" clearable />
         <button class="primary-action" :disabled="loading" type="submit">
-          {{ loading ? '��¼��...' : '��֤���¼' }}
+          {{ loading ? '登录中...' : '验证码登录' }}
         </button>
       </van-form>
 
       <van-form v-else class="auth-form" @submit="handleRegister">
-        <van-field v-model="registerForm.phone" name="phone" type="tel" label="�ֻ���" placeholder="�������ֻ���" clearable />
-        <van-field v-model="registerForm.realName" name="realName" label="����" placeholder="��������ʵ����" clearable />
-        <van-field v-model="registerForm.idCardNo" name="idCardNo" label="����֤��" placeholder="����������֤��" clearable />
-        <van-field v-model="registerForm.driverLicenseNo" name="driverLicenseNo" label="��ʻ֤��" placeholder="�������ʻ֤��" clearable />
-        <van-field v-model="registerForm.avatarUrl" name="avatarUrl" label="ͷ���ַ" placeholder="��ѡ" clearable />
-        <van-field v-model="registerForm.password" name="password" type="password" label="����" placeholder="���õ�¼����" clearable />
+        <van-field v-model="registerForm.phone" name="phone" type="tel" label="手机号" placeholder="请输入手机号" clearable />
+        <van-field v-model="registerForm.realName" name="realName" label="姓名" placeholder="请输入真实姓名" clearable />
+        <van-field v-model="registerForm.idCardNo" name="idCardNo" label="身份证号" placeholder="请输入身份证号" clearable />
+        <van-field v-model="registerForm.driverLicenseNo" name="driverLicenseNo" label="驾驶证号" placeholder="请输入驾驶证号" clearable />
+        <van-field v-model="registerForm.avatarUrl" name="avatarUrl" label="头像地址" placeholder="可选" clearable />
+        <van-field v-model="registerForm.password" name="password" type="password" label="密码" placeholder="请设置登录密码" clearable />
         <button class="primary-action" :disabled="loading" type="submit">
-          {{ loading ? '�ύ��...' : '�ύע��' }}
+          {{ loading ? '提交中...' : '提交注册' }}
         </button>
       </van-form>
     </section>
-
-    <SmsCodeDialog v-model:show="smsCodeDialogVisible" :phone="smsForm.phone" :code="smsCodeValue" />
   </main>
 </template>
 
@@ -65,23 +63,20 @@ import { onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { closeToast, showLoadingToast, showToast } from 'vant'
 import { sendDriverSMSCode } from '@/api/driver'
-import SmsCodeDialog from '@/components/SmsCodeDialog.vue'
 import { useDriverStore } from '@/stores/driver'
 
 const router = useRouter()
 const driverStore = useDriverStore()
 
 const authTabs = [
-  { label: '����', value: 0 },
-  { label: '��֤��', value: 1 },
-  { label: 'ע��', value: 2 }
+  { label: '账号', value: 0 },
+  { label: '验证码', value: 1 },
+  { label: '注册', value: 2 }
 ]
 
 const activeTab = ref(0)
 const loading = ref(false)
 const smsCountdown = ref(0)
-const smsCodeDialogVisible = ref(false)
-const smsCodeValue = ref('')
 let smsTimer = null
 
 const driverPhoneRegexp = /^(?:1[3-9]\d{9}|\d{12,15})$/
@@ -112,16 +107,15 @@ function validatePhone(phone) {
 async function sendCode() {
   const phone = normalizePhone(smsForm.phone)
   if (!validatePhone(phone)) {
-    showToast('��������ȷ���ֻ���')
+    showToast('请输入正确的手机号')
     return
   }
   try {
-    const res = await sendDriverSMSCode(phone, { silentError: true })
-    smsCodeValue.value = String(res?.code || '').trim()
-    smsCodeDialogVisible.value = true
-    showToast('��֤���ѷ���')
+    await sendDriverSMSCode(phone, { silentError: true })
+    // 联调阶段验证码打印在服务端日志，不再随接口返回明文验证码。
+    showToast('验证码已发送（联调验证码见服务端日志）')
   } catch (error) {
-    showToast(apiErrorMessage(error, '��֤�뷢��ʧ��'))
+    showToast(apiErrorMessage(error, '验证码发送失败'))
     return
   }
 
@@ -139,7 +133,7 @@ async function sendCode() {
 async function handlePasswordLogin() {
   const phone = normalizePhone(passwordForm.phone)
   if (!validatePhone(phone) || !passwordForm.password) {
-    showToast('�������ֻ��ź�����')
+    showToast('请输入手机号和密码')
     return
   }
   await submitLogin(() => driverStore.loginPassword(phone, passwordForm.password, { silentError: true }))
@@ -148,7 +142,7 @@ async function handlePasswordLogin() {
 async function handleSMSLogin() {
   const phone = normalizePhone(smsForm.phone)
   if (!validatePhone(phone) || !smsForm.code) {
-    showToast('�������ֻ��ź���֤��')
+    showToast('请输入手机号和验证码')
     return
   }
   await submitLogin(() => driverStore.loginSMS(phone, smsForm.code, { silentError: true }))
@@ -157,14 +151,21 @@ async function handleSMSLogin() {
 async function submitLogin(action) {
   try {
     loading.value = true
-    showLoadingToast({ message: '��¼��...', forbidClick: true, duration: 0 })
-    await action()
+    showLoadingToast({ message: '登录中...', forbidClick: true, duration: 0 })
+    const res = await action()
     closeToast()
-    showToast('��¼�ɹ�')
+    // 注册后为待审核（PENDING）状态：可登录但功能受限，明确提示而不是让司机
+    // 进入一个什么都做不了的 /home（避免"登录进去了但一直有问题"的困惑）。
+    if (String(res?.driver?.status || '').toUpperCase().includes('PENDING')) {
+      driverStore.logout()
+      showToast('账号待审核，审核通过后即可登录使用')
+      return
+    }
+    showToast('登录成功')
     router.replace('/home')
   } catch (error) {
     closeToast()
-    showToast(apiErrorMessage(error, '��¼ʧ��'))
+    showToast(apiErrorMessage(error, '登录失败'))
   } finally {
     loading.value = false
   }
@@ -173,20 +174,20 @@ async function submitLogin(action) {
 async function handleRegister() {
   const phone = normalizePhone(registerForm.phone)
   if (!validatePhone(phone) || !registerForm.realName || !registerForm.idCardNo || !registerForm.driverLicenseNo || !registerForm.password) {
-    showToast('����д����ע����Ϣ')
+    showToast('请填写完整注册信息')
     return
   }
 
   try {
     loading.value = true
-    showLoadingToast({ message: '�ύ��...', forbidClick: true, duration: 0 })
+    showLoadingToast({ message: '提交中...', forbidClick: true, duration: 0 })
     await driverStore.register({ ...registerForm, phone }, { silentError: true })
     closeToast()
-    showToast('ע��ɹ�����ȴ��������')
+    showToast('注册成功，请等待管理员审核')
     activeTab.value = 0
   } catch (error) {
     closeToast()
-    showToast(apiErrorMessage(error, 'ע��ʧ��'))
+    showToast(apiErrorMessage(error, '注册失败'))
   } finally {
     loading.value = false
   }

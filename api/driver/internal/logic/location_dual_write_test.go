@@ -10,15 +10,15 @@ import (
 )
 
 type fakeLocationClient struct {
-	reportLocationRequest *locationproto.ReportLocationReq
+	calls int
 }
 
 func (f *fakeLocationClient) ReportLocation(_ context.Context, req *locationproto.ReportLocationReq) (*locationproto.ReportLocationResp, error) {
-	f.reportLocationRequest = req
+	f.calls++
 	return &locationproto.ReportLocationResp{Success: true}, nil
 }
 
-func TestReportLocationAlsoWritesLocationServiceWhenConfigured(t *testing.T) {
+func TestReportLocationDoesNotWriteLocationService(t *testing.T) {
 	driverClient := &fakeDriverClient{}
 	locationClient := &fakeLocationClient{}
 	trajectoryRepo := &fakeTrajectoryRepository{}
@@ -41,12 +41,8 @@ func TestReportLocationAlsoWritesLocationServiceWhenConfigured(t *testing.T) {
 	if driverClient.reportLocationRequest == nil {
 		t.Fatal("driversvc ReportLocation was not called")
 	}
-	req := locationClient.reportLocationRequest
-	if req == nil {
-		t.Fatal("locationsvc ReportLocation was not called")
-	}
-	if req.GetDriverId() != 25 || req.GetLng() != 116.397 || req.GetLat() != 39.908 || req.GetOnlineStatus() != 1 || req.GetOrderId() != 1001 {
-		t.Fatalf("locationsvc ReportLocation request = %+v", req)
+	if locationClient.calls != 0 {
+		t.Fatalf("locationsvc ReportLocation was called %d times", locationClient.calls)
 	}
 	if trajectoryRepo.recorded == nil {
 		t.Fatal("trajectory repository was not called")

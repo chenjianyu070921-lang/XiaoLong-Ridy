@@ -49,6 +49,9 @@ func writeParamError(w http.ResponseWriter, err error) {
 		case codes.AlreadyExists:
 			writeError(w, http.StatusConflict, codeDriverAlreadyExists, "手机号或驾驶证号已存在")
 			return
+		case codes.PermissionDenied:
+			writeError(w, http.StatusForbidden, 40301, "无权访问该司机资源")
+			return
 		case codes.Unknown:
 			if strings.Contains(st.Message(), "already exists") {
 				writeError(w, http.StatusConflict, codeDriverAlreadyExists, "手机号或驾驶证号已存在")
