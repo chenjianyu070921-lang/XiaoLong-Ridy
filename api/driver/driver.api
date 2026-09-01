@@ -61,6 +61,14 @@ type UpdateDriverResponse {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
+type UploadDriverAvatarRequest {
+	Avatar string `json:"avatar"`
+}
+
+type UploadDriverAvatarResponse {
+	AvatarURL string `json:"avatarUrl"`
+}
+
 type GetDriverRequest {
 	ID int64 `form:"id"`
 }
@@ -512,6 +520,25 @@ type ListMyOrdersResponse {
 	PageSize int32        `json:"pageSize"`
 }
 
+type HeatmapRequest {
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	RadiusMeters float64 `json:"radiusMeters"`
+}
+
+type HeatmapPoint {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Weight    int64   `json:"weight"`
+}
+
+type HeatmapResponse {
+	Points         []HeatmapPoint `json:"points"`
+	RadiusMeters   float64        `json:"radiusMeters"`
+	GridSizeMeters int64          `json:"gridSizeMeters"`
+	Cached         bool           `json:"cached"`
+}
+
 type GetMyOrderDetailRequest {
 	OrderID int64 `json:"orderId"`
 }
@@ -618,6 +645,9 @@ service driver-api {
 	@handler UpdateDriverHandler
 	post /api/driver/v1/drivers/update (UpdateDriverRequest) returns (UpdateDriverResponse)
 
+	@handler UploadDriverAvatarHandler
+	post /api/driver/v1/drivers/avatar/upload (UploadDriverAvatarRequest) returns (UploadDriverAvatarResponse)
+
 	@handler GetDriverHandler
 	get /api/driver/v1/drivers/get (GetDriverRequest) returns (GetDriverResponse)
 
@@ -690,6 +720,9 @@ service driver-api {
 	@handler ListAvailableOrdersHandler
 	post /api/driver/v1/orders/available (ListMyOrdersRequest) returns (ListMyOrdersResponse)
 
+	@handler GetOrderHeatmapHandler
+	post /api/driver/v1/orders/heatmap (HeatmapRequest) returns (HeatmapResponse)
+
 	@handler ListMyOrdersHandler
 	post /api/driver/v1/orders/list (ListMyOrdersRequest) returns (ListMyOrdersResponse)
 
@@ -717,4 +750,3 @@ service driver-api {
 	@handler AgentChatHandler
 	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 }
-

@@ -32,6 +32,7 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 		errors.Is(err, logic.ErrPriceClientNotConfigured),
 		errors.Is(err, logic.ErrPayClientNotConfigured),
 		errors.Is(err, logic.ErrDispatchClientNotConfigured),
+		errors.Is(err, logic.ErrLocationClientNotConfigured),
 		errors.Is(err, logic.ErrUserClientNotConfigured),
 		isDownstreamGRPCError(err):
 		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "downstream unavailable")

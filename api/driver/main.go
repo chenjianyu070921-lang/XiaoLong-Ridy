@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/handler"
+	"XiaoLong-Ridy/api/driver/internal/logic"
 	"XiaoLong-Ridy/api/driver/internal/middleware"
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	commonconfig "XiaoLong-Ridy/common/config"
@@ -171,10 +172,15 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 		"/api/driver/v1/certification-files/",
 		http.FileServer(http.Dir(localCertificationDir())),
 	))
+	mux.Handle("/api/driver/v1/avatar-files/", http.StripPrefix(
+		"/api/driver/v1/avatar-files/",
+		http.FileServer(http.Dir(logic.LocalAvatarDir())),
+	))
 
 	protected := middleware.RequireAuth(svcCtx)
-	mux.Handle("/api/driver/v1/drivers/update", protected(handler.UpdateDriverHandler(svcCtx)))
-	mux.Handle("/api/driver/v1/drivers/get", protected(handler.GetDriverHandler(svcCtx)))
+	mux.Handle("/api/driver/v1/drivers/update", protected(methodSwitch("POST", handler.UpdateDriverHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/avatar/upload", protected(methodSwitch("POST", handler.UploadDriverAvatarHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/get", protected(methodSwitch("GET", handler.GetDriverHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/heartbeat", protected(methodSwitch("POST", handler.HeartbeatHandler(svcCtx))))
@@ -197,6 +203,7 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/orders/reject", protected(methodSwitch("POST", handler.RejectOrderHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/dispatches", protected(methodSwitch("POST", handler.ListMyDispatchesHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/available", protected(methodSwitch("POST", handler.ListAvailableOrdersHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/heatmap", protected(methodSwitch("POST", handler.GetOrderHeatmapHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/list", protected(methodSwitch("POST", handler.ListMyOrdersHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/detail", protected(methodSwitch("POST", handler.GetMyOrderDetailHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/nearby", protected(methodSwitch("POST", handler.ListNearbyDriversHandler(svcCtx))))
