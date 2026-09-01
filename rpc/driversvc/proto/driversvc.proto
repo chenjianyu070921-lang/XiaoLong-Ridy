@@ -27,6 +27,7 @@ service DriverService {
   rpc GetDriver(GetDriverRequest) returns (GetDriverResponse);
   rpc GetDriverByPhone(GetDriverByPhoneRequest) returns (GetDriverByPhoneResponse);
   rpc FreezeDriver(FreezeDriverRequest) returns (CommonResponse);
+  rpc UnfreezeDriver(UnfreezeDriverRequest) returns (CommonResponse);
 
   rpc SetDriverOnline(SetDriverOnlineRequest) returns (SetDriverOnlineResponse);
   rpc SetDriverOffline(SetDriverOfflineRequest) returns (SetDriverOfflineResponse);
@@ -52,6 +53,10 @@ service DriverService {
 
   rpc CreateWithdraw(CreateWithdrawRequest) returns (CreateWithdrawResponse);
   rpc ListWithdraws(ListWithdrawsRequest) returns (ListWithdrawsResponse);
+  // 管理后台分页查询提现申请，可按状态、司机 ID 和关键词（提现单号/收款人/收款账户）过滤。
+  rpc AdminListWithdraws(AdminListWithdrawsRequest) returns (ListWithdrawsResponse);
+  // 管理后台审核提现申请：approve=true 打款成功（置为状态 2 并写打款时间），approve=false 打款失败（置为状态 3，备注必填）。
+  rpc AuditWithdraw(AuditWithdrawRequest) returns (AuditWithdrawResponse);
 }
 
 message Driver {
@@ -124,6 +129,13 @@ message GetDriverResponse {
 }
 
 message FreezeDriverRequest {
+  int64 driver_id = 1;
+  string reason = 2;
+  int64 operator_id = 3;
+  string ip = 4;
+}
+
+message UnfreezeDriverRequest {
   int64 driver_id = 1;
   string reason = 2;
   int64 operator_id = 3;
@@ -417,6 +429,26 @@ message WithdrawRecord {
   int64 applied_at = 9;
   int64 paid_at = 10;
   int64 created_at = 11;
+}
+
+message AdminListWithdrawsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  optional int32 status = 3;
+  int64 driver_id = 4;
+  string keyword = 5;
+}
+
+message AuditWithdrawRequest {
+  int64 withdraw_id = 1;
+  bool approve = 2;
+  string remark = 3;
+  int64 operator_id = 4;
+  string ip = 5;
+}
+
+message AuditWithdrawResponse {
+  int64 driver_id = 1;
 }
 
 message ListWithdrawsResponse {

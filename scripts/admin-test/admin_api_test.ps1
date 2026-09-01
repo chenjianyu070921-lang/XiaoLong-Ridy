@@ -26,6 +26,11 @@ $script:Token = $null
 $script:CouponId = 0
 $script:ActivityId = 0
 $script:BlacklistId = 0
+$script:OrdersvcMode = "unknown"
+$modeFile = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) ".gotmp\admin-test-logs\ordersvc-mode.txt"
+if (Test-Path -LiteralPath $modeFile) {
+    $script:OrdersvcMode = (Get-Content -LiteralPath $modeFile -Raw).Trim()
+}
 
 if ($ReportPath -eq "") {
     $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) ".gotmp\admin-test-logs"
@@ -221,7 +226,11 @@ if ($orderListResp.Json -and $orderListResp.Json.data -and $orderListResp.Json.d
 
 Run-Case -Name "abnormal orders" -Method GET -Path "/admin/v1/orders/abnormal" -ExpectStatus 200 -ExpectCode 0
 Run-Case -Name "abnormal orders cancel type" -Method GET -Path "/admin/v1/orders/abnormal?abnormal_type=cancel" -ExpectStatus 200 -ExpectCode 0
-Run-Case -Name "order cancel not found" -Method POST -Path "/admin/v1/orders/999999/cancel" -Body @{ reason = "autotest" } -ExpectStatus "4xx" -Note "depends on ordersvc error mapping; 404 expected"
+if ($script:OrdersvcMode -eq "real") {
+    Run-Case -Name "order cancel not found" -Method POST -Path "/admin/v1/orders/999999/cancel" -Body @{ reason = "autotest"; request_id = "autotest-cancel-$script:Timestamp" } -ExpectStatus "4xx" -Note "真实 ordersvc 跨服务错误映射验证"
+} else {
+    Write-Host "NOTE: ordersvc mode=$script:OrdersvcMode; skipping order write-flow assertion because dummy/unknown cannot prove real closure"
+}
 
 # ---------- coupons ----------
 Run-Case -Name "coupon list" -Method GET -Path "/admin/v1/coupons" -ExpectStatus 200 -ExpectCode 0
@@ -249,6 +258,7 @@ Run-Case -Name "activity rollback not found" -Method POST -Path "/admin/v1/promo
 # ---------- statistics / export / risk ----------
 Run-Case -Name "statistics overview" -Method GET -Path "/admin/v1/statistics/overview" -ExpectStatus 200 -ExpectCode 0
 Run-Case -Name "statistics orders" -Method GET -Path "/admin/v1/statistics/orders" -ExpectStatus 200 -ExpectCode 0
+Run-Case -Name "statistics users" -Method GET -Path "/admin/v1/statistics/users" -ExpectStatus 200 -ExpectCode 0
 Run-Case -Name "statistics coupons" -Method GET -Path "/admin/v1/statistics/coupons" -ExpectStatus 200 -ExpectCode 0
 Run-Case -Name "export tasks list" -Method GET -Path "/admin/v1/export-tasks" -ExpectStatus 200 -ExpectCode 0
 Run-Case -Name "export create invalid body" -Method POST -Path "/admin/v1/export-tasks" -Body @{} -ExpectStatus 400 -ExpectCode 40001
@@ -332,6 +342,7 @@ $report = [PSCustomObject]@{
     base_url = $BaseUrl
     username = $Username
     write_ops = [bool]$WriteOps
+    ordersvc_mode = $script:OrdersvcMode
     total = $totalCount
     passed = $passCount
     failed = $failCount

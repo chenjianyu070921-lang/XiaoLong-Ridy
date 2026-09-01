@@ -586,8 +586,8 @@ func (l *GetDriverStatisticsLogic) GetDriverStatistics(in *adminsvc.StatisticsRe
 			(SELECT COUNT(1) FROM ride_order ro `+appendWhere(orderWhere, "ro.status = 5 AND ro.driver_id > 0")+`),
 			(SELECT COALESCE(SUM(s.driver_income), 0) FROM settlement s `+appendWhere(settlementWhere, "s.status = 2")+`),
 			(SELECT COALESCE(SUM(dw.amount), 0) FROM driver_withdraw dw `+appendWhere(withdrawWhere, "dw.status = 1")+`),
-			(SELECT COALESCE(SUM(dw.amount), 0) FROM driver_withdraw dw `+appendWhere(withdrawWhere, "dw.status = 2")+`),
-			(SELECT COUNT(1) FROM driver_withdraw dw `+appendWhere(withdrawWhere, "dw.status = 3")+`),
+			(SELECT COALESCE(SUM(dw.amount), 0) FROM driver_withdraw dw `+appendWhere(withdrawWhere, "dw.status = 3")+`),
+			(SELECT COUNT(1) FROM driver_withdraw dw `+appendWhere(withdrawWhere, "dw.status = 4")+`),
 			(SELECT COALESCE(AVG(ds.score), 0) FROM driver_score ds `+scoreWhere+`),
 			(SELECT COALESCE(SUM(ds.month_complaint_count), 0) FROM driver_score ds `+scoreWhere+`)
 	`, args...).Scan(&resp.DriverTotal, &resp.NewDriverCount, &resp.PendingAuditCount,
@@ -2002,6 +2002,7 @@ func writeUsersCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *csv.
 }
 
 // writeDriversCSV 分页导出司机认证审核信息。
+// 车辆信息来自司机域真实表 driver_vehicle，保持与 driversvc 模型和审核查询 SQL 一致。
 func writeDriversCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *csv.Writer, filters exportFilters) error {
 	if err := writer.Write([]string{"certification_id", "driver_id", "driver_name", "driver_phone", "plate_no", "audit_status", "audited_by", "created_at"}); err != nil {
 		return err
@@ -2011,7 +2012,7 @@ func writeDriversCSV(ctx context.Context, svcCtx *svc.ServiceContext, writer *cs
 		SELECT c.id, c.driver_id, d.real_name, d.phone, v.plate_no, c.audit_status, c.audited_by, c.created_at
 		FROM driver_certification c
 		LEFT JOIN driver d ON d.id = c.driver_id
-		LEFT JOIN vehicle v ON v.id = c.vehicle_id
+		LEFT JOIN driver_vehicle v ON v.id = c.vehicle_id
 		`+where+`
 		ORDER BY c.id DESC
 		LIMIT 5000

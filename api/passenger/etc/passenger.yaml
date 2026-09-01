@@ -15,6 +15,5 @@ mysqlDSN: ""
 qiniuAccessKey: "Es2mf8cbVQlkPXFf69B2wHgZyWp51rW1veuw9-v2"
 qiniuSecretKey: "8eTHgtIMEdbKXXFVC46s4i65IShYHiRoMVjY5hJn"
 qiniuBucket: "xiaolong-ride"
-# 当前测试环境使用 HTTP 访问七牛测试域名；该域名的 HTTPS 证书不匹配。
 qiniuDomain: "http://tkiajahyp.hd-bkt.clouddn.com"
 qiniuUploadURL: "https://upload.qiniup.com"

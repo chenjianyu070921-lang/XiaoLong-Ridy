@@ -11,7 +11,9 @@ type Config struct {
 	zrpc.RpcServerConf
 
 	Mysql    MysqlConf     `yaml:"mysql" json:"mysql"`
-	Redis    cfg.RedisConf `yaml:"redis" json:"redis"`
+	// 注意：key 不能用 redis，会与内嵌 zrpc.RpcServerConf 的 Redis 字段冲突
+	// （go-zero 配置加载报 conflict key redis），统一沿用 myredis。
+	Redis    cfg.RedisConf `yaml:"myredis" json:"myredis"`
 	Alipay   alipay.Config `yaml:"alipay" json:"alipay"`
 	Kafka    KafkaConf     `yaml:"kafka" json:"kafka"`
 	Ordersvc OrdersvcConf  `yaml:"ordersvc" json:"ordersvc"`

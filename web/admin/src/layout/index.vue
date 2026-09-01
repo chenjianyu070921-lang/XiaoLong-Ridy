@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { Odometer, User, Avatar, Tickets, Memo, Fold, Expand, Discount, List, Setting, Warning, DataAnalysis, Document, Management, Sunny, Moon } from '@element-plus/icons-vue'
+import { Odometer, User, Avatar, Tickets, Memo, Fold, Expand, Discount, List, Setting, Warning, DataAnalysis, Document, Management, Sunny, Moon, Money } from '@element-plus/icons-vue'
 import { logout, getMenus } from '../api/auth'
 import { useUserStore } from '../store/user'
 import { roleText, orDash } from '../utils/enums'
@@ -31,6 +31,7 @@ const fallbackMenus = [
   { name: '用户管理', path: '/users', icon: 'User' },
   { name: '司机审核', path: '/driver-certifications', icon: 'Avatar' },
   { name: '司机列表', path: '/drivers', icon: 'Avatar' },
+  { name: '司机提现', path: '/driver-withdrawals', icon: 'Money' },
   { name: '订单管理', path: '/orders', icon: 'Tickets' },
   { name: '异常订单', path: '/orders/abnormal', icon: 'Warning' },
   { name: '操作日志', path: '/operation-logs', icon: 'Memo' },
@@ -48,14 +49,14 @@ const fallbackMenus = [
 // 菜单接口失败时，普通角色只展示与其日常查询职责匹配的基础入口。
 // 这是安全兜底，不依赖前端传入的 role，也不将受限配置类模块暴露到导航。
 const restrictedRoleFallbackPaths = {
-  2: ['/users', '/driver-certifications', '/drivers', '/orders', '/orders/abnormal', '/operation-logs', '/coupons', '/coupon-issue-tasks', '/price-rules', '/promotion-activities', '/work-orders', '/statistics', '/export-tasks', '/blacklist', '/risk-hits'],
+  2: ['/users', '/driver-certifications', '/drivers', '/driver-withdrawals', '/orders', '/orders/abnormal', '/operation-logs', '/coupons', '/coupon-issue-tasks', '/price-rules', '/promotion-activities', '/work-orders', '/statistics', '/export-tasks', '/blacklist', '/risk-hits'],
   3: ['/users', '/driver-certifications', '/drivers', '/orders', '/orders/abnormal', '/operation-logs', '/work-orders'],
 }
 
 // 工作台是所有已登录管理员都可访问的固定入口。
 const dashboardMenu = { name: '工作台', path: '/dashboard', icon: 'Odometer' }
 const menuItems = ref([dashboardMenu])
-const iconMap = { Odometer, User, Avatar, Tickets, Memo, Discount, List, Setting, Warning, DataAnalysis, Document, Management }
+const iconMap = { Odometer, User, Avatar, Tickets, Memo, Discount, List, Setting, Warning, DataAnalysis, Document, Management, Money }
 
 // 后端菜单不返回图标，前端按路径补齐，保证侧边栏视觉一致。
 const pathIcon = {
@@ -64,6 +65,7 @@ const pathIcon = {
   '/users': 'User',
   '/driver-certifications': 'Avatar',
   '/drivers': 'Avatar',
+  '/driver-withdrawals': 'Money',
   '/orders': 'Tickets',
   '/orders/abnormal': 'Warning',
   '/operation-logs': 'Memo',
@@ -85,6 +87,7 @@ const groupOf = (path) => ({
   '/users': '用户与司机',
   '/driver-certifications': '用户与司机',
   '/drivers': '用户与司机',
+  '/driver-withdrawals': '用户与司机',
   '/orders': '订单中心',
   '/orders/abnormal': '订单中心',
   '/coupons': '营销中心',

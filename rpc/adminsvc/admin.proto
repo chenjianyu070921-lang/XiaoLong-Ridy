@@ -49,6 +49,8 @@ service AdminService {
   rpc GetDriver(DriverDetailRequest) returns (Driver);
   // 冻结司机。
   rpc FreezeDriver(FreezeDriverRequest) returns (CommonResponse);
+  // 解冻司机。
+  rpc UnfreezeDriver(FreezeDriverRequest) returns (CommonResponse);
   // 查询司机审核列表。
   rpc ListDriverCertifications(DriverCertificationListRequest) returns (DriverCertificationListResponse);
   // 查询司机审核详情。
@@ -57,6 +59,10 @@ service AdminService {
   rpc ApproveDriverCertification(AuditDriverCertificationRequest) returns (CommonResponse);
   // 驳回司机认证。
   rpc RejectDriverCertification(AuditDriverCertificationRequest) returns (CommonResponse);
+  // 查询司机提现申请列表。
+  rpc ListDriverWithdrawals(DriverWithdrawListRequest) returns (DriverWithdrawListResponse);
+  // 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+  rpc HandleDriverWithdraw(DriverWithdrawHandleRequest) returns (CommonResponse);
   // 查询订单列表。
   rpc ListOrders(OrderListRequest) returns (OrderListResponse);
   // 查询订单详情。
@@ -155,6 +161,8 @@ service AdminService {
   rpc ListRiskHitRecords(RiskHitRecordListRequest) returns (RiskHitRecordListResponse);
   // 处置风控命中记录。
   rpc HandleRiskHitRecords(RiskHitActionRequest) returns (RiskHitActionResponse);
+  // 查询管理后台通知与审计补偿任务。
+  rpc ListAdminAuditOutbox(AdminAuditOutboxListRequest) returns (AdminAuditOutboxListResponse);
 }
 
 message Admin {
@@ -420,6 +428,43 @@ message FreezeDriverRequest {
   string ip = 5;
 }
 
+message DriverWithdrawListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 status = 3;
+  int64 driver_id = 4;
+  string keyword = 5;
+}
+
+message DriverWithdraw {
+  int64 id = 1;
+  int64 driver_id = 2;
+  string withdraw_no = 3;
+  string amount = 4;
+  string payee_name = 5;
+  string pay_account = 6;
+  int32 status = 7;
+  string remark = 8;
+  string applied_at = 9;
+  string paid_at = 10;
+  string created_at = 11;
+}
+
+message DriverWithdrawListResponse {
+  repeated DriverWithdraw list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message DriverWithdrawHandleRequest {
+  int64 id = 1;
+  int64 admin_id = 2;
+  bool approve = 3;
+  string remark = 4;
+  string ip = 5;
+}
+
 message Driver {
   int64 id = 1;
   string phone = 2;
@@ -492,6 +537,7 @@ message DriverCertificationListResponse {
   int32 page = 3;
   int32 page_size = 4;
 }
+
 
 message OrderListRequest {
   int32 page = 1;
@@ -1359,4 +1405,36 @@ message RiskHitActionResponse {
   repeated int64 work_order_ids = 3;
   // 未处理原因，按命中记录 ID 汇总。
   repeated string failure_reasons = 4;
+}
+
+message AdminAuditOutboxListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string status = 3;
+  string module = 4;
+  string action = 5;
+  int64 target_id = 6;
+}
+
+message AdminAuditOutbox {
+  int64 id = 1;
+  string event_no = 2;
+  string module = 3;
+  string action = 4;
+  string target_type = 5;
+  int64 target_id = 6;
+  int64 admin_id = 7;
+  string detail = 8;
+  string status = 9;
+  int32 retry_count = 10;
+  string failure_reason = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+message AdminAuditOutboxListResponse {
+  repeated AdminAuditOutbox list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }

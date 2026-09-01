@@ -40,10 +40,13 @@ const (
 	AdminService_ListDrivers_FullMethodName                = "/adminsvc.AdminService/ListDrivers"
 	AdminService_GetDriver_FullMethodName                  = "/adminsvc.AdminService/GetDriver"
 	AdminService_FreezeDriver_FullMethodName               = "/adminsvc.AdminService/FreezeDriver"
+	AdminService_UnfreezeDriver_FullMethodName             = "/adminsvc.AdminService/UnfreezeDriver"
 	AdminService_ListDriverCertifications_FullMethodName   = "/adminsvc.AdminService/ListDriverCertifications"
 	AdminService_GetDriverCertification_FullMethodName     = "/adminsvc.AdminService/GetDriverCertification"
 	AdminService_ApproveDriverCertification_FullMethodName = "/adminsvc.AdminService/ApproveDriverCertification"
 	AdminService_RejectDriverCertification_FullMethodName  = "/adminsvc.AdminService/RejectDriverCertification"
+	AdminService_ListDriverWithdrawals_FullMethodName      = "/adminsvc.AdminService/ListDriverWithdrawals"
+	AdminService_HandleDriverWithdraw_FullMethodName       = "/adminsvc.AdminService/HandleDriverWithdraw"
 	AdminService_ListOrders_FullMethodName                 = "/adminsvc.AdminService/ListOrders"
 	AdminService_GetOrder_FullMethodName                   = "/adminsvc.AdminService/GetOrder"
 	AdminService_GetOrderTrack_FullMethodName              = "/adminsvc.AdminService/GetOrderTrack"
@@ -93,6 +96,7 @@ const (
 	AdminService_ReleaseBlacklist_FullMethodName           = "/adminsvc.AdminService/ReleaseBlacklist"
 	AdminService_ListRiskHitRecords_FullMethodName         = "/adminsvc.AdminService/ListRiskHitRecords"
 	AdminService_HandleRiskHitRecords_FullMethodName       = "/adminsvc.AdminService/HandleRiskHitRecords"
+	AdminService_ListAdminAuditOutbox_FullMethodName       = "/adminsvc.AdminService/ListAdminAuditOutbox"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -144,6 +148,8 @@ type AdminServiceClient interface {
 	GetDriver(ctx context.Context, in *DriverDetailRequest, opts ...grpc.CallOption) (*Driver, error)
 	// 冻结司机。
 	FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 解冻司机。
+	UnfreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询司机审核列表。
 	ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error)
 	// 查询司机审核详情。
@@ -152,6 +158,10 @@ type AdminServiceClient interface {
 	ApproveDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 驳回司机认证。
 	RejectDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询司机提现申请列表。
+	ListDriverWithdrawals(ctx context.Context, in *DriverWithdrawListRequest, opts ...grpc.CallOption) (*DriverWithdrawListResponse, error)
+	// 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+	HandleDriverWithdraw(ctx context.Context, in *DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询订单列表。
 	ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
 	// 查询订单详情。
@@ -250,6 +260,8 @@ type AdminServiceClient interface {
 	ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
 	// 处置风控命中记录。
 	HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
+	// 查询管理后台通知与审计补偿任务。
+	ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error)
 }
 
 type adminServiceClient struct {
@@ -470,6 +482,16 @@ func (c *adminServiceClient) FreezeDriver(ctx context.Context, in *FreezeDriverR
 	return out, nil
 }
 
+func (c *adminServiceClient) UnfreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UnfreezeDriver_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DriverCertificationListResponse)
@@ -504,6 +526,26 @@ func (c *adminServiceClient) RejectDriverCertification(ctx context.Context, in *
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CommonResponse)
 	err := c.cc.Invoke(ctx, AdminService_RejectDriverCertification_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListDriverWithdrawals(ctx context.Context, in *DriverWithdrawListRequest, opts ...grpc.CallOption) (*DriverWithdrawListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverWithdrawListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListDriverWithdrawals_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) HandleDriverWithdraw(ctx context.Context, in *DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_HandleDriverWithdraw_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1023,6 +1065,16 @@ func (c *adminServiceClient) HandleRiskHitRecords(ctx context.Context, in *RiskH
 	return out, nil
 }
 
+func (c *adminServiceClient) ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminAuditOutboxListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListAdminAuditOutbox_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AdminServiceServer is the server API for AdminService service.
 // All implementations must embed UnimplementedAdminServiceServer
 // for forward compatibility
@@ -1072,6 +1124,8 @@ type AdminServiceServer interface {
 	GetDriver(context.Context, *DriverDetailRequest) (*Driver, error)
 	// 冻结司机。
 	FreezeDriver(context.Context, *FreezeDriverRequest) (*CommonResponse, error)
+	// 解冻司机。
+	UnfreezeDriver(context.Context, *FreezeDriverRequest) (*CommonResponse, error)
 	// 查询司机审核列表。
 	ListDriverCertifications(context.Context, *DriverCertificationListRequest) (*DriverCertificationListResponse, error)
 	// 查询司机审核详情。
@@ -1080,6 +1134,10 @@ type AdminServiceServer interface {
 	ApproveDriverCertification(context.Context, *AuditDriverCertificationRequest) (*CommonResponse, error)
 	// 驳回司机认证。
 	RejectDriverCertification(context.Context, *AuditDriverCertificationRequest) (*CommonResponse, error)
+	// 查询司机提现申请列表。
+	ListDriverWithdrawals(context.Context, *DriverWithdrawListRequest) (*DriverWithdrawListResponse, error)
+	// 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+	HandleDriverWithdraw(context.Context, *DriverWithdrawHandleRequest) (*CommonResponse, error)
 	// 查询订单列表。
 	ListOrders(context.Context, *OrderListRequest) (*OrderListResponse, error)
 	// 查询订单详情。
@@ -1178,6 +1236,8 @@ type AdminServiceServer interface {
 	ListRiskHitRecords(context.Context, *RiskHitRecordListRequest) (*RiskHitRecordListResponse, error)
 	// 处置风控命中记录。
 	HandleRiskHitRecords(context.Context, *RiskHitActionRequest) (*RiskHitActionResponse, error)
+	// 查询管理后台通知与审计补偿任务。
+	ListAdminAuditOutbox(context.Context, *AdminAuditOutboxListRequest) (*AdminAuditOutboxListResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -1248,6 +1308,9 @@ func (UnimplementedAdminServiceServer) GetDriver(context.Context, *DriverDetailR
 func (UnimplementedAdminServiceServer) FreezeDriver(context.Context, *FreezeDriverRequest) (*CommonResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FreezeDriver not implemented")
 }
+func (UnimplementedAdminServiceServer) UnfreezeDriver(context.Context, *FreezeDriverRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnfreezeDriver not implemented")
+}
 func (UnimplementedAdminServiceServer) ListDriverCertifications(context.Context, *DriverCertificationListRequest) (*DriverCertificationListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListDriverCertifications not implemented")
 }
@@ -1259,6 +1322,12 @@ func (UnimplementedAdminServiceServer) ApproveDriverCertification(context.Contex
 }
 func (UnimplementedAdminServiceServer) RejectDriverCertification(context.Context, *AuditDriverCertificationRequest) (*CommonResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RejectDriverCertification not implemented")
+}
+func (UnimplementedAdminServiceServer) ListDriverWithdrawals(context.Context, *DriverWithdrawListRequest) (*DriverWithdrawListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListDriverWithdrawals not implemented")
+}
+func (UnimplementedAdminServiceServer) HandleDriverWithdraw(context.Context, *DriverWithdrawHandleRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HandleDriverWithdraw not implemented")
 }
 func (UnimplementedAdminServiceServer) ListOrders(context.Context, *OrderListRequest) (*OrderListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListOrders not implemented")
@@ -1406,6 +1475,9 @@ func (UnimplementedAdminServiceServer) ListRiskHitRecords(context.Context, *Risk
 }
 func (UnimplementedAdminServiceServer) HandleRiskHitRecords(context.Context, *RiskHitActionRequest) (*RiskHitActionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HandleRiskHitRecords not implemented")
+}
+func (UnimplementedAdminServiceServer) ListAdminAuditOutbox(context.Context, *AdminAuditOutboxListRequest) (*AdminAuditOutboxListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAdminAuditOutbox not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 
@@ -1798,6 +1870,24 @@ func _AdminService_FreezeDriver_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_UnfreezeDriver_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FreezeDriverRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UnfreezeDriver(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UnfreezeDriver_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UnfreezeDriver(ctx, req.(*FreezeDriverRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_ListDriverCertifications_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DriverCertificationListRequest)
 	if err := dec(in); err != nil {
@@ -1866,6 +1956,42 @@ func _AdminService_RejectDriverCertification_Handler(srv interface{}, ctx contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AdminServiceServer).RejectDriverCertification(ctx, req.(*AuditDriverCertificationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListDriverWithdrawals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverWithdrawListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListDriverWithdrawals(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListDriverWithdrawals_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListDriverWithdrawals(ctx, req.(*DriverWithdrawListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_HandleDriverWithdraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverWithdrawHandleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).HandleDriverWithdraw(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_HandleDriverWithdraw_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).HandleDriverWithdraw(ctx, req.(*DriverWithdrawHandleRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2755,6 +2881,24 @@ func _AdminService_HandleRiskHitRecords_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_ListAdminAuditOutbox_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminAuditOutboxListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListAdminAuditOutbox(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListAdminAuditOutbox_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListAdminAuditOutbox(ctx, req.(*AdminAuditOutboxListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AdminService_ServiceDesc is the grpc.ServiceDesc for AdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2847,6 +2991,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_FreezeDriver_Handler,
 		},
 		{
+			MethodName: "UnfreezeDriver",
+			Handler:    _AdminService_UnfreezeDriver_Handler,
+		},
+		{
 			MethodName: "ListDriverCertifications",
 			Handler:    _AdminService_ListDriverCertifications_Handler,
 		},
@@ -2861,6 +3009,14 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RejectDriverCertification",
 			Handler:    _AdminService_RejectDriverCertification_Handler,
+		},
+		{
+			MethodName: "ListDriverWithdrawals",
+			Handler:    _AdminService_ListDriverWithdrawals_Handler,
+		},
+		{
+			MethodName: "HandleDriverWithdraw",
+			Handler:    _AdminService_HandleDriverWithdraw_Handler,
 		},
 		{
 			MethodName: "ListOrders",
@@ -3053,6 +3209,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HandleRiskHitRecords",
 			Handler:    _AdminService_HandleRiskHitRecords_Handler,
+		},
+		{
+			MethodName: "ListAdminAuditOutbox",
+			Handler:    _AdminService_ListAdminAuditOutbox_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

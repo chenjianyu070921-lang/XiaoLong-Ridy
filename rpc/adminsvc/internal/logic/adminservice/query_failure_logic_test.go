@@ -94,7 +94,7 @@ func TestGetDriverStatistics_AppliesTimeRangeToDriverReportSources(t *testing.T)
 
 	startTime := "2026-08-01 00:00:00"
 	endTime := "2026-08-24 23:59:59"
-	mock.ExpectQuery(`(?s)SELECT\s+\(SELECT COUNT\(1\) FROM driver WHERE deleted_at IS NULL\).*FROM driver d WHERE d\.created_at >= \? AND d\.created_at <= \? AND d\.deleted_at IS NULL.*FROM driver_certification dc WHERE dc\.created_at >= \? AND dc\.created_at <= \? AND dc\.audit_status = 1.*FROM settlement s WHERE s\.created_at >= \? AND s\.created_at <= \? AND s\.status = 2.*FROM driver_score ds WHERE ds\.updated_at >= \? AND ds\.updated_at <= \?`).
+	mock.ExpectQuery(`(?s)SELECT\s+\(SELECT COUNT\(1\) FROM driver WHERE deleted_at IS NULL\).*FROM driver d WHERE d\.created_at >= \? AND d\.created_at <= \? AND d\.deleted_at IS NULL.*FROM driver_certification dc WHERE dc\.created_at >= \? AND dc\.created_at <= \? AND dc\.audit_status = 1.*FROM settlement s WHERE s\.created_at >= \? AND s\.created_at <= \? AND s\.status = 2.*FROM driver_withdraw dw WHERE dw\.created_at >= \? AND dw\.created_at <= \? AND dw\.status = 1.*FROM driver_withdraw dw WHERE dw\.created_at >= \? AND dw\.created_at <= \? AND dw\.status = 3.*FROM driver_withdraw dw WHERE dw\.created_at >= \? AND dw\.created_at <= \? AND dw\.status = 4.*FROM driver_score ds WHERE ds\.updated_at >= \? AND ds\.updated_at <= \?`).
 		WithArgs(
 			startTime, endTime,
 			startTime, endTime,

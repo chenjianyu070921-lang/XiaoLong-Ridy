@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
+	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 )
@@ -106,4 +107,21 @@ func (f *fakeWithdrawRepository) ListByDriver(_ context.Context, driverID uint64
 	f.page = page
 	f.pageSize = pageSize
 	return f.records, f.total, nil
+}
+
+func (f *fakeWithdrawRepository) AdminList(_ context.Context, filter repository.AdminWithdrawFilter) ([]*model.DriverWithdraw, int64, error) {
+	return f.records, f.total, nil
+}
+
+func (f *fakeWithdrawRepository) GetByID(_ context.Context, id uint64) (*model.DriverWithdraw, error) {
+	for _, record := range f.records {
+		if record.Id == id {
+			return record, nil
+		}
+	}
+	return nil, nil
+}
+
+func (f *fakeWithdrawRepository) Audit(_ context.Context, id uint64, status int32, remark string, paidAt *time.Time) error {
+	return nil
 }

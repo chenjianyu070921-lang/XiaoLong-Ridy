@@ -33,6 +33,10 @@ MenuRoles:
     Path: /drivers
     Icon: Avatar
     Perm: driver:list
+  - Name: 司机提现
+    Path: /driver-withdrawals
+    Icon: Money
+    Perm: driver:withdraw:list
   - Name: 订单监控
     Path: /orders
     Icon: ClipboardList
@@ -81,6 +85,10 @@ MenuRoles:
     Path: /risk-hits
     Icon: Management
     Perm: risk:hit:list
+  - Name: 通知补偿任务
+    Path: /notification-outbox
+    Icon: Document
+    Perm: notification:outbox:list
   2:
   - Name: 用户管理
     Path: /users
@@ -94,6 +102,10 @@ MenuRoles:
     Path: /drivers
     Icon: Avatar
     Perm: driver:list
+  - Name: 司机提现
+    Path: /driver-withdrawals
+    Icon: Money
+    Perm: driver:withdraw:list
   - Name: 订单监控
     Path: /orders
     Icon: ClipboardList
@@ -142,6 +154,10 @@ MenuRoles:
     Path: /risk-hits
     Icon: Management
     Perm: risk:hit:list
+  - Name: 通知补偿任务
+    Path: /notification-outbox
+    Icon: Document
+    Perm: notification:outbox:list
   3:
   - Name: 用户管理
     Path: /users
@@ -178,8 +194,9 @@ DispatchRPC:
   Target: 127.0.0.1:50056
   NonBlock: true
 DriversRPC:
-  Target: 127.0.0.1:5055
+  Target: 127.0.0.1:50055
   NonBlock: true
+  Timeout: 30000
 LocationsRPC:
   Target: 127.0.0.1:9001
   NonBlock: true

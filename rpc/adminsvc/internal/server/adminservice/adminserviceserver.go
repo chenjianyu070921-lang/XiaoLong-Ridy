@@ -144,6 +144,22 @@ func (s *AdminServiceServer) FreezeDriver(ctx context.Context, in *adminsvc.Free
 	return l.FreezeDriver(in)
 }
 
+// UnfreezeDriver 解冻司机账号，并联动司机端通知。
+func (s *AdminServiceServer) UnfreezeDriver(ctx context.Context, in *adminsvc.FreezeDriverRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewUnfreezeDriverLogic(ctx, s.svcCtx)
+	return l.UnfreezeDriver(in)
+}
+
+// ListDriverWithdrawals 查询司机提现申请列表。
+func (s *AdminServiceServer) ListDriverWithdrawals(ctx context.Context, in *adminsvc.DriverWithdrawListRequest) (*adminsvc.DriverWithdrawListResponse, error) {
+	return adminservicelogic.NewListDriverWithdrawalsLogic(ctx, s.svcCtx).ListDriverWithdrawals(in)
+}
+
+// HandleDriverWithdraw 审核司机提现申请。
+func (s *AdminServiceServer) HandleDriverWithdraw(ctx context.Context, in *adminsvc.DriverWithdrawHandleRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewHandleDriverWithdrawLogic(ctx, s.svcCtx).HandleDriverWithdraw(in)
+}
+
 func (s *AdminServiceServer) ListDriverCertifications(ctx context.Context, in *adminsvc.DriverCertificationListRequest) (*adminsvc.DriverCertificationListResponse, error) {
 	l := adminservicelogic.NewListDriverCertificationsLogic(ctx, s.svcCtx)
 	return l.ListDriverCertifications(in)
@@ -456,4 +472,9 @@ func (s *AdminServiceServer) ListRiskHitRecords(ctx context.Context, in *adminsv
 func (s *AdminServiceServer) HandleRiskHitRecords(ctx context.Context, in *adminsvc.RiskHitActionRequest) (*adminsvc.RiskHitActionResponse, error) {
 	l := adminservicelogic.NewHandleRiskHitRecordsLogic(ctx, s.svcCtx)
 	return l.HandleRiskHitRecords(in)
+}
+
+// ListAdminAuditOutbox 查询后台通知与审计补偿任务。
+func (s *AdminServiceServer) ListAdminAuditOutbox(ctx context.Context, in *adminsvc.AdminAuditOutboxListRequest) (*adminsvc.AdminAuditOutboxListResponse, error) {
+	return adminservicelogic.NewListAdminAuditOutboxLogic(ctx, s.svcCtx).ListAdminAuditOutbox(in)
 }

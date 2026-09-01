@@ -1,7 +1,7 @@
 ﻿# 真实乘客端 → 管理后台 全链路本地启动脚本。
 #
 # 启动的服务与端口：
-#   usersvc(50052) ordersvc(50051) dispatchsvc(50056) pricesvc(50053) paysvc(50054)
+#   usersvc(50052) ordersvc(50051) dispatchsvc(50056) pricesvc(50053) paysvc(50054) driversvc(50055)
 #   adminsvc(8084) api/passenger(8091) api/admin(8717) 管理前端 vite(5173)
 #
 # 数据库/Redis/签名凭据不硬编码在脚本中，统一从 rpc/usersvc/etc/usersvc.yaml
@@ -101,7 +101,7 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 Set-Content -LiteralPath $pidFile -Value @() -Encoding ASCII
 
 # 目标端口预检，避免误连入旧服务。
-foreach ($port in @(50051, 50052, 50053, 50054, 50056, 8084, 8091, 8717, 5173)) {
+foreach ($port in @(50051, 50052, 50053, 50054, 50055, 50056, 8084, 8091, 8717, 5173)) {
     if (-not (Test-LocalPortAvailable -Port $port)) {
         throw "端口 $port 已被占用。为避免影响已有服务，本脚本未执行任何启动操作。"
     }
@@ -150,6 +150,10 @@ MenuRoles:
     Path: /drivers
     Icon: Avatar
     Perm: driver:list
+  - Name: 司机提现
+    Path: /driver-withdrawals
+    Icon: Money
+    Perm: driver:withdraw:list
   - Name: 订单监控
     Path: /orders
     Icon: ClipboardList
@@ -211,6 +215,10 @@ MenuRoles:
     Path: /drivers
     Icon: Avatar
     Perm: driver:list
+  - Name: 司机提现
+    Path: /driver-withdrawals
+    Icon: Money
+    Perm: driver:withdraw:list
   - Name: 订单监控
     Path: /orders
     Icon: ClipboardList
@@ -298,8 +306,9 @@ UsersRPC:
   target: 127.0.0.1:50052
   nonblock: true
 DriversRPC:
-  target: 127.0.0.1:8080
+  target: 127.0.0.1:50055
   nonblock: true
+  timeout: 30000
 PricesRPC:
   target: 127.0.0.1:50053
   nonblock: true
@@ -322,6 +331,7 @@ if (-not $SkipBuild) {
             @{Name = "dispatchsvc";  Pkg = "./rpc/dispatchsvc/dispatchsvc.go"},
             @{Name = "pricesvc";     Pkg = "./rpc/pricesvc/pricesvc.go"},
             @{Name = "paysvc";       Pkg = "./rpc/paysvc/paysvc.go"},
+            @{Name = "driversvc";    Pkg = "./rpc/driversvc/driversvc.go"},
             @{Name = "adminsvc";     Pkg = "./rpc/adminsvc/admin.go"},
             @{Name = "passenger-api";Pkg = "./api/passenger"},
             @{Name = "admin-api";    Pkg = "./api/admin"}
@@ -342,6 +352,7 @@ foreach ($path in @(
     (Join-Path $binDir "dispatchsvc.exe"),
     (Join-Path $binDir "pricesvc.exe"),
     (Join-Path $binDir "paysvc.exe"),
+    (Join-Path $binDir "driversvc.exe"),
     (Join-Path $binDir "adminsvc.exe"),
     (Join-Path $binDir "passenger-api.exe"),
     (Join-Path $binDir "admin-api.exe")
@@ -392,25 +403,31 @@ Start-ManagedProcess -Name "paysvc" -FilePath (Join-Path $binDir "paysvc.exe") `
     -WorkingDirectory $RepoRoot
 if (-not (Wait-LocalPort -Port 50054)) { Fail-Startup -Message "paysvc 未在 50054 监听，请查看 $logDir\paysvc.err.log" }
 
-# 6. adminsvc
+# 6. driversvc（司机域，adminsvc 冻结/解冻/提现审核依赖）
+Start-ManagedProcess -Name "driversvc" -FilePath (Join-Path $binDir "driversvc.exe") `
+    -ArgumentList @("-f", (Join-Path $RepoRoot "rpc\driversvc\etc\driversvc.yaml")) `
+    -WorkingDirectory $RepoRoot
+if (-not (Wait-LocalPort -Port 50055)) { Fail-Startup -Message "driversvc 未在 50055 监听，请查看 $logDir\driversvc.err.log" }
+
+# 7. adminsvc
 Start-ManagedProcess -Name "adminsvc" -FilePath (Join-Path $binDir "adminsvc.exe") `
     -ArgumentList @("-f", $adminsvcCfg) `
     -WorkingDirectory (Join-Path $RepoRoot "rpc\adminsvc")
 if (-not (Wait-LocalPort -Port 8084)) { Fail-Startup -Message "adminsvc 未在 8084 监听，请查看 $logDir\adminsvc.err.log" }
 
-# 7. api/passenger（8091）
+# 8. api/passenger（8091）
 Start-ManagedProcess -Name "passenger-api" -FilePath (Join-Path $binDir "passenger-api.exe") `
     -ArgumentList @() `
     -WorkingDirectory (Join-Path $RepoRoot "api\passenger")
 if (-not (Wait-LocalPort -Port 8091)) { Fail-Startup -Message "api/passenger 未在 8091 监听，请查看 $logDir\passenger-api.err.log" }
 
-# 8. api/admin（8717）
+# 9. api/admin（8717）
 Start-ManagedProcess -Name "admin-api" -FilePath (Join-Path $binDir "admin-api.exe") `
     -ArgumentList @() `
     -WorkingDirectory (Join-Path $RepoRoot "api\admin")
 if (-not (Wait-LocalPort -Port 8717)) { Fail-Startup -Message "api/admin 未在 8717 监听，请查看 $logDir\admin-api.err.log" }
 
-# 9. 管理前端 vite（5173）
+# 10. 管理前端 vite（5173）
 if (Test-Path (Join-Path $RepoRoot "web\admin\node_modules\vite\bin\vite.js")) {
     $env:NODE_OPTIONS = "--max-old-space-size=384"
     Start-ManagedProcess -Name "admin-web" -FilePath "node.exe" `
@@ -425,6 +442,6 @@ Write-Host ""
 Write-Host "乘客端 → 后台管理 全链路已启动："
 Write-Host "  乘客端 API      http://127.0.0.1:8091"
 Write-Host "  管理后台        http://127.0.0.1:5173  (API 经 8717)"
-Write-Host "  RPC: usersvc=50052 ordersvc=50051 dispatchsvc=50056 pricesvc=50053 paysvc=50054 adminsvc=8084"
+Write-Host "  RPC: usersvc=50052 ordersvc=50051 dispatchsvc=50056 pricesvc=50053 paysvc=50054 driversvc=50055 adminsvc=8084"
 Write-Host "  日志目录：$logDir"
 Write-Host "  停止服务：.\scripts\run-passenger-to-admin.ps1 -Stop"

@@ -29,6 +29,7 @@ var operatorIdentityMethods = map[string]struct{}{
 	"/adminsvc.AdminService/FreezeUser":                 {},
 	"/adminsvc.AdminService/UnfreezeUser":               {},
 	"/adminsvc.AdminService/FreezeDriver":               {},
+	"/adminsvc.AdminService/UnfreezeDriver":             {},
 	"/adminsvc.AdminService/ApproveDriverCertification": {},
 	"/adminsvc.AdminService/RejectDriverCertification":  {},
 	"/adminsvc.AdminService/CancelOrder":                {},
@@ -55,6 +56,7 @@ var operatorIdentityMethods = map[string]struct{}{
 	"/adminsvc.AdminService/AddBlacklist":               {},
 	"/adminsvc.AdminService/ReleaseBlacklist":           {},
 	"/adminsvc.AdminService/HandleRiskHitRecords":       {},
+	"/adminsvc.AdminService/HandleDriverWithdraw":       {},
 }
 
 // NewAuthorizationInterceptor 创建 adminsvc 的服务端授权拦截器。
@@ -136,12 +138,15 @@ func roleAllowed(method string, role int32) bool {
 
 	// 运营拥有日常运营查询和配置编辑权限；资金、风控、价格生效及活动正式发布收归超管。
 	switch method {
+	case "/adminsvc.AdminService/ListAdminAuditOutbox":
+		return true
 	case "/adminsvc.AdminService/DisableCoupon", "/adminsvc.AdminService/IssueCoupon",
 		"/adminsvc.AdminService/CreatePriceRule", "/adminsvc.AdminService/UpdatePriceRule",
 		"/adminsvc.AdminService/EnablePriceRule", "/adminsvc.AdminService/DisablePriceRule",
 		"/adminsvc.AdminService/PublishPromotionActivity", "/adminsvc.AdminService/RollbackPromotionActivity",
 		"/adminsvc.AdminService/AddBlacklist", "/adminsvc.AdminService/ReleaseBlacklist",
-		"/adminsvc.AdminService/RefundOrder":
+		"/adminsvc.AdminService/RefundOrder",
+		"/adminsvc.AdminService/HandleDriverWithdraw":
 		return false
 	case "/adminsvc.AdminService/HandleRiskHitRecords":
 		// 风控命中处置可能新增黑名单、创建工单并写入审计，统一收归超管。

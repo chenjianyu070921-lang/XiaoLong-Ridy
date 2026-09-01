@@ -77,6 +77,7 @@
 | `POST /admin/v1/blacklist` | 解析拉黑对象、原因、管理员 ID、IP | `AdminService.AddBlacklist` |
 | `POST/PATCH /admin/v1/blacklist/{id}/release` | 解析黑名单 ID、解除原因 | `AdminService.ReleaseBlacklist` |
 | `GET /admin/v1/risk/hit-records` | 解析风控命中筛选条件 | `AdminService.ListRiskHitRecords` |
+| `GET /admin/v1/notification-outbox` | 解析通知/审计补偿筛选条件 | `AdminService.ListAdminAuditOutbox` |
 | `GET /admin/v1/operation-logs` | 解析日志筛选条件 | `AdminService.ListOperationLogs` |
 
 ## 3. 数据写入边界

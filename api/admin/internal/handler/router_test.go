@@ -433,6 +433,29 @@ func (f *fakeAdminService) HandleRiskHitRecords(ctx context.Context, in *admincl
 	return &adminclient.RiskHitActionResponse{SuccessCount: int64(len(in.GetIds())), WorkOrderIds: []int64{1}}, nil
 }
 
+// ListAdminAuditOutbox 返回通知补偿任务列表。
+func (f *fakeAdminService) ListAdminAuditOutbox(ctx context.Context, in *adminclient.AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*adminclient.AdminAuditOutboxListResponse, error) {
+	return &adminclient.AdminAuditOutboxListResponse{
+		List:  []*adminclient.AdminAuditOutbox{{Id: 1, EventNo: "EVT-1", Module: "driver", Action: "freeze_notice", Status: "pending", RetryCount: 1}},
+		Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize(),
+	}, nil
+}
+
+func (f *fakeAdminService) UnfreezeDriver(ctx context.Context, in *adminclient.FreezeDriverRequest, opts ...grpc.CallOption) (*adminclient.CommonResponse, error) {
+	return &adminclient.CommonResponse{Message: "ok"}, nil
+}
+
+func (f *fakeAdminService) ListDriverWithdrawals(ctx context.Context, in *adminclient.DriverWithdrawListRequest, opts ...grpc.CallOption) (*adminclient.DriverWithdrawListResponse, error) {
+	return &adminclient.DriverWithdrawListResponse{
+		List:  []*adminclient.DriverWithdraw{{Id: 1, DriverId: 2, WithdrawNo: "WD1", Amount: "100.00", Status: 1}},
+		Total: 1, Page: in.GetPage(), PageSize: in.GetPageSize(),
+	}, nil
+}
+
+func (f *fakeAdminService) HandleDriverWithdraw(ctx context.Context, in *adminclient.DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*adminclient.CommonResponse, error) {
+	return &adminclient.CommonResponse{Message: "ok"}, nil
+}
+
 // newPriceRuleTestRouter 创建绕过鉴权中间件的 Router，用于直接测试价格规则 handler。
 func newPriceRuleTestRouter(adminSvc adminclient.AdminService) *Router {
 	return &Router{ctx: &svc.ServiceContext{AdminSvc: adminSvc}}
@@ -829,6 +852,7 @@ func TestRouter_AllImplementedAdminRoutesSmoke(t *testing.T) {
 		{name: "blacklist release", method: http.MethodPost, path: "/admin/v1/blacklist/1/release", body: blacklistBody, token: true},
 		{name: "blacklist release patch", method: http.MethodPatch, path: "/admin/v1/blacklist/1/release", body: blacklistBody, token: true},
 		{name: "risk hit records", method: http.MethodGet, path: "/admin/v1/risk/hit-records?page=1&page_size=20&target_type=user&scene=login", token: true},
+		{name: "notification outbox", method: http.MethodGet, path: "/admin/v1/notification-outbox?page=1&page_size=20&status=pending", token: true},
 	}
 
 	for _, tc := range cases {
