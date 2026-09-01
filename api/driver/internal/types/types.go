@@ -89,6 +89,14 @@ type UpdateDriverResponse struct {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
+type UploadDriverAvatarRequest struct {
+	Avatar string `json:"avatar"`
+}
+
+type UploadDriverAvatarResponse struct {
+	AvatarURL string `json:"avatarUrl"`
+}
+
 type GetDriverRequest struct {
 	ID int64 `form:"id"`
 }
@@ -547,6 +555,25 @@ type ListMyOrdersResponse struct {
 	Total    int64        `json:"total"`
 	Page     int32        `json:"page"`
 	PageSize int32        `json:"pageSize"`
+}
+
+type HeatmapRequest struct {
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	RadiusMeters float64 `json:"radiusMeters"`
+}
+
+type HeatmapPoint struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Weight    int64   `json:"weight"`
+}
+
+type HeatmapResponse struct {
+	Points         []HeatmapPoint `json:"points"`
+	RadiusMeters   float64        `json:"radiusMeters"`
+	GridSizeMeters int64          `json:"gridSizeMeters"`
+	Cached         bool           `json:"cached"`
 }
 
 type GetMyOrderDetailRequest struct {

@@ -9,10 +9,9 @@
     <DriverProfilePanel
       v-if="activeSection === 'profile'"
       :driver-store="driverStore"
-      :profile-form="profileForm"
       :format-driver-status="formatDriverStatus"
       @refresh-dashboard="$emit('refresh-dashboard')"
-      @submit-profile="$emit('submit-profile')"
+      @edit-profile="$emit('edit-profile')"
     />
     <DriverReviewsPanel
       v-else-if="activeSection === 'reviews'"
@@ -33,29 +32,33 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import DriverProfilePanel from './DriverProfilePanel.vue'
 import DriverReviewsPanel from './DriverReviewsPanel.vue'
 import DriverTrajectoryPanel from './DriverTrajectoryPanel.vue'
 
-defineProps({
+const props = defineProps({
   driverStore: { type: Object, required: true },
-  profileForm: { type: Object, required: true },
   reviews: { type: Array, required: true },
   trajectoryOrderId: { type: [String, Number], required: true },
   trajectoryError: { type: String, required: true },
   trajectoryPoints: { type: Array, required: true },
   formatDriverStatus: { type: Function, required: true },
-  formatTime: { type: Function, required: true }
+  formatTime: { type: Function, required: true },
+  defaultSection: { type: String, default: 'profile' }
 })
 
 defineEmits([
   'refresh-dashboard',
-  'submit-profile',
+  'edit-profile',
   'load-reviews',
   'update:trajectoryOrderId',
   'load-trajectory'
 ])
 
-const activeSection = ref('profile')
+const activeSection = ref(props.defaultSection || 'profile')
+
+watch(() => props.defaultSection, (value) => {
+  activeSection.value = value || 'profile'
+}, { immediate: true })
 </script>

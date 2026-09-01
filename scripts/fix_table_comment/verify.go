@@ -15,7 +15,7 @@ import (
 
 func hasGarbage(s string) bool {
 	for _, r := range s {
-		// 乱码残留特征：latin1 解码 UTF-8 产生的扩展区字符（U+0080-U+024F）及 € (U+20AC)
+		// 乱码残留特征：latin1 解码 UTF-8 产生的扩展区字符（U+0080-U+024F）及 Euro sign (U+20AC)
 		if (r >= 0x80 && r <= 0x24F) || r == 0x20AC {
 			// 排除常见西文注释中可能合法出现的字符
 			return true

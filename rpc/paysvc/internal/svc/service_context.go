@@ -40,7 +40,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	svcCtx := &ServiceContext{
 		Config: c,
 		DB:     db,
-		Redis:  datasource.NewRedisClient(c.Redis),
+		Redis:  datasource.NewRedisClient(c.RefundRedis),
 	}
 
 	// Kafka 生产者（容错：未启动时降级为 NoopProducer）

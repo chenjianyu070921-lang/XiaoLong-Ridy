@@ -1,9 +1,9 @@
 <template>
   <main class="driver-login-page">
     <section class="login-hero">
-      <img src="/logo.png" alt="花小龙" />
+      <img src="/logo.png" alt="花小龙打车" />
       <div>
-        <p>花小龙司机端</p>
+        <p>花小龙打车</p>
         <h1>接单工作台</h1>
       </div>
     </section>
@@ -48,7 +48,6 @@
         <van-field v-model="registerForm.realName" name="realName" label="姓名" placeholder="请输入真实姓名" clearable />
         <van-field v-model="registerForm.idCardNo" name="idCardNo" label="身份证号" placeholder="请输入身份证号" clearable />
         <van-field v-model="registerForm.driverLicenseNo" name="driverLicenseNo" label="驾驶证号" placeholder="请输入驾驶证号" clearable />
-        <van-field v-model="registerForm.avatarUrl" name="avatarUrl" label="头像地址" placeholder="可选" clearable />
         <van-field v-model="registerForm.password" name="password" type="password" label="密码" placeholder="请设置登录密码" clearable />
         <button class="primary-action" :disabled="loading" type="submit">
           {{ loading ? '提交中...' : '提交注册' }}
@@ -88,7 +87,6 @@ const registerForm = reactive({
   realName: '',
   idCardNo: '',
   driverLicenseNo: '',
-  avatarUrl: '',
   password: ''
 })
 
@@ -112,7 +110,6 @@ async function sendCode() {
   }
   try {
     await sendDriverSMSCode(phone, { silentError: true })
-    // 联调阶段验证码打印在服务端日志，不再随接口返回明文验证码。
     showToast('验证码已发送（联调验证码见服务端日志）')
   } catch (error) {
     showToast(apiErrorMessage(error, '验证码发送失败'))

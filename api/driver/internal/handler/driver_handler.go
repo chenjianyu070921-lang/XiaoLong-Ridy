@@ -68,6 +68,26 @@ func UpdateDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+func UploadDriverAvatarHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		var req types.UploadDriverAvatarRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewAvatarLogic().UploadDriverAvatar(int64(claims.AccountID), &req)
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
 // GetDriverHandler returns the current driver profile. driverId comes from JWT.
 func GetDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +149,27 @@ func ListNearbyDriversHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).ListNearbyDrivers(&req)
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
+// GetOrderHeatmapHandler returns nearby wait-accept order heat points for the current driver.
+func GetOrderHeatmapHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		var req types.HeatmapRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewHeatmapLogic(r.Context(), svcCtx).GetOrderHeatmap(int64(claims.AccountID), &req)
 		if err != nil {
 			writeParamError(w, err)
 			return

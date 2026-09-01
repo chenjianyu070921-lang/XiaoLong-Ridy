@@ -1,64 +1,4 @@
-import axios from 'axios'
-import { showToast } from 'vant'
-import router from '@/router'
-
-const driverRequest = axios.create({
-  baseURL: '/api/driver/v1',
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-driverRequest.interceptors.request.use((config) => {
-  const token = localStorage.getItem('driverToken')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
-
-driverRequest.interceptors.response.use(
-  (response) => {
-    const res = response.data
-    if (res.code === 0 || res.code === 200) {
-      return res.data !== undefined ? res.data : res
-    }
-    if (!response.config?.silentError) {
-      showToast(res.message || '请求失败')
-    }
-    return Promise.reject(new Error(res.message || '请求失败'))
-  },
-  (error) => {
-    const status = error.response?.status
-    const message = error.response?.data?.message || error.message || '网络连接失败'
-    if (status === 401) {
-      clearDriverSession()
-      router.push('/login')
-      showToast('司机登录已过期，请重新登录')
-    } else if (!error.config?.silentError) {
-      showToast(message)
-    }
-    return Promise.reject(error)
-  }
-)
-
-function clearDriverSession() {
-  for (const key of [
-    'driverToken',
-    'driverProfile',
-    'driverOnlineStatus',
-    'driverVehicle',
-    'driverVehicleId',
-    'driverCertification',
-    'driverCurrentOrder',
-    'driverCurrentOrderId',
-    'driverTripPhase'
-  ]) {
-    localStorage.removeItem(key)
-  }
-}
-
+import driverRequest from '@/api/request'
 
 export function sendDriverSMSCode(phone, config = {}) {
   return driverRequest.post('/auth/send-sms-code', { phone }, config)
@@ -80,8 +20,16 @@ export function updateDriver(data) {
   return driverRequest.post('/drivers/update', data)
 }
 
+export function uploadDriverAvatar(avatar) {
+  return driverRequest.post('/drivers/avatar/upload', { avatar })
+}
+
 export function getDriver(config = {}) {
   return driverRequest.get('/drivers/get', config)
+}
+
+export function listNearbyDrivers(data = {}, config = {}) {
+  return driverRequest.post('/drivers/nearby', data, config)
 }
 
 export function getDriverAiScore(config = {}) {
@@ -148,12 +96,12 @@ export function listIncomeBills(data = {}, config = {}) {
   return driverRequest.post('/income/bills', data, config)
 }
 
-export function acceptOrder(orderId) {
-  return driverRequest.post('/orders/accept', { orderId })
+export function acceptOrder(orderId, config = {}) {
+  return driverRequest.post('/orders/accept', { orderId }, config)
 }
 
-export function rejectOrder(orderId, reason = '司机主动拒单') {
-  return driverRequest.post('/orders/reject', { orderId, reason })
+export function rejectOrder(orderId, reason = '司机主动拒单', config = {}) {
+  return driverRequest.post('/orders/reject', { orderId, reason }, config)
 }
 
 export function confirmArrive(orderId) {
@@ -170,6 +118,10 @@ export function finishTrip(data) {
 
 export function listAvailableOrders(data = {}, config = {}) {
   return driverRequest.post('/orders/available', data, config)
+}
+
+export function getOrderHeatmap(data = {}, config = {}) {
+  return driverRequest.post('/orders/heatmap', data, config)
 }
 
 export function getDriverOrderDetail(orderId) {
