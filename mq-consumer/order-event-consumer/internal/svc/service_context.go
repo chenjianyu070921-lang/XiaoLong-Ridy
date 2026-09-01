@@ -48,7 +48,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 	payClient, err := zrpc.NewClient(payRPC)
 	if err != nil {
-		panic(err)
+		// 支付 RPC 不可用时仅降级（退款/支付事件跳过），不影响派单链路。
+		logx.Errorf("init pay rpc client failed, pay/refund events disabled: %v", err)
+		payClient = nil
 	}
 
 	// 事件总线：Kafka ConsumerGroup 消费（与支付模块 paysvc 对齐）。
@@ -59,15 +61,19 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		if err != nil {
 			logx.Errorf("init kafka dlq producer failed: %v", err)
 		}
-		eventBus = events.NewKafkaBus(nil, mq.NewKafkaConsumer(c.Kafka.Brokers, p))
+		eventBus = events.NewKafkaBus(nil, mq.NewKafkaConsumer(c.Kafka.Brokers, p).SetOffsetStore(redisClient))
 	}
 
+	var payClientSvc pay.Pay
+	if payClient != nil {
+		payClientSvc = pay.NewPay(payClient)
+	}
 	return &ServiceContext{
 		Config:         c,
 		Redis:          redisClient,
 		EventBus:       eventBus,
 		DispatchClient: dispatch.NewDispatch(dispatchClient),
 		OrderClient:    order.NewOrder(orderClient),
-		PayClient:      pay.NewPay(payClient),
+		PayClient:      payClientSvc,
 	}
 }
