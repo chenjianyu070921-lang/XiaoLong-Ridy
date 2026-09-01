@@ -14,11 +14,18 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	registerProfileRoutes(mux, svcCtx)
 	registerUploadRoutes(mux, svcCtx)
 	registerOrderRoutes(mux, svcCtx)
+	registerLocationRoutes(mux, svcCtx)
 	registerAddressRoutes(mux, svcCtx)
 	registerCouponRoutes(mux, svcCtx)
 	registerReviewRoutes(mux, svcCtx)
 	registerWalletRoutes(mux, svcCtx)
 	return mux
+}
+
+// registerLocationRoutes 注册乘客端定位回显和地址解析接口。
+func registerLocationRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
+	mux.HandleFunc("/api/passenger/v1/location/reverse-geocode", handler.ReverseGeocodeHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/location/geocode", handler.GeocodeHandler(svcCtx))
 }
 
 // registerWalletRoutes 注册乘客钱包查询、充值和提现接口。

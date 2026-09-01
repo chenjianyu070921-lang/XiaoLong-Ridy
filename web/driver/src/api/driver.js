@@ -172,6 +172,10 @@ export function listAvailableOrders(data = {}, config = {}) {
   return driverRequest.post('/orders/available', data, config)
 }
 
+export function getOrderHeatmap(data = {}, config = {}) {
+  return driverRequest.post('/orders/heatmap', data, config)
+}
+
 export function getDriverOrderDetail(orderId) {
   return driverRequest.post('/orders/detail', { orderId })
 }

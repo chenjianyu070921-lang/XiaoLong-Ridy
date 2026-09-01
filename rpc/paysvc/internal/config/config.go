@@ -10,11 +10,11 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 
-	Mysql    MysqlConf     `yaml:"mysql" json:"mysql"`
-	Redis    cfg.RedisConf `yaml:"redis" json:"redis"`
-	Alipay   alipay.Config `yaml:"alipay" json:"alipay"`
-	Kafka    KafkaConf     `yaml:"kafka" json:"kafka"`
-	Ordersvc OrdersvcConf  `yaml:"ordersvc" json:"ordersvc"`
+	Mysql       MysqlConf     `yaml:"mysql" json:"mysql"`
+	RefundRedis cfg.RedisConf `yaml:"refundRedis" json:"refundRedis,optional"`
+	Alipay      alipay.Config `yaml:"alipay" json:"alipay"`
+	Kafka       KafkaConf     `yaml:"kafka" json:"kafka"`
+	Ordersvc    OrdersvcConf  `yaml:"ordersvc" json:"ordersvc"`
 }
 
 type MysqlConf struct {

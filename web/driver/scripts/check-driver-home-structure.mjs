@@ -4,7 +4,9 @@ import { dirname, resolve } from 'node:path'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const homePath = resolve(root, 'src/views/DriverHome.vue')
+const routerPath = resolve(root, 'src/router/index.js')
 const source = readFileSync(homePath, 'utf8')
+const routerSource = readFileSync(routerPath, 'utf8')
 const inlinePanelCount = (source.match(/v-show="activeTab ===/g) || []).length
 const workStatusCardMatches = [...source.matchAll(/<section\s+([^>]*class="work-status-card"[^>]*)>/g)]
 
@@ -24,4 +26,14 @@ if (!/v-if="activeTab === 0"/.test(workStatusAttrs)) {
   process.exit(1)
 }
 
-console.log('DriverHome.vue tab panels are delegated to focused components.')
+if (/DriverWorkbenchPanel/.test(source)) {
+  console.error('DriverHome.vue must not render or import DriverWorkbenchPanel; workbench belongs to /workbench.')
+  process.exit(1)
+}
+
+if (!/path:\s*['"]\/workbench['"]/.test(routerSource) || !/DriverWorkbench/.test(routerSource)) {
+  console.error('Driver router must register the independent /workbench page.')
+  process.exit(1)
+}
+
+console.log('DriverHome.vue tab panels are delegated to focused components and workbench has its own page.')

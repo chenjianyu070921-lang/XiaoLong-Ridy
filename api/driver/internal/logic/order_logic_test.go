@@ -86,6 +86,8 @@ func (f *fakeOrderClient) ListOrders(_ context.Context, req *orderproto.ListOrde
 			OrderId:             1001,
 			OrderNo:             "NO-1001",
 			FromAddress:         "pickup",
+			FromLongitude:       116.391,
+			FromLatitude:        39.907,
 			ToAddress:           "destination",
 			Status:              req.Status,
 			EstimatedPriceCents: 29900,
@@ -273,6 +275,8 @@ func TestListMyDispatchesRequiresOrderClient(t *testing.T) {
 type fakeDispatchClient struct {
 	rejectRequest *dispatchproto.RejectDispatchRequest
 	listRequest   *dispatchproto.ListDispatchRecordsRequest
+	listResponse  *dispatchproto.ListDispatchRecordsResponse
+	listErr       error
 }
 
 func (f *fakeDispatchClient) RejectDispatch(_ context.Context, req *dispatchproto.RejectDispatchRequest) (*dispatchproto.RejectDispatchResponse, error) {
@@ -282,6 +286,12 @@ func (f *fakeDispatchClient) RejectDispatch(_ context.Context, req *dispatchprot
 
 func (f *fakeDispatchClient) ListDispatchRecords(_ context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
 	f.listRequest = req
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	if f.listResponse != nil {
+		return f.listResponse, nil
+	}
 	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{{Id: 7, OrderId: 1001, DriverId: req.DriverId, Status: 1, Remark: "dispatch note", RejectReason: "too far"}}, Total: 1, Page: req.Page, PageSize: req.PageSize}, nil
 }
 
@@ -441,7 +451,7 @@ func TestListAvailableOrdersReturnsEmptyWhenDriverOffline(t *testing.T) {
 	}
 }
 
-func TestListAvailableOrdersFallsBackToWaitAcceptOrdersWhenAvailableSetEmpty(t *testing.T) {
+func TestListAvailableOrdersReturnsEmptyWhenAvailableSetEmpty(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	ctx := context.Background()
@@ -455,35 +465,41 @@ func TestListAvailableOrdersFallsBackToWaitAcceptOrdersWhenAvailableSetEmpty(t *
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
+	client := &fakeOrderClient{}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if client.listOrdersRequest != nil {
+		t.Fatalf("ListAvailableOrders() should not call global ListOrders when available set is empty, got %+v", client.listOrdersRequest)
+	}
+	if resp.Total != 0 || len(resp.List) != 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want empty list when driver has no assigned orders", resp)
+	}
+}
+
+func TestListAvailableOrdersReturnsEmptyWhenDriverPositionInvalid(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "0",
+		"latitude":  "0",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, driverID), "1001").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
 	client := &fakeOrderClient{
-		listOrdersResponse: &orderproto.ListOrdersResponse{
-			List: []*orderproto.OrderSummary{
-				{
-					OrderId:             1001,
-					OrderNo:             "nearby",
-					FromAddress:         "pickup",
-					FromLongitude:       116.398,
-					FromLatitude:        39.908,
-					ToAddress:           "destination",
-					Status:              orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
-					EstimatedPriceCents: 29900,
-					CreatedAt:           100,
-				},
-				{
-					OrderId:             1002,
-					OrderNo:             "too-far",
-					FromAddress:         "pickup",
-					FromLongitude:       116.520,
-					FromLatitude:        39.908,
-					ToAddress:           "destination",
-					Status:              orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
-					EstimatedPriceCents: 39900,
-					CreatedAt:           90,
-				},
-			},
-			Total:    2,
-			Page:     1,
-			PageSize: 100,
+		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
+			1001: availableOrderDetail(1001, "zero", 0, 0),
 		},
 	}
 	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
@@ -492,13 +508,53 @@ func TestListAvailableOrdersFallsBackToWaitAcceptOrdersWhenAvailableSetEmpty(t *
 	if err != nil {
 		t.Fatalf("ListAvailableOrders() error = %v", err)
 	}
-	if client.listOrdersRequest == nil ||
-		client.listOrdersRequest.GetDriverId() != 0 ||
-		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
-		t.Fatalf("ListAvailableOrders() should query global wait-accept orders, got %+v", client.listOrdersRequest)
+	if resp.Total != 0 || len(resp.List) != 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want empty for invalid position", resp)
 	}
-	if resp.Total != 1 || len(resp.List) != 1 || resp.List[0].OrderID != 1001 || resp.List[0].DistanceMeters <= 0 {
-		t.Fatalf("ListAvailableOrders() response = %+v, want one nearby fallback order", resp)
+}
+
+func TestListAvailableOrdersHidesOrdersWithoutPendingDispatch(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	availableKey := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "116.397",
+		"latitude":  "39.908",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	if err := rdb.SAdd(ctx, availableKey, "1001").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
+	client := &fakeOrderClient{
+		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
+			1001: availableOrderDetail(1001, "wait-without-pending-dispatch", 116.398, 39.908),
+		},
+	}
+	dispatchClient := &fakeDispatchClient{listResponse: &dispatchproto.ListDispatchRecordsResponse{
+		List: []*dispatchproto.DispatchRecord{},
+	}}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, DispatchClient: dispatchClient, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if resp.Total != 0 || len(resp.List) != 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want empty without pending dispatch", resp)
+	}
+	if dispatchClient.listRequest == nil ||
+		dispatchClient.listRequest.GetDriverId() != driverID ||
+		dispatchClient.listRequest.GetStatus() != constants.DispatchStatusPending {
+		t.Fatalf("ListAvailableOrders() dispatch query = %+v, want current driver's pending dispatch records", dispatchClient.listRequest)
+	}
+	if ok, err := rdb.SIsMember(ctx, availableKey, "1001").Result(); err != nil || ok {
+		t.Fatalf("stale available order should be removed from Redis set, exists=%v err=%v", ok, err)
 	}
 }
 
@@ -517,7 +573,7 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
-	// 派单消费者写入的 available 集合（3 个订单，其中 1002 距离超过 3km 应被过滤）
+	// 派单消费者写入的 available 集合（3 个订单，其中 1002 距离超过 10km 应被过滤）
 	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, driverID), "1001", "1002", "1003").Err(); err != nil {
 		t.Fatalf("SAdd available() error = %v", err)
 	}

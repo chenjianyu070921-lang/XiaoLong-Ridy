@@ -1,9 +1,9 @@
 <template>
   <main class="driver-login-page">
     <section class="login-hero">
-      <img src="/logo.png" alt="花小龙" />
+      <img src="/logo.png" alt="花小龙打车" />
       <div>
-        <p>花小龙司机端</p>
+        <p>花小龙打车</p>
         <h1>接单工作台</h1>
       </div>
     </section>

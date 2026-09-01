@@ -33,12 +33,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import DriverProfilePanel from './DriverProfilePanel.vue'
 import DriverReviewsPanel from './DriverReviewsPanel.vue'
 import DriverTrajectoryPanel from './DriverTrajectoryPanel.vue'
 
-defineProps({
+const props = defineProps({
   driverStore: { type: Object, required: true },
   profileForm: { type: Object, required: true },
   reviews: { type: Array, required: true },
@@ -46,7 +46,8 @@ defineProps({
   trajectoryError: { type: String, required: true },
   trajectoryPoints: { type: Array, required: true },
   formatDriverStatus: { type: Function, required: true },
-  formatTime: { type: Function, required: true }
+  formatTime: { type: Function, required: true },
+  defaultSection: { type: String, default: 'profile' }
 })
 
 defineEmits([
@@ -57,5 +58,9 @@ defineEmits([
   'load-trajectory'
 ])
 
-const activeSection = ref('profile')
+const activeSection = ref(props.defaultSection || 'profile')
+
+watch(() => props.defaultSection, (value) => {
+  activeSection.value = value || 'profile'
+}, { immediate: true })
 </script>

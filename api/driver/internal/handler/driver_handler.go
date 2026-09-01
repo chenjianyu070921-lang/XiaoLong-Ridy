@@ -137,6 +137,27 @@ func ListNearbyDriversHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// GetOrderHeatmapHandler returns nearby wait-accept order heat points for the current driver.
+func GetOrderHeatmapHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		var req types.HeatmapRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewHeatmapLogic(r.Context(), svcCtx).GetOrderHeatmap(int64(claims.AccountID), &req)
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
 // DeleteDriverHandler deletes a driver by id. This route is not used by driver web.
 func DeleteDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

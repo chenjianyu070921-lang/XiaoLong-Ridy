@@ -248,6 +248,7 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 		{http.MethodPost, "/api/driver/v1/vehicles"},
 		{http.MethodGet, "/api/driver/v1/vehicles/get?id=1"},
 		{http.MethodPost, "/api/driver/v1/orders/available"},
+		{http.MethodPost, "/api/driver/v1/orders/heatmap"},
 		{http.MethodPost, "/api/driver/v1/orders/detail"},
 		{http.MethodPost, "/api/driver/v1/orders/accept"},
 		{http.MethodPost, "/api/driver/v1/orders/reject"},
@@ -270,6 +271,22 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 				t.Fatalf("route is not externally callable, status = %d: %s", response.Code, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestDriverHeatmapRouteRequiresDriverToken(t *testing.T) {
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "heatmap-route-test-key"})
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/orders/heatmap", bytes.NewBufferString(`{
+		"longitude": 116.397,
+		"latitude": 39.908,
+		"radiusMeters": 2000
+	}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("heatmap status = %d, want %d: %s", response.Code, http.StatusUnauthorized, response.Body.String())
 	}
 }
 

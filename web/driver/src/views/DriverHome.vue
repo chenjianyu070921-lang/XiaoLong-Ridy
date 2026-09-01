@@ -39,10 +39,10 @@
     </section>
 
     <section class="quick-entry-row">
-      <button type="button"><span><van-icon name="fire-o" /></span><b>热力图</b></button>
+      <button type="button" @click="openWorkbench"><span><van-icon name="wap-home-o" /></span><b>工作台</b></button>
+      <button type="button" @click="openHeatmap"><span><van-icon name="fire-o" /></span><b>订单热力</b></button>
       <button type="button"><span><van-icon name="service-o" /></span><b>听单检测</b></button>
       <button type="button"><span><van-icon name="gift-o" /></span><b>司机福利社</b></button>
-      <button type="button"><span><van-icon name="friends-o" /></span><b>长期伙伴</b></button>
     </section>
 
     <section v-if="activeTab === 0" class="work-status-card">
@@ -66,7 +66,7 @@
       <div><span>车辆</span><strong>{{ driverStore.vehicle?.plateNo || driverStore.vehicleId || '--' }}</strong></div>
     </section>
 
-    <section class="tab-panel-scroll">
+    <section v-if="activePanelComponent" class="tab-panel-scroll">
       <component
         :is="activePanelComponent"
         v-bind="activePanelProps"
@@ -111,6 +111,41 @@
       </section>
     </van-popup>
 
+    <van-popup v-model:show="heatmapVisible" :teleport="false" class="driver-heatmap-popup" round position="bottom" :style="heatmapPhoneSheetStyle">
+      <section class="heatmap-panel heatmap-h5-sheet">
+        <div class="heatmap-sheet-grabber" aria-hidden="true"></div>
+        <div class="heatmap-heading heatmap-sheet-header">
+          <div>
+            <h2>附近热力</h2>
+            <p>{{ heatmapSummary }}</p>
+          </div>
+          <van-tag type="warning">{{ heatmapTotalOrders }}单</van-tag>
+        </div>
+        <div class="heatmap-map-shell">
+          <div ref="heatmapMapContainer" class="driver-heatmap-map" aria-label="附近订单热力图"></div>
+          <div v-if="heatmapStatusText" class="map-state" :class="{ error: heatmapMapError }">{{ heatmapStatusText }}</div>
+          <div class="heatmap-floating-actions">
+            <button type="button" class="heatmap-refresh" aria-label="刷新热力图" :disabled="heatmapLoading" @click="refreshHeatmap">
+              <van-icon name="replay" />
+            </button>
+          </div>
+          <div class="heatmap-badge">
+            <span>{{ formatDistance(heatmapRadiusMeters) }}km</span>
+            <strong>{{ heatmapTotalOrders }}单</strong>
+          </div>
+        </div>
+        <div v-if="heatmapPoints.length" class="heatmap-chip-strip">
+          <div v-for="point in heatmapPoints" :key="point.longitude + ':' + point.latitude" class="heatmap-chip">
+            <span><van-icon name="fire-o" /></span>
+            <div>
+              <strong>{{ point.weight }} 单</strong>
+              <small>{{ Number(point.longitude).toFixed(6) }}, {{ Number(point.latitude).toFixed(6) }}</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </van-popup>
+
     <van-popup v-model:show="withdrawVisible" round position="bottom">
       <section class="withdraw-panel">
         <h2>申请提现</h2>
@@ -128,9 +163,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { closeToast, showConfirmDialog, showDialog, showLoadingToast, showToast } from 'vant'
+import AMapLoader from '@amap/amap-jsapi-loader'
 import {
   acceptOrder,
   confirmArrive,
@@ -142,6 +178,7 @@ import {
   getDriverAiScore,
   getDriverOrderDetail,
   getIncomeSummary,
+  getOrderHeatmap,
   getOrderTrajectory,
   getTodayIncome,
   getVehicle,
@@ -162,41 +199,36 @@ import {
 } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
 import { resolveCreatedVehicle } from '@/utils/vehicle'
-import DriverWorkbenchPanel from '@/components/driver-home/DriverWorkbenchPanel.vue'
 import DriverOrdersPanel from '@/components/driver-home/DriverOrdersPanel.vue'
 import DriverAssetsPanel from '@/components/driver-home/DriverAssetsPanel.vue'
 import DriverMinePanel from '@/components/driver-home/DriverMinePanel.vue'
+import { getAmapConfig } from '@/config/amap'
+import { normalizeBrowserLocationForAmap } from '@/utils/geo'
 import '@/styles/driver-home-panels.css'
 
 const router = useRouter()
 const driverStore = useDriverStore()
 
 const tabItems = [
-  { title: '工作台', icon: 'wap-home-o' },
+  { title: '首页', icon: 'wap-home-o' },
   { title: '订单', icon: 'orders-o' },
   { title: '资产', icon: 'balance-o' },
   { title: '我的', icon: 'user-o' }
 ]
 
 const activeTab = ref(0)
+const mineSection = ref('profile')
 const tabPanelComponents = [
-  DriverWorkbenchPanel,
+  null,
   DriverOrdersPanel,
   DriverAssetsPanel,
   DriverMinePanel
 ]
-const activePanelComponent = computed(() => tabPanelComponents[activeTab.value] || DriverWorkbenchPanel)
+const activePanelComponent = computed(() => tabPanelComponents[activeTab.value] || null)
 const activePanelProps = computed(() => {
   const commonFormatters = { formatPrice, formatDistance, formatTime, formatOrderStatus, formatDispatchStatus }
   if (activeTab.value === 0) {
-    return {
-      driverStore,
-      homeAvailableOrders: homeAvailableOrders.value,
-      homeAvailableLoading: homeAvailableLoading.value,
-      formatPrice,
-      formatDistance,
-      formatOrderStatus
-    }
+    return {}
   }
   if (activeTab.value === 1) {
     return {
@@ -233,6 +265,7 @@ const activePanelProps = computed(() => {
   }
   return {
     driverStore,
+    defaultSection: mineSection.value,
     profileForm,
     reviews: reviews.value,
     trajectoryOrderId: trajectoryOrderId.value,
@@ -262,6 +295,15 @@ const trajectoryPoints = ref([])
 const trajectoryError = ref('')
 const finishVisible = ref(false)
 const finishOrder = ref(null)
+const heatmapVisible = ref(false)
+const openHeatmapVisible = heatmapVisible
+const heatmapLoading = ref(false)
+const heatmapRadiusMeters = 5000
+const heatmapPoints = ref([])
+const heatmapCenter = ref(null)
+const heatmapMapContainer = ref(null)
+const heatmapMapReady = ref(false)
+const heatmapMapError = ref('')
 const withdrawVisible = ref(false)
 const withdrawLoading = ref(false)
 const withdrawForm = reactive({ amount: '', payeeName: '', payAccount: '' })
@@ -314,6 +356,12 @@ let reconnectTimer = null
 let reconnectAttempts = 0
 let lastLatitude = null
 let lastLongitude = null
+let heatmapAMap = null
+let heatmapMapInstance = null
+let heatmapLayer = null
+let heatmapCenterMarker = null
+let heatmapGeolocation = null
+let heatmapRefreshTimer = null
 
 const statusLabel = computed(() => {
   if (driverStore.tripPhase === 'pickup') return '前往上车点'
@@ -356,15 +404,51 @@ const workActionText = computed(() => {
 const workActionIcon = computed(() => driverStore.onlineStatus === 1 ? 'pause-circle-o' : 'play-circle-o')
 const workActionClass = computed(() => driverStore.onlineStatus === 1 ? 'go-offline' : 'go-online')
 const workActionDisabled = computed(() => workLoading.value || driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip')
+const heatmapSummary = computed(() => {
+  if (!heatmapCenter.value) return '按司机当前位置实时刷新'
+  return `${Number(heatmapCenter.value.longitude).toFixed(5)}, ${Number(heatmapCenter.value.latitude).toFixed(5)}`
+})
+const heatmapTotalOrders = computed(() => heatmapPoints.value.reduce((total, point) => total + Number(point.weight || 0), 0))
+const heatmapStatusText = computed(() => {
+  if (heatmapMapError.value) return heatmapMapError.value
+  if (!heatmapMapReady.value) return '地图加载中...'
+  if (heatmapLoading.value) return '正在刷新热力...'
+  if (!heatmapPoints.value.length) return '附近暂无待接单订单'
+  return ''
+})
+const heatmapPhoneSheetStyle = {
+  height: 'min(88vh, 760px)',
+  width: 'min(100vw, 390px)'
+}
 
 onMounted(async () => {
   await loadDashboardData()
   if (driverStore.onlineStatus > 0) startRealtimeWork()
 })
 
-onUnmounted(() => stopRealtimeWork())
+onUnmounted(() => {
+  stopRealtimeWork()
+  stopHeatmapRealtime()
+  destroyHeatmapMap()
+})
 
-watch(activeTab, () => loadCurrentTabData())
+watch(activeTab, (tab) => {
+  if (tab !== 3) mineSection.value = 'profile'
+  loadCurrentTabData()
+})
+
+watch(heatmapVisible, async (visible) => {
+  if (!visible) {
+    stopHeatmapRealtime()
+    destroyHeatmapMap()
+    return
+  }
+  await nextTick()
+  await ensureHeatmapMap()
+  await refreshHeatmap()
+  if (!heatmapVisible.value) return
+  startHeatmapRealtime()
+})
 
 async function loadDashboardData() {
   const [profile, score] = await Promise.allSettled([
@@ -381,7 +465,7 @@ async function loadDashboardData() {
 
 async function loadCurrentTabData() {
   const config = { silentError: true }
-  if (activeTab.value === 0) return safeApiCall(() => loadHomeAvailableOrders(config), null, { silent: true })
+  if (activeTab.value === 0) return null
   if (activeTab.value === 1) return safeApiCall(() => loadOrders(1, config), null, { silent: true })
   if (activeTab.value === 2) {
     return Promise.allSettled([
@@ -471,8 +555,9 @@ function ensureWorkLocation() {
 }
 
 function rememberWorkLocation(location) {
-  lastLongitude = Number(location.longitude)
-  lastLatitude = Number(location.latitude)
+  const normalized = normalizeBrowserLocationForAmap(location)
+  lastLongitude = Number(normalized.longitude)
+  lastLatitude = Number(normalized.latitude)
   return { longitude: lastLongitude, latitude: lastLatitude }
 }
 
@@ -546,6 +631,169 @@ async function reportCurrentLocation() {
   safeApiCall(() => reportDriverLocation(payload), null, { silent: true })
 }
 
+function openWorkbench() {
+  router.push('/workbench')
+}
+
+function openHeatmap() {
+  heatmapPoints.value = []
+  heatmapMapError.value = ''
+  heatmapVisible.value = true
+}
+
+async function ensureHeatmapMap() {
+  if (heatmapMapInstance || !heatmapMapContainer.value) return
+  const { key, securityCode } = getAmapConfig()
+  if (!key) {
+    heatmapMapError.value = '未配置高德地图Key'
+    return
+  }
+  try {
+    if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
+    heatmapAMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.HeatMap', 'AMap.Geolocation'] })
+    window.AMap = heatmapAMap
+    heatmapMapInstance = new heatmapAMap.Map(heatmapMapContainer.value, {
+      zoom: 12,
+      viewMode: '2D',
+      center: readRememberedWorkLocation()
+        ? [lastLongitude, lastLatitude]
+        : [workLocationDefault.longitude, workLocationDefault.latitude]
+    })
+    heatmapGeolocation = new heatmapAMap.Geolocation({
+      enableHighAccuracy: true,
+      timeout: 10000,
+      zoomToAccuracy: true,
+      position: 'RB',
+      offset: [16, 108]
+    })
+    heatmapMapInstance.addControl(heatmapGeolocation)
+    heatmapLayer = new heatmapAMap.HeatMap(heatmapMapInstance, {
+      radius: 24,
+      opacity: [0, 0.86],
+      gradient: {
+        0.2: 'rgba(37, 99, 235, 0)',
+        0.45: 'rgba(37, 99, 235, .48)',
+        0.65: 'rgba(34, 197, 94, .64)',
+        0.82: 'rgba(245, 158, 11, .78)',
+        1: 'rgba(239, 68, 68, .9)'
+      }
+    })
+    heatmapMapReady.value = true
+    heatmapMapError.value = ''
+  } catch (error) {
+    heatmapMapInstance?.destroy()
+    heatmapAMap = null
+    heatmapMapInstance = null
+    heatmapLayer = null
+    heatmapCenterMarker = null
+    heatmapGeolocation = null
+    heatmapMapReady.value = false
+    heatmapMapError.value = '高德地图加载失败'
+    console.error('driver heatmap AMap error:', error)
+  }
+}
+
+async function refreshHeatmap() {
+  heatmapLoading.value = true
+  try {
+    await ensureHeatmapMap()
+    const location = await ensureHeatmapLocation()
+    heatmapCenter.value = location
+    const data = await getOrderHeatmap({
+      longitude: location.longitude,
+      latitude: location.latitude,
+      radiusMeters: heatmapRadiusMeters
+    }, { silentError: true })
+    heatmapPoints.value = Array.isArray(data?.points) ? data.points : []
+    renderHeatmapPoints()
+  } catch (error) {
+    showToast(apiErrorMessage(error, '热力图加载失败'))
+  } finally {
+    heatmapLoading.value = false
+  }
+}
+
+async function ensureHeatmapLocation() {
+  const watchedLocation = readRememberedWorkLocation()
+  if (watchedLocation) return watchedLocation
+  try {
+    return rememberWorkLocation(await locateHeatmapByAMap())
+  } catch {
+    return ensureWorkLocation()
+  }
+}
+
+function readRememberedWorkLocation() {
+  if (Number.isFinite(lastLongitude) && Number.isFinite(lastLatitude) && (lastLongitude !== 0 || lastLatitude !== 0)) {
+    return { longitude: lastLongitude, latitude: lastLatitude }
+  }
+  return null
+}
+
+function locateHeatmapByAMap() {
+  return new Promise((resolve, reject) => {
+    if (!heatmapGeolocation) {
+      reject(new Error('高德定位未初始化'))
+      return
+    }
+    heatmapGeolocation.getCurrentPosition((status, result) => {
+      if (status === 'complete' && result?.position) {
+        resolve({
+          longitude: result.position.lng,
+          latitude: result.position.lat
+        })
+        return
+      }
+      reject(result || new Error('高德定位失败'))
+    })
+  })
+}
+
+function renderHeatmapPoints() {
+  if (!heatmapMapInstance || !heatmapAMap) return
+  const center = heatmapCenter.value || workLocationDefault
+  const centerPosition = [Number(center.longitude), Number(center.latitude)]
+  const data = heatmapPoints.value
+    .map((point) => ({
+      lng: Number(point.longitude),
+      lat: Number(point.latitude),
+      count: Number(point.weight || 0)
+    }))
+    .filter((point) => Number.isFinite(point.lng) && Number.isFinite(point.lat) && point.count > 0)
+  const max = Math.max(1, ...data.map((point) => point.count))
+
+  heatmapLayer?.setDataSet({ data, max })
+  if (!heatmapCenterMarker) {
+    heatmapCenterMarker = new heatmapAMap.Marker({ position: centerPosition, title: '司机当前位置', anchor: 'center', zIndex: 120 })
+    heatmapMapInstance.add(heatmapCenterMarker)
+  } else {
+    heatmapCenterMarker.setPosition(centerPosition)
+  }
+  heatmapMapInstance.setZoomAndCenter(data.length ? 14 : 13, centerPosition)
+}
+
+function startHeatmapRealtime() {
+  stopHeatmapRealtime()
+  heatmapRefreshTimer = window.setInterval(refreshHeatmap, 15000)
+}
+
+function stopHeatmapRealtime() {
+  if (heatmapRefreshTimer) window.clearInterval(heatmapRefreshTimer)
+  heatmapRefreshTimer = null
+}
+
+function destroyHeatmapMap() {
+  heatmapLayer?.setDataSet?.({ data: [], max: 1 })
+  heatmapMapInstance?.destroy()
+  heatmapAMap = null
+  heatmapMapInstance = null
+  heatmapLayer = null
+  heatmapCenterMarker = null
+  heatmapGeolocation = null
+  heatmapMapReady.value = false
+  heatmapMapError.value = ''
+}
+
 function startTripRealtime() {
   stopTripRealtime()
   tripTimer = window.setInterval(() => {
@@ -590,16 +838,6 @@ function handlePushMessage(raw) {
   try {
     const payload = JSON.parse(raw)
     if (payload.type === 'dispatch_order') {
-      const order = {
-        orderId: payload.orderId,
-        orderNo: payload.orderNo,
-        fromAddress: payload.fromAddress,
-        toAddress: payload.toAddress,
-        status: payload.status,
-        estimatedPriceCents: payload.estimatedPriceCents,
-        createdAt: payload.createdAt
-      }
-      driverStore.setCurrentOrder(order, Number(order.status) === 3 ? 'trip' : 'pickup')
       if (activeTab.value === 1) loadOrders(orderPage.value)
     } else if (payload.type === 'dispatch.new') {
       showToast('收到新的派单')
@@ -636,11 +874,14 @@ async function loadDispatches(payload, config = {}) {
       ? data.list.map((item) => ({
         ...item,
         source: 'dispatch',
-        orderId: item.orderId || item.order?.orderId,
-        fromAddress: item.fromAddress || item.order?.fromAddress,
-        toAddress: item.toAddress || item.order?.toAddress,
-        estimatedPriceCents: item.estimatedPriceCents || item.order?.estimatedPriceCents,
-        createdAt: item.createdAt || item.order?.createdAt
+        orderId: item.dispatch?.orderId || item.order?.orderId,
+        dispatchId: item.dispatch?.id,
+        dispatchStatus: item.dispatch?.status,
+        status: item.order?.status ?? item.dispatch?.status,
+        fromAddress: item.order?.fromAddress || item.dispatch?.fromAddress,
+        toAddress: item.order?.toAddress || item.dispatch?.toAddress,
+        estimatedPriceCents: item.order?.estimatedPriceCents || item.dispatch?.estimatedPriceCents,
+        createdAt: item.order?.createdAt || item.dispatch?.createdAt
       }))
       : []
   }
@@ -663,7 +904,7 @@ async function loadHomeAvailableOrders(config = {}) {
   try {
     const data = await listAvailableOrders({ page: 1, pageSize: 3, status: 1 }, config)
     homeAvailableOrders.value = Array.isArray(data?.list)
-      ? data.list.map((item) => ({ ...item, source: 'available' }))
+      ? data.list.filter(isWaitAcceptOrder).map((item) => ({ ...item, source: 'available' }))
       : []
   } finally {
     homeAvailableLoading.value = false
@@ -705,6 +946,7 @@ async function handleOrderAction(action, order) {
   } catch (error) {
     if (error?.message === 'cancelled') return
     showToast(apiErrorMessage(error, '订单操作失败'))
+    await loadHomeAvailableOrders({ silentError: true })
     return
   }
 
@@ -714,6 +956,10 @@ async function handleOrderAction(action, order) {
   showToast(config.message)
   await loadOrders(orderPage.value)
   await loadHomeAvailableOrders({ silentError: true })
+}
+
+function isWaitAcceptOrder(order) {
+  return Number(order?.status || 0) === 1
 }
 
 async function loadOrderDetail(orderId) {
@@ -948,7 +1194,8 @@ async function loadReviews(config = {}) {
 
 function selectTrajectory(orderId) {
   trajectoryOrderId.value = Number(orderId || 0)
-  activeTab.value = 6
+  mineSection.value = 'trajectory'
+  activeTab.value = 3
   loadTrajectory()
 }
 
@@ -1104,8 +1351,29 @@ function deviceId() {
 .work-primary-action .van-icon { font-size: 21px; }
 .go-online { border: 0; background: #ffb72c; color: #fff; box-shadow: 0 8px 16px rgba(255,183,44,.28); }
 .mini-stat-grid { margin-top: 12px; }
-.finish-panel, .withdraw-panel { padding: 18px 14px 22px; background: #f6f7fb; }
+.finish-panel, .withdraw-panel, .heatmap-panel { padding: 18px 14px 22px; background: #f6f7fb; }
 .finish-panel h2, .withdraw-panel h2 { margin: 0 0 14px; text-align: center; }
+.driver-heatmap-popup { left: 0; right: 0; width: min(100vw, 390px); margin: 0 auto; overflow: hidden; }
+.heatmap-panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); background: #f6f7fb; }
+.heatmap-sheet-grabber { width: 42px; height: 4px; margin: 0 auto 10px; border-radius: 999px; background: #cbd5e1; }
+.heatmap-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.heatmap-sheet-header { min-height: 44px; align-items: center; }
+.heatmap-heading h2 { margin: 0 0 4px; color: #172033; font-size: 18px; }
+.heatmap-heading p { margin: 0; color: #7a8496; font-size: 12px; }
+.heatmap-floating-actions { position: absolute; top: 12px; right: 12px; display: grid; gap: 8px; z-index: 2; }
+.heatmap-refresh { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border: 0; border-radius: 50%; background: #fff; color: #5B5CFF; font-size: 18px; box-shadow: 0 4px 14px rgba(15,23,42,.18); }
+.heatmap-map-shell { position: relative; min-height: 0; overflow: hidden; border-radius: 8px; background: #e8edf5; }
+.driver-heatmap-map { width: 100%; height: 100%; min-height: 0; }
+.heatmap-badge { position: absolute; right: 12px; bottom: 12px; display: grid; gap: 2px; min-width: 78px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.94); color: #172033; box-shadow: 0 6px 18px rgba(15,23,42,.14); }
+.heatmap-badge span { color: #7a8496; font-size: 11px; }
+.heatmap-badge strong { font-size: 16px; line-height: 1.1; }
+.heatmap-chip-strip { display: flex; gap: 8px; margin: 10px -12px 0; padding: 0 12px 2px; overflow-x: auto; scrollbar-width: none; }
+.heatmap-chip-strip::-webkit-scrollbar { display: none; }
+.heatmap-chip { display: inline-flex; min-width: 132px; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; background: #fff; box-shadow: 0 4px 14px rgba(15,23,42,.06); }
+.heatmap-chip > span { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 50%; background: #fff4e5; color: #f59e0b; font-size: 18px; }
+.heatmap-chip div { display: grid; gap: 2px; min-width: 0; }
+.heatmap-chip strong { color: #172033; font-size: 15px; line-height: 1.1; white-space: nowrap; }
+.heatmap-chip small { max-width: 76px; overflow: hidden; color: #7a8496; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .driver-tabbar { left: 50%; right: auto; width: min(100vw, 430px); height: calc(60px + env(safe-area-inset-bottom)); border-top: 1px solid #e6eaf2; box-shadow: 0 -8px 24px rgba(15,23,42,.08); transform: translateX(-50%); --van-tabbar-item-active-color: #5B5CFF; --van-tabbar-item-text-color: #98a2b3; }
 button:disabled { opacity: .48; }
 @media (max-width: 360px) { .driver-home-page { padding-inline: 10px; } .driver-hero { margin-inline: -10px; } .hero-income strong { font-size: 32px; } .quick-entry-row { gap: 4px; } .work-status-card { display: grid; } .work-status-heading strong, .income-today-card strong { font-size: 30px; } .income-today-card { align-items: flex-start; } .withdraw-entry { min-width: 68px; padding-inline: 10px; } }

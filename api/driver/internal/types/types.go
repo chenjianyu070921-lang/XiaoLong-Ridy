@@ -549,6 +549,25 @@ type ListMyOrdersResponse struct {
 	PageSize int32        `json:"pageSize"`
 }
 
+type HeatmapRequest struct {
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	RadiusMeters float64 `json:"radiusMeters"`
+}
+
+type HeatmapPoint struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Weight    int64   `json:"weight"`
+}
+
+type HeatmapResponse struct {
+	Points         []HeatmapPoint `json:"points"`
+	RadiusMeters   float64        `json:"radiusMeters"`
+	GridSizeMeters int64          `json:"gridSizeMeters"`
+	Cached         bool           `json:"cached"`
+}
+
 type GetMyOrderDetailRequest struct {
 	OrderID int64 `json:"orderId"`
 }
