@@ -12,11 +12,18 @@ const service = axios.create({
 
 // 会话失效跳转防重入：并发请求同时 401 时只清理/跳转一次
 let redirectingToLogin = false
-const handleUnauthorized = () => {
+const handleUnauthorized = async () => {
   if (redirectingToLogin) return
   redirectingToLogin = true
-  localStorage.removeItem('admin_token')
-  localStorage.removeItem('admin_info')
+  // 同步清空 Pinia 内存态，避免路由守卫因内存 token 仍为真把用户弹回工作台，形成死循环。
+  try {
+    const { useUserStore } = await import('../store/user')
+    useUserStore().logout()
+  } catch {
+    // store 加载失败时退化为仅清 localStorage，避免抛错中断跳转。
+    localStorage.removeItem('admin_token')
+    localStorage.removeItem('admin_info')
+  }
   window.location.hash = '#/login'
   setTimeout(() => {
     redirectingToLogin = false

@@ -65,6 +65,69 @@ func (l *DriverLogic) FreezeDriver(ctx context.Context, id int64, req types.Driv
 	return err
 }
 
+// UnfreezeDriver 解冻司机账号，HTTP 层只做参数适配，状态变更由 adminsvc 转发到 driversvc。
+func (l *DriverLogic) UnfreezeDriver(ctx context.Context, id int64, req types.DriverFreezeRequest, session *model.AdminSession, ip string) error {
+	adminID := int64(0)
+	if session != nil {
+		adminID = session.AdminID
+	}
+	_, err := l.ctx.AdminSvc.UnfreezeDriver(ctx, &adminclient.FreezeDriverRequest{
+		Id:      id,
+		Reason:  req.Reason,
+		Remark:  req.Remark,
+		AdminId: adminID,
+		Ip:      ip,
+	})
+	return err
+}
+
+// ListWithdrawals 查询司机提现申请列表，HTTP 层只做参数适配与类型转换。
+func (l *DriverLogic) ListWithdrawals(ctx context.Context, page, pageSize int32, status int32, driverID int64, keyword string) (*types.PageResult, error) {
+	resp, err := l.ctx.AdminSvc.ListDriverWithdrawals(ctx, &adminclient.DriverWithdrawListRequest{
+		Page:     page,
+		PageSize: pageSize,
+		Status:   status,
+		DriverId: driverID,
+		Keyword:  keyword,
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]types.DriverWithdrawalDTO, 0, len(resp.GetList()))
+	for _, w := range resp.GetList() {
+		items = append(items, types.DriverWithdrawalDTO{
+			ID:         w.GetId(),
+			DriverID:   w.GetDriverId(),
+			WithdrawNo: w.GetWithdrawNo(),
+			Amount:     w.GetAmount(),
+			PayeeName:  w.GetPayeeName(),
+			PayAccount: w.GetPayAccount(),
+			Status:     w.GetStatus(),
+			Remark:     w.GetRemark(),
+			AppliedAt:  w.GetAppliedAt(),
+			PaidAt:     w.GetPaidAt(),
+			CreatedAt:  w.GetCreatedAt(),
+		})
+	}
+	return &types.PageResult{List: items, Total: resp.GetTotal(), Page: int(resp.GetPage()), PageSize: int(resp.GetPageSize())}, nil
+}
+
+// HandleWithdrawal 审核司机提现申请，approve=true 打款成功，approve=false 打款失败。
+func (l *DriverLogic) HandleWithdrawal(ctx context.Context, id int64, approve bool, req types.DriverWithdrawHandleRequest, session *model.AdminSession, ip string) error {
+	adminID := int64(0)
+	if session != nil {
+		adminID = session.AdminID
+	}
+	_, err := l.ctx.AdminSvc.HandleDriverWithdraw(ctx, &adminclient.DriverWithdrawHandleRequest{
+		Id:      id,
+		AdminId: adminID,
+		Approve: approve,
+		Remark:  req.Remark,
+		Ip:      ip,
+	})
+	return err
+}
+
 func toDriverDTO(item *adminclient.Driver) types.DriverDTO {
 	if item == nil {
 		return types.DriverDTO{}

@@ -4,7 +4,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { Refresh, Search, Tickets, Warning, Lock } from '@element-plus/icons-vue'
 import { driversApi } from '../../api/modules'
 import { text, pageData } from '../../utils/format'
 import BusinessFormDialog from '../../components/BusinessFormDialog.vue'
@@ -24,11 +24,15 @@ const dialogRecord = ref({})
 const submitting = ref(false)
 
 const isDetail = computed(() => !!route.params.id)
-const driverStatusText = (v) => ({ 1: '待审核', 2: '服务中', 3: '已冻结' }[v] || text(v))
+const driverStatusText = (v) => ({ 1: '待审核', 2: '正常', 3: '已冻结', 4: '已注销' }[v] || text(v))
+const onlineStatusText = (v) => ({ 0: '离线', 1: '在线', 2: '行程中' }[v] || text(v))
+const vehicleStatusText = (v) => ({ 1: '待审核', 2: '正常', 3: '禁用' }[v] || text(v))
+const auditStatusText = (v) => ({ 1: '待审核', 2: '已通过', 3: '已驳回' }[v] || text(v))
 
 const columns = [
   ['id', '司机 ID'], ['phone', '手机号'], ['real_name', '姓名'], ['status', '状态'],
-  ['online_status', '在线状态'], ['created_at', '注册时间'],
+  ['online_status', '在线状态'], ['plate_no', '车牌'], ['vehicle_status', '车辆状态'],
+  ['audit_status', '认证状态'], ['created_at', '注册时间'],
 ]
 
 const listParams = () => {
@@ -61,7 +65,13 @@ const loadDetail = async () => {
   detail.value = await driversApi.detail(route.params.id)
 }
 
-const detailLabel = (key, value) => (key === 'status' ? driverStatusText(value) : text(value))
+const detailLabel = (key, value) => {
+  if (key === 'status') return driverStatusText(value)
+  if (key === 'online_status') return onlineStatusText(value)
+  if (key === 'vehicle_status') return vehicleStatusText(value)
+  if (key === 'audit_status') return auditStatusText(value)
+  return text(value)
+}
 const detailEntries = computed(() =>
   Object.entries(detail.value || {})
     .filter(([key, value]) => value !== null && value !== undefined && value !== '')
@@ -69,13 +79,29 @@ const detailEntries = computed(() =>
 )
 
 const openDetail = (row) => router.push(`/drivers/${row.id}`)
+// openDriverOrders 将司机详情关联到后台订单列表，并按司机 ID 预置筛选条件，便于运营核对司机行程订单。
+const openDriverOrders = () => {
+  if (!detail.value?.id) return
+  router.push({ path: '/orders', query: { driver_id: detail.value.id } })
+}
+// openDriverRiskHits 将司机详情关联到风控命中记录，目标类型固定为司机，避免运营手工输入目标 ID。
+const openDriverRiskHits = () => {
+  if (!detail.value?.id) return
+  router.push({ path: '/risk-hits', query: { target_type: 'driver', target_id: detail.value.id } })
+}
+// openDriverBlacklist 将司机详情关联到黑名单列表，用统一目标字段追踪该司机是否存在管控记录。
+const openDriverBlacklist = () => {
+  if (!detail.value?.id) return
+  router.push({ path: '/blacklist', query: { target_type: 'driver', target_id: detail.value.id } })
+}
 const action = (name, row = {}) => { dialogType.value = name; dialogRecord.value = row; dialog.value = true }
 
-const dialogTitle = computed(() => ({ freezeDriver: '冻结司机' }[dialogType.value] || '确认操作'))
+const dialogTitle = computed(() => ({ freezeDriver: '冻结司机', unfreezeDriver: '解冻司机' }[dialogType.value] || '确认操作'))
 const submitAction = async ({ payload, record }) => {
   submitting.value = true
   try {
     if (dialogType.value === 'freezeDriver') await driversApi.freeze(record?.id, payload)
+    else if (dialogType.value === 'unfreezeDriver') await driversApi.unfreeze(record?.id, payload)
     dialog.value = false
     ElMessage.success('操作成功')
     if (isDetail.value) await loadDetail()
@@ -102,7 +128,12 @@ watch(() => route.path, async () => {
     <template v-if="isDetail">
       <div class="page-head">
         <div><span class="eyebrow">用户与司机 / 司机详情</span><h1>{{ detail?.real_name || detail?.phone || '司机详情' }}</h1><p>查看司机基础资料与服务状态</p></div>
-        <div class="actions"><el-button @click="router.back()">返回列表</el-button></div>
+        <div class="actions">
+          <el-button :icon="Tickets" @click="openDriverOrders">查看订单</el-button>
+          <el-button :icon="Warning" @click="openDriverRiskHits">风控记录</el-button>
+          <el-button :icon="Lock" @click="openDriverBlacklist">黑名单</el-button>
+          <el-button @click="router.back()">返回列表</el-button>
+        </div>
       </div>
       <div class="panel detail-grid">
         <div v-for="item in detailEntries" :key="item.key" class="detail-item">
@@ -118,7 +149,7 @@ watch(() => route.path, async () => {
       <div class="panel filters">
         <el-input v-model="filters.keyword" clearable :prefix-icon="Search" placeholder="手机号、姓名或车牌" @keyup.enter="page=1;load" />
         <el-select v-model="filters.status" clearable placeholder="服务状态">
-          <el-option :value="1" label="待审核" /><el-option :value="2" label="服务中" /><el-option :value="3" label="已冻结" />
+          <el-option :value="1" label="待审核" /><el-option :value="2" label="正常" /><el-option :value="3" label="已冻结" /><el-option :value="4" label="已注销" />
         </el-select>
         <el-button type="primary" @click="page=1;load">查询</el-button>
         <el-button @click="reset">重置</el-button>
@@ -127,13 +158,14 @@ watch(() => route.path, async () => {
         <el-table :data="rows" stripe empty-text="暂无司机">
           <el-table-column v-for="c in columns" :key="c[0]" :prop="c[0]" :label="c[1]" min-width="140">
             <template #default="scope">
-              <span :class="{ mono: c[0].includes('id') || c[0].includes('no') }">{{ c[0] === 'status' ? driverStatusText(scope.row.status) : text(scope.row[c[0]]) }}</span>
+              <span :class="{ mono: c[0].includes('id') || c[0].includes('no') }">{{ detailLabel(c[0], scope.row[c[0]]) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" fixed="right" width="200">
+          <el-table-column label="操作" fixed="right" width="240">
             <template #default="scope">
               <el-button link type="primary" @click="openDetail(scope.row)">查看</el-button>
               <el-button v-if="scope.row.status != 3" link type="warning" @click="action('freezeDriver', scope.row)">冻结</el-button>
+              <el-button v-if="scope.row.status == 3" link type="success" @click="action('unfreezeDriver', scope.row)">解冻</el-button>
             </template>
           </el-table-column>
         </el-table>

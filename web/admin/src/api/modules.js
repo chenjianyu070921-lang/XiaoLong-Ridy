@@ -15,10 +15,14 @@ export const driversApi = {
   list: (params) => list('/drivers', params),
   detail: (id) => request.get(`/drivers/${id}`),
   freeze: (id, data) => request.post(`/drivers/${id}/freeze`, data),
+  unfreeze: (id, data) => request.post(`/drivers/${id}/unfreeze`, data),
   certifications: (params) => list('/driver-certifications', params),
   certificationDetail: (id) => request.get(`/driver-certifications/${id}`),
   approve: (id, data) => request.post(`/driver-certifications/${id}/approve`, data),
   reject: (id, data) => request.post(`/driver-certifications/${id}/reject`, data),
+  withdrawals: (params) => list('/driver-withdrawals', params),
+  approveWithdraw: (id, data) => request.post(`/driver-withdrawals/${id}/approve`, data),
+  rejectWithdraw: (id, data) => request.post(`/driver-withdrawals/${id}/reject`, data),
 }
 export const ordersApi = {
   list: (params) => list('/orders', params),
@@ -67,6 +71,8 @@ export const statisticsApi = {
   drivers: (params) => list('/statistics/drivers', params),
   revenue: (params) => list('/statistics/revenue', params),
   coupons: (params) => list('/statistics/coupons', params),
+  // 用户统计接口与后端 /admin/v1/statistics/users 对齐，供工作台和统计页复用。
+  users: (params) => list('/statistics/users', params),
   exports: (params) => list('/export-tasks', params),
   createExport: (data) => request.post('/export-tasks', data),
   exportDetail: (no) => request.get(`/export-tasks/${no}`),
@@ -78,6 +84,10 @@ export const riskApi = {
   release: (id, data) => request.post(`/blacklist/${id}/release`, data),
   hits: (params) => list('/risk/hit-records', params),
   handleHits: (data) => request.post('/risk/hit-records/actions', data),
+}
+// 通知补偿查询接口只读展示 job 已维护的状态，不在页面直接触发补偿。
+export const notificationOutboxApi = {
+  list: (params) => list('/notification-outbox', params),
 }
 export const logsApi = { list: (params) => list('/operation-logs', params) }
 

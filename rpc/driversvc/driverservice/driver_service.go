@@ -29,6 +29,10 @@ type (
 	DeleteVehicleResponse          = __proto.DeleteVehicleResponse
 	Driver                         = __proto.Driver
 	FreezeDriverRequest            = __proto.FreezeDriverRequest
+	UnfreezeDriverRequest          = __proto.UnfreezeDriverRequest
+	AdminListWithdrawsRequest      = __proto.AdminListWithdrawsRequest
+	AuditWithdrawRequest           = __proto.AuditWithdrawRequest
+	AuditWithdrawResponse          = __proto.AuditWithdrawResponse
 	GetCertificationRequest        = __proto.GetCertificationRequest
 	GetCertificationResponse       = __proto.GetCertificationResponse
 	GetDriverAiScoreRequest        = __proto.GetDriverAiScoreRequest
@@ -76,6 +80,7 @@ type (
 		GetDriver(ctx context.Context, in *GetDriverRequest, opts ...grpc.CallOption) (*GetDriverResponse, error)
 		GetDriverByPhone(ctx context.Context, in *GetDriverByPhoneRequest, opts ...grpc.CallOption) (*GetDriverByPhoneResponse, error)
 		FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		UnfreezeDriver(ctx context.Context, in *UnfreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		SetDriverOnline(ctx context.Context, in *SetDriverOnlineRequest, opts ...grpc.CallOption) (*SetDriverOnlineResponse, error)
 		SetDriverOffline(ctx context.Context, in *SetDriverOfflineRequest, opts ...grpc.CallOption) (*SetDriverOfflineResponse, error)
 		ReportLocation(ctx context.Context, in *ReportLocationRequest, opts ...grpc.CallOption) (*ReportLocationResponse, error)
@@ -96,6 +101,8 @@ type (
 		RejectCertification(ctx context.Context, in *AuditCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		CreateWithdraw(ctx context.Context, in *CreateWithdrawRequest, opts ...grpc.CallOption) (*CreateWithdrawResponse, error)
 		ListWithdraws(ctx context.Context, in *ListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error)
+		AdminListWithdraws(ctx context.Context, in *AdminListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error)
+		AuditWithdraw(ctx context.Context, in *AuditWithdrawRequest, opts ...grpc.CallOption) (*AuditWithdrawResponse, error)
 	}
 
 	defaultDriverService struct {
@@ -142,6 +149,11 @@ func (m *defaultDriverService) GetDriverByPhone(ctx context.Context, in *GetDriv
 func (m *defaultDriverService) FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
 	client := __proto.NewDriverServiceClient(m.cli.Conn())
 	return client.FreezeDriver(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) UnfreezeDriver(ctx context.Context, in *UnfreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.UnfreezeDriver(ctx, in, opts...)
 }
 
 func (m *defaultDriverService) SetDriverOnline(ctx context.Context, in *SetDriverOnlineRequest, opts ...grpc.CallOption) (*SetDriverOnlineResponse, error) {
@@ -242,4 +254,14 @@ func (m *defaultDriverService) CreateWithdraw(ctx context.Context, in *CreateWit
 func (m *defaultDriverService) ListWithdraws(ctx context.Context, in *ListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error) {
 	client := __proto.NewDriverServiceClient(m.cli.Conn())
 	return client.ListWithdraws(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) AdminListWithdraws(ctx context.Context, in *AdminListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.AdminListWithdraws(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) AuditWithdraw(ctx context.Context, in *AuditWithdrawRequest, opts ...grpc.CallOption) (*AuditWithdrawResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.AuditWithdraw(ctx, in, opts...)
 }

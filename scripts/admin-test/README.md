@@ -5,12 +5,13 @@
 ## 环境要求
 
 1. 本地 Redis 已启动：`127.0.0.1:6379`。
-2. 远程 MySQL `xiaolong_ridy` 可达，并已设置 `ADMINSVC_MYSQL_DSN`；脚本会复用该值作为 `ADMIN_API_MYSQL_DSN`。
+2. 远程 MySQL `xiaolong_ridy` 可达，并已设置 `ADMINSVC_MYSQL_DSN`；脚本会复用该值作为 `ADMIN_API_MYSQL_DSN`。真实订单跨服务联调还必须设置 `ORDERSVC_MYSQL_DSN`。
 3. Go 工具链可用。
 4. 如 `rpc/adminsvc` 使用默认 `etc/admin.yaml`（带 Etcd 注册），需要本地 etcd；本脚本会自动生成一份不含 Etcd 的 `.gotmp/adminsvc-admin-test.yaml` 用于联调。
 
-> 已知限制（2026-08-18）：
-> - `rpc/ordersvc` 当前因配置结构 `redis` 键与 go-zero v1.7.2 `RpcServerConf.Redis` 冲突无法启动（模块四问题），脚本用占位 gRPC（15051）顶替，`POST /orders/{id}/cancel` 无法端到端验证。
+> 联调边界（2026-08-31）：
+> - 默认启动真实 `ordersvc:50051`，订单取消、退款、改派只有真实下游启动并成功时才可计入闭环。
+> - 如只需验证管理网关的路由或只读接口，可显式使用 `-UseDummyOrders`；该模式会跳过订单写操作断言，不得用于证明跨服务闭环。
 > - 远程库未应用 `07_admin_operation_business.sql`，`admin_coupon_issue_task`、`risk_blacklist_hit_record` 缺失，发券任务/发券/风控命中记录接口返回 500。
 > - 详见 `docs/admin/管理后台全量接口测试报告-2026-08-18.md`。
 
@@ -19,9 +20,13 @@
 ```powershell
 # 数据库凭据仅保存在本机环境变量或部署平台 Secret，不能写入配置文件。
 $env:ADMINSVC_MYSQL_DSN = "<your-admin-mysql-dsn>"
+$env:ORDERSVC_MYSQL_DSN = "<your-ordersvc-mysql-dsn>"
 
-# 1. 启动服务栈（ordersvc:50051 -> driversvc:5055 -> adminsvc:8084 -> api/admin:8717）
+# 1. 启动真实服务栈（ordersvc:50051 -> driversvc:50055 -> adminsvc:8084 -> api/admin:8717）
 .\scripts\admin-test\start_admin_stack.ps1
+
+# 仅做路由/只读测试时，显式使用占位 ordersvc
+.\scripts\admin-test\start_admin_stack.ps1 -UseDummyOrders
 
 # 2. 运行接口测试（只读 + 错误路径用例）
 .\scripts\admin-test\admin_api_test.ps1
@@ -50,10 +55,10 @@ $env:ADMINSVC_MYSQL_DSN = "<your-admin-mysql-dsn>"
 - 操作日志：列表 + 筛选。
 - 用户管理：列表、筛选、详情 404、冻结/解冻 404、非法路径 ID。
 - 司机审核：列表、筛选、详情 404、通过/驳回 404。
-- 订单管理：列表、筛选、详情 404、异常订单列表、后台取消 404。
+- 订单管理：列表、筛选、详情 404、异常订单列表；真实 ordersvc 模式下验证后台取消错误映射。
 - 优惠券：列表、新增（非法体）、编辑 404、下架 404、发券 404/非法配置、发券任务列表；`-WriteOps` 下覆盖 新增→发券→编辑→下架 正向链路。
 - 营销活动：列表、新增（非法体）、编辑 404、发布/回滚 404；`-WriteOps` 下覆盖 新增→编辑→发布→回滚。
-- 数据统计：总览、订单统计、优惠券统计。
+- 数据统计：总览、订单、司机、财务、用户、优惠券统计。
 - 导出任务：列表、新增（非法体）；`-WriteOps` 下覆盖正向创建。
 - 风控：黑名单列表、新增（非法体）、解除 404、命中记录；`-WriteOps` 下覆盖 新增→解除。
 
