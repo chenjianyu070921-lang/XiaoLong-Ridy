@@ -18,9 +18,9 @@ const routes = [
     meta: { requiresDriverAuth: true }
   },
   {
-    path: '/workbench',
-    name: 'DriverWorkbench',
-    component: () => import('@/views/DriverWorkbench.vue'),
+    path: '/profile/edit',
+    name: 'DriverProfileEdit',
+    component: () => import('@/views/DriverProfileEdit.vue'),
     meta: { requiresDriverAuth: true }
   }
 ]

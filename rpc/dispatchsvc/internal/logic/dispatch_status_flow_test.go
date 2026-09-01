@@ -20,7 +20,8 @@ func seedDispatch(t *testing.T, svcCtx *svc.ServiceContext, orderID uint64) {
 	}
 }
 
-// TestRejectDispatchFlow 鎷掑崟锛氳鍙告満璁板綍缃?Rejected锛屽叾浠栧€欓€変粛涓?Pending锛岄噸澶嶆嫆鍗曟姤閿欍€?
+// TestRejectDispatchFlow verifies rejecting a dispatch marks only that driver's
+// record as rejected while other candidates stay pending.
 func TestRejectDispatchFlow(t *testing.T) {
 	ctx := context.Background()
 	svcCtx := newDispatchTestSvcCtx()
@@ -59,13 +60,14 @@ func TestRejectDispatchFlow(t *testing.T) {
 		t.Fatalf("other candidates should stay Pending, got %+v", statusByDriver)
 	}
 
-	// 閲嶅鎷掑崟锛氳褰曞凡闈?Pending锛屽簲鎶ヨ褰曚笉瀛樺湪銆?
+	// Repeated rejection should fail because the record is no longer pending.
 	if _, err := l.RejectDispatch(&proto.RejectDispatchRequest{OrderId: 1, DriverId: 9001}); !errors.Is(err, repository.ErrDispatchRecordNotFound) {
 		t.Fatalf("RejectDispatch() second error = %v, want ErrDispatchRecordNotFound", err)
 	}
 }
 
-// TestCancelDispatchFlow 璁㈠崟鍙栨秷锛氬叏閮?Pending 娲惧崟璁板綍鍚屾缃负 Cancelled銆?
+// TestCancelDispatchFlow verifies order cancellation marks all pending dispatch
+// records as cancelled.
 func TestCancelDispatchFlow(t *testing.T) {
 	ctx := context.Background()
 	svcCtx := newDispatchTestSvcCtx()
@@ -93,7 +95,7 @@ func TestCancelDispatchFlow(t *testing.T) {
 		}
 	}
 
-	// 骞傜瓑锛氬啀娆″彇娑堜笉褰卞搷宸插彇娑堣褰曘€?
+	// Repeated cancellation is idempotent for already-cancelled records.
 	again, err := l.CancelDispatch(&proto.CancelDispatchRequest{OrderId: 2})
 	if err != nil {
 		t.Fatalf("CancelDispatch() again error = %v", err)
@@ -103,7 +105,8 @@ func TestCancelDispatchFlow(t *testing.T) {
 	}
 }
 
-// TestListTimeoutPendingOrdersNoTimeout 鏂版淳鍗曟湭瓒呮椂鏃讹紝瓒呮椂鎵弿涓嶅簲杩斿洖浠讳綍璁㈠崟銆?
+// TestListTimeoutPendingOrdersNoTimeout verifies fresh pending dispatches are
+// not returned by timeout scanning.
 func TestListTimeoutPendingOrdersNoTimeout(t *testing.T) {
 	ctx := context.Background()
 	svcCtx := newDispatchTestSvcCtx()

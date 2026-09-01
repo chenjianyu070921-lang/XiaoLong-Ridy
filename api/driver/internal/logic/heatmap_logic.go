@@ -2,11 +2,9 @@ package logic
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
-	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
@@ -14,7 +12,6 @@ import (
 
 const (
 	heatmapGridSizeMeters  = 200.0
-	heatmapCacheTTL        = 3 * time.Second
 	maxHeatmapRadiusMeters = 5000.0
 )
 
@@ -35,10 +32,6 @@ func (l *HeatmapLogic) GetOrderHeatmap(driverID int64, req *types.HeatmapRequest
 	if radius > maxHeatmapRadiusMeters {
 		radius = maxHeatmapRadiusMeters
 	}
-	if cached, ok := l.getCached(req.Longitude, req.Latitude, radius); ok {
-		cached.Cached = true
-		return cached, nil
-	}
 	if l.svcCtx == nil || l.svcCtx.HeatmapRepository == nil {
 		return nil, ErrHeatmapStorageNotConfigured
 	}
@@ -51,7 +44,6 @@ func (l *HeatmapLogic) GetOrderHeatmap(driverID int64, req *types.HeatmapRequest
 		RadiusMeters:   radius,
 		GridSizeMeters: int64(heatmapGridSizeMeters),
 	}
-	l.setCached(req.Longitude, req.Latitude, radius, resp)
 	return resp, nil
 }
 
@@ -98,37 +90,6 @@ func aggregateHeatmapPoints(centerLon, centerLat, radiusMeters float64, location
 		return points[i].Weight > points[j].Weight
 	})
 	return points
-}
-
-func (l *HeatmapLogic) getCached(longitude, latitude, radiusMeters float64) (*types.HeatmapResponse, bool) {
-	if l.svcCtx == nil || l.svcCtx.RedisClient == nil {
-		return nil, false
-	}
-	raw, err := l.svcCtx.RedisClient.Get(l.ctx, heatmapCacheKey(longitude, latitude, radiusMeters)).Result()
-	if err != nil {
-		return nil, false
-	}
-	var resp types.HeatmapResponse
-	if err := json.Unmarshal([]byte(raw), &resp); err != nil {
-		return nil, false
-	}
-	return &resp, true
-}
-
-func (l *HeatmapLogic) setCached(longitude, latitude, radiusMeters float64, resp *types.HeatmapResponse) {
-	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || resp == nil {
-		return
-	}
-	payload, err := json.Marshal(resp)
-	if err != nil {
-		return
-	}
-	_ = l.svcCtx.RedisClient.Set(l.ctx, heatmapCacheKey(longitude, latitude, radiusMeters), payload, heatmapCacheTTL).Err()
-}
-
-func heatmapCacheKey(longitude, latitude, radiusMeters float64) string {
-	x, y := heatmapCell(longitude, latitude)
-	return fmt.Sprintf("driver:order:heatmap:%d:%d:%d", x, y, int64(math.Ceil(radiusMeters/100))*100)
 }
 
 func heatmapCell(longitude, latitude float64) (int64, int64) {

@@ -61,6 +61,14 @@ type UpdateDriverResponse {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
+type UploadDriverAvatarRequest {
+	Avatar string `json:"avatar"`
+}
+
+type UploadDriverAvatarResponse {
+	AvatarURL string `json:"avatarUrl"`
+}
+
 type GetDriverRequest {
 	ID int64 `form:"id"`
 }
@@ -636,6 +644,9 @@ service driver-api {
 
 	@handler UpdateDriverHandler
 	post /api/driver/v1/drivers/update (UpdateDriverRequest) returns (UpdateDriverResponse)
+
+	@handler UploadDriverAvatarHandler
+	post /api/driver/v1/drivers/avatar/upload (UploadDriverAvatarRequest) returns (UploadDriverAvatarResponse)
 
 	@handler GetDriverHandler
 	get /api/driver/v1/drivers/get (GetDriverRequest) returns (GetDriverResponse)

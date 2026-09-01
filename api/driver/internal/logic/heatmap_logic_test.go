@@ -6,9 +6,6 @@ import (
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
-
-	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
 )
 
 type fakeHeatmapRepository struct {
@@ -23,7 +20,7 @@ func (f *fakeHeatmapRepository) ListWaitAcceptOrderLocations(_ context.Context, 
 	return f.rows, nil
 }
 
-func TestGetOrderHeatmapAggregatesAndCaches(t *testing.T) {
+func TestGetOrderHeatmapAggregatesWaitAcceptOrders(t *testing.T) {
 	repo := &fakeHeatmapRepository{
 		rows: []svc.HeatmapOrderLocation{
 			{Longitude: 116.397000, Latitude: 39.908000},
@@ -31,10 +28,7 @@ func TestGetOrderHeatmapAggregatesAndCaches(t *testing.T) {
 			{Longitude: 116.410000, Latitude: 39.908000},
 		},
 	}
-	mr := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	defer rdb.Close()
-	logic := NewHeatmapLogic(context.Background(), &svc.ServiceContext{HeatmapRepository: repo, RedisClient: rdb})
+	logic := NewHeatmapLogic(context.Background(), &svc.ServiceContext{HeatmapRepository: repo})
 	req := &types.HeatmapRequest{
 		Longitude:    116.397,
 		Latitude:     39.908,
@@ -54,16 +48,42 @@ func TestGetOrderHeatmapAggregatesAndCaches(t *testing.T) {
 	if resp.Points[0].Weight != 2 || resp.Points[1].Weight != 1 {
 		t.Fatalf("GetOrderHeatmap() weights = %+v, want [2 1]", resp.Points)
 	}
+	if repo.calls != 1 {
+		t.Fatalf("repository calls = %d, want 1", repo.calls)
+	}
+}
 
+func TestGetOrderHeatmapReadsFreshWaitAcceptOrders(t *testing.T) {
+	repo := &fakeHeatmapRepository{
+		rows: []svc.HeatmapOrderLocation{
+			{Longitude: 116.397000, Latitude: 39.908000},
+		},
+	}
+	logic := NewHeatmapLogic(context.Background(), &svc.ServiceContext{HeatmapRepository: repo})
+	req := &types.HeatmapRequest{
+		Longitude:    116.397,
+		Latitude:     39.908,
+		RadiusMeters: 2000,
+	}
+
+	first, err := logic.GetOrderHeatmap(25, req)
+	if err != nil {
+		t.Fatalf("first GetOrderHeatmap() error = %v", err)
+	}
+	if len(first.Points) != 1 {
+		t.Fatalf("first GetOrderHeatmap() points = %+v, want one point", first.Points)
+	}
+
+	repo.rows = nil
 	second, err := logic.GetOrderHeatmap(25, req)
 	if err != nil {
 		t.Fatalf("second GetOrderHeatmap() error = %v", err)
 	}
-	if repo.calls != 1 {
-		t.Fatalf("repository calls = %d, want 1 due to short cache", repo.calls)
+	if repo.calls != 2 {
+		t.Fatalf("repository calls = %d, want 2 fresh reads", repo.calls)
 	}
-	if len(second.Points) != len(resp.Points) || second.Points[0].Weight != resp.Points[0].Weight {
-		t.Fatalf("cached response = %+v, want %+v", second, resp)
+	if len(second.Points) != 0 {
+		t.Fatalf("second GetOrderHeatmap() points = %+v, want no stale accepted order point", second.Points)
 	}
 }
 

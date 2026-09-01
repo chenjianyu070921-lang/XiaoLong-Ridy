@@ -16,6 +16,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/jwtx"
+	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
@@ -84,9 +85,13 @@ func TestAgentChatEndpointRequiresDriverTokenAndRunsAgent(t *testing.T) {
 
 type pollingOrderClient struct {
 	listOrdersRequest *orderproto.ListOrdersRequest
+	getOrderResponse  *orderproto.GetOrderResponse
 }
 
 func (p *pollingOrderClient) GetOrder(context.Context, *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
+	if p.getOrderResponse != nil {
+		return p.getOrderResponse, nil
+	}
 	return nil, nil
 }
 
@@ -126,6 +131,23 @@ func (p *pollingOrderClient) ConfirmArrive(context.Context, *orderproto.ConfirmA
 
 func (p *pollingOrderClient) FinishTrip(context.Context, *orderproto.FinishTripRequest) (*orderproto.FinishTripResponse, error) {
 	return nil, nil
+}
+
+type pollingDispatchClient struct {
+	listRequest  *dispatchproto.ListDispatchRecordsRequest
+	listResponse *dispatchproto.ListDispatchRecordsResponse
+}
+
+func (p *pollingDispatchClient) RejectDispatch(context.Context, *dispatchproto.RejectDispatchRequest) (*dispatchproto.RejectDispatchResponse, error) {
+	return nil, nil
+}
+
+func (p *pollingDispatchClient) ListDispatchRecords(_ context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
+	p.listRequest = req
+	if p.listResponse != nil {
+		return p.listResponse, nil
+	}
+	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{}, Total: 0, Page: req.GetPage(), PageSize: req.GetPageSize()}, nil
 }
 
 func TestLoadDriverConfigReadsYamlAndEnvCanOverride(t *testing.T) {
@@ -192,6 +214,70 @@ func TestCertificationFilesRouteServesLocalStoredImages(t *testing.T) {
 	}
 	if response.Body.String() != "png-data" {
 		t.Fatalf("body = %q", response.Body.String())
+	}
+}
+
+func TestDriverAvatarUploadRequiresDriverToken(t *testing.T) {
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "avatar-route-auth-test-key"})
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/drivers/avatar/upload", bytes.NewBufferString(`{
+		"avatar": "data:image/png;base64,aGVsbG8="
+	}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("avatar upload status = %d, want %d: %s", response.Code, http.StatusUnauthorized, response.Body.String())
+	}
+}
+
+func TestDriverAvatarUploadStoresLocalImageAndReturnsURL(t *testing.T) {
+	const signingKey = "avatar-upload-test-key"
+	dir := t.TempDir()
+	t.Setenv("DRIVER_AVATAR_LOCAL_DIR", dir)
+
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: signingKey})
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/drivers/avatar/upload", bytes.NewBufferString(`{
+		"avatar": "data:image/png;base64,aGVsbG8="
+	}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("avatar upload status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			AvatarURL string `json:"avatarUrl"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Data.AvatarURL == "" || !strings.HasPrefix(body.Data.AvatarURL, "/api/driver/v1/avatar-files/drivers/25/avatar-") || !strings.HasSuffix(body.Data.AvatarURL, ".png") {
+		t.Fatalf("avatarUrl = %q, want local avatar file URL", body.Data.AvatarURL)
+	}
+
+	storedPath := filepath.Join(dir, filepath.FromSlash(strings.TrimPrefix(body.Data.AvatarURL, "/api/driver/v1/avatar-files/")))
+	data, err := os.ReadFile(storedPath)
+	if err != nil {
+		t.Fatalf("avatar file was not stored: %v", err)
+	}
+	if string(data) != "hello" {
+		t.Fatalf("stored avatar data = %q, want %q", string(data), "hello")
 	}
 }
 
@@ -271,6 +357,29 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 				t.Fatalf("route is not externally callable, status = %d: %s", response.Code, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestGetDriverRouteRejectsNonGetMethod(t *testing.T) {
+	const signingKey = "driver-get-method-test-key"
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: signingKey})
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/drivers/get", bytes.NewBufferString(`{}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST /drivers/get status = %d, want %d: %s", response.Code, http.StatusMethodNotAllowed, response.Body.String())
 	}
 }
 
@@ -422,6 +531,83 @@ func TestDriverPushWebSocketPollsAssignedOrdersWithoutRedisPublisher(t *testing.
 	}
 	if orderClient.listOrdersRequest.GetDriverId() != 25 {
 		t.Fatalf("ListOrders() driver id = %d, want 25", orderClient.listOrdersRequest.GetDriverId())
+	}
+}
+
+func TestDriverPushWebSocketSkipsRedisOrderWithoutPendingDispatch(t *testing.T) {
+	const signingKey = "driver-ws-pending-dispatch-test-key"
+	redisServer := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	defer rdb.Close()
+
+	if err := rdb.SAdd(context.Background(), fmt.Sprintf(constants.RedisDriverAvailable, 25), "1001").Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	orderClient := &pollingOrderClient{getOrderResponse: &orderproto.GetOrderResponse{
+		OrderId:             1001,
+		OrderNo:             "NO-1001",
+		FromAddress:         "from",
+		ToAddress:           "to",
+		Status:              orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+		EstimatedPriceCents: 29900,
+		CreatedAt:           123,
+	}}
+	dispatchClient := &pollingDispatchClient{listResponse: &dispatchproto.ListDispatchRecordsResponse{
+		List: []*dispatchproto.DispatchRecord{},
+	}}
+	server := httptest.NewServer(newHTTPHandler(&svc.ServiceContext{
+		SigningKey:       signingKey,
+		RedisClient:      rdb,
+		OrderClient:      orderClient,
+		DispatchClient:   dispatchClient,
+		PushPollInterval: 10 * time.Millisecond,
+		PushPollPageSize: 20,
+	}))
+	defer server.Close()
+
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/driver/v1/ws?token=" + token
+	conn, err := websocket.Dial(wsURL, "", server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	var ack struct {
+		Type     string `json:"type"`
+		Degraded bool   `json:"degraded"`
+	}
+	if err := websocket.JSON.Receive(conn, &ack); err != nil {
+		t.Fatal(err)
+	}
+	if ack.Type != "connected" || ack.Degraded {
+		t.Fatalf("unexpected ws ack: %+v", ack)
+	}
+
+	_ = conn.SetReadDeadline(time.Now().Add(80 * time.Millisecond))
+	var msg struct {
+		Type    string `json:"type"`
+		OrderID int64  `json:"orderId"`
+	}
+	if err := websocket.JSON.Receive(conn, &msg); err == nil {
+		t.Fatalf("unexpected ws message without pending dispatch: %+v", msg)
+	}
+
+	if dispatchClient.listRequest == nil {
+		t.Fatal("ListDispatchRecords() was not called")
+	}
+	if dispatchClient.listRequest.GetDriverId() != 25 || dispatchClient.listRequest.GetStatus() != constants.DispatchStatusPending {
+		t.Fatalf("ListDispatchRecords() request = %+v, want current driver's pending dispatch records", dispatchClient.listRequest)
 	}
 }
 

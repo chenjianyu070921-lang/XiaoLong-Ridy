@@ -333,9 +333,6 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 	if err != nil {
 		return emptyOrderList(page, pageSize), nil
 	}
-	if len(orderIDStrs) == 0 {
-		return emptyOrderList(page, pageSize), nil
-	}
 
 	orderClient, err := l.orderClient()
 	if err != nil {
@@ -344,6 +341,12 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 	pendingDispatches, err := l.pendingDispatchOrderIDs(driverID)
 	if err != nil {
 		return nil, err
+	}
+	if len(orderIDStrs) == 0 {
+		orderIDStrs = orderIDStringsFromPendingDispatches(pendingDispatches)
+		if len(orderIDStrs) == 0 {
+			return emptyOrderList(page, pageSize), nil
+		}
 	}
 	items := l.availableOrdersFromAssignedSet(orderClient, orderIDStrs, pendingDispatches, driverID, driverLongitude, driverLatitude)
 	sort.SliceStable(items, func(i, j int) bool {
@@ -383,6 +386,17 @@ func (l *OrderLogic) pendingDispatchOrderIDs(driverID int64) (map[int64]struct{}
 		}
 	}
 	return pending, nil
+}
+
+func orderIDStringsFromPendingDispatches(pending map[int64]struct{}) []string {
+	orderIDStrs := make([]string, 0, len(pending))
+	for orderID := range pending {
+		if orderID > 0 {
+			orderIDStrs = append(orderIDStrs, strconv.FormatInt(orderID, 10))
+		}
+	}
+	sort.Strings(orderIDStrs)
+	return orderIDStrs
 }
 
 func (l *OrderLogic) availableOrdersFromAssignedSet(orderClient svc.OrderClient, orderIDStrs []string, pendingDispatches map[int64]struct{}, driverID int64, driverLongitude, driverLatitude float64) []types.OrderBrief {

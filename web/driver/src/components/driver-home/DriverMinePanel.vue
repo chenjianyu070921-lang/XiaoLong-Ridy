@@ -9,10 +9,9 @@
     <DriverProfilePanel
       v-if="activeSection === 'profile'"
       :driver-store="driverStore"
-      :profile-form="profileForm"
       :format-driver-status="formatDriverStatus"
       @refresh-dashboard="$emit('refresh-dashboard')"
-      @submit-profile="$emit('submit-profile')"
+      @edit-profile="$emit('edit-profile')"
     />
     <DriverReviewsPanel
       v-else-if="activeSection === 'reviews'"
@@ -40,7 +39,6 @@ import DriverTrajectoryPanel from './DriverTrajectoryPanel.vue'
 
 const props = defineProps({
   driverStore: { type: Object, required: true },
-  profileForm: { type: Object, required: true },
   reviews: { type: Array, required: true },
   trajectoryOrderId: { type: [String, Number], required: true },
   trajectoryError: { type: String, required: true },
@@ -52,7 +50,7 @@ const props = defineProps({
 
 defineEmits([
   'refresh-dashboard',
-  'submit-profile',
+  'edit-profile',
   'load-reviews',
   'update:trajectoryOrderId',
   'load-trajectory'

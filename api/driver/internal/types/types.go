@@ -89,6 +89,14 @@ type UpdateDriverResponse struct {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
+type UploadDriverAvatarRequest struct {
+	Avatar string `json:"avatar"`
+}
+
+type UploadDriverAvatarResponse struct {
+	AvatarURL string `json:"avatarUrl"`
+}
+
 type GetDriverRequest struct {
 	ID int64 `form:"id"`
 }

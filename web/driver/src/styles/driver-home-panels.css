@@ -1,5 +1,3 @@
-.hero-topline,
-.driver-profile-row,
 .work-action-card,
 .section-title,
 .section-subtitle,
@@ -11,13 +9,9 @@
   gap: 12px;
 }
 
-.hero-metric-card,
-.quick-entry-row,
 .work-action-card,
-.work-status-card,
 .home-order-section,
 .income-today-card,
-.mini-stat-grid,
 .h5-panel,
 .current-trip-card,
 .order-card,
@@ -415,8 +409,6 @@
 
 .income-today-card span,
 .income-today-card small,
-.hero-metric-card span,
-.mini-stat-grid span,
 .work-action-card span,
 .income-grid span,
 .meta-row,
@@ -447,14 +439,12 @@
   font-weight: 800;
 }
 
-.mini-stat-grid,
 .income-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
-.mini-stat-grid div,
 .income-grid div {
   min-width: 0;
   padding: 14px 10px;
@@ -464,8 +454,6 @@
   text-align: center;
 }
 
-.hero-metric-card strong,
-.mini-stat-grid strong,
 .income-grid strong {
   display: block;
   margin-top: 8px;
