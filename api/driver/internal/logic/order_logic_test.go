@@ -441,6 +441,67 @@ func TestListAvailableOrdersReturnsEmptyWhenDriverOffline(t *testing.T) {
 	}
 }
 
+func TestListAvailableOrdersFallsBackToWaitAcceptOrdersWhenAvailableSetEmpty(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "116.397",
+		"latitude":  "39.908",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	client := &fakeOrderClient{
+		listOrdersResponse: &orderproto.ListOrdersResponse{
+			List: []*orderproto.OrderSummary{
+				{
+					OrderId:             1001,
+					OrderNo:             "nearby",
+					FromAddress:         "pickup",
+					FromLongitude:       116.398,
+					FromLatitude:        39.908,
+					ToAddress:           "destination",
+					Status:              orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+					EstimatedPriceCents: 29900,
+					CreatedAt:           100,
+				},
+				{
+					OrderId:             1002,
+					OrderNo:             "too-far",
+					FromAddress:         "pickup",
+					FromLongitude:       116.520,
+					FromLatitude:        39.908,
+					ToAddress:           "destination",
+					Status:              orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+					EstimatedPriceCents: 39900,
+					CreatedAt:           90,
+				},
+			},
+			Total:    2,
+			Page:     1,
+			PageSize: 100,
+		},
+	}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if client.listOrdersRequest == nil ||
+		client.listOrdersRequest.GetDriverId() != 0 ||
+		client.listOrdersRequest.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
+		t.Fatalf("ListAvailableOrders() should query global wait-accept orders, got %+v", client.listOrdersRequest)
+	}
+	if resp.Total != 1 || len(resp.List) != 1 || resp.List[0].OrderID != 1001 || resp.List[0].DistanceMeters <= 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want one nearby fallback order", resp)
+	}
+}
+
 // TestListAvailableOrdersFiltersAndSortsByDriverPosition 验证距离过滤与排序仍然生效（新逻辑保留距离计算）。
 func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	mr := miniredis.RunT(t)

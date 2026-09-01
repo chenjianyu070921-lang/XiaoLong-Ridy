@@ -7,6 +7,7 @@ import {
   registerDriver,
   updateDriver
 } from '@/api/driver'
+import { resolveDriverVehicleId } from '@/utils/vehicle'
 
 function readJSON(key, fallback = null) {
   try {
@@ -35,9 +36,11 @@ export const useDriverStore = defineStore('driver', () => {
     token.value = data.token || token.value
     driver.value = data.driver || driver.value || {}
     onlineStatus.value = Number(driver.value?.onlineStatus ?? onlineStatus.value ?? 0)
+    vehicleId.value = resolveDriverVehicleId(driver.value, vehicle.value)
     if (token.value) localStorage.setItem('driverToken', token.value)
     localStorage.setItem('driverProfile', JSON.stringify(driver.value))
     localStorage.setItem('driverOnlineStatus', String(onlineStatus.value))
+    if (vehicleId.value > 0) localStorage.setItem('driverVehicleId', String(vehicleId.value))
   }
 
   async function loginPassword(phone, password, config = {}) {
@@ -60,8 +63,10 @@ export const useDriverStore = defineStore('driver', () => {
     const res = await getDriver(config)
     driver.value = res.driver || res
     onlineStatus.value = Number(driver.value?.onlineStatus ?? onlineStatus.value ?? 0)
+    vehicleId.value = resolveDriverVehicleId(driver.value, vehicle.value)
     localStorage.setItem('driverProfile', JSON.stringify(driver.value))
     localStorage.setItem('driverOnlineStatus', String(onlineStatus.value))
+    if (vehicleId.value > 0) localStorage.setItem('driverVehicleId', String(vehicleId.value))
     return res
   }
 

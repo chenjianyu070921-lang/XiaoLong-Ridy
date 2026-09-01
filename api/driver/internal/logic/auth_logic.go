@@ -112,9 +112,10 @@ func toLoginResponse(resp *driversproto.LoginResponse) *types.LoginResponse {
 		Token:    resp.GetToken(),
 		ExpireIn: resp.GetExpireIn(),
 		Driver: types.DriverBrief{
-			ID:     d.GetId(),
-			Phone:  jwtx.MaskPhone(d.GetPhone()),
-			Status: d.GetStatus().String(),
+			ID:        d.GetId(),
+			Phone:     jwtx.MaskPhone(d.GetPhone()),
+			Status:    d.GetStatus().String(),
+			VehicleID: d.GetVehicleId(),
 		},
 	}
 }

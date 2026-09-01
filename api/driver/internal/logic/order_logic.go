@@ -324,6 +324,11 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 	}
 	driverLongitude, driverLatitude, _ := parseDriverPosition(pos)
 
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+
 	// 读取派给当前司机的订单 ID 集合（dispatch_consumer 在派单时 SAdd，90s TTL）
 	availableKey := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
 	orderIDStrs, err := l.svcCtx.RedisClient.SMembers(l.ctx, availableKey).Result()
@@ -331,11 +336,29 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 		return emptyOrderList(page, pageSize), nil
 	}
 
-	orderClient, err := l.orderClient()
-	if err != nil {
-		return nil, err
+	var items []types.OrderBrief
+	if len(orderIDStrs) > 0 {
+		items = l.availableOrdersFromAssignedSet(orderClient, orderIDStrs, driverLongitude, driverLatitude)
+	} else {
+		items = l.availableOrdersFromWaitAcceptList(orderClient, driverLongitude, driverLatitude)
 	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].DistanceMeters == items[j].DistanceMeters {
+			return items[i].CreatedAt < items[j].CreatedAt
+		}
+		return items[i].DistanceMeters < items[j].DistanceMeters
+	})
+	total := int64(len(items))
+	items = paginateOrderBriefs(items, page, pageSize)
+	return &types.ListMyOrdersResponse{
+		List:     items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
 
+func (l *OrderLogic) availableOrdersFromAssignedSet(orderClient svc.OrderClient, orderIDStrs []string, driverLongitude, driverLatitude float64) []types.OrderBrief {
 	items := make([]types.OrderBrief, 0, len(orderIDStrs))
 	for _, idStr := range orderIDStrs {
 		orderID, err := strconv.ParseInt(idStr, 10, 64)
@@ -368,20 +391,42 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 			CreatedAt:           detail.GetCreatedAt(),
 		})
 	}
-	sort.SliceStable(items, func(i, j int) bool {
-		if items[i].DistanceMeters == items[j].DistanceMeters {
-			return items[i].CreatedAt < items[j].CreatedAt
-		}
-		return items[i].DistanceMeters < items[j].DistanceMeters
+	return items
+}
+
+func (l *OrderLogic) availableOrdersFromWaitAcceptList(orderClient svc.OrderClient, driverLongitude, driverLatitude float64) []types.OrderBrief {
+	resp, err := orderClient.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
+		Status:   orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT,
+		Page:     1,
+		PageSize: 100,
 	})
-	total := int64(len(items))
-	items = paginateOrderBriefs(items, page, pageSize)
-	return &types.ListMyOrdersResponse{
-		List:     items,
-		Total:    total,
-		Page:     page,
-		PageSize: pageSize,
-	}, nil
+	if err != nil {
+		return []types.OrderBrief{}
+	}
+	items := make([]types.OrderBrief, 0, len(resp.GetList()))
+	for _, order := range resp.GetList() {
+		if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
+			continue
+		}
+		distance := 0.0
+		if driverLongitude != 0 || driverLatitude != 0 {
+			distance = haversineMeters(driverLongitude, driverLatitude, order.GetFromLongitude(), order.GetFromLatitude())
+		}
+		if distance > availableOrderRadiusMeters {
+			continue
+		}
+		items = append(items, types.OrderBrief{
+			OrderID:             order.GetOrderId(),
+			OrderNo:             order.GetOrderNo(),
+			FromAddress:         order.GetFromAddress(),
+			ToAddress:           order.GetToAddress(),
+			Status:              int32(order.GetStatus()),
+			EstimatedPriceCents: order.GetEstimatedPriceCents(),
+			DistanceMeters:      int64(math.Round(distance)),
+			CreatedAt:           order.GetCreatedAt(),
+		})
+	}
+	return items
 }
 
 const availableOrderRadiusMeters = 3000.0
