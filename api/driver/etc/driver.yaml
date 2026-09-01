@@ -1,6 +1,8 @@
 # driver api 服务配置
-# HTTP 监听地址（可通过环境变量 DRIVER_HTTP_ADDR 覆盖，如 :8082）
-httpAddr: ":8082"
+# HTTP 监听地址（可通过环境变量 DRIVER_HTTP_ADDR 覆盖，如 :18082）
+# 默认端口从 8082 改为 18082：8082 在部分 Windows 机器上会被 QQ 等客户端抢注，
+# 导致 driver-api 只能 bind 到 IPv6，前端/proxy 走 127.0.0.1 时打到占用进程返回 404。
+httpAddr: ":18082"
 # 下游 driversvc gRPC 地址（可通过环境变量 DRIVER_GRPC_ADDR 覆盖）
 # 必须与 rpc/driversvc/etc/driversvc.yaml 的 ListenOn 保持一致（均为 50055），否则联调时连接失败。
 driverGrpcAddr: "127.0.0.1:50055"
