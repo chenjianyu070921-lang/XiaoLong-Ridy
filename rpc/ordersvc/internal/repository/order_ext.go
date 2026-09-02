@@ -14,13 +14,12 @@ import (
 // CompleteOrder 条件更新待支付订单为已完成，写入完成日志，并落库实付金额。
 func (r *gormOrderRepository) CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 从支付确认日志中读取实付金额，状态、金额和状态日志必须在同一事务提交。
+		paidCents := statusLog.PaidCents
 		res := tx.Model(&model.RideOrder{}).
 			Where("id = ? AND status = ? AND deleted_at IS NULL", orderID, constants.OrderStatusWaitPay).
-			Updates(map[string]interface{}{
-				"status":     constants.OrderStatusCompleted,
-				"paid_cents": paidCents,
-				"updated_at": time.Now(),
-			})
+			Updates(map[string]interface{}{"status": constants.OrderStatusCompleted, "paid_cents": paidCents, "updated_at": time.Now()})
+
 		if res.Error != nil {
 			return res.Error
 		}

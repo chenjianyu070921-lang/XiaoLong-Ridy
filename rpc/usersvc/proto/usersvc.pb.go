@@ -2761,6 +2761,9 @@ type ChangeWalletRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Amount        float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	OrderId       uint64                 `protobuf:"varint,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"` // 订单支付/退款关联的订单 ID
+	Type          string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`                       // 业务流水类型
+	Title         string                 `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`                     // 流水标题
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2807,6 +2810,27 @@ func (x *ChangeWalletRequest) GetAmount() float64 {
 		return x.Amount
 	}
 	return 0
+}
+
+func (x *ChangeWalletRequest) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *ChangeWalletRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ChangeWalletRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
 }
 
 // ChangeWalletResponse 钱包变更后的余额和新增流水。
@@ -3078,10 +3102,13 @@ const file_rpc_usersvc_proto_usersvc_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x18\n" +
 	"\abalance\x18\x02 \x01(\x01R\abalance\x12>\n" +
 	"\ftransactions\x18\x03 \x03(\v2\x1a.usersvc.WalletTransactionR\ftransactions\x12\x14\n" +
-	"\x05total\x18\x04 \x01(\x03R\x05total\"F\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"\x8b\x01\n" +
 	"\x13ChangeWalletRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\x01R\x06amount\"\x88\x01\n" +
+	"\x06amount\x18\x02 \x01(\x01R\x06amount\x12\x19\n" +
+	"\border_id\x18\x03 \x01(\x04R\aorderId\x12\x12\n" +
+	"\x04type\x18\x04 \x01(\tR\x04type\x12\x14\n" +
+	"\x05title\x18\x05 \x01(\tR\x05title\"\x88\x01\n" +
 	"\x14ChangeWalletResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\abalance\x18\x02 \x01(\x01R\abalance\x12<\n" +

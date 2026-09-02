@@ -370,6 +370,9 @@ message GetWalletResponse {
 message ChangeWalletRequest {
   uint64 user_id = 1;
   double amount = 2;
+  uint64 order_id = 3; // 订单支付/退款关联的订单 ID
+  string type = 4; // 业务流水类型
+  string title = 5; // 流水标题
 }
 
 // ChangeWalletResponse 钱包变更后的余额和新增流水。

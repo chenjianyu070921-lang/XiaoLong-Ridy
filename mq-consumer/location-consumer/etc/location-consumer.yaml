@@ -4,7 +4,8 @@ Kafka:
   Brokers:
     - 115.191.16.159:9092
   Topic: location-report
-Group: location-consumer-group
+  # 当前消费者实际读取 Redis Stream，但保留该字段满足配置校验并兼容旧配置。
+  Group: location-consumer-group
 
 # Redis GEO 城市桶编码，需与 dispatchsvc.defaultCityCode 保持一致。
 defaultCityCode: "321300"
@@ -14,6 +15,9 @@ Redis:
   pass: "4ay1nkal3u8ed77y"
   db: 0
   poolSize: 20
+  dialTimeout: 0
+  readTimeout: 0
+  writeTimeout: 0
 
 Log:
   ServiceName: location-consumer

@@ -149,7 +149,8 @@ const ensureAMapReady = async () => {
   }
   try {
     if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
-    AMapSDK.value = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.PlaceSearch', 'AMap.InputTips'] })
+    // 高德 JS API 2.0 使用 AutoComplete 提供关键词提示，InputTips 不是可实例化构造器。
+    AMapSDK.value = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.PlaceSearch', 'AMap.AutoComplete'] })
     return true
   } catch (error) {
     console.error('高德地址搜索初始化失败:', error)
@@ -205,7 +206,7 @@ const searchPoi = async (keyword) => {
     if (pending <= 0 && sequence === searchSequence) poiLoading.value = false
   }
   try {
-    new AMapSDK.value.InputTips({ pageSize: 10 }).search(keyword, (status, result) => {
+    new AMapSDK.value.AutoComplete({ pageSize: 10 }).search(keyword, (status, result) => {
       if (status === 'complete' && Array.isArray(result?.tips)) addResults(result.tips)
       finish()
     })

@@ -158,7 +158,7 @@ httpAddr: ":18082"
 driverGrpcAddr: "driversvc:5055"
 orderGrpcAddr: "ordersvc:50051"
 dispatchGrpcAddr: "dispatchsvc:50056"
-locationGrpcAddr: "locationsvc:9001"
+locationGrpcAddr: "locationsvc:50057"
 redisAddr: "redis:6379"
 `), 0o600); err != nil {
 		t.Fatal(err)
@@ -170,7 +170,7 @@ redisAddr: "redis:6379"
 	}
 	if cfg.HTTPAddr != ":18082" || cfg.DriverGRPCAddr != "driversvc:5055" ||
 		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.DispatchGRPCAddr != "dispatchsvc:50056" ||
-		cfg.LocationGRPCAddr != "locationsvc:9001" || cfg.RedisAddr != "redis:6379" {
+		cfg.LocationGRPCAddr != "locationsvc:50057" || cfg.RedisAddr != "redis:6379" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 
@@ -188,7 +188,7 @@ func TestLoadDriverConfigDefaultsUseSharedBackendServer(t *testing.T) {
 	if cfg.DriverGRPCAddr != "115.191.16.159:50055" ||
 		cfg.OrderGRPCAddr != "115.191.16.159:50051" ||
 		cfg.DispatchGRPCAddr != "115.191.16.159:50056" ||
-		cfg.LocationGRPCAddr != "115.191.16.159:9001" {
+		cfg.LocationGRPCAddr != "115.191.16.159:50057" {
 		t.Fatalf("unexpected default backend addresses: %+v", cfg)
 	}
 }

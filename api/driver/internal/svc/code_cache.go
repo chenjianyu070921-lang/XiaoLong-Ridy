@@ -81,6 +81,10 @@ func (c *RedisCodeCache) key(phone string) string {
 }
 
 func (c *RedisCodeCache) Set(phone, code string) {
+	// Redis 未成功初始化时直接忽略写入，避免空指针 panic；调用方会在后续校验阶段返回验证码无效。
+	if c == nil || c.rdb == nil {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	// 覆盖式写入：重复发送时以最新验证码为准，避免日志与存储不一致。
@@ -88,6 +92,10 @@ func (c *RedisCodeCache) Set(phone, code string) {
 }
 
 func (c *RedisCodeCache) Verify(phone, code string) bool {
+	// 防御性处理 nil 客户端，保证异常配置不会被恢复中间件包装成无上下文的 500。
+	if c == nil || c.rdb == nil {
+		return false
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	k := c.key(phone)

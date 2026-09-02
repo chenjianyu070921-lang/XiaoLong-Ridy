@@ -39,19 +39,38 @@ func (l *WalletLogic) GetWallet(req *userproto.GetWalletRequest) (*userproto.Get
 
 // RechargeWallet 充值并在同一事务写入余额与充值流水。
 func (l *WalletLogic) RechargeWallet(req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
-	return l.change(req, "recharge", "钱包充值", req.GetAmount())
+	// 先由 change 统一校验 nil 请求，避免直接读取 req 导致空指针 500。
+	var amount float64
+	if req != nil {
+		amount = req.GetAmount()
+	}
+	return l.change(req, "recharge", "钱包充值", amount)
 }
 
 // WithdrawWallet 提现并在同一事务写入余额与提现流水。
 func (l *WalletLogic) WithdrawWallet(req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
-	return l.change(req, "withdraw", "钱包提现", -req.GetAmount())
+	var amount float64
+	if req != nil {
+		amount = req.GetAmount()
+	}
+	typ, title := "withdraw", "钱包提现"
+	if req != nil && req.GetOrderId() > 0 {
+		typ, title = "order_payment", "订单支付"
+	}
+	return l.change(req, typ, title, -amount)
 }
 
 func (l *WalletLogic) change(req *userproto.ChangeWalletRequest, typ, title string, amount float64) (*userproto.ChangeWalletResponse, error) {
 	if req == nil || req.UserId == 0 || req.Amount <= 0 || req.Amount > 1000000 || l.svcCtx == nil || l.svcCtx.Wallets == nil {
 		return nil, fmt.Errorf("invalid wallet change")
 	}
-	if err := l.svcCtx.Wallets.Change(l.ctx, req.UserId, typ, title, amount, 0); err != nil {
+	if req.GetType() != "" {
+		typ = req.GetType()
+	}
+	if req.GetTitle() != "" {
+		title = req.GetTitle()
+	}
+	if err := l.svcCtx.Wallets.Change(l.ctx, req.UserId, typ, title, amount, req.GetOrderId()); err != nil {
 		return nil, err
 	}
 	wallet, err := l.svcCtx.Wallets.Get(l.ctx, req.UserId)

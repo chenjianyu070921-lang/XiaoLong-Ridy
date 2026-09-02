@@ -27,7 +27,8 @@
     <!-- 司机评分 -->
     <div class="rating-card">
       <h3>为司机评分</h3>
-      <p class="driver-name">{{ orderDetail.driverName }}</p>
+      <p class="driver-name">{{ orderDetail.driverDisplayName }}</p>
+      <p class="driver-plate">车牌号：{{ orderDetail.plateNumber || '暂未获取' }}</p>
       
       <van-rate 
         v-model="rating" 
@@ -74,6 +75,8 @@ const orderDetail = ref({
   orderNo: '--',
   payTime: '--',
   driverName: '司机信息加载中',
+  driverDisplayName: '司机师傅',
+  plateNumber: '',
   driverId: ''
 })
 
@@ -91,8 +94,15 @@ const mapOrderDetail = (data) => ({
   totalPrice: (Number(data?.paidCents || data?.payableCents || data?.estimatedPriceCents || 0) / 100).toFixed(2),
   orderNo: data?.orderNo || '--',
   // ordersvc 暂未提供支付完成时间，使用订单最近状态更新时间作为可追溯的完成时间。
-  payTime: data?.updatedAt ? new Date(Number(data.updatedAt) * 1000).toLocaleString() : '--',
-  driverName: data?.driverId ? `司机 #${data.driverId}` : '司机信息暂不可用',
+  // paidAt 由支付成功回调页传入，避免错误使用订单完成时间；直接刷新页面时才回退。
+  payTime: route.query.paidAt
+    ? new Date(Number(route.query.paidAt) * 1000).toLocaleString()
+    : (data?.paidAt ? new Date(Number(data.paidAt) * 1000).toLocaleString() : (data?.updatedAt ? new Date(Number(data.updatedAt) * 1000).toLocaleString() : '--')),
+  driverName: data?.driverName || '',
+  driverDisplayName: data?.driverName
+    ? `${String(data.driverName).replace(/司机|师傅/g, '').slice(0, 1)}师傅`
+    : (data?.driverId ? `司机${data.driverId}师傅` : '司机师傅'),
+  plateNumber: data?.plateNumber || data?.plateNo || '',
   driverId: data?.driverId || ''
 })
 
@@ -129,6 +139,8 @@ const submitRating = async () => {
   } catch (error) {
     closeToast()
     console.error('提交评价失败:', error)
+    // 请求拦截器已展示服务端错误，这里补充评价场景的明确提示，避免用户误以为按钮无响应。
+    showToast(error?.response?.data?.message || error?.message || '评价提交失败，请稍后重试')
   } finally {
     submitting.value = false
   }

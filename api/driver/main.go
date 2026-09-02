@@ -30,7 +30,7 @@ const defaultOrderGRPCAddr = "115.191.16.159:50051"
 
 const defaultDispatchGRPCAddr = "115.191.16.159:50056"
 
-const defaultLocationGRPCAddr = "115.191.16.159:9001"
+const defaultLocationGRPCAddr = "115.191.16.159:50057"
 
 const defaultRedisAddr = ""
 

@@ -127,7 +127,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 // newLocationsRPCClient 初始化 locationsvc 客户端，供后台订单详情轨迹回放查询。
 func newLocationsRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, locationsvcproto.LocationServiceClient, error) {
 	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
-		cfg.Target = "127.0.0.1:9001"
+		cfg.Target = "127.0.0.1:50057"
 	}
 	client, err := zrpc.NewClient(cfg)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"XiaoLong-Ridy/rpc/paysvc/internal/channel"
 	"XiaoLong-Ridy/rpc/paysvc/internal/config"
 	"XiaoLong-Ridy/rpc/paysvc/internal/orderclient"
+	usersv
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -21,6 +22,7 @@ type ServiceContext struct {
 	DB          *gorm.DB
 	Producer    mq.Producer             // Kafka 生产者
 	OrderClient orderclient.OrderClient // 订单服务客户端
+	UserClient  usersvc.UserClient      // 用户钱包客户端
 	Verifier    channel.SignVerifier    // 回调验签器
 	Redis       *redis.Client           // 退款幂等结果缓存
 }
@@ -57,6 +59,15 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		logx.Errorf("init ordersvc client failed: %v", err)
 	}
 	svcCtx.OrderClient = orderclient.NewRpcOrderClient(orderCli)
+	userTarget := c.Usersvc.Target
+	if userTarget == "" {
+		userTarget = "127.0.0.1:50052"
+	}
+	if userCli, userErr := zrpc.NewClient(zrpc.RpcClientConf{Target: userTarget, NonBlock: true}); userErr == nil {
+		svcCtx.UserClient = usersvc.NewUserClient(userCli.Conn())
+	} else {
+		logx.Errorf("init usersvc client failed: %v", userErr)
+	}
 
 	// 回调验签器（容错：密钥为空时降级为 MockVerifier）
 	svcCtx.Verifier = newVerifier(c.Alipay)

@@ -150,7 +150,7 @@ import { showToast } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { listAddresses } from '@/api/address'
 import { getOrders } from '@/api/order'
-import { geocodeAddress, reverseGeocodeLocation } from '@/api/location'
+import { geocodeAddress, reverseGeocodeLocation, getNearbyDrivers } from '@/api/location'
 import { cities, normalizeCityCode, readCurrentCity, readSelectedCity, saveCurrentCity, saveSelectedCity } from '@/data/cities'
 
 
@@ -166,6 +166,9 @@ const placeSearch = ref(null)
 const geocoder = ref(null)
 const geolocation = ref(null)
 const currentMarker = ref(null)
+// 附近司机覆盖物集合，刷新时整体替换，避免离线车辆残留在地图上。
+const nearbyDriverMarkers = ref([])
+let nearbyDriverTimer = null
 const destinationMarker = ref(null)
 const pickupAddress = ref('')
 const destinationAddress = ref('')
@@ -366,7 +369,7 @@ async function initMap() {
   }
   try {
     if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
-    const AMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.Geolocation', 'AMap.PlaceSearch', 'AMap.CitySearch', 'AMap.Geocoder', 'AMap.InputTips', 'AMap.AutoComplete'] })
+    const AMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.Geolocation', 'AMap.PlaceSearch', 'AMap.CitySearch', 'AMap.Geocoder', 'AMap.AutoComplete'] })
     AMapSDK.value = AMap
     // 未获取到用户位置时不指定重庆等固定城市，保持地图为通用初始视图，等待定位结果后再居中。
     mapInstance.value = new AMap.Map('map-container', { zoom: 4, viewMode: '2D' })
@@ -582,10 +585,29 @@ async function locateUser() {
       }
     }
     await applyCurrentLocation(result)
+    await refreshNearbyDrivers()
   } catch (error) {
     console.error('所有定位方式均失败:', error)
     markLocationFailure()
   } finally { locating.value = false }
+}
+
+// 仅请求当前位置 5 公里内在线司机，并以汽车小图标绘制在高德地图上。
+async function refreshNearbyDrivers() {
+  if (!mapReady.value || !mapInstance.value || !AMapSDK.value || currentPoint.value.lat == null) return
+  try {
+    const result = await getNearbyDrivers({ longitude: Number(currentPoint.value.lng), latitude: Number(currentPoint.value.lat), radius: 5000, limit: 50 })
+    nearbyDriverMarkers.value.forEach(marker => mapInstance.value.remove(marker))
+    nearbyDriverMarkers.value = (Array.isArray(result) ? result : []).filter(item => Number.isFinite(Number(item.longitude)) && Number.isFinite(Number(item.latitude))).map(item => new AMapSDK.value.Marker({
+      position: [Number(item.longitude), Number(item.latitude)],
+      title: `附近司机，${(Number(item.distance || 0) / 1000).toFixed(1)}公里`,
+      anchor: 'center', zIndex: 100,
+      content: '<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#fff;box-shadow:0 2px 8px #0f172a40;font-size:20px">🚕</div>'
+    }))
+    if (nearbyDriverMarkers.value.length) mapInstance.value.add(nearbyDriverMarkers.value)
+  } catch (error) { console.warn('查询附近司机失败:', error) }
+  clearTimeout(nearbyDriverTimer)
+  nearbyDriverTimer = setTimeout(refreshNearbyDrivers, 15000)
 }
 
 // 回到设备当前定位，并清除手动城市选择，让打车页恢复真实定位城市。
@@ -721,7 +743,8 @@ function searchByKeyword(value) {
 
   // ====== 通道1: InputTips（高德关键词提示API）======
   try {
-    const tipsSearch = new AMapSDK.value.InputTips({
+    // 高德 JS API 2.0 中通过 AutoComplete 获取提示，InputTips 不支持直接 new。
+    const tipsSearch = new AMapSDK.value.AutoComplete({
       city: shouldLimitCity ? cityCode || cityName || undefined : undefined,
       citylimit: shouldLimitCity && Boolean(cityCode || cityName),
       pageSize: 25
@@ -925,6 +948,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   clearTimeout(searchTimer)
+  clearTimeout(nearbyDriverTimer)
   searchSequence += 1
   mapInstance.value?.destroy()
 })

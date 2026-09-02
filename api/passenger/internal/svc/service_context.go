@@ -35,7 +35,8 @@ const (
 	defaultPriceRPCAddr    = "127.0.0.1:50053"
 	defaultPayRPCAddr      = "127.0.0.1:50054"
 	defaultDispatchRPCAddr = "127.0.0.1:50056"
-	defaultLocationRPCAddr = "127.0.0.1:50055"
+	// locationsvc 默认监听 50057；50055 是 driversvc 端口，不能混用。
+	defaultLocationRPCAddr = "127.0.0.1:50057"
 	defaultPriceCityCode   = "110000"
 	localDevSigningKey     = "xiaolong-passenger-local-dev-key"
 )
@@ -90,6 +91,7 @@ type OrderClient interface {
 	CreateOrder(ctx context.Context, req *orderproto.CreateOrderRequest) (*orderproto.CreateOrderResponse, error)
 	CancelOrder(ctx context.Context, req *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error)
 	GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error)
+	ConfirmPaid(ctx context.Context, req *orderproto.ConfirmPaidRequest) (*orderproto.ConfirmPaidResponse, error)
 	ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error)
 }
 
@@ -272,7 +274,16 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 			closeGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn)
 			return nil, err
 		}
+		// 评价表属于乘客端自身数据，启动时做幂等结构校验，避免遗漏迁移导致提交评价返回 502。
+		if err := db.AutoMigrate(&OrderReview{}); err != nil {
+			closeGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, locationConn)
+			return nil, fmt.Errorf("initialize order_review table: %w", err)
+		}
 		ctx.Reviews = NewGormReviewRepository(db)
+	} else {
+		// 未配置 passenger 专属 DSN 时使用进程内仓储，保证评价接口在联调环境可用；配置 DSN 后自动切换为 MySQL 持久化。
+		logx.Infof("passenger mysqlDSN empty, use memory review repository")
+		ctx.Reviews = NewMemoryReviewRepository()
 	}
 	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, locationConn)
 	return ctx, nil

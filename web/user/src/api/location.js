@@ -9,3 +9,8 @@ export function reverseGeocodeLocation(data) {
 export function geocodeAddress(data) {
   return request.post('/location/geocode', data)
 }
+
+// 查询乘客当前位置 5 公里内的在线司机，供首页地图绘制车辆图标。
+export function getNearbyDrivers(data) {
+  return request.post('/location/nearby-drivers', data)
+}
