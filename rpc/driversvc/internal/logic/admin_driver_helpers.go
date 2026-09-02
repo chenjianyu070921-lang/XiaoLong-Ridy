@@ -85,9 +85,6 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 		certification = c
 	}()
 	wg.Wait()
-	close(onlineErrCh)
-	close(vehicleErrCh)
-	close(certificationCh)
 
 	logger := logx.WithContext(ctx)
 	if onlineErr != nil {
