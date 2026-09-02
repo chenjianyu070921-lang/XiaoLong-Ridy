@@ -43,10 +43,10 @@
       <h3 class="card-title">行程信息</h3>
       
       <div class="driver-info">
-        <img :src="orderDetail.driverAvatar || '/default-avatar.png'" alt="" />
+        <img :src="orderDetail.driverAvatar || '/default-avatar.png'" alt="司机头像" />
         <div class="info">
-          <p class="name">{{ orderDetail.driverName }}</p>
-          <p class="car">{{ orderDetail.plateNumber }}</p>
+          <p class="name">{{ orderDetail.driverDisplayName }}</p>
+          <p class="car">车牌号：{{ orderDetail.plateNumber || '暂未获取' }}</p>
         </div>
         <button class="call-btn" @click="callDriver">
           <van-icon name="phone-o" size="16" />
@@ -114,12 +114,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast, closeToast, showDialog } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { payOrder, getPaymentStatus, getOrderDetail } from '@/api/order'
 
 const router = useRouter()
+const route = useRoute()
 const orderStore = useOrderStore()
 
 // 订单详情由 ordersvc 返回，避免支付页展示脱离真实订单的演示金额。
@@ -129,7 +130,8 @@ const orderDetail = ref({
   driverName: '司机', driverAvatar: '', plateNumber: '', fromAddress: '', toAddress: '', orderId: 0
 })
 
-const orderId = computed(() => Number(orderStore.currentOrder?.orderId || orderDetail.value.orderId || 0))
+// 路由参数优先级最高，保证从订单详情进入或刷新支付页后仍能恢复待支付订单。
+const orderId = computed(() => Number(route.query.orderId || orderStore.currentOrder?.orderId || orderDetail.value.orderId || 0))
 
 // 将后端订单金额和里程字段转换为页面展示模型；后端金额统一以分为单位。
 const mapOrderDetail = (data) => {
@@ -137,30 +139,36 @@ const mapOrderDetail = (data) => {
   const original = Number(data?.estimatedPriceCents || 0)
   const discount = Number(data?.discountCents || 0)
   const payable = Number(data?.payableCents || original - discount)
+  // 费用拆分必须互不重复：起步价取规则起步价（默认 20.40 元），里程费只取总价中超出的部分。
+  const baseFeeCents = Math.min(original, 2040)
+  const distanceFeeCents = Math.max(0, original - baseFeeCents)
+  const rawName = String(data?.driverName || '')
+  const driverDisplayName = rawName
+    ? `${rawName.replace(/司机|师傅/g, '').slice(0, 1)}师傅`
+    : (data?.driverId ? `司机${data.driverId}师傅` : '司机师傅')
+  const plateNumber = data?.plateNumber || data?.plateNo || ''
   return {
     orderId: Number(data?.orderId || 0),
     totalPrice: (Math.max(0, payable) / 100).toFixed(2),
     baseDistance: (Math.min(distanceM, 3000) / 1000).toFixed(1),
-    basePrice: (Math.max(0, original - Math.round(distanceM / 1000) * 100) / 100).toFixed(2),
+    basePrice: (baseFeeCents / 100).toFixed(2),
     distance: (distanceM / 1000).toFixed(1),
-    distanceFee: (Math.max(0, original - Math.round(distanceM / 1000) * 100) / 100).toFixed(2),
+    distanceFee: (distanceFeeCents / 100).toFixed(2),
     duration: Math.max(0, Math.ceil(Number(data?.estimatedDurationS || 0) / 60)),
     timeFee: '0.00',
     discount: (Math.max(0, discount) / 100).toFixed(2),
-    driverName: data?.driverId ? `司机 #${data.driverId}` : '司机待定',
-    driverAvatar: '', plateNumber: '',
+    driverName: rawName, driverDisplayName, driverAvatar: '', plateNumber,
     fromAddress: data?.fromAddress || '', toAddress: data?.toAddress || ''
   }
 }
 
-const selectedMethod = ref('alipay')
+// 当前产品只支持钱包余额支付，默认选中余额并隐藏未接入的第三方渠道。
+const selectedMethod = ref('balance')
 const loading = ref(false)
 let paymentPollTimer = null
 
 // 支付方式列表
 const payMethods = ref([
-  { id: 'alipay', name: '支付宝', icon: 'van-icon', color: '#1677FF' },
-  { id: 'wechat', name: '微信支付', icon: 'van-icon', color: '#07C160' },
   { id: 'balance', name: '余额支付', icon: 'van-icon', color: '#F59E0B' }
 ])
 
@@ -190,31 +198,33 @@ const handlePay = async () => {
     })
 
     // 调用支付接口
-    await payOrder(orderId.value, selectedMethod.value)
+    const created = await payOrder(orderId.value, selectedMethod.value)
+    // 后端可能在预下单时直接返回成功（本地支付或余额支付），无需等待下一次定时器。
+    if (Number(created?.status) === 2) {
+      finishPayment()
+      return
+    }
     
     // 轮询支付结果
     let pollCount = 0
     paymentPollTimer = setInterval(async () => {
       pollCount++
       if (pollCount > 10) {
-        clearInterval(paymentPollTimer)
-        closeToast()
-        loading.value = false
-        showToast('支付超时，请重试')
+        finishPayment('支付超时，请重试')
         return
       }
 
-      const status = await getPaymentStatus(orderId.value)
+      let status
+      try {
+        status = await getPaymentStatus(orderId.value)
+      } catch (pollError) {
+        // 单次网络抖动不应让定时器失控；达到次数后统一结束并提示重试。
+        if (pollCount >= 10) finishPayment('支付状态查询超时，请重试')
+        return
+      }
       // paysvc 状态：1 待支付、2 支付成功、3 失败、4 已退款。
       if (Number(status?.status) === 2) {
-        clearInterval(paymentPollTimer)
-        closeToast()
-        loading.value = false
-        showToast('支付成功')
-        // 跳转到支付成功页
-        setTimeout(() => {
-          router.replace('/order/success')
-        }, 500)
+        finishPayment()
       } else if (Number(status?.status) === 3 || Number(status?.status) === 4) {
         clearInterval(paymentPollTimer)
         closeToast()
@@ -227,6 +237,20 @@ const handlePay = async () => {
     console.error('Payment error:', error)
     loading.value = false
     closeToast()
+  }
+}
+
+// finishPayment 统一清理轮询和 loading 状态，避免支付成功/失败/超时分支遗漏清理。
+const finishPayment = (message = '支付成功') => {
+  if (paymentPollTimer) clearInterval(paymentPollTimer)
+  paymentPollTimer = null
+  closeToast()
+  loading.value = false
+  showToast(message)
+  if (message === '支付成功') {
+    // 记录支付确认时刻，成功页展示真实支付时间而非订单完成时间。
+    const paidAt = String(Math.floor(Date.now() / 1000))
+    setTimeout(() => router.replace({ path: '/order/success', query: { orderId: orderId.value, payMethod: selectedMethod.value, paidAt } }), 300)
   }
 }
 

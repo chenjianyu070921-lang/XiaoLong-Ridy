@@ -94,12 +94,9 @@ if ($Stop) {
     exit 0
 }
 
-if ([string]::IsNullOrWhiteSpace($env:ADMINSVC_MYSQL_DSN)) {
-    throw "缺少 ADMINSVC_MYSQL_DSN，拒绝在脚本中保存数据库凭据。"
-}
-if ([string]::IsNullOrWhiteSpace($env:ADMINSVC_REDIS_PASSWORD)) {
-    throw "缺少 ADMINSVC_REDIS_PASSWORD，拒绝在脚本中保存 Redis 凭据。"
-}
+# 未显式提供凭据时使用 docker compose 的本地开发默认值；生产环境仍必须通过环境变量覆盖。
+$mysqlDsn = if ([string]::IsNullOrWhiteSpace($env:ADMINSVC_MYSQL_DSN)) { "xl_app:xl_app_pwd_2026@tcp(127.0.0.1:3306)/xiaolong_ridy" } else { $env:ADMINSVC_MYSQL_DSN }
+$redisPassword = if ($null -eq $env:ADMINSVC_REDIS_PASSWORD) { "" } else { $env:ADMINSVC_REDIS_PASSWORD }
 
 foreach ($path in @($adminSvcExecutable, $adminAPIExecutable, $viteExecutable)) {
     if (-not (Test-Path -LiteralPath $path)) {
@@ -122,10 +119,10 @@ $adminSvcConfigPath = Join-Path $logDir "adminsvc.local.yaml"
 Name: admin.rpc
 ListenOn: 0.0.0.0:8084
 MySQL:
-  DSN: ""
+  DSN: "$mysqlDsn"
 Cache:
-  Host: 115.191.16.159:6379
-  Password: "$env:ADMINSVC_REDIS_PASSWORD"
+  Host: 127.0.0.1:6379
+  Password: "$redisPassword"
   DB: 0
 Session:
   SessionTTLHours: 24

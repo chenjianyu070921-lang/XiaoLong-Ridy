@@ -118,6 +118,19 @@ func (c *LocalClient) GetOrder(_ context.Context, req *orderproto.GetOrderReques
 	}, nil
 }
 
+// ConfirmPaid 本地模式同步订单支付状态，保持与真实 ordersvc 接口一致。
+func (c *LocalClient) ConfirmPaid(_ context.Context, req *orderproto.ConfirmPaidRequest) (*orderproto.ConfirmPaidResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	order, ok := c.orders[uint64(req.GetOrderId())]
+	if !ok {
+		return nil, fmt.Errorf("orderclient not found")
+	}
+	order.Status = orderproto.OrderStatus_ORDER_STATUS_COMPLETED
+	order.UpdatedAt = time.Now().Unix()
+	return &orderproto.ConfirmPaidResponse{OrderId: req.GetOrderId(), Status: order.Status, PaidCents: req.GetAmountCents()}, nil
+}
+
 // ListOrders 返回订单分页列表。
 func (c *LocalClient) ListOrders(_ context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
 	c.mu.RLock()

@@ -15,6 +15,7 @@ type Config struct {
 	Alipay      alipay.Config `yaml:"alipay" json:"alipay"`
 	Kafka       KafkaConf     `yaml:"kafka" json:"kafka"`
 	Ordersvc    OrdersvcConf  `yaml:"ordersvc" json:"ordersvc"`
+	Usersvc     OrdersvcConf  `yaml:"usersvc,optional" json:"usersvc,optional"`
 }
 
 type MysqlConf struct {

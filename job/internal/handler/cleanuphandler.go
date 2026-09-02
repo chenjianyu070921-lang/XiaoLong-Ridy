@@ -67,10 +67,11 @@ func (h *CleanupHandler) TimeoutCancelOrders() error {
 			cancelled++
 			h.Infof("已取消超时订单 orderId=%d orderNo=%s", item.OrderId, item.OrderNo)
 		}
+		// 本轮会把已取消订单从查询结果中移除，因此始终继续读取第一页，
+		// 避免数据集缩小后递增 offset 导致跳过部分超时订单。
 		if len(resp.List) < pageSize {
 			break
 		}
-		page++
 	}
 	h.Infof("超时取消任务完成: 本轮取消 %d 单", cancelled)
 	return nil
@@ -130,6 +131,11 @@ func (h *CleanupHandler) RetryRefundEvents() error {
 // 单条失败不会阻断整轮扫描，任务内部会维护 retry_count 和最终 failed 状态。
 func (h *CleanupHandler) RetryAdminAuditOutbox() error {
 	return task.NewTask(h.svcCtx).RetryAdminAuditOutbox(50)
+}
+
+// DryRunCompensationSummary 读取补偿积压概况，不执行任何补偿动作。
+func (h *CleanupHandler) DryRunCompensationSummary(ctx context.Context) (*task.CompensationSummary, error) {
+	return task.NewTask(h.svcCtx).DryRunCompensationSummary(ctx)
 }
 
 // redispatchOrder 拉取订单详情并触发派单（幂等重派）。

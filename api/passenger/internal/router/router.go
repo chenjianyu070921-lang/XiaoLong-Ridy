@@ -14,7 +14,6 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	registerProfileRoutes(mux, svcCtx)
 	registerUploadRoutes(mux, svcCtx)
 	registerOrderRoutes(mux, svcCtx)
-	registerLocationRoutes(mux, svcCtx)
 	registerAddressRoutes(mux, svcCtx)
 	registerCouponRoutes(mux, svcCtx)
 	registerReviewRoutes(mux, svcCtx)
@@ -22,10 +21,14 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	return mux
 }
 
-// registerLocationRoutes 注册乘客端定位回显和地址解析接口。
+// registerLocationRoutes 注册乘客端位置相关接口。
+// POI 搜索（公开无需登录）供 Home/AddressList 等页面做目的地关键词搜索；
+// 逆地理/正地理解析用于首页定位回显与下单前保存终点坐标。
 func registerLocationRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
+	mux.HandleFunc("/api/passenger/v1/location/poi-search", handler.SearchPOIHandler(svcCtx))
 	mux.HandleFunc("/api/passenger/v1/location/reverse-geocode", handler.ReverseGeocodeHandler(svcCtx))
 	mux.HandleFunc("/api/passenger/v1/location/geocode", handler.GeocodeHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/location/nearby-drivers", handler.NearbyDriversHandler(svcCtx))
 }
 
 // registerWalletRoutes 注册乘客钱包查询、充值和提现接口。

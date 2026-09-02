@@ -10,7 +10,7 @@
       <p><b>车型</b><span>{{ driverStore.vehicle?.brand || '--' }} {{ driverStore.vehicle?.model || '' }}</span></p>
       <p><b>状态</b><span>{{ formatVehicleStatus(driverStore.vehicle?.status) }}</span></p>
     </div>
-    <van-form class="form-stack" @submit.prevent="$emit('submit-vehicle')">
+    <van-form class="form-stack">
       <van-field v-model="vehicleForm.plateNo" label="车牌号" placeholder="粤B12345" />
       <van-field v-model="vehicleForm.brand" label="品牌" placeholder="BYD" />
       <van-field v-model="vehicleForm.model" label="型号" placeholder="Han" />
@@ -19,7 +19,7 @@
       <van-field v-model="vehicleForm.registrationDate" type="date" label="注册日期" />
       <van-field v-model="vehicleForm.insuranceNo" label="保险单号" placeholder="INS-001" />
       <van-field v-model="vehicleForm.insuranceExpireAt" type="date" label="保险到期" />
-      <button class="primary-action" type="button" @click="$emit('submit-vehicle')">{{ driverStore.vehicleId ? '更新车辆' : '提交车辆' }}</button>
+      <button class="primary-action" type="button" @click="$emit('submit-vehicle')">提交车辆</button>
     </van-form>
     <div class="two-actions">
       <button type="button" @click="$emit('submit-vehicle-update')">更新</button>

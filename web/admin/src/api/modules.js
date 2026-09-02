@@ -78,6 +78,10 @@ export const statisticsApi = {
   exportDetail: (no) => request.get(`/export-tasks/${no}`),
   downloadExport: (no) => download(`/export-tasks/${no}/download`),
 }
+// capacityApi 读取后台聚合的实时运力地图快照。
+export const capacityApi = {
+  map: (params) => list('/capacity/map', params),
+}
 export const riskApi = {
   blacklist: (params) => list('/blacklist', params),
   add: (data) => request.post('/blacklist', data),

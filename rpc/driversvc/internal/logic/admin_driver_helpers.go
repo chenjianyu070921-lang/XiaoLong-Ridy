@@ -16,8 +16,9 @@ import (
 
 // buildAdminDriverPB 将司机基础资料、车辆、认证和 Redis 在线状态聚合为后台查询模型。
 // driversvc 是司机域权威服务，adminsvc 只消费该聚合结果，不再直连司机域数据表。
-// 车辆/认证/在线三条查询彼此独立，并行触发把单司机聚合耗时从"三倍单查询"压到接近单查询，
-// 避免远端数据库延迟下因 adminsvc → driversvc RPC 超时导致整页列表 DeadlineExceeded。
+// 车辆/认证/在线三条查询彼此独立，并行触发把单司机聚合耗时从"三倍单查询"压到接近单查询。
+// 注意：三条 goroutine 各自写入独立的错误/结果变量，wg.Wait 的 happens-before 保证读取安全，
+// 不要用"从空 buffered channel 接收"来传播错误（会永久阻塞）。
 func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *model.Driver) (*proto.Driver, error) {
 	if d == nil {
 		return nil, repository.ErrDriverNotFound
@@ -37,13 +38,13 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 	}
 
 	var (
-		wg              sync.WaitGroup
-		onlineState     *onlinestore.State
-		vehicle         *model.DriverVehicle
-		certification   *model.DriverCertification
-		onlineErrCh     = make(chan error, 1)
-		vehicleErrCh    = make(chan error, 1)
-		certificationCh = make(chan error, 1)
+		wg            sync.WaitGroup
+		onlineState   *onlinestore.State
+		vehicle       *model.DriverVehicle
+		certification *model.DriverCertification
+		onlineErr     error
+		vehicleErr    error
+		certErr       error
 	)
 
 	wg.Add(3)
@@ -54,7 +55,7 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 		}
 		state, err := svcCtx.OnlineStore.Get(ctx, int64(d.Id))
 		if err != nil {
-			onlineErrCh <- err
+			onlineErr = err
 			return
 		}
 		onlineState = state
@@ -66,7 +67,7 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 		}
 		v, err := svcCtx.DriverVehicleRepository.GetByDriverID(ctx, d.Id)
 		if err != nil && !errors.Is(err, repository.ErrVehicleNotFound) {
-			vehicleErrCh <- err
+			vehicleErr = err
 			return
 		}
 		vehicle = v
@@ -78,7 +79,7 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 		}
 		c, err := svcCtx.CertificationRepository.GetByDriverID(ctx, d.Id)
 		if err != nil && !errors.Is(err, repository.ErrCertificationNotFound) {
-			certificationCh <- err
+			certErr = err
 			return
 		}
 		certification = c
@@ -89,22 +90,22 @@ func buildAdminDriverPB(ctx context.Context, svcCtx *svc.ServiceContext, d *mode
 	close(certificationCh)
 
 	logger := logx.WithContext(ctx)
-	if err, ok := <-onlineErrCh; ok {
-		logger.Errorf("buildAdminDriverPB: get online state for driver %d failed: %v", d.Id, err)
+	if onlineErr != nil {
+		logger.Errorf("buildAdminDriverPB: get online state for driver %d failed: %v", d.Id, onlineErr)
 	} else if onlineState != nil {
 		item.OnlineStatus = onlineState.OnlineStatus
 	} else {
 		item.OnlineStatus = onlinestore.Offline
 	}
-	if err, ok := <-vehicleErrCh; ok {
-		logger.Errorf("buildAdminDriverPB: get vehicle for driver %d failed: %v", d.Id, err)
+	if vehicleErr != nil {
+		logger.Errorf("buildAdminDriverPB: get vehicle for driver %d failed: %v", d.Id, vehicleErr)
 	} else if vehicle != nil {
 		item.VehicleId = int64(vehicle.Id)
 		item.PlateNo = vehicle.PlateNo
 		item.VehicleStatus = int32(vehicle.Status)
 	}
-	if err, ok := <-certificationCh; ok {
-		logger.Errorf("buildAdminDriverPB: get certification for driver %d failed: %v", d.Id, err)
+	if certErr != nil {
+		logger.Errorf("buildAdminDriverPB: get certification for driver %d failed: %v", d.Id, certErr)
 	} else if certification != nil {
 		item.CertificationId = int64(certification.Id)
 		item.AuditStatus = int32(certification.AuditStatus)

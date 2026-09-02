@@ -68,7 +68,6 @@
             <button type="button" class="primary" @click="navigateToPickup(selectedHomeOrder)">导航</button>
             <button type="button" @click="contactPassenger(selectedHomeOrder)">联系乘客</button>
             <button type="button" @click="reportAbnormal">异常上报</button>
-            <button type="button" @click="openFinish(selectedHomeOrder)">结束行程</button>
           </div>
         </template>
         <template v-else-if="selectedHomeOrder">
@@ -114,9 +113,34 @@
       <component
         :is="activePanelComponent"
         v-bind="activePanelProps"
-        @edit-profile="openProfileEdit"
+        @refresh-dashboard="loadDashboardData"
+        @load-nearby-orders="loadNearbyOrders"
+        @load-nearby-expanded-orders="loadNearbyExpandedOrders"
+        @open-nearby-popup="openNearbyOrderPopup"
+        @update:nearby-order-popup-visible="nearbyOrderPopupVisible = $event"
+        @load-orders="loadOrders"
+        @update:order-mode="orderMode = $event"
+        @update:order-status="orderStatus = $event"
+        @order-detail="loadOrderDetail"
+        @select-trajectory="selectTrajectory"
+        @order-action="handleOrderAction"
+        @open-finish="openFinish"
+        @load-vehicle="loadVehicle"
+        @submit-vehicle="submitVehicle"
+        @submit-vehicle-update="submitVehicleUpdate"
+        @remove-vehicle="removeVehicle"
+        @load-certification="loadCertification"
+        @read-cert-file="readCertFile"
+        @remove-cert-image="removeCertImage"
+        @submit-certification="submitCertification"
+        @load-income="loadIncome"
+        @open-withdraw="openWithdraw"
+        @load-reviews="loadReviews"
         @update:trajectory-order-id="trajectoryOrderId = $event"
         @load-trajectory="loadTrajectory"
+        @edit-profile="openProfileEdit"
+        @open-assets="openDriverAssets"
+        @open-orders="activeTab = 1"
       />
     </section>
 
@@ -127,10 +151,13 @@
     <van-popup v-model:show="finishVisible" round position="bottom" teleport="#driver-home-popups">
       <section class="finish-panel">
         <h2>结束行程</h2>
-        <van-form @submit="submitFinishTrip">
+        <van-form>
           <van-field v-model.number="finishForm.actualDistanceM" type="number" label="实际里程(米)" />
           <van-field v-model.number="finishForm.actualDurationS" type="number" label="实际时长(秒)" />
-          <button class="primary-action" type="submit">确认结束</button>
+          <!-- 使用显式 click 触发，避免部分 Vant/WebView 环境下 submit 事件不冒泡。 -->
+          <button class="primary-action" type="button" :disabled="finishSubmitting" @click="submitFinishTrip">
+            {{ finishSubmitting ? '正在提交...' : '确认结束' }}
+          </button>
         </van-form>
       </section>
     </van-popup>
@@ -173,11 +200,12 @@
     <van-popup v-model:show="withdrawVisible" round position="bottom" teleport="#driver-home-popups">
       <section class="withdraw-panel">
         <h2>申请提现</h2>
-        <van-form @submit="submitWithdraw">
+        <van-form>
           <van-field v-model="withdrawForm.amount" type="number" label="提现金额" placeholder="请输入金额" />
           <van-field v-model="withdrawForm.payeeName" label="收款人" placeholder="请输入收款人姓名" />
           <van-field v-model="withdrawForm.payAccount" label="收款账号" placeholder="请输入收款账号" />
-          <button class="primary-action" type="submit" :disabled="withdrawLoading">
+          <!-- 显式 click 触发，兼容移动 WebView 对 Vant submit 事件处理不完整的情况。 -->
+          <button class="primary-action" type="button" :disabled="withdrawLoading" @click="submitWithdraw">
             {{ withdrawLoading ? '提交中...' : '确认提现' }}
           </button>
         </van-form>
@@ -212,6 +240,7 @@ import {
   listDriverDispatches,
   listDriverOrders,
   listIncomeBills,
+  listPassengerReviews,
   rejectOrder,
   reportDriverLocation,
   setDriverOffline,
@@ -223,6 +252,7 @@ import {
 import { useDriverStore } from '@/stores/driver'
 import { resolveCreatedVehicle } from '@/utils/vehicle'
 import DriverOrdersPanel from '@/components/driver-home/DriverOrdersPanel.vue'
+import DriverAssetsPanel from '@/components/driver-home/DriverAssetsPanel.vue'
 import DriverMinePanel from '@/components/driver-home/DriverMinePanel.vue'
 import { getAmapConfig } from '@/config/amap'
 import { normalizeBrowserLocationForAmap } from '@/utils/geo'
@@ -234,13 +264,18 @@ const driverStore = useDriverStore()
 const tabItems = [
   { title: '首页', icon: 'wap-home-o' },
   { title: '订单', icon: 'orders-o' },
+  { title: '资产', icon: 'balance-o' },
   { title: '我的', icon: 'user-o' }
 ]
 
 const activeTab = ref(0)
+// 从个人中心快捷入口跳转到资产模块，并选中对应子分区。
+const openDriverAssets = (section) => { activeTab.value = 2; nextTick(() => { /* 资产面板保持上次选择 */ }) }
+const mineSection = ref('profile')
 const tabPanelComponents = [
   null,
   DriverOrdersPanel,
+  DriverAssetsPanel,
   DriverMinePanel
 ]
 const activePanelComponent = computed(() => tabPanelComponents[activeTab.value] || null)
@@ -277,20 +312,32 @@ const activePanelProps = computed(() => {
   if (activeTab.value === 2) {
     return {
       driverStore,
-      serviceScore: serviceScore.value,
-      todayIncome: todayIncome.value,
+      vehicleForm,
+      certificationForm,
+      certUploading,
+      certItems,
+      certSubmitting: certSubmitting.value,
+      certStatusIcon: certStatusIcon.value,
       incomeSummary: incomeSummary.value,
-      formatDriverStatus,
+      todayIncome: todayIncome.value,
+      weekIncome: weekIncome.value,
+      incomeBills: incomeBills.value,
       formatPrice,
+      formatTime,
       formatVehicleStatus,
-      formatCertificationStatus,
-      trajectoryOrderId: trajectoryOrderId.value,
-      trajectoryError: trajectoryError.value,
-      trajectoryPoints: trajectoryPoints.value,
-      formatTime
+      formatCertificationStatus
     }
   }
-  return {}
+  return {
+    driverStore,
+    defaultSection: mineSection.value,
+    reviews: reviews.value,
+    trajectoryOrderId: trajectoryOrderId.value,
+    trajectoryError: trajectoryError.value,
+    trajectoryPoints: trajectoryPoints.value,
+    formatDriverStatus,
+    formatTime
+  }
 })
 const workLoading = ref(false)
 const serviceScore = ref('--')
@@ -311,16 +358,18 @@ const nearbyOrderExpandedLoading = ref(false)
 const nearbyOrderExpandedPage = ref(1)
 const nearbyOrderExpandedPageSize = 10
 const nearbyOrderExpandedTotal = ref(0)
-const dashboardSessionReady = ref(false)
 const incomeSummary = ref({})
 const todayIncome = ref({})
 const weekIncome = ref({})
 const incomeBills = ref([])
+const reviews = ref([])
 const trajectoryOrderId = ref('')
 const trajectoryPoints = ref([])
 const trajectoryError = ref('')
 const finishVisible = ref(false)
 const finishOrder = ref(null)
+// finishSubmitting 防止结束行程请求重复提交，并向司机明确展示请求正在处理。
+const finishSubmitting = ref(false)
 const heatmapVisible = ref(false)
 const heatmapLoading = ref(false)
 const heatmapRadiusMeters = 5000
@@ -349,9 +398,9 @@ const orderStatusOptions = [
   { text: '待接单', value: 1 },
   { text: '已接单', value: 2 },
   { text: '行程中', value: 3 },
-  { text: '待支付', value: 4 },
-  { text: '已完成', value: 5 },
-  { text: '已取消', value: 6 }
+  { text: '已完成', value: 4 },
+  { text: '已取消', value: 5 },
+  { text: '已关闭', value: 6 }
 ]
 
 const vehicleForm = reactive({
@@ -376,7 +425,11 @@ const certItems = [
 ]
 const finishForm = reactive({ actualDistanceM: 0, actualDurationS: 0 })
 
+const heartbeatIntervalMs = 30000
+const foregroundHeartbeatMinGapMs = 5000
 let heartbeatTimer = null
+let heartbeatInFlight = false
+let lastHeartbeatAt = 0
 let locationTimer = null
 let tripTimer = null
 let geoWatchId = null
@@ -449,6 +502,8 @@ const heatmapPhoneSheetStyle = {
 }
 
 onMounted(async () => {
+  window.addEventListener('pageshow', resumeRealtimeWorkOnForeground)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
   await loadDashboardData()
   await ensureHomeMap()
   await refreshHomeWorkbench()
@@ -456,6 +511,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('pageshow', resumeRealtimeWorkOnForeground)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   stopRealtimeWork()
   stopHeatmapRealtime()
   destroyHomeMap()
@@ -463,6 +520,7 @@ onUnmounted(() => {
 })
 
 watch(activeTab, (tab) => {
+  if (tab !== 3) mineSection.value = 'profile'
   if (tab === 0) {
     nextTick(() => refreshHomeWorkbench())
   }
@@ -491,20 +549,15 @@ watch(heatmapVisible, async (visible) => {
 })
 
 async function loadDashboardData() {
-  dashboardSessionReady.value = false
-  const profile = await safeApiCall(() => driverStore.refreshProfile({ silentError: true }), null, { silent: true })
-  if (!profile) {
-    serviceScore.value = '--'
-    return
-  }
-  dashboardSessionReady.value = true
-  syncForms()
+  const [profile, score] = await Promise.allSettled([
+    safeApiCall(() => driverStore.refreshProfile({ silentError: true }), null, { silent: true }),
+    safeApiCall(() => getDriverAiScore({ silentError: true }), null, { silent: true })
+  ])
 
-  const score = await safeApiCall(() => getDriverAiScore({ silentError: true }), null, { silent: true })
-  if (score) {
-    serviceScore.value = Number(score.aiScore || score.score || 0).toFixed(1)
+  if (score.status === 'fulfilled' && score.value) {
+    serviceScore.value = Number(score.value.aiScore || score.value.score || 0).toFixed(1)
   }
-  await loadIncome({ silentError: true })
+  if (profile.status === 'fulfilled' && profile.value) syncForms()
   await loadCurrentTabData()
   if (activeTab.value === 0) {
     await refreshHomeWorkbench()
@@ -512,7 +565,6 @@ async function loadDashboardData() {
 }
 
 async function loadCurrentTabData() {
-  if (!dashboardSessionReady.value) return null
   const config = { silentError: true }
   if (activeTab.value === 0) return null
   if (activeTab.value === 1) {
@@ -528,6 +580,7 @@ async function loadCurrentTabData() {
       safeApiCall(() => loadCertification(config), null, { silent: true })
     ])
   }
+  if (activeTab.value === 3) return safeApiCall(() => loadReviews(config), null, { silent: true })
   return null
 }
 
@@ -657,14 +710,46 @@ function stopRealtimeWork() {
 
 function startHeartbeat() {
   stopHeartbeat()
+  void sendHeartbeatNow({ force: true })
   heartbeatTimer = window.setInterval(() => {
-    safeApiCall(() => heartbeatDriver(workStatusPayload()), null, { silent: true })
-  }, 30000)
+    void sendHeartbeatNow()
+  }, heartbeatIntervalMs)
 }
 
 function stopHeartbeat() {
   if (heartbeatTimer) window.clearInterval(heartbeatTimer)
   heartbeatTimer = null
+}
+
+async function sendHeartbeatNow(options = {}) {
+  if (!driverStore.token || driverStore.onlineStatus <= 0) return null
+  const now = Date.now()
+  if (!options.force && now - lastHeartbeatAt < foregroundHeartbeatMinGapMs) return null
+  if (heartbeatInFlight) return null
+  heartbeatInFlight = true
+  lastHeartbeatAt = now
+  try {
+    await ensureWorkLocation()
+    const payload = workStatusPayload()
+    if (!payload.longitude || !payload.latitude) return null
+    return await safeApiCall(() => heartbeatDriver(payload), null, { silent: true })
+  } finally {
+    heartbeatInFlight = false
+  }
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') resumeRealtimeWorkOnForeground()
+}
+
+function resumeRealtimeWorkOnForeground() {
+  if (!driverStore.token || driverStore.onlineStatus <= 0) return
+  if (!heartbeatTimer) startHeartbeat()
+  else void sendHeartbeatNow({ force: true })
+  if (!locationTimer) startLocationReporting()
+  else void reportCurrentLocation()
+  if (!tripTimer) startTripRealtime()
+  connectPushChannel()
 }
 
 function startLocationReporting() {
@@ -708,7 +793,7 @@ function showNotifications() {
 }
 
 async function refreshHomeWorkbench() {
-  if (activeTab.value !== 0 || !dashboardSessionReady.value) return
+  if (activeTab.value !== 0) return
   await ensureHomeMap()
   await Promise.allSettled([
     refreshHomeHeatmap()
@@ -762,7 +847,6 @@ async function ensureHomeMap() {
 }
 
 async function refreshHomeHeatmap() {
-  if (!dashboardSessionReady.value) return
   heatmapLoading.value = true
   try {
     const location = await ensureWorkLocation()
@@ -1038,33 +1122,10 @@ function destroyHeatmapMap() {
 function startTripRealtime() {
   stopTripRealtime()
   tripTimer = window.setInterval(() => {
-    if (!driverStore.currentOrderId) return
-    safeApiCall(async () => {
-      const res = await getDriverOrderDetail(Number(driverStore.currentOrderId))
-      const order = res?.order || res
-      if (order && Number(order.orderId || 0) === Number(driverStore.currentOrderId)) {
-        syncCurrentOrderFromPoll(order)
-      }
-      return order
-    }, null, { silent: true })
+    if (driverStore.currentOrderId) {
+      safeApiCall(() => getDriverOrderDetail(Number(driverStore.currentOrderId)), null, { silent: true })
+    }
   }, 20000)
-}
-
-// 行程中轮询：把最新订单状态落回 currentOrder，感知乘客取消/退款等状态变更
-function syncCurrentOrderFromPoll(order) {
-  const status = Number(order.status || 0)
-  if (status === 6 || status === 7) {
-    driverStore.setCurrentOrder(null, 'idle')
-    if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
-    showToast(status === 6 ? '订单已取消' : '订单已退款')
-    renderHomeMapData()
-    return
-  }
-  const phase = status === 3 ? 'trip' : status === 2 ? 'pickup' : driverStore.tripPhase
-  if (phase !== 'idle') {
-    driverStore.setCurrentOrder({ ...(driverStore.currentOrder || {}), ...order, orderId: order.orderId }, phase)
-    renderHomeMapData()
-  }
 }
 
 function stopTripRealtime() {
@@ -1102,35 +1163,13 @@ function handlePushMessage(raw) {
   try {
     const payload = JSON.parse(raw)
     if (payload.type === 'dispatch_order') {
-      // 首页空闲状态下直接把新派单显示到浮动面板，避免司机切 tab 才能看到新单
-      if (activeTab.value === 0 && !driverStore.currentOrder && driverStore.onlineStatus === 1) {
-        previewOrder.value = normalizePushOrder(payload)
-      }
-      void loadOrders(orderPage.value)
-      void loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
-      if (nearbyOrderPopupVisible.value) void loadNearbyExpandedOrders(nearbyOrderExpandedPage.value, { silentError: true })
+      if (activeTab.value === 1) loadOrders(orderPage.value)
     } else if (payload.type === 'dispatch.new') {
       showToast('收到新的派单')
-      void loadOrders(orderPage.value)
-      void loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
-      if (nearbyOrderPopupVisible.value) void loadNearbyExpandedOrders(nearbyOrderExpandedPage.value, { silentError: true })
+      if (activeTab.value === 1) void loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
     }
   } catch {
     // Push messages are best-effort; malformed messages should not block the H5 page.
-  }
-}
-
-// 将 WS 推送的 dispatch_order 消息规范化为订单对象（字段与 /orders/available 返回的 OrderBrief 对齐）
-function normalizePushOrder(payload) {
-  return {
-    source: 'available',
-    orderId: Number(payload.orderId || payload.orderID || 0),
-    orderNo: payload.orderNo || '',
-    fromAddress: payload.fromAddress || '',
-    toAddress: payload.toAddress || '',
-    status: Number(payload.status || 1),
-    estimatedPriceCents: Number(payload.estimatedPriceCents || 0),
-    createdAt: Number(payload.createdAt || 0)
   }
 }
 
@@ -1144,8 +1183,7 @@ async function loadOrders(page = orderPage.value, config = {}) {
   let data
 
   if (orderMode.value === 'available') data = await loadAvailableOrders(payload, config)
-  // 派单记录按派单状态维度查询，不能把订单状态当派单状态传（枚举含义不同），只传分页。
-  else if (orderMode.value === 'dispatches') data = await loadDispatches({ page: orderPage.value, pageSize: orderPageSize.value }, config)
+  else if (orderMode.value === 'dispatches') data = await loadDispatches(payload, config)
   else data = await listDriverOrders(payload, config)
 
   orders.value = Array.isArray(data?.list) ? data.list : []
@@ -1383,6 +1421,7 @@ function orderDropoffPosition(order) {
 }
 
 async function submitFinishTrip() {
+  if (finishSubmitting.value) return
   const orderId = Number(finishOrder.value?.orderId || driverStore.currentOrderId || 0)
   if (!orderId) {
     showToast('订单ID无效')
@@ -1390,6 +1429,7 @@ async function submitFinishTrip() {
   }
 
   try {
+    finishSubmitting.value = true
     const res = await finishTrip({
       orderId,
       actualDistanceM: Number(finishForm.actualDistanceM || 0),
@@ -1405,6 +1445,8 @@ async function submitFinishTrip() {
       title: '结束行程失败',
       message: apiErrorMessage(error, '结束行程失败')
     }).catch(() => {})
+  } finally {
+    finishSubmitting.value = false
   }
 }
 
@@ -1551,25 +1593,6 @@ async function loadIncome(config = {}) {
   if (failures.length) showIncomeLoadFailure(failures)
 }
 
-async function loadTrajectory() {
-  const orderId = Number(trajectoryOrderId.value || driverStore.currentOrderId || 0)
-  if (!Number.isFinite(orderId) || orderId <= 0) {
-    trajectoryError.value = '请输入订单ID'
-    showToast('请输入订单ID')
-    return
-  }
-
-  trajectoryOrderId.value = orderId
-  try {
-    trajectoryError.value = ''
-    const res = await getOrderTrajectory({ orderId }, { silentError: true })
-    trajectoryPoints.value = Array.isArray(res.points) ? res.points : []
-  } catch (error) {
-    trajectoryPoints.value = []
-    trajectoryError.value = apiErrorMessage(error, '轨迹查询失败')
-  }
-}
-
 function openWithdraw() {
   withdrawVisible.value = true
 }
@@ -1602,6 +1625,36 @@ function showIncomeLoadFailure(failures) {
     title: '收入数据加载失败',
     message: failures.join('\n')
   }).catch(() => {})
+}
+
+async function loadReviews(config = {}) {
+  const res = await listPassengerReviews({ page: 1, pageSize: 20 }, config)
+  reviews.value = Array.isArray(res.list) ? res.list : []
+}
+
+function selectTrajectory(orderId) {
+  trajectoryOrderId.value = Number(orderId || 0)
+  mineSection.value = 'trajectory'
+  activeTab.value = 3
+  loadTrajectory()
+}
+
+async function loadTrajectory() {
+  const orderId = Number(trajectoryOrderId.value || driverStore.currentOrderId || 0)
+  if (!orderId) {
+    trajectoryError.value = '请输入订单ID'
+    showToast('请输入订单ID')
+    return
+  }
+
+  try {
+    trajectoryError.value = ''
+    const res = await getOrderTrajectory(orderId, { silentError: true })
+    trajectoryPoints.value = Array.isArray(res.points) ? res.points : []
+  } catch (error) {
+    trajectoryPoints.value = []
+    trajectoryError.value = apiErrorMessage(error, '轨迹查询失败')
+  }
 }
 
 async function refreshProfile() {
@@ -1672,7 +1725,7 @@ function formatTime(timestamp) {
 }
 
 function formatOrderStatus(status) {
-  return { 1: '待接单', 2: '已接单', 3: '行程中', 4: '待支付', 5: '已完成', 6: '已取消', 7: '已退款' }[Number(status || 0)] || '--'
+  return { 1: '待接单', 2: '已接单', 3: '行程中', 4: '已完成', 5: '已取消', 6: '已关闭' }[Number(status || 0)] || '--'
 }
 
 function formatDispatchStatus(status) {

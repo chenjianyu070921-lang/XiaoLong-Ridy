@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -82,7 +83,7 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		OperatorId:   uint64(in.OperatorId),
 		Remark:       reason,
 	}
-	ok, err := l.svcCtx.OrderRepository.Cancel(l.ctx, order.Id, []int8{
+	ok, err := l.svcCtx.OrderRepository.CancelWithCoupon(l.ctx, order.Id, order.UserId, []int8{
 		constants.OrderStatusWaitAccept,
 		constants.OrderStatusAccepted,
 	}, operatorType, reason, statusLog)
@@ -98,8 +99,28 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		unmarkDriverBusy(l.ctx, l.svcCtx, order.DriverId)
 	}
 
+	// 取消订单时释放锁定的优惠券，避免用户券被永久占用（P0-M4-4：取消不释放券）。
+	if order.CouponId > 0 {
+		if rerr := l.svcCtx.OrderRepository.ReleaseCoupon(l.ctx, order.UserId, order.Id); rerr != nil {
+			l.Logger.Errorf("cancel order %d release coupon %d failed: %v", order.Id, order.CouponId, rerr)
+		}
+	}
+
 	// 取消成功后同步失效该订单的待派单记录，避免残留 Pending 被重派任务重复处理。
 	syncCancelDispatch(l.ctx, l.svcCtx.DispatchClient, order.Id, reason)
+
+	// 发布 order.canceled 事件，供乘客端/统计等下游感知（P2-M4-23：TopicOrderCancelled 已定义但从不发布）。
+	if l.svcCtx.EventBus != nil {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"order_id":    in.OrderId,
+			"operator":    operatorType,
+			"from_status": order.Status,
+			"to_status":   constants.OrderStatusCancelled,
+		})
+		if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderCancelled, payload); err != nil {
+			l.Logger.Errorf("publish order.canceled failed: %v", err)
+		}
+	}
 
 	return &proto.CancelOrderResponse{
 		OrderId: in.OrderId,

@@ -7,6 +7,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Search, Plus, Refresh, Tickets, CircleCheck, User, Avatar, Money } from '@element-plus/icons-vue'
 import { ordersApi, marketingApi, statisticsApi, riskApi, logsApi, refundRetryApi, notificationOutboxApi } from '../../api/modules'
 import { text, pageData } from '../../utils/format'
+import { orderStatusText, userStatusText, driverStatusText, vehicleStatusText, auditStatusText, carTypeText, roleText } from '../../utils/enums'
 import BusinessFormDialog from '../../components/BusinessFormDialog.vue'
 
 const route = useRoute(); const router = useRouter(); const loading = ref(false); const rows = ref([]); const total = ref(0); const page = ref(1); const pageSize = ref(20); const detail = ref(null); const dialog = ref(false); const dialogType = ref(''); const dialogRecord = ref({}); const submitting = ref(false); const downloading = ref(false); const selectionRows = ref([])
@@ -90,24 +91,40 @@ const statusMaps = {
   'notification-outbox': { status: { pending: '待重试', running: '处理中', success: '已完成', failed: '失败' } },
 }
 // label 取当前路由对应的枚举映射；键不在映射中时回退原始值，保证未知状态显示为可读而非数字。
-const label = (key, value) => { const m = statusMaps[routeKey.value]?.[key]; return m?.[value] || text(value) }
+// enumResolvers 统一复用全局枚举定义，避免不同列表对同一个状态码产生串号；模块专属枚举再回退到本页映射。
+const enumResolvers = {
+  orders: { status: orderStatusText, car_type: carTypeText },
+  'orders/abnormal': { status: orderStatusText },
+  users: { status: userStatusText, role: roleText },
+  drivers: { status: driverStatusText, vehicle_status: vehicleStatusText, audit_status: auditStatusText },
+}
+const label = (key, value) => {
+  const resolver = enumResolvers[routeKey.value]?.[key]
+  if (resolver) return resolver(value)
+  const m = statusMaps[routeKey.value]?.[key]
+  return m?.[value] || text(value)
+}
 const load = async () => { if (kind.value === 'dashboard' || isStatistics.value || isDetail.value) return; loading.value = true; try { const data = await api.value(listParams()); const p = pageData(data); rows.value = p.list; total.value = p.total } finally { loading.value = false } }
 // reset 只清空当前列表声明的筛选字段，避免跨路由残留条件并保留其他页面的独立状态。
 const reset = () => { activeFilters.value.forEach((field) => { filters.value[field.key] = field.type === 'date-range' ? [] : undefined }); page.value = 1; load() }
 const loadDetail = async () => { const id = route.params.id; if (kind.value === 'orders') detail.value = await ordersApi.detail(id); else if (kind.value === 'price-rules') detail.value = await marketingApi.priceRule(id); else if (kind.value === 'export-tasks') detail.value = await statisticsApi.exportDetail(route.params.taskNo); }
 // detailableKinds 指有独立详情路由或详情接口的模块；其余模块"查看"以行内弹窗展示字段，避免被通配路由重定向回工作台。
-const detailableKinds = ['orders', 'price-rules', 'export-tasks']
+const detailableKinds = ['orders', 'price-rules', 'export-tasks', 'refund-retry-tasks']
 const rowDetail = ref(null)
 const openDetail = (row) => {
   if (isAbnormalOrders.value) { rowDetail.value = row; return }
   if (detailableKinds.includes(kind.value)) {
-    const id = row.id || row.task_no
-    const path = kind.value === 'export-tasks' ? `/export-tasks/${id}` : `/${kind.value}/${id}`
+    // 退款补偿任务列表没有独立 id，使用关联订单 ID 打开订单详情。
+    const id = kind.value === 'refund-retry-tasks' ? row.order_id : (row.id || row.task_no)
+    if (!id) { rowDetail.value = row; return }
+    const path = kind.value === 'export-tasks' ? `/export-tasks/${id}` : kind.value === 'refund-retry-tasks' ? `/orders/${id}` : `/${kind.value}/${id}`
     router.push(path)
     return
   }
   rowDetail.value = row
 }
+// 风控命中与通知补偿列表没有独立详情路由，统一使用行详情抽屉展示。
+const canOpenRowDetail = computed(() => ['risk-hits', 'notification-outbox'].includes(kind.value))
 const rowDetailEntries = computed(() => Object.entries(rowDetail.value || {}).filter(([key, value]) => value !== null && value !== undefined && value !== '').map(([key, value]) => ({ key, value: typeof value === 'object' ? JSON.stringify(value) : label(key, value) })))
 // openRelated 将风控命中的派生关联对象带回对应运营页面，形成从命中到处置结果的追踪链路。
 const openRelated = (type, row) => {
@@ -138,6 +155,11 @@ const detailEntries = computed(() => Object.entries(detail.value || {}).filter((
 const dashboard = ref({ overview: {}, orders: {}, coupons: {}, drivers: {}, revenue: {}, users: {} });
 const statisticsRange = ref([])
 const statisticsError = ref('')
+// statisticsMeta 展示后端统一返回的生成时间和数据截至时间，避免运营误以为数据来自离线快照。
+const statisticsMeta = computed(() => ({
+  generatedAt: dashboard.value.overview?.generated_at || dashboard.value.orders?.generated_at || '',
+  dataAsOf: dashboard.value.overview?.data_as_of || dashboard.value.orders?.data_as_of || '',
+}))
 // chartGroups 将后端聚合指标转换为比例条，避免虚构接口未提供的时间序列数据。
 const chartGroups = computed(() => {
   const number = (value) => Math.max(0, Number.parseFloat(value) || 0)
@@ -177,22 +199,30 @@ const statisticsParams = () => { if (statisticsRange.value?.length === 2) return
 const loadDashboard = async () => {
   loading.value = true
   statisticsError.value = ''
-  try {
-    const params = statisticsParams()
-    const [overview, orders, drivers, revenue, coupons, users] = await Promise.all([
-      statisticsApi.overview(params),
-      statisticsApi.orders(params),
-      statisticsApi.drivers(params),
-      statisticsApi.revenue(params),
-      statisticsApi.coupons(params),
-      statisticsApi.users(params),
-    ])
-    dashboard.value = { overview: overview || {}, orders: orders || {}, drivers: drivers || {}, revenue: revenue || {}, coupons: coupons || {}, users: users || {} }
-  } catch (error) {
-    statisticsError.value = error?.message || '统计数据加载失败，请稍后重试'
-  } finally {
-    loading.value = false
+  const params = statisticsParams()
+  // 使用 allSettled 分块处理统计接口，单个指标失败时保留其他已成功加载的数据。
+  const requests = [
+    ['overview', statisticsApi.overview(params)],
+    ['orders', statisticsApi.orders(params)],
+    ['drivers', statisticsApi.drivers(params)],
+    ['revenue', statisticsApi.revenue(params)],
+    ['coupons', statisticsApi.coupons(params)],
+    ['users', statisticsApi.users(params)],
+  ]
+  const results = await Promise.allSettled(requests.map(([, request]) => request))
+  const failed = []
+  results.forEach((result, index) => {
+    const [key] = requests[index]
+    if (result.status === 'fulfilled') {
+      dashboard.value[key] = result.value || {}
+      return
+    }
+    failed.push(key)
+  })
+  if (failed.length) {
+    statisticsError.value = `部分统计数据加载失败（${failed.join('、')}），可点击重试`
   }
+  loading.value = false
 }
 onMounted(async () => { syncRouteQuery(); if (kind.value === 'dashboard' || isStatistics.value) return loadDashboard(); if (isDetail.value) { await loadDetail(); return }; await load() }); watch(() => route.fullPath, async () => { detail.value = null; selectionRows.value = []; page.value = 1; syncRouteQuery(); if (kind.value === 'dashboard' || isStatistics.value) return loadDashboard(); if (isDetail.value) { await loadDetail(); return }; await load() });
 </script>
@@ -202,6 +232,7 @@ onMounted(async () => { syncRouteQuery(); if (kind.value === 'dashboard' || isSt
     <template v-if="kind === 'dashboard' || isStatistics">
       <div class="hero"><div><span class="eyebrow">运营数据中心</span><h1>{{ isStatistics ? '数据统计' : '工作台' }}</h1><p>{{ isStatistics ? '按时间范围查看用户、订单与营销核心指标' : '实时掌握用户、订单与营销运营状态' }}</p></div><div class="statistics-actions"><el-date-picker v-if="isStatistics" v-model="statisticsRange" type="datetimerange" value-format="YYYY-MM-DD HH:mm:ss" start-placeholder="开始时间" end-placeholder="结束时间" /><el-button :icon="Refresh" @click="loadDashboard">刷新数据</el-button></div></div>
       <el-alert v-if="statisticsError" class="statistics-error" :title="statisticsError" type="error" show-icon :closable="false"><template #default><el-button link type="danger" @click="loadDashboard">重新加载统计</el-button></template></el-alert>
+      <div v-if="statisticsMeta.generatedAt || statisticsMeta.dataAsOf" class="statistics-meta"><span>数据生成时间：{{ statisticsMeta.generatedAt || '-' }}</span><span>数据截至时间：{{ statisticsMeta.dataAsOf || '-' }}</span></div>
       <div class="metric-grid"><div v-for="item in [{k:'order_count',t:'订单总量',i:Tickets},{k:'completed_order_count',t:'完成订单',i:CircleCheck},{k:'user_count',t:'用户总量',i:User},{k:'driver_count',t:'司机总量',i:Avatar},{k:'gmv',t:'GMV',i:Money}]" :key="item.k" class="metric"><span class="metric-icon"><el-icon><component :is="item.i" /></el-icon></span><div class="metric-body"><span>{{ item.t }}</span><strong>{{ text(dashboard.overview[item.k]) }}</strong><small>来自实时统计接口</small></div></div></div>
       <div class="panel-grid"><div class="panel"><div class="panel-title">用户运营</div><div class="stat-line"><span>新增用户</span><b>{{ text(dashboard.users.new_user_count) }}</b></div><div class="stat-line"><span>下单用户</span><b>{{ text(dashboard.users.order_user_count) }}</b></div><div class="stat-line"><span>复购率</span><b>{{ text(dashboard.users.reorder_rate) }}</b></div><div class="stat-line"><span>投诉率</span><b>{{ text(dashboard.users.complaint_rate) }}</b></div></div><div class="panel"><div class="panel-title">订单运营</div><div class="stat-line"><span>完成率</span><b>{{ text(dashboard.orders.completion_rate) }}</b></div><div class="stat-line"><span>取消率</span><b>{{ text(dashboard.orders.cancel_rate) }}</b></div><div class="stat-line"><span>异常订单</span><b>{{ text(dashboard.overview.abnormal_order_count) }}</b></div></div><div class="panel"><div class="panel-title">司机经营</div><div class="stat-line"><span>新增司机</span><b>{{ text(dashboard.drivers.new_driver_count) }}</b></div><div class="stat-line"><span>待审核</span><b>{{ text(dashboard.drivers.pending_audit_count) }}</b></div><div class="stat-line"><span>司机收入</span><b>¥{{ text(dashboard.drivers.driver_income) }}</b></div></div><div class="panel"><div class="panel-title">财务收入</div><div class="stat-line"><span>实付金额</span><b>¥{{ text(dashboard.revenue.paid_amount) }}</b></div><div class="stat-line"><span>退款金额</span><b>¥{{ text(dashboard.revenue.refund_amount) }}</b></div><div class="stat-line"><span>平台抽佣</span><b>¥{{ text(dashboard.revenue.platform_commission) }}</b></div></div><div class="panel"><div class="panel-title">优惠券运营</div><div class="stat-line"><span>优惠券模板</span><b>{{ text(dashboard.coupons.coupon_count) }}</b></div><div class="stat-line"><span>已启用</span><b>{{ text(dashboard.coupons.enabled_coupon_count) }}</b></div><div class="stat-line"><span>使用率</span><b>{{ text(dashboard.coupons.use_rate) }}</b></div></div></div>
       <div class="chart-grid"><div v-for="group in chartGroups" :key="group.title" class="panel chart-panel"><div class="panel-title">{{ group.title }}<small>接口聚合指标</small></div><div v-for="item in group.items" :key="item.label" class="chart-row"><div class="chart-label"><span>{{ item.label }}</span><b>{{ text(item.value) }}</b></div><div class="chart-track"><i :style="{ width: `${item.percent}%`, backgroundColor: item.color }" /></div></div></div></div>
@@ -214,17 +245,18 @@ onMounted(async () => { syncRouteQuery(); if (kind.value === 'dashboard' || isSt
       <div class="panel table-panel"><el-table :data="rows" stripe empty-text="暂无数据" @selection-change="selectionRows=$event"><el-table-column v-if="kind==='risk-hits'" type="selection" width="46" /><el-table-column v-for="c in columns" :key="c[0]" :prop="c[0]" :label="c[1]" min-width="140"><template #default="scope"><template v-if="kind==='risk-hits' && c[0]==='blacklist_id' && scope.row[c[0]]"><el-button link type="primary" @click="openRelated('blacklist', scope.row)">查看黑名单</el-button></template><template v-else-if="kind==='risk-hits' && c[0]==='work_order_id' && scope.row[c[0]]"><el-button link type="primary" @click="openRelated('work-order', scope.row)">查看工单</el-button></template><span v-else :class="{mono:c[0].includes('id') || c[0].includes('no')}" >{{ label(c[0], scope.row[c[0]]) }}</span></template></el-table-column><el-table-column label="操作" fixed="right" width="320"><template #default="scope"><el-button v-if="!['risk-hits','notification-outbox'].includes(kind)" link type="primary" @click="openDetail(scope.row)">查看</el-button><el-button v-if="kind==='orders' && !isAbnormalOrders && ![5,6].includes(scope.row.status)" link type="danger" @click="action('cancel',scope.row)">取消订单</el-button><el-button v-if="kind==='risk-hits' && scope.row.handle_status==='work_order'" link type="primary" @click="openRelated('work-order', scope.row)">跟进工单</el-button><el-button v-if="kind==='risk-hits' && scope.row.handle_status==='blacklisted'" link type="primary" @click="openRelated('blacklist', scope.row)">查看黑名单</el-button><el-button v-if="kind==='risk-hits' && scope.row.handle_status==='pending'" link type="warning" @click="action('riskHitAction',{ ids:[scope.row.id], risk_action:'create_work_order', reason:scope.row.hit_reason })">处置</el-button><el-button v-if="kind==='coupons'" link type="primary" @click="action('editCoupon',scope.row)">编辑</el-button><el-button v-if="kind==='coupons' && scope.row.status!=3" link type="success" @click="action('issueCoupon',scope.row)">发券</el-button><el-button v-if="kind==='coupons' && scope.row.status!=3" link type="warning" @click="action('disableCoupon',scope.row)">停用</el-button><el-button v-if="kind==='blacklist' && scope.row.status==1" link type="danger" @click="action('release',scope.row)">解除</el-button><el-button v-if="kind==='price-rules'" link type="primary" @click="action('editPriceRule',scope.row)">编辑</el-button><el-button v-if="kind==='price-rules'" link type="success" @click="action(scope.row.status==1?'disableRule':'enableRule',scope.row)">{{scope.row.status==1?'停用':'启用'}}</el-button><el-button v-if="kind==='promotion-activities'" link type="primary" @click="action('editActivity',scope.row)">编辑</el-button><el-button v-if="kind==='promotion-activities'" link type="warning" @click="action(scope.row.status==2?'rollback':'publish',scope.row)">{{scope.row.status==2?'回滚':'发布'}}</el-button></template></el-table-column></el-table><div class="table-footer"><span>共 {{ total }} 条记录</span><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev, pager, next, sizes" @current-change="load" @size-change="load" /></div></div>
     </template>
     <el-button v-if="kind === 'refund-retry-tasks' && rows.length" type="warning" @click="retryRefundTask(rows[0])">立即重试首条任务</el-button>
-    <el-dialog :model-value="!!rowDetail" :title="title + ' 详情'" width="720px" destroy-on-close class="row-detail-dialog" @update:model-value="(v) => { if (!v) rowDetail = null }">
+    <el-drawer :model-value="!!rowDetail" :title="title + ' 详情'" size="520px" destroy-on-close class="row-detail-drawer" @update:model-value="(v) => { if (!v) rowDetail = null }">
       <div class="panel detail-grid" style="border:none;box-shadow:none">
         <div v-for="item in rowDetailEntries" :key="item.key" class="detail-item"><span>{{ item.key }}</span><strong>{{ item.value }}</strong></div>
       </div>
-    </el-dialog>
+    </el-drawer>
     <BusinessFormDialog v-model="dialog" :type="dialogType" :title="dialogTitle" :record="dialogRecord" :loading="submitting" @submit="submitAction" />
   </section>
 </template>
 
 <style scoped>
 .console{color:var(--text-color,#2e2c4e)}.hero,.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px}.eyebrow{color:var(--brand,#6c5ce7);font-size:12px;letter-spacing:.1em;font-weight:600}.hero h1,.page-head h1{margin:7px 0 4px;font-size:26px;color:var(--text-color,#2e2c4e)}.hero p{margin:0;color:var(--muted-color,#8b88a3)}.statistics-actions{display:flex;align-items:center;gap:10px}.statistics-error{margin-bottom:16px}
+.statistics-meta{display:flex;gap:22px;align-items:center;margin:-8px 0 16px;color:var(--muted-color,#8b88a3);font-size:12px}
 .metric-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}.metric,.panel{background:var(--panel-bg,#fff);border:1px solid var(--border-color,#e5e4f0);border-radius:14px;box-shadow:var(--card-shadow,none)}.outbox-note{margin-bottom:16px}
 .metric{display:flex;align-items:center;gap:16px;padding:20px}.metric-icon{width:52px;height:52px;flex:0 0 52px;border-radius:50%;background:linear-gradient(135deg,var(--brand,#6c5ce7),#9a8ff2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 14px rgba(108,92,231,.28)}
 .metric-body{min-width:0}.metric-body span,.metric-body small{display:block;color:var(--muted-color,#8b88a3)}.metric-body strong{display:block;color:var(--text-color,#2e2c4e);font-size:26px;margin:6px 0 2px}.metric-body small{font-size:12px}

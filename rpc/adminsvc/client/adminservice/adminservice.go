@@ -133,6 +133,9 @@ type (
 	StatisticsOverviewResponse       = adminsvc.StatisticsOverviewResponse
 	StatisticsRequest                = adminsvc.StatisticsRequest
 	UserStatisticsResponse           = adminsvc.UserStatisticsResponse
+	CapacityMapRequest               = adminsvc.CapacityMapRequest
+	CapacityDriver                   = adminsvc.CapacityDriver
+	CapacityMapResponse              = adminsvc.CapacityMapResponse
 	User                             = adminsvc.User
 	UserDetailRequest                = adminsvc.UserDetailRequest
 	UserHistoryRequest               = adminsvc.UserHistoryRequest
@@ -255,6 +258,7 @@ type (
 		GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
 		// 查询用户统计。
 		GetUserStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*UserStatisticsResponse, error)
+		GetCapacityMap(ctx context.Context, in *CapacityMapRequest, opts ...grpc.CallOption) (*CapacityMapResponse, error)
 		// 创建导出任务。
 		CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error)
 		// 查询导出任务列表。
@@ -647,6 +651,12 @@ func (m *defaultAdminService) GetCouponStatistics(ctx context.Context, in *Stati
 func (m *defaultAdminService) GetUserStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*UserStatisticsResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.GetUserStatistics(ctx, in, opts...)
+}
+
+// GetCapacityMap 查询实时运力地图快照。
+func (m *defaultAdminService) GetCapacityMap(ctx context.Context, in *CapacityMapRequest, opts ...grpc.CallOption) (*CapacityMapResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetCapacityMap(ctx, in, opts...)
 }
 
 // 创建导出任务。

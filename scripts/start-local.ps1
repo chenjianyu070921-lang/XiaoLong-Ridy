@@ -52,7 +52,7 @@ $grpc = @(
     @{ Name="driversvc";   Pkg="rpc/driversvc";   Yaml="rpc/driversvc/etc/driversvc.yaml";   Port=50055; WD=$Root },
     @{ Name="ordersvc";    Pkg="rpc/ordersvc";    Yaml="rpc/ordersvc/etc/ordersvc.yaml";     Port=50051; WD=$Root },
     @{ Name="dispatchsvc"; Pkg="rpc/dispatchsvc"; Yaml="rpc/dispatchsvc/etc/dispatchsvc.yaml"; Port=50056; WD=$Root },
-    @{ Name="locationsvc"; Pkg="rpc/locationsvc"; Yaml="rpc/locationsvc/etc/locationsvc.yaml"; Port=9001;  WD=$Root }
+    @{ Name="locationsvc"; Pkg="rpc/locationsvc"; Yaml="rpc/locationsvc/etc/locationsvc.yaml"; Port=50057;  WD=$Root }
 )
 foreach ($s in $grpc) {
     $exe = Build-Service $s.Name $s.Pkg
@@ -69,7 +69,7 @@ if ($apiExe) {
 # ---------- 3. wait for ports ----------
 Write-Host ""
 Write-Host "Waiting for ports..."
-$ports = @{ 50055="driversvc"; 50051="ordersvc"; 50056="dispatchsvc"; 9001="locationsvc"; 18082="api/driver" }
+$ports = @{ 50055="driversvc"; 50051="ordersvc"; 50056="dispatchsvc"; 50057="locationsvc"; 8082="api/driver" }
 foreach ($kv in $ports.GetEnumerator()) { Wait-Port $kv.Key $kv.Value }
 Write-Host ""
 Write-Host "Done. Frontend localhost:5175 should now work."

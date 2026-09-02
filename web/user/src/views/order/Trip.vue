@@ -1,5 +1,9 @@
 <template>
   <div class="trip-page">
+    <!-- 左上角返回打车页，方便乘客退出当前行程展示。 -->
+    <button type="button" class="trip-back-btn" aria-label="返回打车页" @click="router.replace('/home')">
+      <van-icon name="arrow-left" size="20" />
+    </button>
     <!-- 地图 -->
     <div class="map-container" id="trip-map">
       <div v-if="trackingLoading" class="map-state">正在获取实时位置...</div>
@@ -98,18 +102,19 @@ const orderStore = useOrderStore()
 
 // 司机信息
 const driverInfo = ref({
-  name: '张师傅',
+  name: '司机信息加载中',
   avatar: '',
-  plateNumber: '渝A·12345',
-  carModel: '大众朗逸',
-  phone: '138****5678'
+  plateNumber: '车牌信息加载中',
+  carModel: '车型信息加载中',
+  phone: ''
 })
 
 // 行程统计数据
 const tripStats = ref({
   distance: '3.2公里',
   duration: '8分钟',
-  estimatedPrice: '20.6',
+  // 费用由当前订单快照提供，未返回前显示占位符，禁止使用写死金额。
+  estimatedPrice: '--',
   estimatedArrival: '12:30'
 })
 
@@ -123,6 +128,7 @@ const trackingError = ref('')
 
 // 联系司机
 const callDriver = () => {
+  if (!driverInfo.value.phone) { showToast('司机暂未提供联系电话'); return }
   showDialog({
     title: '联系司机',
     message: `是否拨打司机电话：${driverInfo.value.phone}`,
@@ -165,6 +171,7 @@ const pollStatus = async () => {
     const result = await pollOrderStatus(orderStore.currentOrder?.orderId)
     const status = Number(result?.status)
     orderStore.setCurrentOrder({ ...orderStore.currentOrder, ...result })
+    syncDriverInfo(orderStore.currentOrder)
 
     if (status === 4) {
       router.replace('/order/payment')
@@ -175,6 +182,15 @@ const pollStatus = async () => {
   } catch (error) {
     console.error(error)
   }
+}
+
+// 司机身份信息只取订单接口真实字段，缺失时显示加载占位，不伪造数据。
+const syncDriverInfo = (order = {}) => {
+  driverInfo.value.name = order.driverName || (order.driverId ? `司机 #${order.driverId}` : '司机信息加载中')
+  driverInfo.value.plateNumber = order.plateNumber || '车牌信息加载中'
+  driverInfo.value.carModel = order.carModel || '车型信息加载中'
+  driverInfo.value.avatar = order.driverAvatar || ''
+  driverInfo.value.phone = order.driverPhone || ''
 }
 
 // 将秒数格式化为乘客容易阅读的行程时长。
@@ -197,7 +213,8 @@ const renderTracking = (snapshot) => {
   // 追踪接口可能先于地图完成初始化返回，必须等待地图实例就绪。
   if (!mapInstance || typeof mapInstance.add !== 'function' || !snapshot) return
   const position = [Number(snapshot.driverLongitude), Number(snapshot.driverLatitude)]
-  if (!position.every(Number.isFinite)) return
+  // 后端在位置服务暂不可用时返回空快照，不能把 (0,0) 当成有效坐标绘制到非洲海域。
+  if (!position.every(Number.isFinite) || position[0] === 0 || position[1] === 0) return
 
   if (!driverMarker) {
     driverMarker = new window.AMap.Marker({ position, title: '司机当前位置', anchor: 'center' })
@@ -221,7 +238,10 @@ const renderTracking = (snapshot) => {
 
   tripStats.value.distance = formatDistance(snapshot.travelledDistanceM)
   tripStats.value.duration = formatDuration(snapshot.elapsedDurationS ?? snapshot.durationS ?? 0)
-  tripStats.value.estimatedPrice = (Number(snapshot.estimatedPriceCents || 0) / 100).toFixed(2)
+  const priceCents = Number(snapshot.estimatedPriceCents)
+  if (Number.isFinite(priceCents) && priceCents > 0) {
+    tripStats.value.estimatedPrice = (priceCents / 100).toFixed(2)
+  }
   if (snapshot.remainingDurationS) {
     tripStats.value.estimatedArrival = formatDuration(snapshot.remainingDurationS)
   }
@@ -237,7 +257,8 @@ const refreshTracking = async () => {
   }
   try {
     const snapshot = await getOrderTracking(orderId)
-    trackingError.value = snapshot?.stale ? '司机位置更新时间较早，正在重新连接...' : ''
+    const hasPosition = Number(snapshot?.driverLongitude) !== 0 && Number(snapshot?.driverLatitude) !== 0
+    trackingError.value = hasPosition && snapshot?.stale ? '司机位置更新时间较早，正在重新连接...' : (hasPosition ? '' : '正在等待司机上报位置...')
     renderTracking(snapshot)
   } catch (error) {
     console.error('获取行程追踪失败', error)
@@ -248,6 +269,9 @@ const refreshTracking = async () => {
 }
 
 onMounted(() => {
+  syncDriverInfo(orderStore.currentOrder)
+  const orderPriceCents = Number(orderStore.currentOrder?.estimatedPriceCents || orderStore.currentOrder?.payableCents || 0)
+  if (Number.isFinite(orderPriceCents) && orderPriceCents > 0) tripStats.value.estimatedPrice = (orderPriceCents / 100).toFixed(2)
   initMap().then(refreshTracking)
   pollTimer = setInterval(pollStatus, 5000)
   trackingTimer = setInterval(refreshTracking, 3000)
@@ -277,12 +301,32 @@ const initMap = async () => {
 .trip-page {
   min-height: 100vh;
   background: #f5f5f5;
+  padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  overflow-x: hidden;
 }
 
 .map-container {
   position: relative;
-  height: 50vh;
+  height: 46vh;
+  min-height: 320px;
   background: #E5E7EB;
+}
+
+.trip-back-btn {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 16px;
+  z-index: 20;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1f2937;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
 }
 
 .map-state {
@@ -306,7 +350,10 @@ const initMap = async () => {
 }
 
 .trip-card {
-  margin: -40px 16px 80px;
+  /* 仅保留小幅叠放，避免卡片标题和司机信息被地图层裁切。 */
+  margin: -18px 16px 24px;
+  position: relative;
+  z-index: 2;
   background: white;
   border-radius: 16px;
   padding: 20px;

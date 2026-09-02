@@ -26,13 +26,19 @@ type LocationMessage struct {
 // LocationHandler 位置消息处理器
 type LocationHandler struct {
 	logx.Logger
-	rdb *redis.Client
+	rdb      *redis.Client
+	cityCode string
 }
 
-func NewLocationHandler(rdb *redis.Client) *LocationHandler {
+// NewLocationHandler 创建位置处理器，并注入默认城市编码。
+func NewLocationHandler(rdb *redis.Client, cityCode string) *LocationHandler {
+	if cityCode == "" {
+		cityCode = "default"
+	}
 	return &LocationHandler{
-		Logger: logx.WithContext(context.Background()),
-		rdb:    rdb,
+		Logger:   logx.WithContext(context.Background()),
+		rdb:      rdb,
+		cityCode: cityCode,
 	}
 }
 
@@ -44,7 +50,7 @@ func (h *LocationHandler) Consume(ctx context.Context, _ string, value []byte) e
 		return err
 	}
 
-	geoKey := fmt.Sprintf(constants.RedisDriverGeo, "default")
+	geoKey := fmt.Sprintf(constants.RedisDriverGeo, h.cityCode)
 	_, err := h.rdb.GeoAdd(ctx, geoKey, &redis.GeoLocation{
 		Name:      strconv.FormatInt(msg.DriverID, 10),
 		Longitude: msg.Lng,

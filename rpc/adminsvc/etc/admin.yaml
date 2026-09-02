@@ -1,9 +1,11 @@
 Name: admin.rpc
 ListenOn: 0.0.0.0:8084
-Etcd:
-  Hosts:
-  - 127.0.0.1:2379
-  Key: admin.rpc
+# 本地联调默认关闭 Etcd 注册，避免未启动 Etcd 时服务初始化 panic。
+# 生产环境如需服务发现，可通过部署配置恢复以下配置。
+# Etcd:
+#   Hosts:
+#   - 127.0.0.1:2379
+#   Key: admin.rpc
 MySQL:
   # 真实数据库连接串由环境变量 ADMINSVC_MYSQL_DSN 注入，禁止在此提交明文凭据。
   DSN: "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
@@ -198,7 +200,7 @@ DriversRPC:
   NonBlock: true
   Timeout: 30000
 LocationsRPC:
-  Target: 127.0.0.1:9001
+  Target: 127.0.0.1:50057
   NonBlock: true
 PricesRPC:
   Target: 127.0.0.1:50053

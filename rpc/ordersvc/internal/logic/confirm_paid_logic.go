@@ -76,8 +76,11 @@ func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.Con
 		OperatorType: constants.OperatorSystem,
 		OperatorId:   0,
 		Remark:       remark,
+		PaidCents:    in.AmountCents,
 	}
-	ok, err := l.svcCtx.OrderRepository.CompleteOrder(l.ctx, order.Id, statusLog)
+	// 支付单已通过四要素核验（单号/订单/金额/状态），in.AmountCents 即乘客实付金额。
+	// 必须落库 paid_cents：后续退款以 order.PaidCents 为基准，不落库会导致退款退 0 分。
+	ok, err := l.svcCtx.OrderRepository.CompleteOrder(l.ctx, order.Id, statusLog, in.AmountCents)
 	if err != nil {
 		return nil, err
 	}

@@ -62,3 +62,6 @@ rpc/adminsvc/.tmp-admin-exports/
 .gotmp-restore.zip
 .tmp-gocache-review/
 .gocache/
+.gocache-stat/
+.run/
+.aider*

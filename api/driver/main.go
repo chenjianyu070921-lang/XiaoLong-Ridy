@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"syscall"
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/handler"
@@ -32,7 +35,7 @@ const defaultPayGRPCAddr = "115.191.16.159:50054"
 
 const defaultDispatchGRPCAddr = "115.191.16.159:50056"
 
-const defaultLocationGRPCAddr = "115.191.16.159:9001"
+const defaultLocationGRPCAddr = "115.191.16.159:50057"
 
 const defaultRedisAddr = ""
 
@@ -77,13 +80,22 @@ func main() {
 		cfg.Mysql.Dsn = mysqlDSN
 	}
 
-	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword, cfg.Mysql, payGRPCAddr)
+	svcCtx := svc.NewServiceContextWithStorage(
+		driverGRPCAddr,
+		orderGRPCAddr,
+		dispatchGRPCAddr,
+		locationGRPCAddr,
+		commonconfig.RedisConf{Host: redisAddr, Pass: redisPassword},
+		cfg.Mysql,
+		payGRPCAddr,
+	)
 	svcCtx.InternalAuth = cfg.InternalAuth
 	if qiniuClient, err := newDriverQiniuClient(cfg); err != nil {
 		panic(fmt.Errorf("driver qiniu config: %w", err))
 	} else {
 		svcCtx.Qiniu = qiniuClient
 	}
+	svcCtx.SigningKey = envOr("DRIVER_SIGNING_KEY", svcCtx.SigningKey)
 	if err := svcCtx.ValidateSigningKey(); err != nil {
 		panic(fmt.Errorf("driver api signing key check: %w", err))
 	}
@@ -99,9 +111,20 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, paysvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, payGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
+	log.Printf("driver api started at http://%s  (driversvc gRPC: %s, ordersvc gRPC: %s, paysvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, payGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
+	stopCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		<-stopCtx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
+	}()
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(fmt.Errorf("start driver api: %w", err))
+	}
+	if svcCtx.RedisClient != nil {
+		_ = svcCtx.RedisClient.Close()
 	}
 }
 

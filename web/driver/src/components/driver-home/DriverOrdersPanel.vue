@@ -233,6 +233,23 @@ function orderStatusClass(order) {
 </script>
 
 <style scoped>
+.h5-panel { padding: 10px 0 24px; color: #172033; }
+.section-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 4px 0 10px; }
+.section-title h2 { margin:0; font-size:20px; letter-spacing:0; }
+.section-title button, .section-actions button { min-height:34px; padding:0 12px; border:1px solid #e1e6ef; border-radius:8px; background:#fff; color:#344054; font-size:12px; font-weight:700; }
+.section-actions { gap:6px; }
+.nearby-order-section, .h5-panel > .section-title, .filter-bar, .h5-panel > .order-card, .h5-panel > .pager { margin-left: 2px; margin-right: 2px; }
+.nearby-order-section { padding:14px; border-radius:14px; background:#fff; box-shadow:0 6px 18px rgba(15,23,42,.06); }
+.home-order-empty, .empty-state { display:grid; min-height:106px; place-items:center; color:#98a2b3; font-size:13px; background:#f8f9fc; border-radius:10px; }
+.filter-bar { margin-bottom:10px; overflow:hidden; border-radius:10px; background:#fff; box-shadow:0 3px 12px rgba(15,23,42,.05); }
+.filter-bar :deep(.van-dropdown-menu__bar) { height:44px; box-shadow:none; }
+.order-card { display:grid; gap:10px; margin-bottom:10px; padding:14px; border:1px solid #e9edf4; border-radius:12px; background:#fff; box-shadow:0 5px 16px rgba(15,23,42,.05); }
+.order-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }.order-heading strong { overflow:hidden; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }.order-heading :deep(.van-tag) { border-radius:6px; }
+.route-line { margin:0; color:#344054; font-size:14px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }
+.meta-row { display:flex; justify-content:space-between; gap:8px; color:#98a2b3; font-size:12px; }.meta-row span:first-child { color:#5b5cff; font-size:17px; font-weight:800; }
+.order-actions { display:flex; justify-content:flex-end; gap:7px; padding-top:2px; }.order-actions button { min-height:34px; padding:0 13px; border:1px solid #dfe4ec; border-radius:8px; background:#fff; color:#475467; font-size:12px; font-weight:700; }.order-actions button.primary { border-color:#5b5cff; background:#5b5cff; color:#fff; }
+.pager { display:flex; align-items:center; justify-content:center; gap:12px; margin:14px 0 18px; color:#667085; font-size:13px; }.pager button { min-height:34px; padding:0 12px; border:1px solid #e1e6ef; border-radius:8px; background:#fff; color:#344054; font-size:12px; }.pager button:disabled { opacity:.45; }
+.nearby-order-card { border-left:3px solid #5b5cff; }
 .nearby-order-section {
   display: grid;
   gap: 10px;

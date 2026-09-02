@@ -114,9 +114,6 @@ func (t *Task) DailyReport() error {
 		OtherOrders:     other,
 		CreatedAt:       now,
 	}
-	if err := t.svcCtx.Db.AutoMigrate(&DailyReport{}); err != nil {
-		return fmt.Errorf("建日报表失败: %w", err)
-	}
 	if err := t.svcCtx.Db.Create(report).Error; err != nil {
 		return fmt.Errorf("落库日报表失败: %w", err)
 	}

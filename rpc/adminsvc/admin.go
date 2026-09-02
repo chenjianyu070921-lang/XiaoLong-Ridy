@@ -61,7 +61,9 @@ func main() {
 	// 会导致优惠券、用户、订单等列表接口在本地启动场景下报扫描错误（500）。
 	c.MySQL.DSN = normalizeMySQLDSN(c.MySQL.DSN)
 	if strings.TrimSpace(c.MySQL.DSN) == "" {
-		panic("mysql dsn is empty: set ADMINSVC_MYSQL_DSN")
+		// 配置错误属于启动前置条件失败，使用可读日志并以非零状态退出，
+		// 避免 panic 堆栈污染日志，也避免在无数据库连接时继续创建服务。
+		log.Fatal("mysql dsn is empty: set ADMINSVC_MYSQL_DSN or configure MySQL.DSN")
 	}
 	log.Printf("adminsvc creating service context")
 	ctx := svc.NewServiceContext(c)
