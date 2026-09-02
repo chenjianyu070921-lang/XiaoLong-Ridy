@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v3.19.4
-// source: rpc/adminsvc/admin.proto
+// source: admin.proto
 
 package adminsvc
 
@@ -79,6 +79,7 @@ const (
 	AdminService_GetFinanceStatistics_FullMethodName       = "/adminsvc.AdminService/GetFinanceStatistics"
 	AdminService_GetCouponStatistics_FullMethodName        = "/adminsvc.AdminService/GetCouponStatistics"
 	AdminService_GetUserStatistics_FullMethodName          = "/adminsvc.AdminService/GetUserStatistics"
+	AdminService_GetCapacityMap_FullMethodName             = "/adminsvc.AdminService/GetCapacityMap"
 	AdminService_CreateExportTask_FullMethodName           = "/adminsvc.AdminService/CreateExportTask"
 	AdminService_ListExportTasks_FullMethodName            = "/adminsvc.AdminService/ListExportTasks"
 	AdminService_GetExportTask_FullMethodName              = "/adminsvc.AdminService/GetExportTask"
@@ -226,6 +227,8 @@ type AdminServiceClient interface {
 	GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
 	// 查询用户统计。
 	GetUserStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*UserStatisticsResponse, error)
+	// 查询实时运力地图快照。
+	GetCapacityMap(ctx context.Context, in *CapacityMapRequest, opts ...grpc.CallOption) (*CapacityMapResponse, error)
 	// 创建导出任务。
 	CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error)
 	// 查询导出任务列表。
@@ -258,7 +261,7 @@ type AdminServiceClient interface {
 	ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询风控命中记录。
 	ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
-	// 处置风控命中记录。
+	// 处置风控命中记录，action 支持 review_pass/add_blacklist/create_work_order/freeze。
 	HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
 	// 查询管理后台通知与审计补偿任务。
 	ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error)
@@ -872,6 +875,16 @@ func (c *adminServiceClient) GetUserStatistics(ctx context.Context, in *Statisti
 	return out, nil
 }
 
+func (c *adminServiceClient) GetCapacityMap(ctx context.Context, in *CapacityMapRequest, opts ...grpc.CallOption) (*CapacityMapResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CapacityMapResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetCapacityMap_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ExportTaskResponse)
@@ -1202,6 +1215,8 @@ type AdminServiceServer interface {
 	GetCouponStatistics(context.Context, *StatisticsRequest) (*CouponStatisticsResponse, error)
 	// 查询用户统计。
 	GetUserStatistics(context.Context, *StatisticsRequest) (*UserStatisticsResponse, error)
+	// 查询实时运力地图快照。
+	GetCapacityMap(context.Context, *CapacityMapRequest) (*CapacityMapResponse, error)
 	// 创建导出任务。
 	CreateExportTask(context.Context, *ExportTaskRequest) (*ExportTaskResponse, error)
 	// 查询导出任务列表。
@@ -1234,7 +1249,7 @@ type AdminServiceServer interface {
 	ReleaseBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error)
 	// 查询风控命中记录。
 	ListRiskHitRecords(context.Context, *RiskHitRecordListRequest) (*RiskHitRecordListResponse, error)
-	// 处置风控命中记录。
+	// 处置风控命中记录，action 支持 review_pass/add_blacklist/create_work_order/freeze。
 	HandleRiskHitRecords(context.Context, *RiskHitActionRequest) (*RiskHitActionResponse, error)
 	// 查询管理后台通知与审计补偿任务。
 	ListAdminAuditOutbox(context.Context, *AdminAuditOutboxListRequest) (*AdminAuditOutboxListResponse, error)
@@ -1424,6 +1439,9 @@ func (UnimplementedAdminServiceServer) GetCouponStatistics(context.Context, *Sta
 }
 func (UnimplementedAdminServiceServer) GetUserStatistics(context.Context, *StatisticsRequest) (*UserStatisticsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) GetCapacityMap(context.Context, *CapacityMapRequest) (*CapacityMapResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCapacityMap not implemented")
 }
 func (UnimplementedAdminServiceServer) CreateExportTask(context.Context, *ExportTaskRequest) (*ExportTaskResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateExportTask not implemented")
@@ -2572,6 +2590,24 @@ func _AdminService_GetUserStatistics_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_GetCapacityMap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CapacityMapRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetCapacityMap(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetCapacityMap_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetCapacityMap(ctx, req.(*CapacityMapRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_CreateExportTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExportTaskRequest)
 	if err := dec(in); err != nil {
@@ -3147,6 +3183,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_GetUserStatistics_Handler,
 		},
 		{
+			MethodName: "GetCapacityMap",
+			Handler:    _AdminService_GetCapacityMap_Handler,
+		},
+		{
 			MethodName: "CreateExportTask",
 			Handler:    _AdminService_CreateExportTask_Handler,
 		},
@@ -3222,5 +3262,5 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "rpc/adminsvc/admin.proto",
+	Metadata: "admin.proto",
 }

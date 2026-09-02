@@ -643,6 +643,7 @@ func TestRouter_WriteBizErrorMapping(t *testing.T) {
 		{name: "grpc not found", err: status.Error(codes.NotFound, "missing"), httpStatus: http.StatusNotFound, code: 40401},
 		{name: "grpc permission denied", err: status.Error(codes.PermissionDenied, "forbidden"), httpStatus: http.StatusForbidden, code: 40003},
 		{name: "grpc unauthenticated", err: status.Error(codes.Unauthenticated, "login"), httpStatus: http.StatusUnauthorized, code: 40004},
+		{name: "grpc unavailable", err: status.Error(codes.Unavailable, "driver service down"), httpStatus: http.StatusServiceUnavailable, code: 50301},
 	}
 
 	for _, tc := range cases {

@@ -34,6 +34,14 @@ const price = computed(() => detail.value?.price)
 const payment = computed(() => detail.value?.payment)
 const settlement = computed(() => detail.value?.settlement)
 const canCancel = computed(() => ![5, 6].includes(order.value.status))
+// trackPolyline 将真实轨迹经纬度归一化到 SVG 画布，便于无额外地图 SDK 时查看路径形状。
+const trackPolyline = computed(() => {
+  const points = trackPoints.value.map((item) => ({ x: Number(item.longitude), y: Number(item.latitude) })).filter((item) => Number.isFinite(item.x) && Number.isFinite(item.y) && item.x >= -180 && item.x <= 180 && item.y >= -90 && item.y <= 90)
+  if (points.length < 2) return ''
+  const minX = Math.min(...points.map((item) => item.x)); const maxX = Math.max(...points.map((item) => item.x)); const minY = Math.min(...points.map((item) => item.y)); const maxY = Math.max(...points.map((item) => item.y))
+  const width = Math.max(maxX - minX, 0.000001); const height = Math.max(maxY - minY, 0.000001)
+  return points.map((item) => `${20 + (item.x - minX) / width * 560},${380 - (item.y - minY) / height * 340}`).join(' ')
+})
 
 // 订单状态、支付状态和派单状态使用后端约定的数值枚举转换为运营可读文本。
 const paymentStatusText = (status) => ({ 1: '待支付', 2: '已支付', 3: '支付异常', 4: '已退款' }[status] || orDash(status))
@@ -277,7 +285,9 @@ watch(() => route.params.id, loadDetail, { immediate: true })
     </section>
 
     <section v-if="trackVisible" class="panel">
-      <div class="section-title">轨迹点</div>
+      <div class="section-title">轨迹地图</div>
+      <div v-if="trackPolyline" class="track-map"><svg viewBox="0 0 600 400" role="img" aria-label="订单轨迹"><polyline :points="trackPolyline" fill="none" stroke="#409eff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle v-if="trackPoints.length" :cx="Number(trackPolyline.split(' ')[0].split(',')[0])" :cy="Number(trackPolyline.split(' ')[0].split(',')[1])" r="7" fill="#67c23a"/><circle v-if="trackPoints.length" :cx="Number(trackPolyline.split(' ').slice(-1)[0].split(',')[0])" :cy="Number(trackPolyline.split(' ').slice(-1)[0].split(',')[1])" r="7" fill="#f56c6c"/></svg></div><el-empty v-else description="暂无有效轨迹坐标" :image-size="60" />
+      <div class="section-title">轨迹点明细</div>
       <el-table :data="trackPoints" empty-text="暂无轨迹点">
         <el-table-column prop="recorded_at" label="记录时间" width="180" />
         <el-table-column prop="driver_id" label="司机 ID" width="110" />
@@ -341,4 +351,5 @@ watch(() => route.params.id, loadDetail, { immediate: true })
 
 <style scoped>
 .order-detail{color:var(--text-color,#2e2c4e)}.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}.eyebrow{color:var(--brand,#6c5ce7);font-size:12px;letter-spacing:.1em;font-weight:600}.page-head h1{margin:7px 0 4px;font-size:26px;color:var(--text-color,#2e2c4e)}.page-head p{margin:0;color:var(--muted-color,#8b88a3)}.head-actions,.action-bar{display:flex;gap:10px}.action-bar{margin-bottom:16px}.operation-error,.relation-error{margin-bottom:16px}.panel{padding:20px;margin-bottom:16px;background:var(--panel-bg,#fff);border:1px solid var(--border-color,#e5e4f0);border-radius:14px;box-shadow:var(--card-shadow,none);overflow:auto}.section-title{margin-bottom:15px;color:var(--text-color,#2e2c4e);font-size:16px;font-weight:700;padding-left:10px;border-left:3px solid var(--brand,#6c5ce7)}.info-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.info-grid>div{min-width:0;padding:14px 16px;border-top:1px solid var(--border-color,#e5e4f0)}.info-grid span{display:block;margin-bottom:7px;color:var(--muted-color,#8b88a3);font-size:12px}.info-grid strong{display:block;overflow-wrap:anywhere;color:var(--text-color,#2e2c4e);font-weight:500}.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.two-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.two-columns .panel{margin-bottom:0}@media(max-width:1100px){.info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.page-head{display:block}.head-actions{margin-top:14px}.two-columns{grid-template-columns:1fr}.info-grid,.compact{grid-template-columns:1fr}.action-bar{flex-wrap:wrap}}
+.track-map{height:400px;margin:0 0 18px;border:1px solid var(--border-color,#e5e4f0);border-radius:8px;background:linear-gradient(90deg,#f5f8fc 1px,transparent 1px),linear-gradient(#f5f8fc 1px,transparent 1px);background-size:40px 40px}.track-map svg{width:100%;height:100%}
 </style>

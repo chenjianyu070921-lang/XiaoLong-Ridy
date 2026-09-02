@@ -73,6 +73,7 @@ func (r *Router) routes() {
 	r.registerDriverRoutes()
 	r.registerMarketingRoutes()
 	r.registerStatisticsRoutes()
+	r.registerCapacityRoutes()
 	r.registerOperationRoutes()
 	r.registerOrderRoutes()
 }
@@ -1128,89 +1129,6 @@ func (r *Router) handlePromotionActivityByID(w http.ResponseWriter, req *http.Re
 }
 
 // handleStatisticsOverview 查询运营总览统计。
-func (r *Router) handleStatisticsOverview(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Overview(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsOrders 查询订单统计。
-func (r *Router) handleStatisticsOrders(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Orders(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsDrivers 查询司机经营统计。
-func (r *Router) handleStatisticsDrivers(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Drivers(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsRevenue 查询财务收入统计。
-func (r *Router) handleStatisticsRevenue(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Revenue(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsCoupons 查询优惠券统计。
-func (r *Router) handleStatisticsCoupons(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Coupons(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsUsers 查询用户增长、活跃、复购、投诉和风险统计。
-func (r *Router) handleStatisticsUsers(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Users(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
 // handleExportTasks 处理导出任务创建和列表查询。
 func (r *Router) handleExportTasks(w http.ResponseWriter, req *http.Request) {
 	exportLogic := logic.NewExportLogic(r.ctx)
@@ -1567,6 +1485,9 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, 40003, permissionDeniedMessage(err))
 	case status.Code(err) == codes.Unauthenticated:
 		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
+	case status.Code(err) == codes.Unavailable:
+		// 下游司机服务未启动或连接中断时返回 503，避免前端把依赖故障误判为后台代码错误。
+		writeError(w, http.StatusServiceUnavailable, 50301, "司机服务暂不可用，请检查 driversvc")
 	default:
 		writeError(w, http.StatusInternalServerError, 50000, "system error")
 	}

@@ -29,6 +29,7 @@ type Config struct {
 	MenuRoles            map[int32][]MenuItemConfig `json:"MenuRoles,optional" yaml:"MenuRoles"`
 }
 
+
 // MySQLConfig 定义本服务访问业务数据库所需的数据源。
 type MySQLConfig struct {
 	DSN string `yaml:"DSN"`

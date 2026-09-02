@@ -179,12 +179,12 @@ func TestGetDriverAndFinanceStatistics_RejectUnsupportedCityFilter(t *testing.T)
 	defer cleanup()
 
 	driverReq := &adminsvc.StatisticsRequest{CityCode: "110000"}
-	if _, err := NewGetDriverStatisticsLogic(context.Background(), svcCtx).GetDriverStatistics(driverReq); status.Code(err) != codes.FailedPrecondition {
-		t.Fatalf("GetDriverStatistics() error code = %v, want FailedPrecondition", status.Code(err))
+	if _, err := NewGetDriverStatisticsLogic(context.Background(), svcCtx).GetDriverStatistics(driverReq); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("GetDriverStatistics() error code = %v, want InvalidArgument", status.Code(err))
 	}
 	financeReq := &adminsvc.StatisticsRequest{CityCode: "110000"}
-	if _, err := NewGetFinanceStatisticsLogic(context.Background(), svcCtx).GetFinanceStatistics(financeReq); status.Code(err) != codes.FailedPrecondition {
-		t.Fatalf("GetFinanceStatistics() error code = %v, want FailedPrecondition", status.Code(err))
+	if _, err := NewGetFinanceStatisticsLogic(context.Background(), svcCtx).GetFinanceStatistics(financeReq); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("GetFinanceStatistics() error code = %v, want InvalidArgument", status.Code(err))
 	}
 }
 

@@ -45,6 +45,8 @@ service User {
   rpc AdminListUsers(AdminUserListRequest) returns (AdminUserListResponse);
   // AdminGetUser 为管理后台提供指定用户详情查询能力。
   rpc AdminGetUser(AdminUserDetailRequest) returns (AdminUser);
+  // AdminFreezeUser 为管理后台提供用户冻结能力，状态变更由 usersvc 负责。
+  rpc AdminFreezeUser(AdminFreezeUserRequest) returns (AdminFreezeUserResponse);
   // GetWallet 查询当前用户钱包余额和流水。
   rpc GetWallet(GetWalletRequest) returns (GetWalletResponse);
   // RechargeWallet 充值并写入钱包流水。
@@ -319,6 +321,19 @@ message AdminUserListRequest {
 // AdminUserDetailRequest 表示管理后台用户详情查询条件。
 message AdminUserDetailRequest {
   uint64 id = 1;
+}
+
+// AdminFreezeUserRequest 表示管理后台冻结用户请求。
+message AdminFreezeUserRequest {
+  uint64 user_id = 1;
+  string reason = 2;
+  int64 operator_id = 3;
+  string ip = 4;
+}
+
+// AdminFreezeUserResponse 表示用户冻结结果。
+message AdminFreezeUserResponse {
+  bool success = 1;
 }
 
 // AdminUser 表示管理后台展示的用户资料。

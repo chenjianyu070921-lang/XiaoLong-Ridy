@@ -1,4 +1,4 @@
-  deploy/docker/infra.yml# XiaoLong-Ridy 订单模块基础中间件
+# XiaoLong-Ridy 订单模块基础中间件
 # 启动：docker compose -f rpc/ordersvc/docker-compose/infra.yml up -d
 name: xiaolong-orderclient-infra
 
