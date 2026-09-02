@@ -29,9 +29,10 @@ func (OrderReview) TableName() string {
 	return "order_review"
 }
 
-// ReviewRepository 定义评价写入仓储契约。
+// ReviewRepository 定义订单评价的查询和写入仓储契约。
 type ReviewRepository interface {
 	Create(ctx context.Context, review *OrderReview) error
+	HasOrderReview(ctx context.Context, orderID uint64) (bool, error)
 }
 
 // GormReviewRepository 是 MySQL/GORM 评价仓储。
@@ -51,6 +52,16 @@ func (r *GormReviewRepository) Create(ctx context.Context, review *OrderReview) 
 		return ErrReviewAlreadyExists
 	}
 	return err
+}
+
+// HasOrderReview 判断指定订单是否已经存在乘客评价，用于订单列表和详情页恢复评价状态。
+func (r *GormReviewRepository) HasOrderReview(ctx context.Context, orderID uint64) (bool, error) {
+	if orderID == 0 {
+		return false, nil
+	}
+	var count int64
+	err := r.db.WithContext(ctx).Model(&OrderReview{}).Where("order_id = ?", orderID).Count(&count).Error
+	return count > 0, err
 }
 
 // isDuplicateReview 判断 MySQL 唯一键冲突。

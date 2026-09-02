@@ -4,7 +4,10 @@ Kafka:
   Brokers:
     - 115.191.16.159:9092
   Topic: location-report
-  Group: location-consumer-group
+Group: location-consumer-group
+
+# Redis GEO 城市桶编码，需与 dispatchsvc.defaultCityCode 保持一致。
+defaultCityCode: "321300"
 
 Redis:
   host: 115.191.16.159:6379

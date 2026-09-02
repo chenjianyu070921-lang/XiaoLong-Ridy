@@ -87,6 +87,26 @@
           </section>
         </div>
 
+        <div v-if="searchMode === 'pickup' && !keyword.trim() && groupedRecentPickups.length" class="search-history">
+          <div class="history-title-row">
+            <span class="history-title">历史上车点</span>
+            <button type="button" class="history-clear" @click="clearRecentPickups">清空历史</button>
+          </div>
+          <section v-for="group in groupedRecentPickups" :key="group.cityKey" class="history-city">
+            <div class="history-city-title">{{ group.cityName }}</div>
+            <div class="history-list">
+              <button v-for="item in group.items" :key="item.id || `${item.name}-${item.lat}-${item.lng}`" type="button" class="history-row" @click="selectSearchResult(item)">
+                <van-icon name="clock-o" />
+                <span class="history-info">
+                  <span class="history-name">{{ item.name }}</span>
+                  <span class="history-address">{{ item.address || item.name }}</span>
+                </span>
+                <van-icon name="cross" class="history-delete" @click.stop="removeRecentPickup(item)" />
+              </button>
+            </div>
+          </section>
+        </div>
+
         <div class="result-section-title">{{ keyword.trim() ? '搜索结果' : searchMode === 'pickup' ? '附近地点' : '热门目的地' }}</div>
         <div v-if="searchLoading" class="search-status"><van-loading size="24px" vertical>正在搜索地点...</van-loading></div>
         <div v-else-if="visibleSearchResults.length" class="search-results">
@@ -208,21 +228,24 @@ const welcomeCouponKey = 'passenger-welcome-coupon-claimed'
 const newUserPendingGiftKey = 'passenger-new-user-pending-gift'
 const loginCouponPendingKey = 'passenger-login-coupon-pending'
 const recentDestinationKey = 'passenger-recent-destinations'
+const recentPickupKey = 'passenger-recent-pickups'
 const recentDestinations = ref(loadRecentDestinations())
-const canCallCar = computed(() => {
-  const params = orderStore.orderParams
-  return Boolean(
-    pickupAddress.value &&
-    destinationAddress.value &&
-    hasValidCoordinate(params.fromLng, params.fromLat) &&
-    hasValidCoordinate(params.toLng, params.toLat)
-  )
-})
+const recentPickups = ref(loadRecentPickups())
+const canCallCar = computed(() => Boolean(pickupAddress.value && destinationAddress.value))
 // groupedRecentDestinations 按城市拆分历史目的地，每个城市只展示最近 5 条。
 const groupedRecentDestinations = computed(() => {
+  return groupRecentLocations(recentDestinations.value)
+})
+// groupedRecentPickups 按城市拆分历史上车点，每个城市只展示最近 5 条。
+const groupedRecentPickups = computed(() => {
+  return groupRecentLocations(recentPickups.value)
+})
+
+// groupRecentLocations 将历史地点按城市分组，保证同城记录聚合展示且单城不占满列表。
+function groupRecentLocations(locations) {
   const groups = []
   const groupMap = new Map()
-  for (const item of recentDestinations.value) {
+  for (const item of locations) {
     const cityKey = item.cityCode || item.cityName || 'unknown'
     const cityName = item.cityName || '未知城市'
     if (!groupMap.has(cityKey)) {
@@ -234,7 +257,7 @@ const groupedRecentDestinations = computed(() => {
     if (group.items.length < 5) group.items.push(item)
   }
   return groups
-})
+}
 // visibleSearchResults 控制选址列表展示数量，热门目的地最多保留 20 条，搜索和上车点列表保持完整。
 const visibleSearchResults = computed(() => {
   if (searchMode.value === 'destination' && !keyword.value.trim()) return searchResults.value.slice(0, 20)
@@ -254,22 +277,34 @@ function findCommonAddress(tag) {
 function loadRecentDestinations() {
   try {
     const list = JSON.parse(localStorage.getItem(recentDestinationKey) || '[]')
-    return Array.isArray(list) ? list.map(normalizeRecentDestination).filter(Boolean).slice(0, 10) : []
+    return Array.isArray(list) ? list.map(normalizeRecentLocation).filter(Boolean).slice(0, 10) : []
   } catch (error) {
     console.warn('读取历史目的地失败:', error)
     return []
   }
 }
 
-// normalizeRecentDestination 兼容旧缓存，并补齐城市分类字段，避免不同城市历史混到同一组。
-function normalizeRecentDestination(item) {
+// 从本地缓存读取最近上车点，异常数据会被过滤，避免影响地图搜索。
+function loadRecentPickups() {
+  try {
+    const list = JSON.parse(localStorage.getItem(recentPickupKey) || '[]')
+    return Array.isArray(list) ? list.map(normalizeRecentLocation).filter(Boolean).slice(0, 10) : []
+  } catch (error) {
+    console.warn('读取历史上车点失败:', error)
+    return []
+  }
+}
+
+// normalizeRecentLocation 兼容旧缓存，并补齐城市分类字段，避免不同城市历史混到同一组。
+function normalizeRecentLocation(item) {
   if (!item?.name || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lng))) return null
   const cityCode = item.cityCode || currentCityCode.value || ''
   const cityName = item.cityName || currentCityName.value || selectedCity.value?.name || '未知城市'
   return { ...item, lat: Number(item.lat), lng: Number(item.lng), cityCode, cityName }
 }
 
-function rememberDestination(item) {
+// buildRecentLocation 把 POI 或常用地址统一整理成本地历史地点结构。
+function buildRecentLocation(item) {
   const saved = {
     id: item.id || '',
     name: item.name,
@@ -279,9 +314,22 @@ function rememberDestination(item) {
     cityCode: item.cityCode || currentCityCode.value || '',
     cityName: item.cityName || currentCityName.value || selectedCity.value?.name || '未知城市'
   }
+  return saved
+}
+
+function rememberDestination(item) {
+  const saved = buildRecentLocation(item)
   const rest = recentDestinations.value.filter(entry => entry.id !== saved.id && (entry.lat !== saved.lat || entry.lng !== saved.lng))
   recentDestinations.value = [saved, ...rest].slice(0, 10)
   localStorage.setItem(recentDestinationKey, JSON.stringify(recentDestinations.value))
+}
+
+// rememberPickup 记录用户手动选择过的上车点，方便下次像目的地一样快捷复用。
+function rememberPickup(item) {
+  const saved = buildRecentLocation(item)
+  const rest = recentPickups.value.filter(entry => entry.id !== saved.id && (entry.lat !== saved.lat || entry.lng !== saved.lng))
+  recentPickups.value = [saved, ...rest].slice(0, 10)
+  localStorage.setItem(recentPickupKey, JSON.stringify(recentPickups.value))
 }
 
 // removeRecentDestination 删除单条历史目的地，保留其他历史记录继续用于快捷选址。
@@ -290,10 +338,22 @@ function removeRecentDestination(item) {
   localStorage.setItem(recentDestinationKey, JSON.stringify(recentDestinations.value))
 }
 
+// removeRecentPickup 删除单条历史上车点，保留其他历史记录继续用于快捷选址。
+function removeRecentPickup(item) {
+  recentPickups.value = recentPickups.value.filter(entry => entry.id !== item.id && (entry.lat !== item.lat || entry.lng !== item.lng)).slice(0, 10)
+  localStorage.setItem(recentPickupKey, JSON.stringify(recentPickups.value))
+}
+
 // clearRecentDestinations 一键清空本机保存的全部历史目的地。
 function clearRecentDestinations() {
   recentDestinations.value = []
   localStorage.removeItem(recentDestinationKey)
+}
+
+// clearRecentPickups 一键清空本机保存的全部历史上车点。
+function clearRecentPickups() {
+  recentPickups.value = []
+  localStorage.removeItem(recentPickupKey)
 }
 
 // 初始化高德地图及定位、地点搜索和逆地理编码服务。
@@ -758,7 +818,10 @@ function closeLocationSearch() {
 
 async function selectSearchResult(item) {
   if (searchMode.value === 'pickup') {
-    await applyCurrentLocation({ lng: item.lng, lat: item.lat, name: item.name, address: item.displayAddress || item.address || item.name, addressComponent: { adcode: currentCityCode.value } })
+    // 只有用户在上车点弹层中主动选择地点时才写入历史，避免自动定位污染历史记录。
+    const pickup = normalizeRecentLocation(item)
+    await applyCurrentLocation({ lng: item.lng, lat: item.lat, name: item.name, address: item.displayAddress || item.address || item.name, addressComponent: { adcode: item.cityCode || currentCityCode.value } })
+    if (pickup) rememberPickup(pickup)
     closeLocationSearch()
     return
   }
@@ -831,7 +894,20 @@ async function loadActiveOrder() {
 
 function openActiveOrder() {
   if (!activeOrder.value?.orderId) return
-  router.push(/orders/)
+  // 恢复当前订单上下文后，按后端状态进入正确的业务页面。
+  const order = activeOrder.value
+  orderStore.setCurrentOrder({
+    orderId: order.orderId,
+    orderNo: order.orderNo,
+    fromAddress: order.fromAddress,
+    toAddress: order.toAddress,
+    carType: order.carType,
+    status: Number(order.status),
+    estimatedPriceCents: order.estimatedPriceCents,
+    createdAt: order.createdAt
+  })
+  const target = { 1: '/order/waiting', 2: '/order/driver-coming', 3: '/order/trip' }[Number(order.status)]
+  router.push(target || `/orders/${order.orderId}`)
 }
 
 onMounted(async () => {

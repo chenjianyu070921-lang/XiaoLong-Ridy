@@ -73,7 +73,7 @@ func (l *ReportLocationLogic) ReportLocation(in *locationsvc.ReportLocationReq) 
 	}
 
 	// 2. 写 Redis GEO，供附近司机查询
-	if err := l.svcCtx.Redis.GeoAdd(l.ctx, svc.DriverGeoKey, &redis.GeoLocation{
+	if err := l.svcCtx.Redis.GeoAdd(l.ctx, svc.GeoKey(l.svcCtx.GetConfig().DefaultCityCode), &redis.GeoLocation{
 		Name:      fmt.Sprintf("%d", in.DriverId),
 		Longitude: in.Lng,
 		Latitude:  in.Lat,

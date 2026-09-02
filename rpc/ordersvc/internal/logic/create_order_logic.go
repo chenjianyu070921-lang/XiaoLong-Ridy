@@ -121,11 +121,11 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 				_, _ = l.svcCtx.OrderRepository.Cancel(l.ctx, order.Id,
 					[]int8{constants.OrderStatusWaitAccept, constants.OrderStatusAccepted},
 					constants.OperatorSystem, "优惠券锁定失败自动取消", &model.OrderStatusLog{
-						FromStatus:    order.Status,
-						ToStatus:      constants.OrderStatusCancelled,
-						OperatorType:  constants.OperatorSystem,
-						OperatorId:    0,
-						Remark:        "优惠券锁定失败自动取消",
+						FromStatus:   order.Status,
+						ToStatus:     constants.OrderStatusCancelled,
+						OperatorType: constants.OperatorSystem,
+						OperatorId:   0,
+						Remark:       "优惠券锁定失败自动取消",
 					})
 				return nil, repository.ErrCouponLockFailed
 			}
@@ -142,11 +142,20 @@ func (l *CreateOrderLogic) CreateOrder(in *proto.CreateOrderRequest) (*proto.Cre
 				CarType:       in.CarType,
 				CityCode:      strings.TrimSpace(in.CityCode),
 			})
+			// 记录发送前的业务上下文，便于从前端下单请求追踪 Kafka 事件。
+			l.Logger.Infof("order.created kafka publish start: orderId=%d orderNo=%s cityCode=%s carType=%d fromLng=%.6f fromLat=%.6f payloadBytes=%d",
+				order.Id, order.OrderNo, strings.TrimSpace(in.CityCode), in.CarType, in.FromLongitude, in.FromLatitude, len(payload))
 			if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderCreated, payload); err != nil {
-				l.Logger.Errorf("publish order.created failed: %v", err)
+				l.Logger.Errorf("order.created kafka publish failed: orderId=%d orderNo=%s topic=%s cityCode=%s error=%v",
+					order.Id, order.OrderNo, constants.TopicOrderCreated, strings.TrimSpace(in.CityCode), err)
 			} else {
 				published = true
+				l.Logger.Infof("order.created kafka publish succeeded: orderId=%d orderNo=%s topic=%s cityCode=%s",
+					order.Id, order.OrderNo, constants.TopicOrderCreated, strings.TrimSpace(in.CityCode))
 			}
+		} else {
+			l.Logger.Errorf("order.created kafka publish skipped: orderId=%d orderNo=%s reason=event_bus_not_configured",
+				order.Id, order.OrderNo)
 		}
 
 		// 事件不可用时回退为同步直派，保证 demo 可跑通。
@@ -249,9 +258,9 @@ func buildRideOrder(in *proto.CreateOrderRequest, estimatedPriceCents int64) *mo
 		EstimatedPrice:     float64(estimatedPriceCents) / 100,
 		Status:             constants.OrderStatusWaitAccept,
 		// 价格与优惠券快照落库（P1-订单-1/2）：实付 = 预估 - 优惠，服务端以传参金额为准。
-		CouponId:     in.CouponId,
+		CouponId:      in.CouponId,
 		DiscountCents: in.DiscountCents,
-		PayableCents: estimatedPriceCents - in.DiscountCents,
+		PayableCents:  estimatedPriceCents - in.DiscountCents,
 	}
 }
 

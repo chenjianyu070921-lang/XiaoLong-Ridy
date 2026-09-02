@@ -83,7 +83,7 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		OperatorId:   uint64(in.OperatorId),
 		Remark:       reason,
 	}
-	ok, err := l.svcCtx.OrderRepository.Cancel(l.ctx, order.Id, []int8{
+	ok, err := l.svcCtx.OrderRepository.CancelWithCoupon(l.ctx, order.Id, order.UserId, []int8{
 		constants.OrderStatusWaitAccept,
 		constants.OrderStatusAccepted,
 	}, operatorType, reason, statusLog)
