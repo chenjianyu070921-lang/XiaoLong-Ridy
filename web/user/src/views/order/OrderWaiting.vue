@@ -114,6 +114,26 @@ const orderStatus = ref(1)
 let timer = null
 let pollTimer = null
 
+// 将后端秒级/毫秒级时间戳或时间字符串统一转换为毫秒时间，便于计算累计等待时长。
+const parseTimeMs = (value) => {
+  if (!value) return 0
+  const numericValue = Number(value)
+  if (Number.isFinite(numericValue)) return numericValue < 10000000000 ? numericValue * 1000 : numericValue
+  const parsed = Date.parse(value)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+// 获取当前订单的等待起点；优先使用后端创建时间，兜底使用下单时记录的本地时间。
+const getWaitingStartedAt = () => {
+  const order = orderStore.currentOrder || {}
+  return parseTimeMs(order.createdAt || order.createTime || order.created_at || order.waitingStartedAt) || Date.now()
+}
+
+// 根据等待起点刷新已等待秒数，避免页面重新进入时从 0 秒重新计时。
+const refreshWaitTime = (startedAt) => {
+  waitTime.value = Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+}
+
 // 当前车型
 const currentCarType = computed(() => {
   const selected = orderStore.carTypes.find(c => c.selected)
@@ -182,9 +202,12 @@ const handleCancel = async () => {
 }
 
 onMounted(() => {
-  // 开始计时
+  // 开始计时；等待时长基于同一笔订单的创建/等待起点计算，组件重建后不会归零。
+  const waitingStartedAt = getWaitingStartedAt()
+  orderStore.setCurrentOrder({ ...orderStore.currentOrder, waitingStartedAt })
+  refreshWaitTime(waitingStartedAt)
   timer = setInterval(() => {
-    waitTime.value++
+    refreshWaitTime(waitingStartedAt)
   }, 1000)
 
   // 先立即刷新一次，再按 3 秒间隔轮询，减少用户下单后的空白等待。

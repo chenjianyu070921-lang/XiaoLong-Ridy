@@ -105,6 +105,14 @@
           <span>下单时间</span>
           <span>{{ order.createTime }}</span>
         </div>
+        <div class="info-item" v-if="order.status === 'COMPLETED' && order.completedTime">
+          <span>完成时间</span>
+          <span>{{ order.completedTime }}</span>
+        </div>
+        <div class="info-item" v-if="['CANCELLED', 'REFUNDED'].includes(order.status) && order.cancelTime">
+          <span>取消时间</span>
+          <span>{{ order.cancelTime }}</span>
+        </div>
         <div class="info-item">
           <span>支付方式</span>
           <span>{{ order.payMethod || '-' }}</span>
@@ -154,7 +162,7 @@
         去评价
       </button>
       <button 
-        v-if="['COMPLETED', 'CANCELLED'].includes(order.status)" 
+        v-if="['COMPLETED', 'CANCELLED', 'REFUNDED'].includes(order.status)"
         class="btn-secondary"
         @click="reOrder"
       >
@@ -169,6 +177,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog, showLoadingToast, closeToast } from 'vant'
 import { getOrderDetail, cancelOrder } from '@/api/order'
+import { ORDER_STATUS, getOrderStatusText, normalizeOrderStatus } from '@/constants/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -176,14 +185,16 @@ const route = useRoute()
 const orderId = Number(route.params.id)
 
 // 订单详情数据由接口返回，禁止使用固定演示订单覆盖真实订单。
-const order = ref({ id: orderId, status: 'SEARCHING', createTime: '--', arriveTime: '', fromAddress: '加载中...', toAddress: '加载中...', distance: '', duration: '', totalPrice: '0.00', discountPrice: '0.00', payablePrice: '0.00', driverName: '', driverAvatar: '', plateNumber: '', carModel: '', driverRating: 0, orderNo: '', payMethod: '', payTime: '', hasCoupon: false, couponName: '', rated: false, feeDetail: [] })
-
-// 将后端数字状态转换成详情页展示状态。
-// 后端状态：1待接单 2已接单 3行程中 4待支付 5已完成 6已取消
-const normalizeStatus = (status) => ({ 1: 'SEARCHING', 2: 'ACCEPTED', 3: 'IN_PROGRESS', 4: 'PENDING_PAYMENT', 5: 'COMPLETED', 6: 'CANCELLED' })[status] || status
+const order = ref({ id: orderId, status: 'SEARCHING', createTime: '--', completedTime: '', cancelTime: '', arriveTime: '', fromAddress: '加载中...', toAddress: '加载中...', distance: '', duration: '', totalPrice: '0.00', discountPrice: '0.00', payablePrice: '0.00', driverName: '', driverAvatar: '', plateNumber: '', carModel: '', driverRating: 0, orderNo: '', payMethod: '', payTime: '', hasCoupon: false, couponName: '', rated: false, feeDetail: [] })
 
 // 将后端金额分转换为两位小数金额，统一详情页费用展示格式。
 const money = (cents) => (Number(cents || 0) / 100).toFixed(2)
+
+// formatOrderTime 将后端 Unix 秒时间转换为详情页展示时间；无效时间返回空字符串。
+const formatOrderTime = (timestamp) => {
+  const value = Number(timestamp || 0)
+  return value > 0 ? new Date(value * 1000).toLocaleString() : ''
+}
 
 // 将订单详情接口字段转换为页面展示模型。
 const mapOrderDetail = (item) => {
@@ -200,8 +211,11 @@ const mapOrderDetail = (item) => {
   return {
     ...item,
     id: item.orderId || orderId,
-    status: normalizeStatus(item.status),
+    status: normalizeOrderStatus(item.status),
     createTime: item.createdAt ? new Date(Number(item.createdAt) * 1000).toLocaleString() : '--',
+    // 订单服务会在每次状态变更时更新 updatedAt；终态下它就是完成/取消时间。
+    completedTime: normalizeOrderStatus(item.status) === ORDER_STATUS.COMPLETED ? formatOrderTime(item.updatedAt) : '',
+    cancelTime: [ORDER_STATUS.CANCELLED, ORDER_STATUS.REFUNDED].includes(normalizeOrderStatus(item.status)) ? formatOrderTime(item.updatedAt) : '',
     fromAddress: item.fromAddress || '未填写上车点',
     toAddress: item.toAddress || '未填写目的地',
     distance: distanceM ? (distanceM / 1000).toFixed(1) : '',
@@ -213,6 +227,7 @@ const mapOrderDetail = (item) => {
     driverRating: Number(item.driverRating || 0),
     hasCoupon: couponId > 0 && discountCents > 0,
     couponName: item.couponName || '优惠券',
+    rated: Boolean(item.rated),
     feeDetail
   }
 }
@@ -225,27 +240,18 @@ const otherCancelReason = ref('')
 const canCancel = computed(() => !isCancelling.value && ['SEARCHING', 'ACCEPTED'].includes(order.value.status))
 
 const showActions = computed(() => {
-  return ['PENDING_PAYMENT', 'COMPLETED', 'CANCELLED'].includes(order.value.status)
+  return [ORDER_STATUS.PENDING_PAYMENT, ORDER_STATUS.COMPLETED, ORDER_STATUS.CANCELLED, ORDER_STATUS.REFUNDED].includes(order.value.status)
 })
 
 // 状态相关方法
 const getStatusText = (status) => {
-  const map = {
-    SEARCHING: '等待接单',
-    ACCEPTED: '司机已接单',
-    PICKING_UP: '司机已出发',
-    IN_PROGRESS: '行程中',
-    PENDING_PAYMENT: '待支付',
-    COMPLETED: '已完成',
-    CANCELLED: '已取消'
-  }
-  return map[status] || status
+  return getOrderStatusText(status)
 }
 
 const getStatusClass = (status) => {
-  if (['SEARCHING', 'ACCEPTED', 'PICKING_UP', 'IN_PROGRESS'].includes(status)) return 'ongoing'
-  if (status === 'COMPLETED') return 'completed'
-  if (status === 'PENDING_PAYMENT') return 'pending'
+  if ([ORDER_STATUS.SEARCHING, ORDER_STATUS.ACCEPTED, ORDER_STATUS.IN_PROGRESS].includes(status)) return 'ongoing'
+  if (status === ORDER_STATUS.COMPLETED) return 'completed'
+  if (status === ORDER_STATUS.PENDING_PAYMENT) return 'pending'
   return 'cancelled'
 }
 

@@ -13,9 +13,15 @@ import (
 	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const trackingStaleAfter = 15 * time.Second
+
+// passengerOrderTimeoutSeconds 是乘客状态轮询兜底使用的未接单超时时间。
+// 正常情况下由 job 批量扫描；状态接口兜底可处理 job 暂未启动时的当前订单。
+const passengerOrderTimeoutSeconds = 300
 
 // OrderLogic 封装乘客端订单相关业务流程。
 type OrderLogic struct {
@@ -141,6 +147,7 @@ func (l *OrderLogic) ListOrders(req *types.ListOrdersRequest) (*types.ListOrders
 	}
 	list := make([]types.OrderSummary, 0, len(resp.GetList()))
 	for _, item := range resp.GetList() {
+		rated := l.hasOrderReview(uint64(item.GetOrderId()))
 		list = append(list, types.OrderSummary{
 			OrderID:             item.GetOrderId(),
 			OrderNo:             item.GetOrderNo(),
@@ -149,6 +156,7 @@ func (l *OrderLogic) ListOrders(req *types.ListOrdersRequest) (*types.ListOrders
 			Status:              int32(item.GetStatus()),
 			EstimatedPriceCents: item.GetEstimatedPriceCents(),
 			CreatedAt:           item.GetCreatedAt(),
+			Rated:               rated,
 		})
 	}
 	return &types.ListOrdersResponse{
@@ -180,10 +188,24 @@ func (l *OrderLogic) GetOrder(req *types.GetOrderRequest) (*types.OrderDetail, e
 		return nil, ErrForbidden
 	}
 	detail := toOrderDetail(order)
+	detail.Rated = l.hasOrderReview(uint64(detail.OrderID))
 	if detail.CouponID > 0 {
 		detail.CouponName = l.findCouponName(userID, uint64(detail.CouponID))
 	}
 	return detail, nil
+}
+
+// hasOrderReview 查询订单是否已评价。评价状态是辅助展示信息，仓储瞬时失败不能阻断订单主查询。
+func (l *OrderLogic) hasOrderReview(orderID uint64) bool {
+	if l.svcCtx == nil || l.svcCtx.Reviews == nil || orderID == 0 {
+		return false
+	}
+	rated, err := l.svcCtx.Reviews.HasOrderReview(l.ctx, orderID)
+	if err != nil {
+		logx.WithContext(l.ctx).Errorf("query review status failed, order_id=%d: %v", orderID, err)
+		return false
+	}
+	return rated
 }
 
 // CancelOrder 取消当前乘客自己的订单。
@@ -552,6 +574,20 @@ func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.
 		return nil, ErrForbidden
 	}
 	status := int32(order.GetStatus())
+	// 状态轮询同时承担单订单兜底：订单超过 5 分钟仍未接单时，
+	// 由订单服务执行带状态校验的系统取消，避免 job 未运行导致页面永久等待。
+	if status == int32(orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT) &&
+		order.GetDriverId() == 0 && order.GetCreatedAt() > 0 &&
+		time.Now().Unix()-order.GetCreatedAt() >= passengerOrderTimeoutSeconds {
+		if cancelled, cancelErr := orderClient.CancelOrder(l.ctx, &orderproto.CancelOrderRequest{
+			OrderId:      order.GetOrderId(),
+			OperatorType: "system",
+			Reason:       "超时未接单，系统自动取消",
+		}); cancelErr == nil && cancelled != nil {
+			status = int32(cancelled.GetStatus())
+			order.Status = cancelled.GetStatus()
+		}
+	}
 	resp := &types.OrderStatusPollResponse{
 		OrderID:   order.GetOrderId(),
 		Status:    status,

@@ -37,6 +37,11 @@ func main() {
 	}()
 
 	go func() {
+		// 服务启动时先执行一次超时取消扫描，避免任务启动后必须等待完整一分钟。
+		if err := h.TimeoutCancelOrders(); err != nil {
+			logx.Errorf("initial TimeoutCancelOrders failed: %v", err)
+		}
+
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {

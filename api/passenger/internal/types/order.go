@@ -50,6 +50,7 @@ type OrderSummary struct {
 	Status              int32  `json:"status"`
 	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
 	CreatedAt           int64  `json:"createdAt"`
+	Rated               bool   `json:"rated"`
 }
 
 // ListOrdersResponse 表示订单列表查询响应。
@@ -92,6 +93,7 @@ type OrderDetail struct {
 	CancelBy            string  `json:"cancelBy"`
 	CreatedAt           int64   `json:"createdAt"`
 	UpdatedAt           int64   `json:"updatedAt"`
+	Rated               bool    `json:"rated"`
 }
 
 // CancelOrderRequest 表示取消订单请求参数。

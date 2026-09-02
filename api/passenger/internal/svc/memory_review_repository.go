@@ -41,3 +41,11 @@ func (r *MemoryReviewRepository) Create(_ context.Context, review *OrderReview) 
 	*review = copied
 	return nil
 }
+
+// HasOrderReview 查询内存仓储中是否存在指定订单的评价记录。
+func (r *MemoryReviewRepository) HasOrderReview(_ context.Context, orderID uint64) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, ok := r.byOrder[orderID]
+	return ok, nil
+}

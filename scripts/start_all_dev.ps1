@@ -1,7 +1,8 @@
 # 开发环境一键启动脚本（司机端 + 订单 + 后台 + 乘客 全部业务）
 # 用法：powershell -ExecutionPolicy Bypass -File scripts/start_all_dev.ps1
 $ErrorActionPreference = "Continue"
-$root = "D:\gocode\src\XiaoLong-Ridy"
+# 根据脚本所在目录推导仓库根目录，避免本机工作区路径变化导致服务无法启动。
+$root = Split-Path -Parent $PSScriptRoot
 # GOCACHE 之前遇到过损坏，固定到独立目录避免占用临时盘
 $env:GOCACHE = "D:\gocode\gocache"
 $env:GOFLAGS = "-mod=mod"
@@ -31,6 +32,8 @@ function Start-Svc {
 Start-Svc "driversvc"  "$root\rpc\driversvc"  "go run .\driversvc.go -f .\etc\driversvc.yaml"  "driversvc.log"
 Start-Svc "ordersvc"   "$root\rpc\ordersvc"   "go run .\ordersvc.go -f .\etc\ordersvc.yaml"    "ordersvc.log"
 Start-Svc "dispatchsvc" "$root\rpc\dispatchsvc" "go run .\dispatchsvc.go -f .\etc\dispatchsvc.yaml" "dispatchsvc.log"
+# 订单事件消费者必须在网关接收下单前启动，负责消费 order.created 并触发派单。
+Start-Svc "order-event-consumer" "$root\mq-consumer\order-event-consumer" "go run .\main.go -f .\etc\order-event-consumer.yaml" "order-event-consumer.log"
 Start-Svc "adminsvc"   "$root\rpc\adminsvc"   "go run .\admin.go -f .\etc\admin.yaml"          "adminsvc.log"
 
 # ---- API 网关 ----

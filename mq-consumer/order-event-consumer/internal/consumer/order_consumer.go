@@ -79,9 +79,12 @@ func (c *OrderConsumer) dispatchHandler(ctx context.Context, topic string, paylo
 func (c *OrderConsumer) handleOrderCreated(ctx context.Context, payload []byte) error {
 	var evt OrderCreatedEvent
 	if err := json.Unmarshal(payload, &evt); err != nil {
+		logx.WithContext(ctx).Errorf("order.created consume decode failed: payloadBytes=%d error=%v", len(payload), err)
 		return err
 	}
-	_, err := c.svcCtx.DispatchClient.DispatchOrder(ctx, &dispatch.DispatchOrderRequest{
+	logx.WithContext(ctx).Infof("order.created consumed: orderId=%d orderNo=%s cityCode=%s carType=%d fromLng=%.6f fromLat=%.6f payloadBytes=%d",
+		evt.OrderId, evt.OrderNo, evt.CityCode, evt.CarType, evt.FromLongitude, evt.FromLatitude, len(payload))
+	resp, err := c.svcCtx.DispatchClient.DispatchOrder(ctx, &dispatch.DispatchOrderRequest{
 		OrderId:          evt.OrderId,
 		FromLongitude:    evt.FromLongitude,
 		FromLatitude:     evt.FromLatitude,
@@ -89,6 +92,13 @@ func (c *OrderConsumer) handleOrderCreated(ctx context.Context, payload []byte) 
 		CityCode:         evt.CityCode,
 		ExcludeDriverIds: evt.ExcludeDriverIds,
 	})
+	if err != nil {
+		logx.WithContext(ctx).Errorf("order.created dispatch rpc failed: orderId=%d orderNo=%s cityCode=%s error=%v",
+			evt.OrderId, evt.OrderNo, evt.CityCode, err)
+		return err
+	}
+	logx.WithContext(ctx).Infof("order.created dispatch rpc succeeded: orderId=%d orderNo=%s cityCode=%s responseOrderId=%d dispatchRecords=%d",
+		evt.OrderId, evt.OrderNo, evt.CityCode, resp.GetOrderId(), len(resp.GetList()))
 	return err
 }
 

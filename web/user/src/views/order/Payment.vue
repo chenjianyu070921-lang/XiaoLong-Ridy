@@ -114,12 +114,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast, closeToast, showDialog } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { payOrder, getPaymentStatus, getOrderDetail } from '@/api/order'
 
 const router = useRouter()
+const route = useRoute()
 const orderStore = useOrderStore()
 
 // 订单详情由 ordersvc 返回，避免支付页展示脱离真实订单的演示金额。
@@ -129,7 +130,8 @@ const orderDetail = ref({
   driverName: '司机', driverAvatar: '', plateNumber: '', fromAddress: '', toAddress: '', orderId: 0
 })
 
-const orderId = computed(() => Number(orderStore.currentOrder?.orderId || orderDetail.value.orderId || 0))
+// 路由参数优先级最高，保证从订单详情进入或刷新支付页后仍能恢复待支付订单。
+const orderId = computed(() => Number(route.query.orderId || orderStore.currentOrder?.orderId || orderDetail.value.orderId || 0))
 
 // 将后端订单金额和里程字段转换为页面展示模型；后端金额统一以分为单位。
 const mapOrderDetail = (data) => {
@@ -213,7 +215,10 @@ const handlePay = async () => {
         showToast('支付成功')
         // 跳转到支付成功页
         setTimeout(() => {
-          router.replace('/order/success')
+          router.replace({
+            path: '/order/success',
+            query: { orderId: orderId.value, payMethod: selectedMethod.value }
+          })
         }, 500)
       } else if (Number(status?.status) === 3 || Number(status?.status) === 4) {
         clearInterval(paymentPollTimer)

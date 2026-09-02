@@ -29,7 +29,7 @@ func main() {
 	conf.MustLoad(*configFile, &c)
 
 	rdb := datasource.NewRedisClient(c.Redis)
-	h := handler.NewLocationHandler(rdb)
+	h := handler.NewLocationHandler(rdb, c.DefaultCityCode)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

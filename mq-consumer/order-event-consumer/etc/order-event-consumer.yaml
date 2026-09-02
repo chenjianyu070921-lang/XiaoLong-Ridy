@@ -5,6 +5,9 @@ Redis:
   pass: "4ay1nkal3u8ed77y"
   db: 0
   poolSize: 20
+  dialTimeout: 0
+  readTimeout: 0
+  writeTimeout: 0
 
 Kafka:
   brokers:

@@ -54,7 +54,17 @@ func (r *gormOrderRepository) GetByID(ctx context.Context, id uint64) (*model.Ri
 
 // Cancel 条件更新订单为已取消，并写入取消日志。
 func (r *gormOrderRepository) Cancel(ctx context.Context, orderID uint64, wantStatuses []int8, cancelBy, reason string, statusLog *model.OrderStatusLog) (bool, error) {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return r.cancelTx(ctx, r.db, orderID, 0, wantStatuses, cancelBy, reason, statusLog)
+}
+
+// CancelWithCoupon 将订单取消和优惠券释放放入同一个 MySQL 事务，任一步失败都会整体回滚。
+func (r *gormOrderRepository) CancelWithCoupon(ctx context.Context, orderID, userID uint64, wantStatuses []int8, cancelBy, reason string, statusLog *model.OrderStatusLog) (bool, error) {
+	return r.cancelTx(ctx, r.db, orderID, userID, wantStatuses, cancelBy, reason, statusLog)
+}
+
+// cancelTx 承担取消订单的事务细节；userID 大于 0 时同时释放锁定优惠券。
+func (r *gormOrderRepository) cancelTx(ctx context.Context, db *gorm.DB, orderID, userID uint64, wantStatuses []int8, cancelBy, reason string, statusLog *model.OrderStatusLog) (bool, error) {
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&model.RideOrder{}).
 			Where("id = ? AND status IN ? AND deleted_at IS NULL", orderID, wantStatuses).
 			Updates(map[string]interface{}{
@@ -70,7 +80,16 @@ func (r *gormOrderRepository) Cancel(ctx context.Context, orderID uint64, wantSt
 			return errOrderNotUpdated
 		}
 		statusLog.OrderId = orderID
-		return tx.Create(statusLog).Error
+		if err := tx.Create(statusLog).Error; err != nil {
+			return err
+		}
+		if userID > 0 {
+			if err := tx.Table("user_coupon").Where("user_id = ? AND locked_order_id = ? AND status = ?", userID, orderID, userCouponStatusLocked).
+				Updates(map[string]interface{}{"status": userCouponStatusAvailable, "locked_order_id": 0, "locked_at": nil, "updated_at": time.Now()}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if errors.Is(err, errOrderNotUpdated) {
 		return false, nil

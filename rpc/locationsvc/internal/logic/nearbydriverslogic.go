@@ -42,7 +42,7 @@ func (l *NearbyDriversLogic) NearbyDrivers(in *locationsvc.NearbyDriversReq) (*l
 		limit = 100
 	}
 
-	res, err := l.svcCtx.Redis.GeoRadius(l.ctx, svc.DriverGeoKey, in.Lng, in.Lat, &redis.GeoRadiusQuery{
+	res, err := l.svcCtx.Redis.GeoRadius(l.ctx, svc.GeoKey(l.svcCtx.GetConfig().DefaultCityCode), in.Lng, in.Lat, &redis.GeoRadiusQuery{
 		Radius:    in.Radius,
 		Unit:      "m",
 		WithDist:  true,

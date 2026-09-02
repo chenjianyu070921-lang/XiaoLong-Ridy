@@ -69,7 +69,7 @@
             去评价
           </button>
           <button 
-            v-if="['COMPLETED', 'CANCELLED'].includes(order.status)" 
+            v-if="['COMPLETED', 'CANCELLED', 'REFUNDED'].includes(order.status)"
             class="btn-reorder"
             @click.stop="reOrder(order)"
           >
@@ -99,9 +99,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
-import { getOrders } from '@/api/order'
+import { getOrders, getOrderDetail } from '@/api/order'
+import { useOrderStore } from '@/stores/order'
+import { ORDER_STATUS, getOrderStatusText, normalizeOrderStatus } from '@/constants/order'
 
 const router = useRouter()
+const orderStore = useOrderStore()
 
 // 标签页
 const tabs = [
@@ -120,9 +123,9 @@ const filteredOrders = computed(() => {
   if (activeTab.value === 'all') return orders.value
   
   const statusMap = {
-    ongoing: ['SEARCHING', 'ACCEPTED', 'PICKING_UP', 'IN_PROGRESS'],
-    completed: ['COMPLETED', 'PENDING_PAYMENT'],
-    cancelled: ['CANCELLED']
+    ongoing: [ORDER_STATUS.SEARCHING, ORDER_STATUS.ACCEPTED, ORDER_STATUS.IN_PROGRESS, ORDER_STATUS.PENDING_PAYMENT],
+    completed: [ORDER_STATUS.COMPLETED],
+    cancelled: [ORDER_STATUS.CANCELLED, ORDER_STATUS.REFUNDED]
   }
   
   return orders.value.filter(o => statusMap[activeTab.value]?.includes(o.status))
@@ -130,21 +133,12 @@ const filteredOrders = computed(() => {
 
 // 获取状态文本
 const getStatusText = (status) => {
-  const map = {
-    SEARCHING: '等待接单',
-    ACCEPTED: '司机已接单',
-    PICKING_UP: '司机已出发',
-    IN_PROGRESS: '行程中',
-    PENDING_PAYMENT: '待支付',
-    COMPLETED: '已完成',
-    CANCELLED: '已取消'
-  }
-  return map[status] || status
+  return getOrderStatusText(status)
 }
 
 // 获取状态样式类
 const getStatusClass = (status) => {
-  if (['SEARCHING', 'ACCEPTED', 'PICKING_UP', 'IN_PROGRESS'].includes(status)) {
+  if ([ORDER_STATUS.SEARCHING, ORDER_STATUS.ACCEPTED, ORDER_STATUS.IN_PROGRESS].includes(status)) {
     return 'ongoing'
   }
   if (status === 'COMPLETED') return 'completed'
@@ -154,13 +148,7 @@ const getStatusClass = (status) => {
 
 // 是否显示操作按钮
 const showActions = (status) => {
-  return ['PENDING_PAYMENT', 'COMPLETED', 'CANCELLED'].includes(status)
-}
-
-// 将后端数字订单状态转换为订单页使用的业务状态文本。
-const normalizeOrderStatus = (status) => {
-  const map = { 1: 'SEARCHING', 2: 'ACCEPTED', 3: 'PICKING_UP', 4: 'IN_PROGRESS', 5: 'PENDING_PAYMENT', 6: 'CANCELLED', 7: 'COMPLETED' }
-  return typeof status === 'number' ? (map[status] || String(status)) : status
+  return [ORDER_STATUS.PENDING_PAYMENT, ORDER_STATUS.COMPLETED, ORDER_STATUS.CANCELLED, ORDER_STATUS.REFUNDED].includes(status)
 }
 
 // 加载真实订单列表，包含已取消订单，避免使用固定演示数据覆盖接口结果。
@@ -177,7 +165,7 @@ const loadOrders = async () => {
       toAddress: item.toAddress || '未填写目的地',
       carTypeName: ({ 1: '特惠快车', 2: '快车', 3: '专车' })[item.carType] || '快车',
       totalPrice: (Number(item.estimatedPriceCents || 0) / 100).toFixed(2),
-      rated: false
+      rated: Boolean(item.rated)
     }))
   } catch (error) {
     console.error('加载订单列表失败:', error)
@@ -191,7 +179,23 @@ const loadOrders = async () => {
 const goBack = () => router.back()
 const goHome = () => router.replace('/home')
 const goProfile = () => router.replace('/profile')
-const goToDetail = (id) => router.push(`/orders/${id}`)
+const goToDetail = async (id) => {
+  // 进行中的订单必须恢复 currentOrder，等待页和行程页依赖该上下文继续轮询。
+  const order = orders.value.find(item => item.id === id)
+  if (order && [ORDER_STATUS.SEARCHING, ORDER_STATUS.ACCEPTED, ORDER_STATUS.IN_PROGRESS].includes(order.status)) {
+    try {
+      const detail = await getOrderDetail(id)
+      orderStore.setCurrentOrder({ ...detail, orderId: detail?.orderId || id })
+    } catch (error) {
+      console.warn('恢复进行中订单失败:', error)
+      return
+    }
+    const target = { [ORDER_STATUS.SEARCHING]: '/order/waiting', [ORDER_STATUS.ACCEPTED]: '/order/driver-coming', [ORDER_STATUS.IN_PROGRESS]: '/order/trip' }[order.status]
+    router.push(target)
+    return
+  }
+  router.push(`/orders/${id}`)
+}
 const goToPay = (id) => router.push(`/order/payment?orderId=${id}`)
 const goToRate = (id) => router.push(`/order/success?orderId=${id}`)
 
