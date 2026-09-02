@@ -144,6 +144,7 @@ type OrderSummary {
 	Status int32 `json:"status"`
 	EstimatedPriceCents int64 `json:"estimatedPriceCents"`
 	CreatedAt int64 `json:"createdAt"`
+	Rated bool `json:"rated"`
 }
 
 type ListOrdersResponse {
@@ -177,6 +178,7 @@ type OrderDetail {
 	CancelBy string `json:"cancelBy"`
 	CreatedAt int64 `json:"createdAt"`
 	UpdatedAt int64 `json:"updatedAt"`
+	Rated bool `json:"rated"`
 }
 
 type CancelOrderRequest {

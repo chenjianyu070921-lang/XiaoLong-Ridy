@@ -200,7 +200,7 @@ DriversRPC:
   NonBlock: true
   Timeout: 30000
 LocationsRPC:
-  Target: 127.0.0.1:9001
+  Target: 127.0.0.1:50057
   NonBlock: true
 PricesRPC:
   Target: 127.0.0.1:50053

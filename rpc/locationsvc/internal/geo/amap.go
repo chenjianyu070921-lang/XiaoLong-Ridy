@@ -93,6 +93,9 @@ func (c *Client) SearchPoi(keyword, city string, lat, lng float64, radius, page,
 	if err != nil {
 		return nil, fmt.Errorf("读取高德响应失败: %w", err)
 	}
+	if httpResp.StatusCode < http.StatusOK || httpResp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("高德逆地理编码HTTP错误: status=%d", httpResp.StatusCode)
+	}
 
 	var result AmapPoiResponse
 	if err := json.Unmarshal(body, &result); err != nil {

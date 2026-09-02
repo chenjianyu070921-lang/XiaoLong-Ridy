@@ -26,7 +26,8 @@ func NewListOrdersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListOr
 
 // ListOrders 按用户/司机/状态分页查询订单摘要。
 func (l *ListOrdersLogic) ListOrders(in *proto.ListOrdersRequest) (*proto.ListOrdersResponse, error) {
-	if in.Status < 0 || in.Status > proto.OrderStatus_ORDER_STATUS_CANCELLED {
+	// 上界取 REFUNDED(7) 而非 CANCELLED(6)，否则已退款订单无法被筛选（对账/后台查不到）。
+	if in.Status < 0 || in.Status > proto.OrderStatus_ORDER_STATUS_REFUNDED {
 		return nil, ErrInvalidOrderParams
 	}
 	page := normalizePage(in.Page)

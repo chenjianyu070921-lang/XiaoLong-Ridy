@@ -55,6 +55,11 @@ export function getPaymentStatus(orderId) {
   return request.post('/orders/payment-status', { orderId })
 }
 
+// 提交已完成订单的乘客评价，后端会校验订单归属、完成状态和重复提交。
+export function submitReview(data) {
+  return request.post('/reviews/submit', data)
+}
+
 // 查询派单状态
 export function getDispatchStatus(orderId) {
   return request.post('/orders/dispatch-status', { orderId })

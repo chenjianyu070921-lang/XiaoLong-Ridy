@@ -64,3 +64,4 @@ rpc/adminsvc/.tmp-admin-exports/
 .gocache/
 .gocache-stat/
 .run/
+.aider*

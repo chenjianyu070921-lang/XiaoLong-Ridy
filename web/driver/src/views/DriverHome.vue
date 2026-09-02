@@ -139,6 +139,8 @@
         @update:trajectory-order-id="trajectoryOrderId = $event"
         @load-trajectory="loadTrajectory"
         @edit-profile="openProfileEdit"
+        @open-assets="openDriverAssets"
+        @open-orders="activeTab = 1"
       />
     </section>
 
@@ -149,10 +151,13 @@
     <van-popup v-model:show="finishVisible" round position="bottom" teleport="#driver-home-popups">
       <section class="finish-panel">
         <h2>结束行程</h2>
-        <van-form @submit="submitFinishTrip">
+        <van-form>
           <van-field v-model.number="finishForm.actualDistanceM" type="number" label="实际里程(米)" />
           <van-field v-model.number="finishForm.actualDurationS" type="number" label="实际时长(秒)" />
-          <button class="primary-action" type="submit">确认结束</button>
+          <!-- 使用显式 click 触发，避免部分 Vant/WebView 环境下 submit 事件不冒泡。 -->
+          <button class="primary-action" type="button" :disabled="finishSubmitting" @click="submitFinishTrip">
+            {{ finishSubmitting ? '正在提交...' : '确认结束' }}
+          </button>
         </van-form>
       </section>
     </van-popup>
@@ -195,11 +200,12 @@
     <van-popup v-model:show="withdrawVisible" round position="bottom" teleport="#driver-home-popups">
       <section class="withdraw-panel">
         <h2>申请提现</h2>
-        <van-form @submit="submitWithdraw">
+        <van-form>
           <van-field v-model="withdrawForm.amount" type="number" label="提现金额" placeholder="请输入金额" />
           <van-field v-model="withdrawForm.payeeName" label="收款人" placeholder="请输入收款人姓名" />
           <van-field v-model="withdrawForm.payAccount" label="收款账号" placeholder="请输入收款账号" />
-          <button class="primary-action" type="submit" :disabled="withdrawLoading">
+          <!-- 显式 click 触发，兼容移动 WebView 对 Vant submit 事件处理不完整的情况。 -->
+          <button class="primary-action" type="button" :disabled="withdrawLoading" @click="submitWithdraw">
             {{ withdrawLoading ? '提交中...' : '确认提现' }}
           </button>
         </van-form>
@@ -263,6 +269,8 @@ const tabItems = [
 ]
 
 const activeTab = ref(0)
+// 从个人中心快捷入口跳转到资产模块，并选中对应子分区。
+const openDriverAssets = (section) => { activeTab.value = 2; nextTick(() => { /* 资产面板保持上次选择 */ }) }
 const mineSection = ref('profile')
 const tabPanelComponents = [
   null,
@@ -360,6 +368,8 @@ const trajectoryPoints = ref([])
 const trajectoryError = ref('')
 const finishVisible = ref(false)
 const finishOrder = ref(null)
+// finishSubmitting 防止结束行程请求重复提交，并向司机明确展示请求正在处理。
+const finishSubmitting = ref(false)
 const heatmapVisible = ref(false)
 const heatmapLoading = ref(false)
 const heatmapRadiusMeters = 5000
@@ -1371,6 +1381,7 @@ function orderDropoffPosition(order) {
 }
 
 async function submitFinishTrip() {
+  if (finishSubmitting.value) return
   const orderId = Number(finishOrder.value?.orderId || driverStore.currentOrderId || 0)
   if (!orderId) {
     showToast('订单ID无效')
@@ -1378,6 +1389,7 @@ async function submitFinishTrip() {
   }
 
   try {
+    finishSubmitting.value = true
     const res = await finishTrip({
       orderId,
       actualDistanceM: Number(finishForm.actualDistanceM || 0),
@@ -1393,6 +1405,8 @@ async function submitFinishTrip() {
       title: '结束行程失败',
       message: apiErrorMessage(error, '结束行程失败')
     }).catch(() => {})
+  } finally {
+    finishSubmitting.value = false
   }
 }
 

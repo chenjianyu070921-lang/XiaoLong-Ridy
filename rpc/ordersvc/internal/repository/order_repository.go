@@ -23,6 +23,8 @@ type OrderRepository interface {
 	GetByID(ctx context.Context, id uint64) (*model.RideOrder, error)
 	// Cancel 将订单从允许取消的状态改为已取消，并写入取消日志。
 	Cancel(ctx context.Context, orderID uint64, wantStatuses []int8, cancelBy, reason string, statusLog *model.OrderStatusLog) (bool, error)
+	// CancelWithCoupon 在同一数据库事务中取消订单并释放该订单锁定的优惠券。
+	CancelWithCoupon(ctx context.Context, orderID, userID uint64, wantStatuses []int8, cancelBy, reason string, statusLog *model.OrderStatusLog) (bool, error)
 	// TimeoutCancel 仅将未接单且未绑定司机的订单改为超时取消，并写入状态日志。
 	TimeoutCancel(ctx context.Context, orderID uint64, reason string, statusLog *model.OrderStatusLog) (bool, error)
 	// Accept 将待接单订单改为已接单并绑定司机。
@@ -31,8 +33,9 @@ type OrderRepository interface {
 	StartTrip(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error)
 	// FinishTrip 将行程中订单改为待支付。
 	FinishTrip(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error)
-	// CompleteOrder 将待支付订单改为已完成，并写入完成日志。
-	CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog) (bool, error)
+	// CompleteOrder 将待支付订单改为已完成，写入完成日志，并落库实付金额 paidCents。
+	// paidCents 必落：下游退款金额取 order.PaidCents，若不落库则恒为 0，退款链路完全失效。
+	CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error)
 	// MarkDispatchAccepted 将指定司机的派单记录标记为已接受。
 	MarkDispatchAccepted(ctx context.Context, orderID, driverID uint64) error
 	// AppendStatusLog 追加一条状态日志。

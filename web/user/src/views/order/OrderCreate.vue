@@ -397,8 +397,11 @@ const submitOrder = async () => {
 
     closeToast()
     
-    // 设置当前订单并跳转到等待接单页
-    orderStore.setCurrentOrder(orderData)
+    // 设置当前订单并记录本地等待起点，返回首页后再次进入等待页仍按同一笔订单累计等待时间。
+    orderStore.setCurrentOrder({
+      ...orderData,
+      waitingStartedAt: orderData?.createdAt || orderData?.createTime || Date.now()
+    })
     router.replace('/order/waiting')
   } catch (error) {
     console.error('Create order error:', error)

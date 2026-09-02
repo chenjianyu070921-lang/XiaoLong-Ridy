@@ -8,6 +8,7 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // errorsIsNotFound 判断是否为 GORM 记录不存在错误。
@@ -187,19 +188,11 @@ func (r *gormDriverRepository) UpsertLocation(ctx context.Context, location *mod
 		"online_status": location.OnlineStatus,
 		"report_time":   location.ReportTime,
 	}
-	result := r.db.WithContext(ctx).
-		Model(&model.DriverLocation{}).
-		Where("driver_id = ?", location.DriverID).
-		Updates(updates)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected > 0 {
-		return nil
-	}
-	// 司机首次上报位置时走 INSERT；显式指定真实表列，避免把仅用于附近查询映射的
-	// distance_meters 幻影列（见 DriverLocation.DistanceMeters）写入不存在的表列。
-	return r.db.WithContext(ctx).Model(&model.DriverLocation{}).Create(map[string]interface{}{
+	// 使用数据库原子 Upsert，避免“先 UPDATE 再 INSERT”在并发心跳下触发唯一键冲突。
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "driver_id"}},
+		DoUpdates: clause.Assignments(updates),
+	}).Model(&model.DriverLocation{}).Create(map[string]interface{}{
 		"driver_id":     location.DriverID,
 		"longitude":     location.Longitude,
 		"latitude":      location.Latitude,

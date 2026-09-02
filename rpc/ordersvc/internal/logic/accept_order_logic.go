@@ -62,10 +62,8 @@ func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.Acc
 		return nil, ErrOrderStatusNotAllowed
 	}
 
-	// 闭环派单记录：司机接单后派单记录置为已接受。
-	if err := l.svcCtx.OrderRepository.MarkDispatchAccepted(l.ctx, order.Id, uint64(in.DriverId)); err != nil {
-		l.Logger.Errorf("mark dispatch accepted failed, orderId=%d driverId=%d: %v", order.Id, in.DriverId, err)
-	}
+	// 派单记录已由 OrderRepository.Accept 在同一事务内置为 Accepted（含失败即回滚），
+	// 此处无需再调 MarkDispatchAccepted：此时记录已非 Pending，重复调用必然 0 行并刷错误日志。
 
 	// 司机进入忙碌态：派单引擎据此过滤，避免司机同时接多单（P1-M4-8）。
 	markDriverBusy(l.ctx, l.svcCtx, uint64(in.DriverId))

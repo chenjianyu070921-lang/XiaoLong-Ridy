@@ -64,3 +64,19 @@ type GeocodeResponse struct {
 	Distance  int32   `json:"distance"`
 	CityCode  string  `json:"cityCode"`
 }
+
+// NearbyDriversRequest 表示以乘客当前位置查询附近在线司机的请求。
+type NearbyDriversRequest struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Radius    float64 `json:"radius"`
+	Limit     int32   `json:"limit"`
+}
+
+// NearbyDriverResponse 是地图上展示所需的司机位置摘要。
+type NearbyDriverResponse struct {
+	DriverID  int64   `json:"driverId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Distance  float64 `json:"distance"`
+}

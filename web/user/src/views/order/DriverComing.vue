@@ -113,16 +113,28 @@ const refreshTracking = async () => {
   if (!orderId) return
   try {
     const snapshot = await getOrderTracking(orderId)
-    if (snapshot?.driverId) driverInfo.value.name = `司机 #${snapshot.driverId}`
+    if (snapshot?.driverId) driverInfo.value.name = orderStore.currentOrder?.driverName || `司机 #${snapshot.driverId}`
+    // 司机接单信息来自订单快照，实时追踪接口只负责位置，二者合并展示。
+    const current = orderStore.currentOrder || {}
+    driverInfo.value.plateNumber = current.plateNumber || driverInfo.value.plateNumber
+    driverInfo.value.carModel = current.carModel || driverInfo.value.carModel
     distance.value = Number(snapshot?.remainingDistanceM || 0)
     arrivalMinutes.value = Math.max(0, Math.ceil(Number(snapshot?.remainingDurationS || 0) / 60))
     const position = [Number(snapshot?.driverLongitude), Number(snapshot?.driverLatitude)]
     if (mapInstance && position.every(Number.isFinite)) {
       if (!driverMarker) {
-        driverMarker = new window.AMap.Marker({ position, title: '司机当前位置', anchor: 'center' })
+        driverMarker = new window.AMap.Marker({
+          position,
+          title: '司机当前位置',
+          anchor: 'center',
+          // 使用汽车图标突出司机实时位置，并保留 heading 方向。
+          content: '<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#fff;box-shadow:0 2px 8px #0003;font-size:21px">🚕</div>',
+          angle: Number(snapshot?.heading || 0)
+        })
         mapInstance.add(driverMarker)
       } else {
         driverMarker.setPosition(position)
+        if (typeof driverMarker.setAngle === 'function') driverMarker.setAngle(Number(snapshot?.heading || 0))
       }
       mapInstance.setCenter(position)
     }

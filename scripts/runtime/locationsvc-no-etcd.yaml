@@ -1,5 +1,5 @@
 Name: locationsvc.rpc
-ListenOn: 0.0.0.0:9001
+ListenOn: 0.0.0.0:50057
 
 Mysql:
   Dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local

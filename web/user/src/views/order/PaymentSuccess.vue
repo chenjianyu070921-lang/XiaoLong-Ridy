@@ -27,7 +27,8 @@
     <!-- 司机评分 -->
     <div class="rating-card">
       <h3>为司机评分</h3>
-      <p class="driver-name">{{ orderDetail.driverName }}</p>
+      <p class="driver-name">{{ orderDetail.driverDisplayName }}</p>
+      <p class="driver-plate">车牌号：{{ orderDetail.plateNumber || '暂未获取' }}</p>
       
       <van-rate 
         v-model="rating" 
@@ -49,8 +50,8 @@
 
     <!-- 操作按钮 -->
     <div class="actions">
-      <button class="btn-primary submit-btn" @click="submitRating">
-        提交评价
+      <button class="btn-primary submit-btn" :disabled="submitting" @click="submitRating">
+        {{ submitting ? '提交中...' : '提交评价' }}
       </button>
       <button class="btn-secondary" @click="goHome">
         返回首页
@@ -61,43 +62,88 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
-import { useOrderStore } from '@/stores/order'
+import { useRouter, useRoute } from 'vue-router'
+import { showToast, showLoadingToast, closeToast } from 'vant'
+import { getOrderDetail, submitReview } from '@/api/order'
 
 const router = useRouter()
-const orderStore = useOrderStore()
+const route = useRoute()
 
 // 订单详情
 const orderDetail = ref({
-  totalPrice: '20.6',
-  orderNo: 'XL202401201234567890',
-  payTime: new Date().toLocaleString(),
-  driverName: '张师傅',
+  totalPrice: '0.00',
+  orderNo: '--',
+  payTime: '--',
+  driverName: '司机信息加载中',
+  driverDisplayName: '司机师傅',
+  plateNumber: '',
   driverId: ''
 })
 
 const rating = ref(0)
 const comment = ref('')
-const payMethodName = ref('支付宝')
+const payMethodName = ref('--')
+const submitting = ref(false)
+const orderId = Number(route.query.orderId)
 
-onMounted(() => {
-  // 加载订单数据
+// payMethodText 将支付页路由参数转换为乘客可读的支付方式名称。
+const payMethodText = (payMethod) => ({ wechat: '微信支付', alipay: '支付宝', balance: '余额支付' })[payMethod] || '--'
+
+// mapOrderDetail 将后端金额和司机标识转换为页面展示模型，禁止使用演示数据替代真实订单。
+const mapOrderDetail = (data) => ({
+  totalPrice: (Number(data?.paidCents || data?.payableCents || data?.estimatedPriceCents || 0) / 100).toFixed(2),
+  orderNo: data?.orderNo || '--',
+  // ordersvc 暂未提供支付完成时间，使用订单最近状态更新时间作为可追溯的完成时间。
+  // paidAt 由支付成功回调页传入，避免错误使用订单完成时间；直接刷新页面时才回退。
+  payTime: route.query.paidAt
+    ? new Date(Number(route.query.paidAt) * 1000).toLocaleString()
+    : (data?.paidAt ? new Date(Number(data.paidAt) * 1000).toLocaleString() : (data?.updatedAt ? new Date(Number(data.updatedAt) * 1000).toLocaleString() : '--')),
+  driverName: data?.driverName || '',
+  driverDisplayName: data?.driverName
+    ? `${String(data.driverName).replace(/司机|师傅/g, '').slice(0, 1)}师傅`
+    : (data?.driverId ? `司机${data.driverId}师傅` : '司机师傅'),
+  plateNumber: data?.plateNumber || data?.plateNo || '',
+  driverId: data?.driverId || ''
+})
+
+onMounted(async () => {
+  payMethodName.value = payMethodText(route.query.payMethod)
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    showToast('未找到支付订单')
+    return
+  }
+  try {
+    const detail = await getOrderDetail(orderId)
+    orderDetail.value = mapOrderDetail(detail)
+  } catch (error) {
+    console.error('加载支付成功订单失败:', error)
+    showToast('订单详情加载失败')
+  }
 })
 
 // 提交评价
-const submitRating = () => {
+const submitRating = async () => {
   if (rating.value === 0) {
     showToast('请选择评分')
     return
   }
-  
-  showToast('感谢您的评价')
-  
-  // 跳转到订单列表或首页
-  setTimeout(() => {
+  if (!Number.isInteger(orderId) || orderId <= 0 || submitting.value) return
+
+  submitting.value = true
+  showLoadingToast({ message: '正在提交评价...', forbidClick: true, duration: 0 })
+  try {
+    await submitReview({ orderId, rating: rating.value, comment: comment.value.trim(), tags: '' })
+    closeToast()
+    showToast('感谢您的评价')
     router.replace('/orders')
-  }, 1000)
+  } catch (error) {
+    closeToast()
+    console.error('提交评价失败:', error)
+    // 请求拦截器已展示服务端错误，这里补充评价场景的明确提示，避免用户误以为按钮无响应。
+    showToast(error?.response?.data?.message || error?.message || '评价提交失败，请稍后重试')
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 返回首页

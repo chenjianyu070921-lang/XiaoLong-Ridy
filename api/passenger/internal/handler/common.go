@@ -62,6 +62,8 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, codeInvalidRequest, "当前密码不正确")
 	case matchesBusinessErrorMessage(err, "insufficient wallet balance"):
 		writeError(w, http.StatusBadRequest, codeInvalidRequest, "钱包余额不足")
+	case matchesBusinessErrorMessage(err, "invalid wallet change"):
+		writeError(w, http.StatusBadRequest, codeInvalidRequest, "充值金额无效")
 	case matchesBusinessErrorMessage(err, "wallet repository not configured"):
 		writeError(w, http.StatusBadGateway, codeDownstreamUnavailable, "wallet service unavailable")
 	case errors.Is(err, logic.ErrReviewAlreadyExists):

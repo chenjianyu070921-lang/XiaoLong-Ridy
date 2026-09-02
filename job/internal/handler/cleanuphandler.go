@@ -67,10 +67,11 @@ func (h *CleanupHandler) TimeoutCancelOrders() error {
 			cancelled++
 			h.Infof("已取消超时订单 orderId=%d orderNo=%s", item.OrderId, item.OrderNo)
 		}
+		// 本轮会把已取消订单从查询结果中移除，因此始终继续读取第一页，
+		// 避免数据集缩小后递增 offset 导致跳过部分超时订单。
 		if len(resp.List) < pageSize {
 			break
 		}
-		page++
 	}
 	h.Infof("超时取消任务完成: 本轮取消 %d 单", cancelled)
 	return nil

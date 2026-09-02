@@ -57,3 +57,19 @@ func GeocodeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+// NearbyDriversHandler 处理附近司机查询，为首页地图提供实时车辆位置。
+func NearbyDriversHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.NearbyDriversRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewLocationLogic(r.Context(), svcCtx).NearbyDrivers(&req)
+		if err != nil {
+			writeBusinessError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

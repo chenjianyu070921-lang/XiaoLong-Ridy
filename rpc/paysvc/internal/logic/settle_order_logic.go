@@ -11,6 +11,7 @@ import (
 	"XiaoLong-Ridy/rpc/paysvc/internal/rule"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
 	"XiaoLong-Ridy/rpc/paysvc/proto"
+	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -56,11 +57,17 @@ func (l *SettleOrderLogic) SettleOrder(in *proto.SettleOrderRequest) (*proto.Set
 	if err := repo.Create(l.ctx, s); err != nil {
 		return nil, err
 	}
+	// 结算单落库成功后，将司机实收金额写入司机钱包；流水以订单号幂等关联。
+	if l.svcCtx.UserClient != nil && income > 0 {
+		if _, err := l.svcCtx.UserClient.RechargeWallet(l.ctx, &usersvc.ChangeWalletRequest{UserId: uint64(in.DriverId), Amount: priceutil.CentsToYuan(income), OrderId: uint64(in.OrderId), Type: "driver_income", Title: "行程收入"}); err != nil {
+			l.Logger.Errorf("credit driver wallet failed, order_id=%d driver_id=%d: %v", in.OrderId, in.DriverId, err)
+		}
+	}
 
 	return &proto.SettleOrderResponse{
-		SettlementId:           int64(s.Id),
-		SettlementNo:           settlementNo,
+		SettlementId:            int64(s.Id),
+		SettlementNo:            settlementNo,
 		PlatformCommissionCents: commission,
-		DriverIncomeCents:      income,
+		DriverIncomeCents:       income,
 	}, nil
 }
