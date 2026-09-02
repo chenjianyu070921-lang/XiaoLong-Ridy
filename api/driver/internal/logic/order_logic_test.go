@@ -86,6 +86,8 @@ func (f *fakeOrderClient) ListOrders(_ context.Context, req *orderproto.ListOrde
 			OrderId:             1001,
 			OrderNo:             "NO-1001",
 			FromAddress:         "pickup",
+			FromLongitude:       116.391,
+			FromLatitude:        39.907,
 			ToAddress:           "destination",
 			Status:              req.Status,
 			EstimatedPriceCents: 29900,
@@ -273,6 +275,8 @@ func TestListMyDispatchesRequiresOrderClient(t *testing.T) {
 type fakeDispatchClient struct {
 	rejectRequest *dispatchproto.RejectDispatchRequest
 	listRequest   *dispatchproto.ListDispatchRecordsRequest
+	listResponse  *dispatchproto.ListDispatchRecordsResponse
+	listErr       error
 }
 
 func (f *fakeDispatchClient) RejectDispatch(_ context.Context, req *dispatchproto.RejectDispatchRequest) (*dispatchproto.RejectDispatchResponse, error) {
@@ -282,6 +286,12 @@ func (f *fakeDispatchClient) RejectDispatch(_ context.Context, req *dispatchprot
 
 func (f *fakeDispatchClient) ListDispatchRecords(_ context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
 	f.listRequest = req
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	if f.listResponse != nil {
+		return f.listResponse, nil
+	}
 	return &dispatchproto.ListDispatchRecordsResponse{List: []*dispatchproto.DispatchRecord{{Id: 7, OrderId: 1001, DriverId: req.DriverId, Status: 1, Remark: "dispatch note", RejectReason: "too far"}}, Total: 1, Page: req.Page, PageSize: req.PageSize}, nil
 }
 
@@ -385,8 +395,8 @@ func TestListMyOrdersUsesOrderService(t *testing.T) {
 	}
 }
 
-// TestListAvailableOrdersReadsAvailableSetAndGetOrder 验证 D3/D8 修复后：
-// ListAvailableOrders 读 driver:available:%d 集合 + GetOrder，而非全局 ListOrders。
+// TestListAvailableOrdersReadsAvailableSetAndGetOrder verifies nearby orders come from
+// driver:available:%d + GetOrder instead of global ListOrders.
 func TestListAvailableOrdersReadsAvailableSetAndGetOrder(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
@@ -400,7 +410,6 @@ func TestListAvailableOrdersReadsAvailableSetAndGetOrder(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
-	// 派单消费者写入的 available 集合
 	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, 25), "1001").Err(); err != nil {
 		t.Fatalf("SAdd available() error = %v", err)
 	}
@@ -414,7 +423,6 @@ func TestListAvailableOrdersReadsAvailableSetAndGetOrder(t *testing.T) {
 	if resp.Total != 1 || len(resp.List) != 1 || resp.List[0].OrderNo != "NO-1001" {
 		t.Fatalf("ListAvailableOrders() response = %+v", resp)
 	}
-	// 新逻辑不调用 ListOrders，而是读 available 集合 + GetOrder
 	if client.listOrdersRequest != nil {
 		t.Fatalf("ListAvailableOrders() should not call ListOrders, got %+v", client.listOrdersRequest)
 	}
@@ -441,7 +449,202 @@ func TestListAvailableOrdersReturnsEmptyWhenDriverOffline(t *testing.T) {
 	}
 }
 
-// TestListAvailableOrdersFiltersAndSortsByDriverPosition 验证距离过滤与排序仍然生效（新逻辑保留距离计算）。
+func TestListAvailableOrdersReturnsEmptyWhenAvailableSetEmpty(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "116.397",
+		"latitude":  "39.908",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	client := &fakeOrderClient{}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if client.listOrdersRequest != nil {
+		t.Fatalf("ListAvailableOrders() should not call global ListOrders when available set is empty, got %+v", client.listOrdersRequest)
+	}
+	if resp.Total != 0 || len(resp.List) != 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want empty list when driver has no assigned orders", resp)
+	}
+}
+
+func TestListAvailableOrdersFallsBackToPendingDispatchRecordsWhenAvailableSetEmpty(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "116.397",
+		"latitude":  "39.908",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	orderClient := &fakeOrderClient{
+		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
+			1001: availableOrderDetail(1001, "pending-dispatch-fallback", 116.398, 39.908),
+		},
+	}
+	dispatchClient := &fakeDispatchClient{listResponse: &dispatchproto.ListDispatchRecordsResponse{
+		List: []*dispatchproto.DispatchRecord{{
+			Id:       7,
+			OrderId:  1001,
+			DriverId: driverID,
+			Status:   constants.DispatchStatusPending,
+		}},
+		Total:    1,
+		Page:     1,
+		PageSize: 1000,
+	}}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: orderClient, DispatchClient: dispatchClient, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if resp.Total != 1 || len(resp.List) != 1 || resp.List[0].OrderID != 1001 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want pending dispatch order 1001", resp)
+	}
+	if dispatchClient.listRequest == nil || dispatchClient.listRequest.GetStatus() != constants.DispatchStatusPending {
+		t.Fatalf("ListAvailableOrders() dispatch query = %+v, want pending dispatch query", dispatchClient.listRequest)
+	}
+}
+
+func TestListAvailableOrdersReturnsEmptyWhenDriverPositionInvalid(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "0",
+		"latitude":  "0",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, driverID), "1001").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
+	client := &fakeOrderClient{
+		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
+			1001: availableOrderDetail(1001, "zero", 0, 0),
+		},
+	}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if resp.Total != 0 || len(resp.List) != 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want empty for invalid position", resp)
+	}
+}
+
+func TestListAvailableOrdersHidesOrdersWithoutPendingDispatch(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	availableKey := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "116.397",
+		"latitude":  "39.908",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	if err := rdb.SAdd(ctx, availableKey, "1001").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
+	client := &fakeOrderClient{
+		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
+			1001: availableOrderDetail(1001, "wait-without-pending-dispatch", 116.398, 39.908),
+		},
+	}
+	dispatchClient := &fakeDispatchClient{listResponse: &dispatchproto.ListDispatchRecordsResponse{
+		List: []*dispatchproto.DispatchRecord{},
+	}}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, DispatchClient: dispatchClient, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if resp.Total != 0 || len(resp.List) != 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want empty without pending dispatch", resp)
+	}
+	if dispatchClient.listRequest == nil ||
+		dispatchClient.listRequest.GetDriverId() != driverID ||
+		dispatchClient.listRequest.GetStatus() != constants.DispatchStatusPending {
+		t.Fatalf("ListAvailableOrders() dispatch query = %+v, want current driver's pending dispatch records", dispatchClient.listRequest)
+	}
+	if ok, err := rdb.SIsMember(ctx, availableKey, "1001").Result(); err != nil || ok {
+		t.Fatalf("stale available order should be removed from Redis set, exists=%v err=%v", ok, err)
+	}
+}
+
+// TestListAvailableOrdersHidesAcceptedOrders verifies accepted orders are filtered out.
+func TestListAvailableOrdersHidesAcceptedOrders(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	ctx := context.Background()
+	driverID := int64(25)
+	availableKey := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
+	if err := rdb.SAdd(ctx, constants.RedisDriverOnline, fmt.Sprint(driverID)).Err(); err != nil {
+		t.Fatalf("SAdd() error = %v", err)
+	}
+	if err := rdb.HSet(ctx, fmt.Sprintf(constants.RedisDriverPos, driverID), map[string]interface{}{
+		"longitude": "116.397",
+		"latitude":  "39.908",
+	}).Err(); err != nil {
+		t.Fatalf("HSet() error = %v", err)
+	}
+	if err := rdb.SAdd(ctx, availableKey, "1001").Err(); err != nil {
+		t.Fatalf("SAdd available() error = %v", err)
+	}
+	client := &fakeOrderClient{getOrderResponseStatus: orderproto.OrderStatus_ORDER_STATUS_ACCEPTED}
+	dispatchClient := &fakeDispatchClient{listResponse: &dispatchproto.ListDispatchRecordsResponse{
+		List: []*dispatchproto.DispatchRecord{{
+			Id:       7,
+			OrderId:  1001,
+			DriverId: driverID,
+			Status:   constants.DispatchStatusPending,
+		}},
+	}}
+	logic := NewOrderLogic(ctx, &svc.ServiceContext{OrderClient: client, DispatchClient: dispatchClient, RedisClient: rdb})
+
+	resp, err := logic.ListAvailableOrders(driverID, 1, 10)
+	if err != nil {
+		t.Fatalf("ListAvailableOrders() error = %v", err)
+	}
+	if resp.Total != 0 || len(resp.List) != 0 {
+		t.Fatalf("ListAvailableOrders() response = %+v, want empty when order is already accepted", resp)
+	}
+	if dispatchClient.listRequest == nil {
+		t.Fatal("ListAvailableOrders() should query pending dispatches before filtering")
+	}
+	if ok, err := rdb.SIsMember(ctx, availableKey, "1001").Result(); err != nil || ok {
+		t.Fatalf("accepted order should be removed from Redis set, exists=%v err=%v", ok, err)
+	}
+}
+
 func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
@@ -456,7 +659,7 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
-	// 派单消费者写入的 available 集合（3 个订单，其中 1002 距离超过 3km 应被过滤）
+// available set seed; 1002 is filtered out because it is too far away.
 	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, driverID), "1001", "1002", "1003").Err(); err != nil {
 		t.Fatalf("SAdd available() error = %v", err)
 	}
@@ -482,7 +685,7 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	if resp.List[0].DistanceMeters <= 0 || resp.List[0].DistanceMeters >= resp.List[1].DistanceMeters {
 		t.Fatalf("ListAvailableOrders() distances = %d/%d, want nearest first", resp.List[0].DistanceMeters, resp.List[1].DistanceMeters)
 	}
-	// 新逻辑不调用 ListOrders
+	// New logic does not call ListOrders.
 	if client.listOrdersRequest != nil {
 		t.Fatalf("ListAvailableOrders() should not call ListOrders, got %+v", client.listOrdersRequest)
 	}
@@ -521,7 +724,7 @@ func TestGetMyOrderDetailRequiresOrderOwnedByDriver(t *testing.T) {
 	}
 	if resp.Order.OrderID != 1001 ||
 		resp.Order.DriverID != 25 ||
-		resp.Order.UserID != 0 || // UserID 对司机隐藏，应为 0
+		resp.Order.UserID != 0 || // UserID is hidden from drivers and should be 0.
 		resp.Order.FromLongitude != 116.391 ||
 		resp.Order.ToLatitude != 39.991 ||
 		resp.Order.EstimatedDistanceM != 12500 ||

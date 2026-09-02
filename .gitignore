@@ -63,3 +63,4 @@ rpc/adminsvc/.tmp-admin-exports/
 .tmp-gocache-review/
 .gocache/
 .gocache-stat/
+.run/

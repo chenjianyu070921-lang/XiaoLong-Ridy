@@ -40,8 +40,9 @@ func writeParamError(w http.ResponseWriter, err error) {
 
 	if st, ok := status.FromError(err); ok {
 		switch st.Code() {
-		case codes.Unavailable:
-			writeError(w, http.StatusBadGateway, 50001, "下游 driversvc 不可用")
+		case codes.Unavailable, codes.DeadlineExceeded:
+			// 下游服务不可用/超时统一映射为 502，避免被误判为 400 参数错误。
+			writeError(w, http.StatusBadGateway, 50001, "下游服务不可用或超时")
 			return
 		case codes.NotFound:
 			writeError(w, http.StatusNotFound, codeDriverNotFound, st.Message())

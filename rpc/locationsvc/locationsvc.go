@@ -30,31 +30,29 @@ func main() {
 	// ========== 配置中心：优先从 etcd 拉取配置，etcd 不可用或读取失败时降级本地 yaml ==========
 	// 注意：etcd 可用时需先把配置写入 etcd，key 为 locationsvc.yaml
 	// docker exec etcd etcdctl put locationsvc.yaml < locationsvc.yaml
-	// 本地无 etcd 时（本地联调），subscriber.NewEtcdSubscriber 会返回错误，
-	// 直接回退 conf.MustLoad 本地文件，避免 MustNewEtcdSubscriber 直接 panic 中断启动。
+	// etcd 不可用时（连接失败/拉取失败）降级加载本地文件，保证服务可启动
 	var c config.Config
 	var cc configcenter.Configurator[config.Config]
+
 	sub, err := subscriber.NewEtcdSubscriber(subscriber.EtcdConf{
 		Hosts: []string{"127.0.0.1:2379"},
 		Key:   "locationsvc.yaml",
 	})
+	if err == nil {
+		cc, err = configcenter.NewConfigCenter[config.Config](
+			configcenter.Config{Type: "yaml"}, sub)
+	}
 	if err != nil {
-		logx.Errorf("etcd 配置中心不可用(%v)，降级加载本地文件 %s", err, *configFile)
+		cc = nil
+		logx.Errorf("配置中心(etcd)不可用: %v，降级加载本地文件 %s", err, *configFile)
+		conf.MustLoad(*configFile, &c)
+	} else if c, err = cc.GetConfig(); err != nil {
+		cc = nil
+		logx.Errorf("从配置中心(etcd)加载配置失败: %v，降级加载本地文件 %s", err, *configFile)
 		conf.MustLoad(*configFile, &c)
 	} else {
-		client, e := configcenter.NewConfigCenter[config.Config](configcenter.Config{Type: "yaml"}, sub)
-		if e != nil {
-			logx.Errorf("从配置中心加载配置失败(%v)，降级加载本地文件 %s", e, *configFile)
-			conf.MustLoad(*configFile, &c)
-		} else {
-			cc = client
-			if c, e = cc.GetConfig(); e != nil {
-				logx.Errorf("从配置中心读取配置失败(%v)，降级加载本地文件 %s", e, *configFile)
-				conf.MustLoad(*configFile, &c)
-			}
-		}
+		fmt.Printf("[配置中心] 配置加载成功: Provider=%s BaseUrl=%s\n", c.MapService.Provider, c.MapService.BaseUrl)
 	}
-	fmt.Printf("[配置中心] 配置加载成功: Provider=%s BaseUrl=%s\n", c.MapService.Provider, c.MapService.BaseUrl)
 
 	// 连接 MySQL
 	mysqlDB, err := datasource.NewMysqlClient(c.Mysql)
@@ -80,7 +78,8 @@ func main() {
 	// 注入数据库、Redis 与地图客户端
 	ctx := svc.NewServiceContext(c, mysqlDB, redisClient)
 
-	// ========== 配置热更新：仅配置中心可用时监听；本地降级模式无热更新 ==========
+	// ========== 配置热更新：etcd 配置变更后自动生效，无需重启 ==========
+	// etcd 不可用（已降级本地 yaml）时不注册热更新监听
 	if cc != nil {
 		cc.AddListener(func() {
 			newCfg, e := cc.GetConfig()

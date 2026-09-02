@@ -1,263 +1,152 @@
 <template>
   <main class="driver-home-page">
-    <section class="driver-hero">
-      <div class="hero-topline">
-        <div class="driver-profile-row">
+    <div id="driver-home-popups"></div>
+
+    <section v-show="activeTab === 0" class="home-workbench">
+      <header class="driver-status-bar">
+        <button type="button" class="driver-avatar-button" aria-label="编辑司机资料" @click="openProfileEdit">
           <img v-if="driverStore.driver.avatarUrl" :src="driverStore.driver.avatarUrl" alt="司机头像" />
           <span v-else class="avatar-fallback">{{ driverStore.displayName.slice(0, 1) || '--' }}</span>
-          <div class="driver-copy">
-            <p>{{ statusLabel }}</p>
-            <h1>{{ driverStore.displayName || '--' }}</h1>
-            <small>{{ driverStore.driver.phone ? String(driverStore.driver.phone).slice(0, 3) + '****' + String(driverStore.driver.phone).slice(-4) : '--' }}</small>
-          </div>
-        </div>
-        <button type="button" class="hero-icon-button" aria-label="退出登录" @click="logoutDriver">
-          <van-icon name="revoke" />
         </button>
-      </div>
-
-      <div class="hero-income">
-        <span>今日收入</span>
-        <strong>{{ formatPrice(todayIncome.totalIncomeCents) }}</strong>
-        <small>{{ phaseLabel || '--' }}</small>
-      </div>
-    </section>
-
-    <section class="hero-metric-row">
-      <div class="hero-metric-card">
-        <span>今日完单</span>
-        <strong>{{ todayIncome.completedOrders ?? incomeSummary.todayCompletedOrders ?? '--' }}</strong>
-      </div>
-      <div class="hero-metric-card">
-        <span>还可拒单</span>
-        <strong>--</strong>
-      </div>
-      <div class="hero-metric-card">
-        <span>服务指标</span>
-        <strong>{{ serviceScore || '--' }}</strong>
-      </div>
-    </section>
-
-    <section class="quick-entry-row">
-      <button type="button"><span><van-icon name="fire-o" /></span><b>热力图</b></button>
-      <button type="button"><span><van-icon name="service-o" /></span><b>听单检测</b></button>
-      <button type="button"><span><van-icon name="gift-o" /></span><b>司机福利社</b></button>
-      <button type="button"><span><van-icon name="friends-o" /></span><b>长期伙伴</b></button>
-    </section>
-
-    <section class="work-status-card">
-      <div class="work-status-heading">
-        <div>
-          <span>接单状态</span>
+        <div class="status-copy">
           <strong>{{ workStatusText }}</strong>
+          <span>{{ driverStore.displayName || '司机' }}</span>
         </div>
-        <van-tag :type="workStatusTagType">{{ workStatusTagText }}</van-tag>
-      </div>
-      <p class="work-status-hint">{{ workStatusHint }}</p>
-      <button type="button" class="work-primary-action" :class="workActionClass" :disabled="workActionDisabled" @click="toggleListening">
-        <van-icon :name="workActionIcon" />
-        <span>{{ workActionText }}</span>
-      </button>
-    </section>
+        <button
+          type="button"
+          class="status-toggle"
+          :class="{ online: driverStore.onlineStatus === 1, driving: driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip' }"
+          :disabled="workActionDisabled"
+          @click="toggleStatusBarOnline"
+        >
+          {{ driverStore.onlineStatus === 1 ? '在线' : driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip' ? '行驶中' : '离线' }}
+        </button>
+        <div class="status-metric">
+          <span>服务分</span>
+          <b>{{ serviceScore || '--' }}</b>
+        </div>
+        <div class="status-metric">
+          <span>今日预估</span>
+          <b>{{ formatPrice(todayIncome.totalIncomeCents) }}</b>
+        </div>
+        <button type="button" class="message-button" aria-label="消息通知" @click="showNotifications">
+          <van-icon name="bell" />
+        </button>
+      </header>
 
-    <section class="mini-stat-grid">
-      <div><span>服务分</span><strong>{{ serviceScore || '--' }}</strong></div>
-      <div><span>当前订单</span><strong>{{ driverStore.currentOrderId || '--' }}</strong></div>
-      <div><span>车辆</span><strong>{{ driverStore.vehicle?.plateNo || driverStore.vehicleId || '--' }}</strong></div>
-    </section>
-
-    <section class="tab-panel-scroll">
-      <section v-show="activeTab === 0" class="h5-panel">
-        <div class="section-title">
-          <h2>工作台</h2>
-          <button type="button" @click="loadDashboardData">刷新</button>
+      <section class="home-map-stage">
+        <div ref="homeMapContainer" class="home-amap" aria-label="司机首页实时地图"></div>
+        <div v-if="homeMapStatusText" class="map-state" :class="{ error: homeMapError }">{{ homeMapStatusText }}</div>
+        <div class="heatmap-legend">
+          <span>低</span><i class="heat-low"></i><i class="heat-mid"></i><i class="heat-high"></i><b>高</b>
         </div>
-        <div class="current-trip-card">
-          <div class="section-subtitle">
-            <strong>当前行程</strong>
-            <van-tag type="primary">{{ formatOrderStatus(driverStore.currentOrder?.status) }}</van-tag>
-          </div>
-          <p><b>上车点</b><span>{{ driverStore.currentOrder?.fromAddress || '--' }}</span></p>
-          <p><b>目的地</b><span>{{ driverStore.currentOrder?.toAddress || '--' }}</span></p>
-          <p><b>订单号</b><span>{{ driverStore.currentOrder?.orderNo || driverStore.currentOrderId || '--' }}</span></p>
+        <div v-if="selectedHomeOrder" class="route-direction-chip">
+          <van-icon name="guide-o" />
+          <span>{{ selectedHomeOrder.fromAddress || '--' }} -> {{ selectedHomeOrder.toAddress || '--' }}</span>
         </div>
-        <div class="map-surface">
-          <span class="road road-a"></span>
-          <span class="road road-b"></span>
-          <span class="pin current"></span>
-          <span class="pin order"></span>
-          <p>接单区域</p>
-        </div>
-        <section class="home-order-section">
-          <div class="section-title">
-            <h2>附近可接订单</h2>
-            <button type="button" :disabled="homeAvailableLoading" @click="loadHomeAvailableOrders">刷新</button>
-          </div>
-          <div v-if="homeAvailableLoading" class="home-order-loading"><van-loading size="20px" /></div>
-          <div v-else-if="homeAvailableOrders.length === 0" class="home-order-empty">
-            {{ driverStore.onlineStatus === 1 ? '暂无附近订单' : '开始听单后查看附近订单' }}
-          </div>
-          <article v-for="order in homeAvailableOrders" :key="'home-' + order.orderId" class="home-order-card">
-            <div class="order-heading">
-              <strong>{{ order.orderNo || '订单 ' + order.orderId }}</strong>
-              <span class="order-distance">距您{{ formatDistance(order.distanceMeters) }}公里</span>
-            </div>
-            <p class="route-line">{{ order.fromAddress || '--' }} -> {{ order.toAddress || '--' }}</p>
-            <div class="meta-row">
-              <span>{{ formatPrice(order.estimatedPriceCents) }}</span>
-              <button type="button" class="home-order-accept" @click="handleOrderAction('accept', order)">接单</button>
-            </div>
-          </article>
-        </section>
-      </section>
-
-      <section v-show="activeTab === 1" class="h5-panel">
-        <div class="section-title">
-          <h2>订单</h2>
-          <button type="button" @click="loadOrders(orderPage)">刷新</button>
-        </div>
-        <div class="filter-bar">
-          <van-dropdown-menu>
-            <van-dropdown-item v-model="orderMode" :options="orderModeOptions" @change="loadOrders(1)" />
-            <van-dropdown-item v-model="orderStatus" :options="orderStatusOptions" @change="loadOrders(1)" />
-          </van-dropdown-menu>
-        </div>
-        <div v-if="orders.length === 0" class="empty-state">--</div>
-        <article v-for="order in orders" :key="String(order.source || 'order') + '-' + String(order.orderId)" class="order-card">
-          <div class="order-heading">
-            <strong>{{ order.orderNo || '订单 ' + order.orderId }}</strong>
-            <van-tag>{{ order.source === 'dispatch' ? formatDispatchStatus(order.dispatchStatus) : formatOrderStatus(order.status) }}</van-tag>
-          </div>
-          <p class="route-line">{{ order.fromAddress || '--' }} -> {{ order.toAddress || '--' }}</p>
-          <div class="meta-row">
-            <span>{{ formatPrice(order.estimatedPriceCents) }}</span>
-            <span v-if="order.source === 'available'">距您{{ formatDistance(order.distanceMeters) }}公里</span>
-            <span>{{ formatTime(order.createdAt) }}</span>
-          </div>
-          <div class="order-actions">
-            <button type="button" @click="loadOrderDetail(order.orderId)">详情</button>
-            <button type="button" @click="selectTrajectory(order.orderId)">轨迹</button>
-            <button v-if="canAccept(order)" type="button" class="primary" @click="handleOrderAction('accept', order)">接单</button>
-            <button v-if="canAccept(order)" type="button" @click="handleOrderAction('reject', order)">拒单</button>
-            <button v-if="Number(order.status) === 2" type="button" @click="handleOrderAction('confirm-arrive', order)">到达</button>
-            <button v-if="Number(order.status) === 2" type="button" @click="handleOrderAction('start-trip', order)">开始</button>
-            <button v-if="Number(order.status) === 3" type="button" class="primary" @click="openFinish(order)">结束</button>
-          </div>
-        </article>
-        <div class="pager">
-          <button type="button" :disabled="orderPage <= 1" @click="loadOrders(orderPage - 1)">上一页</button>
-          <span>{{ orderPage }} / {{ Math.max(1, Math.ceil(orderTotal / orderPageSize)) }}</span>
-          <button type="button" :disabled="orderPage * orderPageSize >= orderTotal" @click="loadOrders(orderPage + 1)">下一页</button>
-        </div>
-      </section>
-
-      <section v-show="activeTab === 2" class="h5-panel">
-        <div class="section-title"><h2>车辆</h2><button type="button" @click="loadVehicle()">查询</button></div>
-        <div class="info-list">
-          <p><b>车辆ID</b><span>{{ driverStore.vehicle?.id || '--' }}</span></p>
-          <p><b>车牌号</b><span>{{ driverStore.vehicle?.plateNo || '--' }}</span></p>
-          <p><b>车型</b><span>{{ driverStore.vehicle?.brand || '--' }} {{ driverStore.vehicle?.model || '' }}</span></p>
-          <p><b>状态</b><span>{{ formatVehicleStatus(driverStore.vehicle?.status) }}</span></p>
-        </div>
-        <van-form class="form-stack" @submit="submitVehicle">
-          <van-field v-model="vehicleForm.plateNo" label="车牌号" placeholder="粤B12345" />
-          <van-field v-model="vehicleForm.brand" label="品牌" placeholder="BYD" />
-          <van-field v-model="vehicleForm.model" label="型号" placeholder="Han" />
-          <van-field v-model="vehicleForm.color" label="颜色" placeholder="黑色" />
-          <van-field v-model.number="vehicleForm.vehicleType" type="number" label="车辆类型" placeholder="1" />
-          <van-field v-model="vehicleForm.registrationDate" type="date" label="注册日期" />
-          <van-field v-model="vehicleForm.insuranceNo" label="保险单号" placeholder="INS-001" />
-          <van-field v-model="vehicleForm.insuranceExpireAt" type="date" label="保险到期" />
-          <button class="primary-action" type="submit">提交车辆</button>
-        </van-form>
-        <div class="two-actions"><button type="button" @click="submitVehicleUpdate">更新</button><button type="button" class="danger" @click="removeVehicle">删除</button></div>
-      </section>
-
-      <section v-show="activeTab === 3" class="h5-panel cert-panel">
-        <div class="section-title"><h2>车辆资质</h2><button type="button" @click="loadCertification()">刷新</button></div>
-        <div v-if="driverStore.certification" class="cert-status-card" :class="'status-' + (driverStore.certification.auditStatus || 0)">
-          <div class="cert-status-icon"><van-icon :name="certStatusIcon" /></div>
-          <div class="cert-status-info">
-            <strong>{{ formatCertificationStatus(driverStore.certification.auditStatus) }}</strong>
-            <span v-if="driverStore.certification.auditRemark">{{ driverStore.certification.auditRemark }}</span>
-          </div>
-        </div>
-        <div class="cert-vehicle-card">
-          <div class="cert-vehicle-label">认证车辆</div>
-          <div v-if="driverStore.vehicle" class="cert-vehicle-info">
-            <span class="cert-plate">{{ driverStore.vehicle.plateNo || '未绑定' }}</span>
-            <span class="cert-vehicle-model">{{ driverStore.vehicle.brand || '' }} {{ driverStore.vehicle.model || '' }}</span>
-          </div>
-          <div v-else class="cert-vehicle-empty"><span>请先在「车辆」页面绑定车辆</span></div>
-        </div>
-        <div class="cert-upload-grid">
-          <div v-for="item in certItems" :key="item.key" class="cert-upload-card">
-            <div class="cert-upload-header">
-              <span class="cert-upload-title">{{ item.title }}</span>
-              <span class="cert-upload-tip">{{ item.tip }}</span>
-            </div>
-            <div class="cert-upload-area" :class="{ uploaded: certificationForm[item.key], uploading: certUploading[item.key] }" @click="triggerCertUpload(item.key)">
-              <template v-if="certUploading[item.key]"><van-loading size="24px" color="#6d4aff" /><span class="cert-upload-text">上传中...</span></template>
-              <template v-else-if="certificationForm[item.key]">
-                <img :src="certificationForm[item.key]" :alt="item.title" class="cert-preview-img" />
-                <div class="cert-upload-mask"><van-icon name="photograph" /><span>重新上传</span></div>
-                <button type="button" class="cert-delete-btn" @click.stop="removeCertImage(item.key)"><van-icon name="cross" /></button>
-              </template>
-              <template v-else><van-icon name="photograph" class="cert-upload-icon" /><span class="cert-upload-text">点击上传</span></template>
-            </div>
-            <input type="file" :ref="el => certFileRefs[item.key] = el" accept="image/*" class="cert-file-input" @change="readCertFile($event, item.key)" />
-          </div>
-        </div>
-        <button class="primary-action cert-submit-btn" :disabled="certSubmitting" type="button" @click="submitCertification">{{ certSubmitting ? '提交中...' : '提交资质审核' }}</button>
-      </section>
-
-      <section v-show="activeTab === 4" class="h5-panel">
-        <div class="section-title"><h2>钱包</h2><button type="button" @click="loadIncome()">刷新</button></div>
-        <div class="income-today-card">
-          <div>
-            <span>今日收入</span>
-            <strong>{{ formatPrice(todayIncome.totalIncomeCents) }}</strong>
-            <small>已完成订单 {{ todayIncome.completedOrders ?? '--' }}</small>
-          </div>
-          <button type="button" class="withdraw-entry" @click="openWithdraw">
-            <van-icon name="cash-back-record" />
-            <span>提现</span>
+        <div class="map-floating-actions">
+          <button type="button" aria-label="刷新热力图" :disabled="heatmapLoading" @click="refreshHomeWorkbench">
+            <van-icon name="replay" />
+          </button>
+          <button type="button" aria-label="回到当前位置" @click="centerHomeMapOnDriver">
+            <van-icon name="aim" />
+          </button>
+          <button type="button" aria-label="打开热力图详情" @click="openHeatmap">
+            <van-icon name="fire-o" />
           </button>
         </div>
-        <div class="wallet-card"><span>累计收入</span><strong>{{ formatPrice(incomeSummary.totalIncomeCents) }}</strong><p>已完成订单 {{ incomeSummary.completedOrders ?? '--' }}</p></div>
-        <div class="income-grid">
-          <div><span>今日</span><strong>{{ formatPrice(todayIncome.totalIncomeCents) }}</strong></div>
-          <div><span>本周</span><strong>{{ formatPrice(weekIncome.totalIncomeCents) }}</strong></div>
-        </div>
-        <div v-if="incomeBills.length === 0" class="empty-state">--</div>
-        <article v-for="bill in incomeBills" :key="bill.id || bill.orderId" class="compact-card"><strong>{{ bill.orderNo || '订单 ' + bill.orderId }}</strong><span>{{ formatPrice(bill.incomeCents) }} · {{ formatTime(bill.createdAt) }}</span></article>
       </section>
 
-      <section v-show="activeTab === 5" class="h5-panel">
-        <div class="section-title"><h2>评价</h2><button type="button" @click="loadReviews()">刷新</button></div>
-        <div v-if="reviews.length === 0" class="empty-state">--</div>
-        <article v-for="review in reviews" :key="review.id || review.reviewId || review.orderId" class="compact-card"><strong>订单 {{ review.orderId || '--' }} · {{ review.rating || '--' }} 分</strong><span>{{ review.comment || '--' }}</span><small>{{ formatTime(review.createdAt) }}</small></article>
+      <section class="home-floating-panel">
+        <template v-if="homePanelMode === 'driving'">
+          <div class="panel-heading">
+            <span>行驶中</span>
+            <strong>{{ selectedHomeOrder?.toAddress || '导航中' }}</strong>
+          </div>
+          <p class="route-line">{{ selectedHomeOrder?.fromAddress || '--' }} -> {{ selectedHomeOrder?.toAddress || '--' }}</p>
+          <div class="panel-actions three-actions">
+            <button type="button" class="primary" @click="navigateToPickup(selectedHomeOrder)">导航</button>
+            <button type="button" @click="contactPassenger(selectedHomeOrder)">联系乘客</button>
+            <button type="button" @click="reportAbnormal">异常上报</button>
+          </div>
+        </template>
+        <template v-else-if="selectedHomeOrder">
+          <div class="panel-heading">
+            <span>新订单 {{ passengerTail(selectedHomeOrder) }}</span>
+            <strong>{{ formatPrice(selectedHomeOrder.estimatedPriceCents) }}</strong>
+          </div>
+          <p class="route-line">{{ selectedHomeOrder.fromAddress || '--' }} -> {{ selectedHomeOrder.toAddress || '--' }}</p>
+          <div class="order-brief-grid">
+            <span>{{ formatDistance(selectedHomeOrder.distanceMeters || selectedHomeOrder.estimatedDistanceM) }} km</span>
+            <span>{{ formatDuration(selectedHomeOrder.estimatedDurationS) }}</span>
+            <span>{{ formatOrderStatus(selectedHomeOrder.status || 1) }}</span>
+          </div>
+          <div class="panel-actions three-actions">
+            <button type="button" class="primary" @click="handleOrderAction('accept', selectedHomeOrder)">接单</button>
+            <button type="button" @click="handleOrderAction('reject', selectedHomeOrder)">拒单</button>
+            <button type="button" @click="previewHomeOrder(selectedHomeOrder)">先看后接</button>
+          </div>
+        </template>
+        <template v-else>
+          <div class="panel-heading">
+            <span>{{ workStatusHint }}</span>
+            <strong>{{ phaseLabel || '--' }}</strong>
+          </div>
+          <div class="idle-controls">
+            <button type="button" class="work-primary-action go-online" :disabled="workActionDisabled" @click="startAcceptingOrders">
+              <van-icon name="play-circle-o" />
+              <span>开始接单</span>
+            </button>
+            <label class="listen-switch">
+              <span>听单模式</span>
+              <van-switch v-model="listenModeEnabled" size="22px" />
+            </label>
+          </div>
+          <button type="button" class="home-route-button" @click="navigateHomeRoute">
+            <van-icon name="wap-home-o" />
+            <span>{{ homeRouteLabel }}</span>
+          </button>
+        </template>
       </section>
-
-      <section v-show="activeTab === 6" class="h5-panel">
-        <div class="section-title"><h2>轨迹</h2></div>
-        <div class="trajectory-form"><van-field v-model.number="trajectoryOrderId" type="number" label="订单ID" placeholder="输入订单ID" /><p v-if="trajectoryError" class="trajectory-error">{{ trajectoryError }}</p><button class="primary-action" type="button" @click="loadTrajectory">查询轨迹</button></div>
-        <div v-if="trajectoryPoints.length === 0" class="empty-state">--</div>
-        <article v-for="point in trajectoryPoints" :key="point.id || point.reportTime || point.createdAt" class="compact-card"><strong>{{ point.latitude || '--' }}, {{ point.longitude || '--' }}</strong><span>速度 {{ point.speedKmh ?? '--' }} km/h · {{ formatTime(point.reportTime || point.createdAt) }}</span></article>
-      </section>
-
-      <section v-show="activeTab === 7" class="h5-panel">
-        <div class="section-title"><h2>我的</h2><button type="button" @click="loadDashboardData">刷新</button></div>
-        <div class="info-list"><p><b>司机ID</b><span>{{ driverStore.driverId || '--' }}</span></p><p><b>手机号</b><span>{{ driverStore.driver.phone || '--' }}</span></p><p><b>状态</b><span>{{ formatDriverStatus(driverStore.driver.status) }}</span></p></div>
-        <van-form class="form-stack" @submit="submitProfile"><van-field v-model="profileForm.realName" label="姓名" placeholder="司机姓名" /><van-field v-model="profileForm.avatarUrl" label="头像地址" placeholder="头像 URL" /><van-field v-model="profileForm.driverLicenseNo" label="驾驶证号" placeholder="驾驶证号" /><button class="primary-action" type="submit">保存资料</button></van-form>
-      </section>
+    </section>
+    <section v-if="activePanelComponent" class="tab-panel-scroll">
+      <component
+        :is="activePanelComponent"
+        v-bind="activePanelProps"
+        @refresh-dashboard="loadDashboardData"
+        @load-nearby-orders="loadNearbyOrders"
+        @load-nearby-expanded-orders="loadNearbyExpandedOrders"
+        @open-nearby-popup="openNearbyOrderPopup"
+        @update:nearby-order-popup-visible="nearbyOrderPopupVisible = $event"
+        @load-orders="loadOrders"
+        @update:order-mode="orderMode = $event"
+        @update:order-status="orderStatus = $event"
+        @order-detail="loadOrderDetail"
+        @select-trajectory="selectTrajectory"
+        @order-action="handleOrderAction"
+        @open-finish="openFinish"
+        @load-vehicle="loadVehicle"
+        @submit-vehicle="submitVehicle"
+        @submit-vehicle-update="submitVehicleUpdate"
+        @remove-vehicle="removeVehicle"
+        @load-certification="loadCertification"
+        @read-cert-file="readCertFile"
+        @remove-cert-image="removeCertImage"
+        @submit-certification="submitCertification"
+        @load-income="loadIncome"
+        @open-withdraw="openWithdraw"
+        @load-reviews="loadReviews"
+        @update:trajectory-order-id="trajectoryOrderId = $event"
+        @load-trajectory="loadTrajectory"
+        @edit-profile="openProfileEdit"
+      />
     </section>
 
     <van-tabbar v-model="activeTab" class="driver-tabbar" fixed safe-area-inset-bottom>
       <van-tabbar-item v-for="item in tabItems" :key="item.title" :icon="item.icon">{{ item.title }}</van-tabbar-item>
     </van-tabbar>
 
-    <van-popup v-model:show="finishVisible" round position="bottom">
+    <van-popup v-model:show="finishVisible" round position="bottom" teleport="#driver-home-popups">
       <section class="finish-panel">
         <h2>结束行程</h2>
         <van-form @submit="submitFinishTrip">
@@ -268,7 +157,42 @@
       </section>
     </van-popup>
 
-    <van-popup v-model:show="withdrawVisible" round position="bottom">
+    <van-popup v-model:show="heatmapVisible" teleport="#driver-home-popups" class="driver-heatmap-popup" round position="bottom" :style="heatmapPhoneSheetStyle">
+      <section class="heatmap-panel heatmap-h5-sheet">
+        <div class="heatmap-sheet-grabber" aria-hidden="true"></div>
+        <div class="heatmap-heading heatmap-sheet-header">
+          <div>
+            <h2>附近热力</h2>
+            <p>{{ heatmapSummary }}</p>
+          </div>
+          <van-tag type="warning">{{ heatmapTotalOrders }}单</van-tag>
+        </div>
+        <div class="heatmap-map-shell">
+          <div ref="heatmapMapContainer" class="driver-heatmap-map" aria-label="附近订单热力图"></div>
+          <div v-if="heatmapStatusText" class="map-state" :class="{ error: heatmapMapError }">{{ heatmapStatusText }}</div>
+          <div class="heatmap-floating-actions">
+            <button type="button" class="heatmap-refresh" aria-label="刷新热力图" :disabled="heatmapLoading" @click="refreshHeatmap">
+              <van-icon name="replay" />
+            </button>
+          </div>
+          <div class="heatmap-badge">
+            <span>{{ formatDistance(heatmapRadiusMeters) }}km</span>
+            <strong>{{ heatmapTotalOrders }}单</strong>
+          </div>
+        </div>
+        <div v-if="heatmapPoints.length" class="heatmap-chip-strip">
+          <div v-for="point in heatmapPoints" :key="point.longitude + ':' + point.latitude" class="heatmap-chip">
+            <span><van-icon name="fire-o" /></span>
+            <div>
+              <strong>{{ point.weight }} 单</strong>
+              <small>{{ Number(point.longitude).toFixed(6) }}, {{ Number(point.latitude).toFixed(6) }}</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </van-popup>
+
+    <van-popup v-model:show="withdrawVisible" round position="bottom" teleport="#driver-home-popups">
       <section class="withdraw-panel">
         <h2>申请提现</h2>
         <van-form @submit="submitWithdraw">
@@ -285,9 +209,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { closeToast, showConfirmDialog, showDialog, showLoadingToast, showToast } from 'vant'
+import AMapLoader from '@amap/amap-jsapi-loader'
 import {
   acceptOrder,
   confirmArrive,
@@ -299,6 +224,7 @@ import {
   getDriverAiScore,
   getDriverOrderDetail,
   getIncomeSummary,
+  getOrderHeatmap,
   getOrderTrajectory,
   getTodayIncome,
   getVehicle,
@@ -318,6 +244,13 @@ import {
   uploadCertification
 } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
+import { resolveCreatedVehicle } from '@/utils/vehicle'
+import DriverOrdersPanel from '@/components/driver-home/DriverOrdersPanel.vue'
+import DriverAssetsPanel from '@/components/driver-home/DriverAssetsPanel.vue'
+import DriverMinePanel from '@/components/driver-home/DriverMinePanel.vue'
+import { getAmapConfig } from '@/config/amap'
+import { normalizeBrowserLocationForAmap } from '@/utils/geo'
+import '@/styles/driver-home-panels.css'
 
 const router = useRouter()
 const driverStore = useDriverStore()
@@ -325,25 +258,98 @@ const driverStore = useDriverStore()
 const tabItems = [
   { title: '首页', icon: 'wap-home-o' },
   { title: '订单', icon: 'orders-o' },
-  { title: '车辆', icon: 'logistics' },
-  { title: '认证', icon: 'certificate' },
-  { title: '钱包', icon: 'balance-o' },
-  { title: '评价', icon: 'comment-o' },
-  { title: '轨迹', icon: 'location-o' },
+  { title: '资产', icon: 'balance-o' },
   { title: '我的', icon: 'user-o' }
 ]
 
 const activeTab = ref(0)
+const mineSection = ref('profile')
+const tabPanelComponents = [
+  null,
+  DriverOrdersPanel,
+  DriverAssetsPanel,
+  DriverMinePanel
+]
+const activePanelComponent = computed(() => tabPanelComponents[activeTab.value] || null)
+const activePanelProps = computed(() => {
+  const commonFormatters = { formatPrice, formatDistance, formatTime, formatOrderStatus, formatDispatchStatus }
+  if (activeTab.value === 0) {
+    return {}
+  }
+  if (activeTab.value === 1) {
+    return {
+      ...commonFormatters,
+      orders: orders.value,
+      orderMode: orderMode.value,
+      orderStatus: orderStatus.value,
+      orderModeOptions,
+      orderStatusOptions,
+      orderPage: orderPage.value,
+      orderPageSize: orderPageSize.value,
+      orderTotal: orderTotal.value,
+      nearbyOrders: nearbyOrders.value,
+      nearbyOrderLoading: nearbyOrderLoading.value,
+      nearbyOrderPage: nearbyOrderPage.value,
+      nearbyOrderPageSize,
+      nearbyOrderTotal: nearbyOrderTotal.value,
+      nearbyOrderPopupVisible: nearbyOrderPopupVisible.value,
+      nearbyOrderExpandedOrders: nearbyOrderExpandedOrders.value,
+      nearbyOrderExpandedLoading: nearbyOrderExpandedLoading.value,
+      nearbyOrderExpandedPage: nearbyOrderExpandedPage.value,
+      nearbyOrderExpandedPageSize,
+      nearbyOrderExpandedTotal: nearbyOrderExpandedTotal.value,
+      canAccept
+    }
+  }
+  if (activeTab.value === 2) {
+    return {
+      driverStore,
+      vehicleForm,
+      certificationForm,
+      certUploading,
+      certItems,
+      certSubmitting: certSubmitting.value,
+      certStatusIcon: certStatusIcon.value,
+      incomeSummary: incomeSummary.value,
+      todayIncome: todayIncome.value,
+      weekIncome: weekIncome.value,
+      incomeBills: incomeBills.value,
+      formatPrice,
+      formatTime,
+      formatVehicleStatus,
+      formatCertificationStatus
+    }
+  }
+  return {
+    driverStore,
+    defaultSection: mineSection.value,
+    reviews: reviews.value,
+    trajectoryOrderId: trajectoryOrderId.value,
+    trajectoryError: trajectoryError.value,
+    trajectoryPoints: trajectoryPoints.value,
+    formatDriverStatus,
+    formatTime
+  }
+})
 const workLoading = ref(false)
 const serviceScore = ref('--')
 const orders = ref([])
-const homeAvailableOrders = ref([])
-const homeAvailableLoading = ref(false)
 const orderMode = ref('orders')
 const orderStatus = ref(0)
 const orderPage = ref(1)
 const orderPageSize = ref(8)
 const orderTotal = ref(0)
+const nearbyOrders = ref([])
+const nearbyOrderLoading = ref(false)
+const nearbyOrderPage = ref(1)
+const nearbyOrderPageSize = 5
+const nearbyOrderTotal = ref(0)
+const nearbyOrderPopupVisible = ref(false)
+const nearbyOrderExpandedOrders = ref([])
+const nearbyOrderExpandedLoading = ref(false)
+const nearbyOrderExpandedPage = ref(1)
+const nearbyOrderExpandedPageSize = 10
+const nearbyOrderExpandedTotal = ref(0)
 const incomeSummary = ref({})
 const todayIncome = ref({})
 const weekIncome = ref({})
@@ -354,14 +360,27 @@ const trajectoryPoints = ref([])
 const trajectoryError = ref('')
 const finishVisible = ref(false)
 const finishOrder = ref(null)
+const heatmapVisible = ref(false)
+const heatmapLoading = ref(false)
+const heatmapRadiusMeters = 5000
+const heatmapPoints = ref([])
+const heatmapCenter = ref(null)
+const homeMapContainer = ref(null)
+const homeMapReady = ref(false)
+const homeMapError = ref('')
+const heatmapMapContainer = ref(null)
+const heatmapMapReady = ref(false)
+const heatmapMapError = ref('')
 const withdrawVisible = ref(false)
 const withdrawLoading = ref(false)
 const withdrawForm = reactive({ amount: '', payeeName: '', payAccount: '' })
+const listenModeEnabled = ref(localStorage.getItem('driverListenModeEnabled') !== '0')
+const previewOrder = ref(null)
+const homeRouteAddress = ref(localStorage.getItem('driverHomeRouteAddress') || '')
 
 const orderModeOptions = [
   { text: '我的订单', value: 'orders' },
-  { text: '派单记录', value: 'dispatches' },
-  { text: '可接订单', value: 'available' }
+  { text: '派单记录', value: 'dispatches' }
 ]
 
 const orderStatusOptions = [
@@ -394,7 +413,6 @@ const certItems = [
   { key: 'driverLicense', title: '驾驶证', tip: '正副页，准驾车型清晰' },
   { key: 'vehicleLicense', title: '行驶证', tip: '正副页，车牌号清晰' }
 ]
-const profileForm = reactive({ realName: '', avatarUrl: '', driverLicenseNo: '' })
 const finishForm = reactive({ actualDistanceM: 0, actualDurationS: 0 })
 
 let heartbeatTimer = null
@@ -406,13 +424,18 @@ let reconnectTimer = null
 let reconnectAttempts = 0
 let lastLatitude = null
 let lastLongitude = null
-
-const statusLabel = computed(() => {
-  if (driverStore.tripPhase === 'pickup') return '前往上车点'
-  if (driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2) return '行程服务中'
-  if (driverStore.onlineStatus === 1) return '在线听单'
-  return '离线休息'
-})
+let homeAMap = null
+let homeMapInstance = null
+let homeDriverMarker = null
+let homeHeatmapLayer = null
+let homeOrderMarkers = []
+let homeRouteLine = null
+let heatmapAMap = null
+let heatmapMapInstance = null
+let heatmapLayer = null
+let heatmapCenterMarker = null
+let heatmapGeolocation = null
+let heatmapRefreshTimer = null
 
 const phaseLabel = computed(() => {
   if (driverStore.tripPhase === 'pickup') return '接驾中'
@@ -425,38 +448,87 @@ const workStatusText = computed(() => {
   return driverStore.onlineStatus === 1 ? '在线听单中' : '已下线'
 })
 
-const workStatusTagText = computed(() => {
-  if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return '行程中'
-  return driverStore.onlineStatus === 1 ? '已开启' : '未开启'
-})
-
-const workStatusTagType = computed(() => {
-  if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return 'warning'
-  return driverStore.onlineStatus === 1 ? 'success' : 'default'
-})
-
 const workStatusHint = computed(() => {
   if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return '当前有进行中的订单，请完成行程后再调整听单状态'
   return driverStore.onlineStatus === 1 ? '正在接收附近订单，可随时停止听单' : '上线后将接收附近订单推送'
 })
 
-const workActionText = computed(() => {
-  if (driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip') return '行程中服务'
-  return driverStore.onlineStatus === 1 ? '停止听单' : '开始听单'
-})
-
-const workActionIcon = computed(() => driverStore.onlineStatus === 1 ? 'pause-circle-o' : 'play-circle-o')
-const workActionClass = computed(() => driverStore.onlineStatus === 1 ? 'go-offline' : 'go-online')
 const workActionDisabled = computed(() => workLoading.value || driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip')
+const heatmapSummary = computed(() => {
+  if (!heatmapCenter.value) return '按司机当前位置实时刷新'
+  return `${Number(heatmapCenter.value.longitude).toFixed(5)}, ${Number(heatmapCenter.value.latitude).toFixed(5)}`
+})
+const heatmapTotalOrders = computed(() => heatmapPoints.value.reduce((total, point) => total + Number(point.weight || 0), 0))
+const selectedHomeOrder = computed(() => {
+  return driverStore.currentOrder || previewOrder.value || null
+})
+const homePanelMode = computed(() => {
+  if (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2 || Number(selectedHomeOrder.value?.status) === 3) return 'driving'
+  if (selectedHomeOrder.value) return 'order'
+  return 'idle'
+})
+const homeMapStatusText = computed(() => {
+  if (homeMapError.value) return homeMapError.value
+  if (!homeMapReady.value) return '地图加载中...'
+  if (heatmapLoading.value) return '正在刷新订单热力...'
+  if (!heatmapPoints.value.length && driverStore.onlineStatus === 1) return '附近暂无线索，继续听单'
+  return ''
+})
+const homeRouteLabel = computed(() => homeRouteAddress.value ? '回家顺路: ' + homeRouteAddress.value : '设置回家顺路模式')
+const heatmapStatusText = computed(() => {
+  if (heatmapMapError.value) return heatmapMapError.value
+  if (!heatmapMapReady.value) return '地图加载中...'
+  if (heatmapLoading.value) return '正在刷新热力...'
+  if (!heatmapPoints.value.length) return '附近暂无待接单订单'
+  return ''
+})
+const heatmapPhoneSheetStyle = {
+  height: 'min(88vh, 760px)',
+  width: 'min(100vw, 390px)'
+}
 
 onMounted(async () => {
   await loadDashboardData()
+  await ensureHomeMap()
+  await refreshHomeWorkbench()
   if (driverStore.onlineStatus > 0) startRealtimeWork()
 })
 
-onUnmounted(() => stopRealtimeWork())
+onUnmounted(() => {
+  stopRealtimeWork()
+  stopHeatmapRealtime()
+  destroyHomeMap()
+  destroyHeatmapMap()
+})
 
-watch(activeTab, () => loadCurrentTabData())
+watch(activeTab, (tab) => {
+  if (tab !== 3) mineSection.value = 'profile'
+  if (tab === 0) {
+    nextTick(() => refreshHomeWorkbench())
+  }
+  loadCurrentTabData()
+})
+
+watch(listenModeEnabled, (enabled) => {
+  localStorage.setItem('driverListenModeEnabled', enabled ? '1' : '0')
+})
+
+watch(selectedHomeOrder, () => {
+  renderHomeMapData()
+})
+
+watch(heatmapVisible, async (visible) => {
+  if (!visible) {
+    stopHeatmapRealtime()
+    destroyHeatmapMap()
+    return
+  }
+  await nextTick()
+  await ensureHeatmapMap()
+  await refreshHeatmap()
+  if (!heatmapVisible.value) return
+  startHeatmapRealtime()
+})
 
 async function loadDashboardData() {
   const [profile, score] = await Promise.allSettled([
@@ -469,23 +541,32 @@ async function loadDashboardData() {
   }
   if (profile.status === 'fulfilled' && profile.value) syncForms()
   await loadCurrentTabData()
+  if (activeTab.value === 0) {
+    await refreshHomeWorkbench()
+  }
 }
 
 async function loadCurrentTabData() {
   const config = { silentError: true }
-  if (activeTab.value === 0) return safeApiCall(() => loadHomeAvailableOrders(config), null, { silent: true })
-  if (activeTab.value === 1) return safeApiCall(() => loadOrders(1, config), null, { silent: true })
-  if (activeTab.value === 2) return safeApiCall(() => loadVehicle(config), null, { silent: true })
-  if (activeTab.value === 3) return safeApiCall(() => loadCertification(config), null, { silent: true })
-  if (activeTab.value === 4) return safeApiCall(() => loadIncome(config), null, { silent: true })
-  if (activeTab.value === 5) return safeApiCall(() => loadReviews(config), null, { silent: true })
+  if (activeTab.value === 0) return null
+  if (activeTab.value === 1) {
+    return Promise.allSettled([
+      safeApiCall(() => loadOrders(1, config), null, { silent: true }),
+      safeApiCall(() => loadNearbyOrders(1, config), null, { silent: true })
+    ])
+  }
+  if (activeTab.value === 2) {
+    return Promise.allSettled([
+      safeApiCall(() => loadIncome(config), null, { silent: true }),
+      safeApiCall(() => loadVehicle(config), null, { silent: true }),
+      safeApiCall(() => loadCertification(config), null, { silent: true })
+    ])
+  }
+  if (activeTab.value === 3) return safeApiCall(() => loadReviews(config), null, { silent: true })
   return null
 }
 
 function syncForms() {
-  profileForm.realName = driverStore.driver.realName || ''
-  profileForm.avatarUrl = driverStore.driver.avatarUrl || ''
-  profileForm.driverLicenseNo = driverStore.driver.driverLicenseNo || ''
   if (driverStore.vehicle) {
     Object.assign(vehicleForm, {
       plateNo: driverStore.vehicle.plateNo || '',
@@ -500,7 +581,7 @@ function syncForms() {
 
 async function setOnline() {
   await ensureWorkLocation()
-  await setWorkStatus(() => setDriverOnline(workStatusPayload()), 1, '已上线，开始听单')
+  await setWorkStatus(() => setDriverOnline(workStatusPayload()), 1, '已上线，开始接单')
 }
 
 async function setOffline() {
@@ -513,6 +594,22 @@ function toggleListening() {
   if (driverStore.onlineStatus === 0) return setOnline()
 }
 
+function toggleStatusBarOnline() {
+  return toggleListening()
+}
+
+async function startAcceptingOrders() {
+  if (!listenModeEnabled.value) {
+    listenModeEnabled.value = true
+  }
+  if (driverStore.onlineStatus === 0) {
+    await setOnline()
+    return
+  }
+  await refreshHomeWorkbench()
+  showToast('正在接单中')
+}
+
 async function setWorkStatus(request, status, message) {
   try {
     workLoading.value = true
@@ -522,7 +619,7 @@ async function setWorkStatus(request, status, message) {
     driverStore.setWorkState(status)
     if (status > 0) startRealtimeWork()
     else stopRealtimeWork()
-    await loadHomeAvailableOrders({ silentError: true })
+    await loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
     showToast(message)
   } catch (error) {
     closeToast()
@@ -533,12 +630,12 @@ async function setWorkStatus(request, status, message) {
 }
 
 
-// workLocationDefault 仅在浏览器无法获取定位时作为兜底，保证司机能上线听单（演示/同步环境可重新配置）。
+// workLocationDefault 仅在浏览器无法获取定位时作为兜底，保证司机能上线听单（演示/联调环境可重新配置）。
 const workLocationDefault = { longitude: 116.397128, latitude: 39.916527 }
 function ensureWorkLocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      resolve(workLocationDefault)
+      resolve(rememberWorkLocation(workLocationDefault))
       return
     }
     if (lastLongitude != null && lastLatitude != null) {
@@ -547,14 +644,24 @@ function ensureWorkLocation() {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        lastLatitude = position.coords.latitude
-        lastLongitude = position.coords.longitude
-        resolve({ longitude: lastLongitude, latitude: lastLatitude })
+        resolve(rememberWorkLocation({
+          longitude: position.coords.longitude,
+          latitude: position.coords.latitude
+        }))
       },
-      () => resolve(workLocationDefault),
+      () => resolve(rememberWorkLocation(workLocationDefault)),
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
     )
   })
+}
+
+function rememberWorkLocation(location) {
+  const normalized = normalizeBrowserLocationForAmap(location)
+  lastLongitude = Number(normalized.longitude)
+  lastLatitude = Number(normalized.latitude)
+  syncHomeMapCenterToDriver({ longitude: lastLongitude, latitude: lastLatitude })
+  renderHomeMapData()
+  return { longitude: lastLongitude, latitude: lastLatitude }
 }
 
 function workStatusPayload() {
@@ -602,8 +709,10 @@ function startLocationReporting() {
   if (navigator.geolocation && !geoWatchId) {
     geoWatchId = navigator.geolocation.watchPosition(
       (position) => {
-        lastLatitude = position.coords.latitude
-        lastLongitude = position.coords.longitude
+        rememberWorkLocation({
+          longitude: position.coords.longitude,
+          latitude: position.coords.latitude
+        })
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 }
@@ -618,10 +727,346 @@ function stopLocationReporting() {
   geoWatchId = null
 }
 
-function reportCurrentLocation() {
+async function reportCurrentLocation() {
+  await ensureWorkLocation()
   const payload = workStatusPayload()
   if (!payload.longitude || !payload.latitude) return
   safeApiCall(() => reportDriverLocation(payload), null, { silent: true })
+}
+
+function openProfileEdit() {
+  router.push('/profile/edit')
+}
+
+function showNotifications() {
+  showToast('暂无新消息')
+}
+
+async function refreshHomeWorkbench() {
+  if (activeTab.value !== 0) return
+  await ensureHomeMap()
+  await Promise.allSettled([
+    refreshHomeHeatmap()
+  ])
+  renderHomeMapData()
+}
+
+async function ensureHomeMap() {
+  if (homeMapInstance) return
+  await nextTick()
+  const container = getConnectedHomeMapContainer()
+  if (!container) return
+  const { key, securityCode } = getAmapConfig()
+  if (!key) {
+    homeMapError.value = '未配置高德地图Key'
+    return
+  }
+  try {
+    const currentLocation = await ensureWorkLocation()
+    if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
+    homeAMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.HeatMap'] })
+    if (homeMapInstance) return
+    const activeContainer = getConnectedHomeMapContainer()
+    if (!activeContainer) return
+    window.AMap = homeAMap
+    homeMapInstance = new homeAMap.Map(activeContainer, {
+      zoom: 15,
+      viewMode: '2D',
+      center: [currentLocation.longitude, currentLocation.latitude]
+    })
+    homeHeatmapLayer = new homeAMap.HeatMap(homeMapInstance, {
+      radius: 24,
+      opacity: [0, 0.82],
+      gradient: {
+        0.2: 'rgba(37, 99, 235, 0)',
+        0.45: 'rgba(37, 99, 235, .48)',
+        0.65: 'rgba(34, 197, 94, .64)',
+        0.82: 'rgba(245, 158, 11, .78)',
+        1: 'rgba(239, 68, 68, .9)'
+      }
+    })
+    homeMapReady.value = true
+    homeMapError.value = ''
+    syncHomeMapCenterToDriver(currentLocation)
+    renderHomeMapData()
+  } catch (error) {
+    homeMapReady.value = false
+    homeMapError.value = '高德地图加载失败'
+    console.error('driver home AMap error:', error)
+  }
+}
+
+async function refreshHomeHeatmap() {
+  heatmapLoading.value = true
+  try {
+    const location = await ensureWorkLocation()
+    heatmapCenter.value = location
+    const data = await getOrderHeatmap({
+      longitude: location.longitude,
+      latitude: location.latitude,
+      radiusMeters: heatmapRadiusMeters
+    }, { silentError: true })
+    heatmapPoints.value = Array.isArray(data?.points) ? data.points : []
+  } catch (error) {
+    showToast(apiErrorMessage(error, '热力图加载失败'))
+  } finally {
+    heatmapLoading.value = false
+  }
+}
+
+function renderHomeMapData() {
+  if (!homeMapInstance || !homeAMap) return
+  renderHomeDriverMarker()
+  renderHomeHeatmapLayer()
+  renderHomeOrderMarkers()
+  renderHomeRouteLine()
+}
+
+function renderHomeDriverMarker() {
+  const location = readRememberedWorkLocation() || workLocationDefault
+  const position = [Number(location.longitude), Number(location.latitude)]
+  if (!homeDriverMarker) {
+    homeDriverMarker = new homeAMap.Marker({ position, title: '司机当前位置', anchor: 'center', zIndex: 120 })
+    homeMapInstance.add(homeDriverMarker)
+  } else {
+    homeDriverMarker.setPosition(position)
+  }
+}
+
+function getConnectedHomeMapContainer() {
+  const container = homeMapContainer.value
+  if (!container || !container.isConnected) return null
+  return container
+}
+
+function syncHomeMapCenterToDriver(location = readRememberedWorkLocation(), zoom = 15) {
+  if (!homeMapInstance || !location) return
+  const longitude = Number(location.longitude)
+  const latitude = Number(location.latitude)
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude) || (longitude === 0 && latitude === 0)) return
+  homeMapInstance.setZoomAndCenter(zoom, [longitude, latitude])
+}
+
+function renderHomeHeatmapLayer() {
+  const data = heatmapPoints.value
+    .map((point) => ({
+      lng: Number(point.longitude),
+      lat: Number(point.latitude),
+      count: Number(point.weight || 0)
+    }))
+    .filter((point) => Number.isFinite(point.lng) && Number.isFinite(point.lat) && point.count > 0)
+  homeHeatmapLayer?.setDataSet({ data, max: Math.max(1, ...data.map((point) => point.count)) })
+}
+
+function renderHomeOrderMarkers() {
+  homeOrderMarkers.forEach((marker) => homeMapInstance.remove(marker))
+  homeOrderMarkers = []
+  const ordersWithPoint = nearbyOrders.value
+    .map((order) => ({ order, position: orderPickupPosition(order) }))
+    .filter((item) => item.position)
+  homeOrderMarkers = ordersWithPoint.map(({ order, position }) => new homeAMap.Marker({
+    position,
+    title: order.fromAddress || '乘客上车点',
+    anchor: 'bottom-center',
+    zIndex: 110
+  }))
+  if (homeOrderMarkers.length) homeMapInstance.add(homeOrderMarkers)
+}
+
+function renderHomeRouteLine() {
+  if (homeRouteLine) {
+    homeMapInstance.remove(homeRouteLine)
+    homeRouteLine = null
+  }
+  const order = selectedHomeOrder.value
+  const from = orderPickupPosition(order)
+  const to = orderDropoffPosition(order)
+  if (!from || !to) return
+  homeRouteLine = new homeAMap.Polyline({
+    path: [from, to],
+    strokeColor: '#2563EB',
+    strokeWeight: 6,
+    strokeOpacity: 0.86,
+    showDir: true
+  })
+  homeMapInstance.add(homeRouteLine)
+}
+
+function centerHomeMapOnDriver() {
+  const location = readRememberedWorkLocation() || workLocationDefault
+  syncHomeMapCenterToDriver(location, 15)
+}
+
+function destroyHomeMap() {
+  homeHeatmapLayer?.setDataSet?.({ data: [], max: 1 })
+  homeMapInstance?.destroy()
+  homeAMap = null
+  homeMapInstance = null
+  homeDriverMarker = null
+  homeHeatmapLayer = null
+  homeOrderMarkers = []
+  homeRouteLine = null
+  homeMapReady.value = false
+  homeMapError.value = ''
+}
+
+function openHeatmap() {
+  heatmapPoints.value = []
+  heatmapMapError.value = ''
+  heatmapVisible.value = true
+}
+
+async function ensureHeatmapMap() {
+  if (heatmapMapInstance || !heatmapMapContainer.value) return
+  const { key, securityCode } = getAmapConfig()
+  if (!key) {
+    heatmapMapError.value = '未配置高德地图Key'
+    return
+  }
+  try {
+    if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
+    heatmapAMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.HeatMap', 'AMap.Geolocation'] })
+    window.AMap = heatmapAMap
+    heatmapMapInstance = new heatmapAMap.Map(heatmapMapContainer.value, {
+      zoom: 12,
+      viewMode: '2D',
+      center: readRememberedWorkLocation()
+        ? [lastLongitude, lastLatitude]
+        : [workLocationDefault.longitude, workLocationDefault.latitude]
+    })
+    heatmapGeolocation = new heatmapAMap.Geolocation({
+      enableHighAccuracy: true,
+      timeout: 10000,
+      zoomToAccuracy: true,
+      position: 'RB',
+      offset: [16, 108]
+    })
+    heatmapMapInstance.addControl(heatmapGeolocation)
+    heatmapLayer = new heatmapAMap.HeatMap(heatmapMapInstance, {
+      radius: 24,
+      opacity: [0, 0.86],
+      gradient: {
+        0.2: 'rgba(37, 99, 235, 0)',
+        0.45: 'rgba(37, 99, 235, .48)',
+        0.65: 'rgba(34, 197, 94, .64)',
+        0.82: 'rgba(245, 158, 11, .78)',
+        1: 'rgba(239, 68, 68, .9)'
+      }
+    })
+    heatmapMapReady.value = true
+    heatmapMapError.value = ''
+  } catch (error) {
+    heatmapMapInstance?.destroy()
+    heatmapAMap = null
+    heatmapMapInstance = null
+    heatmapLayer = null
+    heatmapCenterMarker = null
+    heatmapGeolocation = null
+    heatmapMapReady.value = false
+    heatmapMapError.value = '高德地图加载失败'
+    console.error('driver heatmap AMap error:', error)
+  }
+}
+
+async function refreshHeatmap() {
+  heatmapLoading.value = true
+  try {
+    await ensureHeatmapMap()
+    const location = await ensureHeatmapLocation()
+    heatmapCenter.value = location
+    const data = await getOrderHeatmap({
+      longitude: location.longitude,
+      latitude: location.latitude,
+      radiusMeters: heatmapRadiusMeters
+    }, { silentError: true })
+    heatmapPoints.value = Array.isArray(data?.points) ? data.points : []
+    renderHeatmapPoints()
+  } catch (error) {
+    showToast(apiErrorMessage(error, '热力图加载失败'))
+  } finally {
+    heatmapLoading.value = false
+  }
+}
+
+async function ensureHeatmapLocation() {
+  const watchedLocation = readRememberedWorkLocation()
+  if (watchedLocation) return watchedLocation
+  try {
+    return rememberWorkLocation(await locateHeatmapByAMap())
+  } catch {
+    return ensureWorkLocation()
+  }
+}
+
+function readRememberedWorkLocation() {
+  if (Number.isFinite(lastLongitude) && Number.isFinite(lastLatitude) && (lastLongitude !== 0 || lastLatitude !== 0)) {
+    return { longitude: lastLongitude, latitude: lastLatitude }
+  }
+  return null
+}
+
+function locateHeatmapByAMap() {
+  return new Promise((resolve, reject) => {
+    if (!heatmapGeolocation) {
+      reject(new Error('高德定位未初始化'))
+      return
+    }
+    heatmapGeolocation.getCurrentPosition((status, result) => {
+      if (status === 'complete' && result?.position) {
+        resolve({
+          longitude: result.position.lng,
+          latitude: result.position.lat
+        })
+        return
+      }
+      reject(result || new Error('高德定位失败'))
+    })
+  })
+}
+
+function renderHeatmapPoints() {
+  if (!heatmapMapInstance || !heatmapAMap) return
+  const center = heatmapCenter.value || workLocationDefault
+  const centerPosition = [Number(center.longitude), Number(center.latitude)]
+  const data = heatmapPoints.value
+    .map((point) => ({
+      lng: Number(point.longitude),
+      lat: Number(point.latitude),
+      count: Number(point.weight || 0)
+    }))
+    .filter((point) => Number.isFinite(point.lng) && Number.isFinite(point.lat) && point.count > 0)
+  const max = Math.max(1, ...data.map((point) => point.count))
+
+  heatmapLayer?.setDataSet({ data, max })
+  if (!heatmapCenterMarker) {
+    heatmapCenterMarker = new heatmapAMap.Marker({ position: centerPosition, title: '司机当前位置', anchor: 'center', zIndex: 120 })
+    heatmapMapInstance.add(heatmapCenterMarker)
+  } else {
+    heatmapCenterMarker.setPosition(centerPosition)
+  }
+  heatmapMapInstance.setZoomAndCenter(data.length ? 14 : 13, centerPosition)
+}
+
+function startHeatmapRealtime() {
+  stopHeatmapRealtime()
+  heatmapRefreshTimer = window.setInterval(refreshHeatmap, 15000)
+}
+
+function stopHeatmapRealtime() {
+  if (heatmapRefreshTimer) window.clearInterval(heatmapRefreshTimer)
+  heatmapRefreshTimer = null
+}
+
+function destroyHeatmapMap() {
+  heatmapLayer?.setDataSet?.({ data: [], max: 1 })
+  heatmapMapInstance?.destroy()
+  heatmapAMap = null
+  heatmapMapInstance = null
+  heatmapLayer = null
+  heatmapCenterMarker = null
+  heatmapGeolocation = null
+  heatmapMapReady.value = false
+  heatmapMapError.value = ''
 }
 
 function startTripRealtime() {
@@ -668,20 +1113,10 @@ function handlePushMessage(raw) {
   try {
     const payload = JSON.parse(raw)
     if (payload.type === 'dispatch_order') {
-      const order = {
-        orderId: payload.orderId,
-        orderNo: payload.orderNo,
-        fromAddress: payload.fromAddress,
-        toAddress: payload.toAddress,
-        status: payload.status,
-        estimatedPriceCents: payload.estimatedPriceCents,
-        createdAt: payload.createdAt
-      }
-      driverStore.setCurrentOrder(order, Number(order.status) === 3 ? 'trip' : 'pickup')
       if (activeTab.value === 1) loadOrders(orderPage.value)
     } else if (payload.type === 'dispatch.new') {
       showToast('收到新的派单')
-      void loadHomeAvailableOrders({ silentError: true })
+      if (activeTab.value === 1) void loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
     }
   } catch {
     // Push messages are best-effort; malformed messages should not block the H5 page.
@@ -714,11 +1149,14 @@ async function loadDispatches(payload, config = {}) {
       ? data.list.map((item) => ({
         ...item,
         source: 'dispatch',
-        orderId: item.orderId || item.order?.orderId,
-        fromAddress: item.fromAddress || item.order?.fromAddress,
-        toAddress: item.toAddress || item.order?.toAddress,
-        estimatedPriceCents: item.estimatedPriceCents || item.order?.estimatedPriceCents,
-        createdAt: item.createdAt || item.order?.createdAt
+        orderId: item.dispatch?.orderId || item.order?.orderId,
+        dispatchId: item.dispatch?.id,
+        dispatchStatus: item.dispatch?.status,
+        status: item.order?.status ?? item.dispatch?.status,
+        fromAddress: item.order?.fromAddress || item.dispatch?.fromAddress,
+        toAddress: item.order?.toAddress || item.dispatch?.toAddress,
+        estimatedPriceCents: item.order?.estimatedPriceCents || item.dispatch?.estimatedPriceCents,
+        createdAt: item.order?.createdAt || item.dispatch?.createdAt
       }))
       : []
   }
@@ -732,24 +1170,54 @@ async function loadAvailableOrders(payload, config = {}) {
   }
 }
 
-async function loadHomeAvailableOrders(config = {}) {
+async function loadNearbyOrders(page = nearbyOrderPage.value, config = {}) {
   if (driverStore.onlineStatus !== 1) {
-    homeAvailableOrders.value = []
+    nearbyOrders.value = []
+    nearbyOrderTotal.value = 0
+    previewOrder.value = null
+    renderHomeMapData()
     return
   }
-  homeAvailableLoading.value = true
+  nearbyOrderPage.value = Number(page || 1)
+  nearbyOrderLoading.value = true
   try {
-    const data = await listAvailableOrders({ page: 1, pageSize: 3, status: 1 }, config)
-    homeAvailableOrders.value = Array.isArray(data?.list)
-      ? data.list.map((item) => ({ ...item, source: 'available' }))
+    const data = await listAvailableOrders({ page: nearbyOrderPage.value, pageSize: nearbyOrderPageSize, status: 1 }, config)
+    nearbyOrders.value = Array.isArray(data?.list)
+      ? data.list.filter(isWaitAcceptOrder).map((item) => ({ ...item, source: 'available' }))
       : []
+    nearbyOrderTotal.value = Number(data?.total || nearbyOrders.value.length || 0)
+    renderHomeMapData()
   } finally {
-    homeAvailableLoading.value = false
+    nearbyOrderLoading.value = false
   }
 }
 
+async function loadNearbyExpandedOrders(page = nearbyOrderExpandedPage.value, config = {}) {
+  if (driverStore.onlineStatus !== 1) {
+    nearbyOrderExpandedOrders.value = []
+    nearbyOrderExpandedTotal.value = 0
+    return
+  }
+  nearbyOrderExpandedPage.value = Number(page || 1)
+  nearbyOrderExpandedLoading.value = true
+  try {
+    const data = await listAvailableOrders({ page: nearbyOrderExpandedPage.value, pageSize: nearbyOrderExpandedPageSize, status: 1 }, config)
+    nearbyOrderExpandedOrders.value = Array.isArray(data?.list)
+      ? data.list.filter(isWaitAcceptOrder).map((item) => ({ ...item, source: 'available' }))
+      : []
+    nearbyOrderExpandedTotal.value = Number(data?.total || nearbyOrderExpandedOrders.value.length || 0)
+  } finally {
+    nearbyOrderExpandedLoading.value = false
+  }
+}
+
+async function openNearbyOrderPopup() {
+  nearbyOrderPopupVisible.value = true
+  await loadNearbyExpandedOrders(1, { silentError: true })
+}
+
 function syncCurrentTripFromOrders(list) {
-  const current = list.find((item) => String(item.orderId) === String(driverStore.currentOrderId)) || list.find((item) => [2, 3].includes(Number(item.status)))
+  const current = list.find((item) => String(resolveOrderId(item)) === String(driverStore.currentOrderId)) || list.find((item) => [2, 3].includes(Number(item.status)))
   if (!current) return
   const phase = Number(current.status) === 3 ? 'trip' : Number(current.status) === 2 ? 'pickup' : 'idle'
   if (phase !== 'idle') driverStore.setCurrentOrder(current, phase)
@@ -763,7 +1231,7 @@ function canAccept(order) {
 
 
 async function handleOrderAction(action, order) {
-  const orderId = Number(order?.orderId || 0)
+  const orderId = resolveOrderId(order)
   if (!orderId) {
     showToast('订单ID无效')
     return
@@ -779,19 +1247,46 @@ async function handleOrderAction(action, order) {
   if (!config) return
 
   try {
-    await config.request()
+    const actionResult = await config.request()
+    const nextOrder = mergeOrderActionResult(order, actionResult, config.phase)
+    driverStore.setCurrentOrder(config.phase === 'idle' ? null : nextOrder, config.phase)
   } catch (error) {
     if (error?.message === 'cancelled') return
     showToast(apiErrorMessage(error, '订单操作失败'))
+    await loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
+    if (nearbyOrderPopupVisible.value) await loadNearbyExpandedOrders(nearbyOrderExpandedPage.value, { silentError: true })
     return
   }
 
-  driverStore.setCurrentOrder(config.phase === 'idle' ? null : order, config.phase)
+  previewOrder.value = null
   if (config.phase === 'trip') driverStore.setWorkState(2)
   if (config.phase === 'idle' && driverStore.onlineStatus === 2) driverStore.setWorkState(1)
   showToast(config.message)
   await loadOrders(orderPage.value)
-  await loadHomeAvailableOrders({ silentError: true })
+  await loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
+  if (nearbyOrderPopupVisible.value) await loadNearbyExpandedOrders(nearbyOrderExpandedPage.value, { silentError: true })
+  renderHomeMapData()
+}
+
+function resolveOrderId(order) {
+  return Number(order?.orderId || order?.orderID || order?.id || order?.dispatch?.orderId || order?.order?.orderId || 0)
+}
+
+function mergeOrderActionResult(order, result, phase) {
+  if (phase === 'idle') return null
+  const orderId = Number(result?.orderId || result?.orderID || result?.id || resolveOrderId(order))
+  const status = Number(result?.status || (phase === 'trip' ? 3 : phase === 'pickup' ? 2 : order?.status || 0))
+  return {
+    ...(order || {}),
+    orderId,
+    status,
+    source: 'order',
+    dispatchStatus: undefined
+  }
+}
+
+function isWaitAcceptOrder(order) {
+  return Number(order?.status || 0) === 1
 }
 
 async function loadOrderDetail(orderId) {
@@ -814,6 +1309,65 @@ async function askRejectReason() {
 function openFinish(order) {
   finishOrder.value = order
   finishVisible.value = true
+}
+
+function previewHomeOrder(order) {
+  previewOrder.value = order || null
+  void loadOrderDetail(resolveOrderId(order))
+}
+
+function navigateToPickup(order) {
+  const position = orderPickupPosition(order)
+  if (!position) {
+    showToast('暂无上车点坐标')
+    return
+  }
+  const name = encodeURIComponent(order?.fromAddress || '上车点')
+  const url = `https://uri.amap.com/navigation?to=${position[0]},${position[1]},${name}&mode=car&policy=1&coordinate=gaode`
+  window.open(url, '_blank')
+}
+
+function navigateHomeRoute() {
+  if (!homeRouteAddress.value) {
+    const value = window.prompt('请输入回家顺路目的地', '')
+    if (!value) return
+    homeRouteAddress.value = value.trim()
+    localStorage.setItem('driverHomeRouteAddress', homeRouteAddress.value)
+  }
+  showToast('已开启回家顺路 ' + homeRouteAddress.value)
+}
+
+function contactPassenger(order) {
+  const phone = order?.passengerPhone || order?.userPhone || order?.phone || ''
+  if (!phone) {
+    showToast('暂无乘客联系方式')
+    return
+  }
+  window.location.href = 'tel:' + phone
+}
+
+function reportAbnormal() {
+  showDialog({
+    title: '异常上报',
+    message: '已记录异常入口，请联系平台客服处理当前行程。'
+  }).catch(() => {})
+}
+
+function passengerTail(order) {
+  const phone = String(order?.passengerPhone || order?.userPhone || order?.phone || '')
+  return phone ? '尾号' + phone.slice(-4) : '乘客'
+}
+
+function orderPickupPosition(order) {
+  const lng = Number(order?.fromLongitude || order?.pickupLongitude || order?.longitude)
+  const lat = Number(order?.fromLatitude || order?.pickupLatitude || order?.latitude)
+  return Number.isFinite(lng) && Number.isFinite(lat) && (lng !== 0 || lat !== 0) ? [lng, lat] : null
+}
+
+function orderDropoffPosition(order) {
+  const lng = Number(order?.toLongitude || order?.dropoffLongitude)
+  const lat = Number(order?.toLatitude || order?.dropoffLatitude)
+  return Number.isFinite(lng) && Number.isFinite(lat) && (lng !== 0 || lat !== 0) ? [lng, lat] : null
 }
 
 async function submitFinishTrip() {
@@ -863,9 +1417,12 @@ function vehiclePayload() {
 }
 
 async function submitVehicle() {
-  const res = await safeApiCall(() => createVehicle(vehiclePayload()), '车辆提交失败')
+  const payload = vehiclePayload()
+  const res = await safeApiCall(() => createVehicle(payload), '车辆提交失败')
   if (!res) return
-  driverStore.setVehicle(res.vehicle || res)
+  const vehicle = await resolveCreatedVehicle(payload, res, (id) => getVehicle(id, { silentError: true }))
+  driverStore.setVehicle(vehicle)
+  syncForms()
   showToast('车辆提交成功')
 }
 
@@ -1023,7 +1580,8 @@ async function loadReviews(config = {}) {
 
 function selectTrajectory(orderId) {
   trajectoryOrderId.value = Number(orderId || 0)
-  activeTab.value = 6
+  mineSection.value = 'trajectory'
+  activeTab.value = 3
   loadTrajectory()
 }
 
@@ -1043,12 +1601,6 @@ async function loadTrajectory() {
     trajectoryPoints.value = []
     trajectoryError.value = apiErrorMessage(error, '轨迹查询失败')
   }
-}
-
-async function submitProfile() {
-  const res = await safeApiCall(() => driverStore.saveProfile(compact(profileForm)), '资料保存失败')
-  if (!res) return
-  showToast('资料已保存')
 }
 
 async function refreshProfile() {
@@ -1105,6 +1657,13 @@ function formatDistance(meters) {
   return (value / 1000).toFixed(value >= 10000 ? 0 : 1)
 }
 
+function formatDuration(seconds) {
+  const value = Number(seconds)
+  if (!Number.isFinite(value) || value <= 0) return '--'
+  const minutes = Math.max(1, Math.round(value / 60))
+  return minutes + '分钟'
+}
+
 function formatTime(timestamp) {
   const value = Number(timestamp)
   if (!value) return '--'
@@ -1153,174 +1712,74 @@ function deviceId() {
 
 <style scoped>
 .driver-home-page { min-height: 100vh; padding: 0 12px 86px; background: #f6f7fb; color: #172033; }
-.driver-hero { margin: 0 -12px; padding: 18px 18px 72px; border-radius: 0 0 28px 28px; background: linear-gradient(135deg, #7B61FF 0%, #5B5CFF 100%); color: #fff; }
-.hero-topline, .driver-profile-row, .work-action-card, .section-title, .section-subtitle, .order-heading, .meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.driver-profile-row { justify-content: flex-start; min-width: 0; }
-.driver-profile-row img, .avatar-fallback { width: 52px; height: 52px; flex: 0 0 52px; border: 2px solid rgba(255,255,255,.72); border-radius: 50%; background: rgba(255,255,255,.22); object-fit: cover; }
+.home-workbench { min-height: calc(100vh - 86px); margin: 0 -12px; padding: 10px 12px 172px; background: #f6f7fb; }
+.driver-status-bar { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto auto 38px; gap: 8px; align-items: center; min-height: 58px; padding: 8px 10px; border-radius: 8px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.08); }
+.driver-status-bar .driver-avatar-button { width: 42px; height: 42px; flex-basis: 42px; }
+.driver-status-bar .driver-avatar-button img, .driver-status-bar .avatar-fallback { width: 42px; height: 42px; flex-basis: 42px; border-color: #e6eaf2; color: #5B5CFF; background: #eef2ff; font-size: 18px; }
+.status-copy { display: grid; gap: 2px; min-width: 0; }
+.status-copy strong { overflow: hidden; color: #172033; font-size: 15px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.status-copy span, .status-metric span { color: #7a8496; font-size: 11px; line-height: 1.2; }
+.status-metric { display: grid; gap: 2px; min-width: 52px; text-align: center; }
+.status-metric b { color: #172033; font-size: 13px; line-height: 1.2; white-space: nowrap; }
+.status-toggle { min-width: 48px; min-height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: #eef2ff; color: #5B5CFF; font-size: 12px; font-weight: 800; }
+.status-toggle.online { background: #5B5CFF; color: #fff; box-shadow: 0 6px 14px rgba(91,92,255,.24); }
+.status-toggle.driving { background: #ffb72c; color: #fff; box-shadow: 0 6px 14px rgba(255,183,44,.26); }
+.message-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: #fff7e6; color: #f59e0b; font-size: 18px; }
+.home-map-stage { position: relative; height: calc(100vh - 180px); min-height: 460px; margin: 10px -12px 0; overflow: hidden; background: #dfe8f3; }
+.home-amap { position: absolute; inset: 0; width: 100%; height: 100%; }
+.heatmap-legend { position: absolute; left: 12px; top: 12px; z-index: 5; display: inline-flex; align-items: center; gap: 5px; padding: 7px 9px; border-radius: 999px; background: rgba(255,255,255,.94); color: #667085; font-size: 11px; font-weight: 800; box-shadow: 0 6px 16px rgba(15,23,42,.14); }
+.heatmap-legend i { width: 18px; height: 8px; border-radius: 999px; }
+.heat-low { background: #3b82f6; }
+.heat-mid { background: #22c55e; }
+.heat-high { background: #ef4444; }
+.route-direction-chip { position: absolute; left: 12px; right: 12px; bottom: 160px; z-index: 5; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 9px 11px; border-radius: 8px; background: rgba(255,255,255,.96); color: #172033; font-size: 12px; font-weight: 800; box-shadow: 0 8px 20px rgba(15,23,42,.14); }
+.route-direction-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-floating-actions { position: absolute; right: 12px; top: 58px; z-index: 5; display: grid; gap: 8px; }
+.map-floating-actions button { display: grid; width: 38px; height: 38px; place-items: center; border: 0; border-radius: 50%; background: rgba(255,255,255,.96); color: #2563eb; font-size: 18px; box-shadow: 0 6px 16px rgba(15,23,42,.16); }
+.home-floating-panel { position: fixed; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 30; display: grid; gap: 10px; width: min(calc(100vw - 24px), 406px); padding: 14px; border-radius: 8px; background: rgba(255,255,255,.98); box-shadow: 0 -8px 28px rgba(15,23,42,.16); transform: translateX(-50%); }
+.panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.panel-heading span { min-width: 0; color: #7a8496; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.panel-heading strong { color: #172033; font-size: 20px; line-height: 1.2; text-align: right; overflow-wrap: anywhere; }
+.order-brief-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.order-brief-grid span { min-height: 30px; padding: 7px 8px; border-radius: 8px; background: #f2f5fa; color: #344054; text-align: center; font-size: 12px; font-weight: 800; }
+.panel-actions, .idle-controls { display: grid; gap: 8px; }
+.three-actions { grid-template-columns: 1.1fr .9fr .9fr; }
+.panel-actions button, .home-route-button { min-height: 42px; border: 1px solid #d7dce5; border-radius: 999px; background: #fff; color: #344054; font-size: 14px; font-weight: 800; }
+.panel-actions button.primary { border-color: #5B5CFF; background: #5B5CFF; color: #fff; }
+.idle-controls { grid-template-columns: minmax(0, 1fr) 92px; align-items: center; }
+.listen-switch { display: grid; justify-items: center; gap: 6px; color: #667085; font-size: 12px; font-weight: 800; }
+.home-route-button { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.driver-avatar-button { width: 52px; height: 52px; flex: 0 0 52px; padding: 0; border: 0; border-radius: 50%; background: transparent; }
+.driver-avatar-button img, .avatar-fallback { width: 52px; height: 52px; flex: 0 0 52px; border: 2px solid rgba(255,255,255,.72); border-radius: 50%; background: rgba(255,255,255,.22); object-fit: cover; }
 .avatar-fallback { display: grid; place-items: center; color: #fff; font-size: 22px; font-weight: 800; }
-.driver-copy { min-width: 0; }
-.driver-copy p, .driver-copy h1, .driver-copy small, .hero-income span, .hero-income small, .wallet-card span, .wallet-card p { margin: 0; }
-.driver-copy p, .driver-copy small, .hero-income span, .hero-income small { color: rgba(255,255,255,.78); }
-.driver-copy h1 { margin: 4px 0; overflow: hidden; font-size: 20px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-.hero-icon-button { width: 38px; height: 38px; flex: 0 0 38px; border: 0; border-radius: 50%; background: rgba(255,255,255,.18); color: #fff; font-size: 20px; }
-.hero-income { margin-top: 26px; }
-.hero-income strong { display: block; margin: 6px 0; font-size: 38px; line-height: 1; letter-spacing: 0; }
-.hero-metric-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: -46px; }
-.hero-metric-card, .quick-entry-row, .work-action-card, .work-status-card, .home-order-section, .income-today-card, .mini-stat-grid, .h5-panel, .current-trip-card, .order-card, .info-list, .wallet-card, .compact-card, .trajectory-form { border-radius: 18px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,42,.07); }
-.hero-metric-card { min-height: 84px; padding: 14px 10px; text-align: center; }
-.hero-metric-card span, .mini-stat-grid span, .work-action-card span, .income-grid span, .meta-row, .compact-card span, .compact-card small { color: #7a8496; font-size: 12px; }
-.hero-metric-card strong, .mini-stat-grid strong, .income-grid strong { display: block; margin-top: 8px; color: #172033; font-size: 20px; line-height: 1.1; }
-.quick-entry-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding: 16px 10px; }
-.quick-entry-row button { min-width: 0; border: 0; background: transparent; color: #344054; font-size: 12px; font-weight: 700; }
-.quick-entry-row span { display: grid; width: 46px; height: 46px; margin: 0 auto 8px; place-items: center; border-radius: 50%; background: #f0efff; color: #5B5CFF; font-size: 23px; }
-.quick-entry-row b { display: block; overflow-wrap: anywhere; font-weight: 700; line-height: 1.2; }
-.work-action-card, .mini-stat-grid, .tab-panel-scroll { margin-top: 12px; }
-.work-action-card { padding: 16px; }
-.work-action-card strong { display: block; margin-top: 4px; font-size: 18px; }
-.work-status-card { display: grid; gap: 12px; margin-top: 12px; padding: 18px; }
-.work-status-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.work-status-heading > div { display: grid; gap: 4px; min-width: 0; }
-.work-status-heading span, .work-status-hint { color: #7a8496; font-size: 12px; }
-.work-status-heading strong { color: #172033; font-size: 26px; line-height: 1.15; }
 .work-status-hint { margin: 0; line-height: 1.5; }
 .work-primary-action { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 56px; border: 0; border-radius: 999px; font-size: 17px; font-weight: 800; }
 .work-primary-action .van-icon { font-size: 21px; }
-.work-action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; max-width: 210px; }
-.go-online, .go-offline, .primary-action, .secondary-action, .order-actions button, .pager button, .section-title button, .two-actions button { min-height: 40px; border-radius: 999px; font-weight: 800; }
-.go-online { border: 0; background: #ffb72c; color: #fff; box-shadow: 0 8px 16px rgba(255,183,44,.28); }
-.go-offline, .secondary-action, .pager button, .section-title button, .two-actions button, .order-actions button { border: 1px solid #d7dce5; background: #fff; color: #344054; }
-.mini-stat-grid, .income-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.mini-stat-grid div, .income-grid div { min-width: 0; padding: 14px 10px; border-radius: 16px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,42,.06); text-align: center; }
-.h5-panel { display: grid; gap: 12px; padding: 14px; }
-.section-title h2 { margin: 0; font-size: 18px; }
-.current-trip-card, .info-list, .order-card, .compact-card, .trajectory-form { display: grid; gap: 10px; padding: 14px; }
-.current-trip-card p, .info-list p { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-size: 14px; }
-.current-trip-card span, .info-list span { min-width: 0; color: #667085; overflow-wrap: anywhere; text-align: right; }
-.map-surface { position: relative; min-height: 138px; overflow: hidden; border-radius: 20px; background: linear-gradient(135deg, #f4f2ff, #ffffff); }
-.map-surface p { position: absolute; left: 14px; bottom: 14px; margin: 0; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.9); color: #5B5CFF; font-weight: 800; }
-.road { position: absolute; height: 16px; border-radius: 999px; background: rgba(91,92,255,.16); }
-.road-a { left: -24px; right: 32px; top: 46px; transform: rotate(-14deg); }
-.road-b { left: 40px; right: -20px; top: 90px; transform: rotate(18deg); }
-.pin { position: absolute; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 6px 14px rgba(15,23,42,.18); }
-.pin.current { left: 70px; top: 52px; background: #5B5CFF; }
-.pin.order { right: 72px; top: 92px; background: #ffb72c; }
-.home-order-section { display: grid; gap: 12px; margin-top: 12px; padding: 14px; }
-.home-order-loading, .home-order-empty { min-height: 64px; display: grid; place-items: center; color: #98a2b3; font-size: 13px; }
-.home-order-card { display: grid; gap: 8px; padding: 12px; border: 1px solid #e6eaf2; border-radius: 14px; }
-.home-order-card .route-line { margin: 0; }
-.order-distance { color: #7a8496; font-size: 12px; white-space: nowrap; }
-.home-order-accept { min-height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: #5B5CFF; color: #fff; font-weight: 800; }
-.filter-bar { overflow: hidden; border-radius: 14px; }
-.driver-home-page :deep(.van-dropdown-menu) { box-shadow: none; }
-.driver-home-page :deep(.van-cell) { border-radius: 12px; background: #f8fafc; }
-.route-line, .order-heading strong, .compact-card strong { margin: 0; overflow-wrap: anywhere; }
-.order-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.order-actions button { padding: 0 12px; }
-.order-actions .primary, .primary-action { border: 0; background: #5B5CFF; color: #fff; }
-.primary-action { width: 100%; min-height: 46px; }
-.pager { display: flex; align-items: center; justify-content: center; gap: 10px; color: #667085; }
-.empty-state { min-height: 92px; display: grid; place-items: center; border-radius: 18px; background: #fff; color: #98a2b3; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
-.form-stack, .file-grid { display: grid; gap: 10px; }
-.two-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.two-actions .danger { border-color: #fecaca; color: #dc2626; }
-.file-grid label { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: #fff; color: #344054; font-weight: 700; }
-.wallet-card { padding: 18px; color: #fff; background: linear-gradient(135deg, #7B61FF 0%, #5B5CFF 100%); }
-.wallet-card span, .wallet-card p { color: rgba(255,255,255,.78); }
-.wallet-card strong { display: block; margin: 8px 0; font-size: 32px; line-height: 1; }
-.income-today-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px; }
-.income-today-card > div { display: grid; gap: 4px; min-width: 0; }
-.income-today-card span, .income-today-card small { color: #7a8496; font-size: 12px; }
-.income-today-card strong { color: #172033; font-size: 38px; line-height: 1; }
-.withdraw-entry { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 78px; min-height: 40px; padding: 0 14px; border: 1px solid #d7dce5; border-radius: 999px; background: #fff; color: #344054; font-weight: 800; }
-.income-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.trajectory-error { margin: 0; color: #dc2626; font-size: 13px; }
-.finish-panel { padding: 18px 14px 22px; background: #f6f7fb; }
-.finish-panel h2 { margin: 0 0 14px; text-align: center; }
-.withdraw-panel { padding: 18px 14px 22px; background: #f6f7fb; }
-.withdraw-panel h2 { margin: 0 0 14px; text-align: center; }
+.go-online { border: 0; background: #5B5CFF; color: #fff; box-shadow: 0 8px 18px rgba(91,92,255,.28); }
+.finish-panel, .withdraw-panel, .heatmap-panel { padding: 18px 14px 22px; background: #f6f7fb; }
+.finish-panel h2, .withdraw-panel h2 { margin: 0 0 14px; text-align: center; }
+.driver-heatmap-popup { left: 0; right: 0; width: min(100vw, 390px); margin: 0 auto; overflow: hidden; }
+.heatmap-panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); background: #f6f7fb; }
+.heatmap-sheet-grabber { width: 42px; height: 4px; margin: 0 auto 10px; border-radius: 999px; background: #cbd5e1; }
+.heatmap-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.heatmap-sheet-header { min-height: 44px; align-items: center; }
+.heatmap-heading h2 { margin: 0 0 4px; color: #172033; font-size: 18px; }
+.heatmap-heading p { margin: 0; color: #7a8496; font-size: 12px; }
+.heatmap-floating-actions { position: absolute; top: 12px; right: 12px; display: grid; gap: 8px; z-index: 2; }
+.heatmap-refresh { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border: 0; border-radius: 50%; background: #fff; color: #5B5CFF; font-size: 18px; box-shadow: 0 4px 14px rgba(15,23,42,.18); }
+.heatmap-map-shell { position: relative; min-height: 0; overflow: hidden; border-radius: 8px; background: #e8edf5; }
+.driver-heatmap-map { width: 100%; height: 100%; min-height: 0; }
+.heatmap-badge { position: absolute; right: 12px; bottom: 12px; display: grid; gap: 2px; min-width: 78px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.94); color: #172033; box-shadow: 0 6px 18px rgba(15,23,42,.14); }
+.heatmap-badge span { color: #7a8496; font-size: 11px; }
+.heatmap-badge strong { font-size: 16px; line-height: 1.1; }
+.heatmap-chip-strip { display: flex; gap: 8px; margin: 10px -12px 0; padding: 0 12px 2px; overflow-x: auto; scrollbar-width: none; }
+.heatmap-chip-strip::-webkit-scrollbar { display: none; }
+.heatmap-chip { display: inline-flex; min-width: 132px; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; background: #fff; box-shadow: 0 4px 14px rgba(15,23,42,.06); }
+.heatmap-chip > span { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 50%; background: #fff4e5; color: #f59e0b; font-size: 18px; }
+.heatmap-chip div { display: grid; gap: 2px; min-width: 0; }
+.heatmap-chip strong { color: #172033; font-size: 15px; line-height: 1.1; white-space: nowrap; }
+.heatmap-chip small { max-width: 76px; overflow: hidden; color: #7a8496; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .driver-tabbar { left: 50%; right: auto; width: min(100vw, 430px); height: calc(60px + env(safe-area-inset-bottom)); border-top: 1px solid #e6eaf2; box-shadow: 0 -8px 24px rgba(15,23,42,.08); transform: translateX(-50%); --van-tabbar-item-active-color: #5B5CFF; --van-tabbar-item-text-color: #98a2b3; }
 button:disabled { opacity: .48; }
-@media (max-width: 360px) { .driver-home-page { padding-inline: 10px; } .driver-hero { margin-inline: -10px; } .hero-income strong { font-size: 32px; } .quick-entry-row { gap: 4px; } .work-action-card, .work-status-card { display: grid; } .work-action-buttons { max-width: none; width: 100%; } .work-status-heading strong, .income-today-card strong { font-size: 30px; } .income-today-card { align-items: flex-start; } .withdraw-entry { min-width: 68px; padding-inline: 10px; } }
-
-/* ===== 车辆资质上传页面 ===== */
-.cert-panel { gap: 14px; }
-.cert-status-card {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; border-radius: 14px;
-  background: linear-gradient(135deg, #f0efff, #e8e6ff);
-}
-.cert-status-card.status-2 { background: linear-gradient(135deg, #e6f7ee, #d4f5e0); }
-.cert-status-card.status-3 { background: linear-gradient(135deg, #fff4e6, #ffe8cc); }
-.cert-status-icon {
-  width: 40px; height: 40px; flex: 0 0 40px;
-  display: grid; place-items: center; border-radius: 50%;
-  background: #fff; font-size: 20px; color: #6d4aff;
-}
-.cert-status-card.status-2 .cert-status-icon { color: #16a34a; }
-.cert-status-card.status-3 .cert-status-icon { color: #f59e0b; }
-.cert-status-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.cert-status-info strong { font-size: 15px; color: #172033; }
-.cert-status-info span { font-size: 12px; color: #667085; overflow-wrap: anywhere; }
-
-.cert-vehicle-card {
-  padding: 14px 16px; border-radius: 14px; background: #fff;
-  box-shadow: 0 4px 12px rgba(15,23,42,.05);
-}
-.cert-vehicle-label { font-size: 12px; color: #98a2b3; margin-bottom: 8px; }
-.cert-vehicle-info { display: flex; align-items: center; gap: 10px; }
-.cert-plate {
-  font-size: 18px; font-weight: 800; color: #172033;
-  padding: 4px 10px; border-radius: 6px; background: #f0efff;
-}
-.cert-vehicle-model { font-size: 13px; color: #667085; }
-.cert-vehicle-empty { font-size: 13px; color: #98a2b3; }
-
-.cert-upload-grid {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
-}
-.cert-upload-card {
-  display: flex; flex-direction: column; gap: 8px;
-}
-.cert-upload-header { display: flex; flex-direction: column; gap: 2px; padding: 0 2px; }
-.cert-upload-title { font-size: 14px; font-weight: 700; color: #172033; }
-.cert-upload-tip { font-size: 11px; color: #98a2b3; }
-
-.cert-upload-area {
-  position: relative; width: 100%; aspect-ratio: 3 / 2;
-  border: 2px dashed #d7dce5; border-radius: 12px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 6px; background: #f8fafc; cursor: pointer;
-  transition: all .2s ease; overflow: hidden;
-}
-.cert-upload-area:hover { border-color: #6d4aff; background: #f5f3ff; }
-.cert-upload-area.uploaded { border-style: solid; border-color: #e6eaf2; background: #fff; padding: 0; }
-.cert-upload-area.uploading { pointer-events: none; opacity: .7; }
-.cert-upload-icon { font-size: 28px; color: #98a2b3; }
-.cert-upload-text { font-size: 12px; color: #98a2b3; }
-
-.cert-preview-img {
-  width: 100%; height: 100%; object-fit: cover; border-radius: 10px;
-}
-.cert-upload-mask {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 4px;
-  background: rgba(0,0,0,.45); color: #fff; font-size: 12px;
-  opacity: 0; transition: opacity .2s ease;
-}
-.cert-upload-area:hover .cert-upload-mask { opacity: 1; }
-.cert-delete-btn {
-  position: absolute; top: 6px; right: 6px;
-  width: 24px; height: 24px; flex: 0 0 24px;
-  display: grid; place-items: center;
-  border: 0; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff;
-  font-size: 14px; cursor: pointer; z-index: 2;
-}
-.cert-delete-btn:hover { background: #dc2626; }
-.cert-file-input { display: none; }
-
-.cert-submit-btn { margin-top: 4px; }
-@media (max-width: 360px) {
-  .cert-upload-grid { gap: 8px; }
-  .cert-upload-title { font-size: 13px; }
-}
+@media (max-width: 360px) { .driver-home-page { padding-inline: 10px; } .income-today-card strong { font-size: 30px; } .income-today-card { align-items: flex-start; } .withdraw-entry { min-width: 68px; padding-inline: 10px; } }
 </style>

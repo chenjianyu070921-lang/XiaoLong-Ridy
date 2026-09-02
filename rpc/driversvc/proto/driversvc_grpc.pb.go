@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v3.19.4
-// source: rpc/driversvc/proto/driversvc.proto
+// source: proto/driversvc.proto
 
 package proto
 
@@ -1212,5 +1212,5 @@ var DriverService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "rpc/driversvc/proto/driversvc.proto",
+	Metadata: "proto/driversvc.proto",
 }

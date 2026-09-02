@@ -136,7 +136,7 @@ func (l *VehicleLogic) DeleteVehicle(driverID, vehicleID int64) (*types.DeleteVe
 	if vehicle.GetDriverId() != driverID {
 		return nil, ErrForbiddenDriverResource
 	}
-	resp, err := client.DeleteVehicle(l.ctx, &driversproto.DeleteVehicleRequest{Id: vehicleID})
+	resp, err := client.DeleteVehicle(l.ctx, &driversproto.DeleteVehicleRequest{Id: vehicleID, DriverId: driverID})
 	if err != nil {
 		return nil, err
 	}

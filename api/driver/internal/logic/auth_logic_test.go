@@ -7,13 +7,25 @@ import (
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func TestLoginByPasswordDelegatesToDriverService(t *testing.T) {
-	driverClient := &fakeDriverClient{}
+	driverClient := &fakeDriverClient{
+		loginResponse: &driversproto.LoginResponse{
+			Token:    "token",
+			ExpireIn: 7200,
+			Driver: &driversproto.Driver{
+				Id:        25,
+				Phone:     "13800000001",
+				Status:    driversproto.DriverStatus_DRIVER_STATUS_NORMAL,
+				VehicleId: 77,
+			},
+		},
+	}
 	logic := NewAuthLogic(context.Background(), &svc.ServiceContext{
 		DriverClient: driverClient,
 		CodeCache:    svc.NewLocalCodeCache(time.Minute),
@@ -26,7 +38,7 @@ func TestLoginByPasswordDelegatesToDriverService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoginByPassword() error = %v", err)
 	}
-	if resp.Token != "token" || resp.Driver.ID != 25 || resp.Driver.Phone != "138****0001" {
+	if resp.Token != "token" || resp.Driver.ID != 25 || resp.Driver.Phone != "138****0001" || resp.Driver.VehicleID != 77 {
 		t.Fatalf("LoginByPassword() response = %+v", resp)
 	}
 	req := driverClient.loginRequest

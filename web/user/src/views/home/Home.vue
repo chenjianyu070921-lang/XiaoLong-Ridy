@@ -3,7 +3,7 @@
     <header class="home-header">
       <div class="brand-mark">
         <img src="/logo.png" alt="花小龙" />
-        <div><strong>花小龙出行</strong><span>便捷 · 安心 · 省心</span></div>
+        <div><strong>花小龙打车</strong><span>便捷 · 安心 · 省心</span></div>
       </div>
       <button class="city-switch" type="button" aria-label="选择城市" @click="router.push('/city/select')"><van-icon name="location" size="16" />{{ selectedCity?.name || currentCityName || '暂未定位' }}<van-icon name="arrow-down" size="12" /></button>
       <div class="header-actions">
@@ -123,17 +123,19 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AMapLoader from '@amap/amap-jsapi-loader'
 import { getAmapConfig } from '@/config/amap'
 import { showToast } from 'vant'
 import { useOrderStore } from '@/stores/order'
 import { listAddresses } from '@/api/address'
 import { getOrders } from '@/api/order'
-import { normalizeCityCode, readCurrentCity, readSelectedCity, saveCurrentCity, saveSelectedCity } from '@/data/cities'
+import { geocodeAddress, reverseGeocodeLocation } from '@/api/location'
+import { cities, normalizeCityCode, readCurrentCity, readSelectedCity, saveCurrentCity, saveSelectedCity } from '@/data/cities'
 
 
 const router = useRouter()
+const route = useRoute()
 const orderStore = useOrderStore()
 const mapInstance = ref(null)
 const mapReady = ref(false)
@@ -172,6 +174,22 @@ const currentLocationCity = readCurrentCity()
 const currentCityName = ref(selectedCity.value?.name || currentLocationCity?.name || '')
 const currentCityCode = ref(normalizeCityCode(selectedCity.value?.adcode || currentLocationCity?.adcode || ''))
 
+const hasValidCoordinate = (lng, lat) => Number.isFinite(Number(lng)) && Number.isFinite(Number(lat)) && Number(lng) !== 0 && Number(lat) !== 0
+
+function cityCodeFromCityName(cityName = '') {
+  const normalizedName = String(cityName || '').trim()
+  if (!normalizedName) return ''
+  const normalizedShortName = normalizedName.replace(/市$/, '')
+  const city = cities.find(item => item.name === normalizedName || item.name.replace(/市$/, '') === normalizedShortName)
+  return city?.adcode || ''
+}
+
+function distanceText(distance) {
+  const meters = Number(distance)
+  if (!Number.isFinite(meters) || meters <= 0) return ''
+  return meters < 1000 ? `${Math.round(meters)}m` : `${(meters / 1000).toFixed(1)}km`
+}
+
 // 根据当前城市编码重建 POI 搜索实例，确保 city 和 citylimit 同时生效。
 function configurePlaceSearch(cityCode = '') {
   if (!AMapSDK.value) return
@@ -191,7 +209,15 @@ const newUserPendingGiftKey = 'passenger-new-user-pending-gift'
 const loginCouponPendingKey = 'passenger-login-coupon-pending'
 const recentDestinationKey = 'passenger-recent-destinations'
 const recentDestinations = ref(loadRecentDestinations())
-const canCallCar = computed(() => Boolean(pickupAddress.value && destinationAddress.value))
+const canCallCar = computed(() => {
+  const params = orderStore.orderParams
+  return Boolean(
+    pickupAddress.value &&
+    destinationAddress.value &&
+    hasValidCoordinate(params.fromLng, params.fromLat) &&
+    hasValidCoordinate(params.toLng, params.toLat)
+  )
+})
 // groupedRecentDestinations 按城市拆分历史目的地，每个城市只展示最近 5 条。
 const groupedRecentDestinations = computed(() => {
   const groups = []
@@ -306,7 +332,25 @@ function formatDetailedAddress(addressComponent = {}, fallback = '') {
   return [region, detail].filter(Boolean).join('') || fallback || '当前位置'
 }
 
-function reverseGeocode(lng, lat) {
+async function reverseGeocode(lng, lat) {
+  const longitude = Number(lng)
+  const latitude = Number(lat)
+  if (!hasValidCoordinate(longitude, latitude)) return { address: '当前位置', cityName: '', adcode: '' }
+  try {
+    const result = await reverseGeocodeLocation({ longitude, latitude })
+    const cityName = result?.cityName || ''
+    return {
+      address: result?.address || result?.poiName || '当前位置',
+      cityName,
+      adcode: cityCodeFromCityName(cityName)
+    }
+  } catch (error) {
+    console.warn('乘客端后端逆地理编码失败，降级到高德 JS SDK:', error)
+    return reverseGeocodeByAMap(longitude, latitude)
+  }
+}
+
+function reverseGeocodeByAMap(lng, lat) {
   return new Promise(resolve => {
     if (!geocoder.value) return resolve({ address: '当前位置', cityName: '', adcode: '' })
     geocoder.value.getAddress([Number(lng), Number(lat)], (status, result) => {
@@ -507,7 +551,7 @@ function normalizePOI(poi) {
   const detailedAddress = [prefix, poi.address].filter(Boolean).join('') || poi.name || '暂无详细地址'
   const rawCityName = Array.isArray(poi.cityname) ? '' : poi.cityname
   const rawAdcode = Array.isArray(poi.adcode) ? '' : poi.adcode
-  return { id: poi.id || `${lng},${lat}`, name: poi.name || '未命名地点', address: detailedAddress, displayAddress: detailedAddress, lng, lat, cityName: rawCityName || poi.pname || '', cityCode: normalizeCityCode(rawAdcode || ''), distanceText: Number.isFinite(distance) ? distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km` : '' }
+  return { id: poi.id || `${lng},${lat}`, name: poi.name || '未命名地点', address: detailedAddress, displayAddress: detailedAddress, lng, lat, cityName: rawCityName || poi.pname || '', cityCode: normalizeCityCode(rawAdcode || ''), distanceText: distanceText(distance) }
 }
 
 // resolveDestinationCity 补齐目的地所属城市，历史记录必须按目的地城市归类。
@@ -532,47 +576,147 @@ function handleSearchResult(sequence, status, result) {
   searchResults.value = (result.poiList?.pois || []).map(normalizePOI).filter(Boolean)
 }
 
-// 目的地关键词搜索改为后端代理：passenger-api → locationsvc.POISearch → AMap(后端 key)。
-// 不再走 AMap JS InputTips/PlaceSearch，避开浏览器侧 key 类型不匹配导致全部失败的问题。
-// 邻近浏览 searchNearby依赖 AMap JS（地图附近特殊浏览依赖 JS key，后续单独处理）。
-async function searchByKeyword(value) {
+// 双通道搜索：InputTips（关键词提示）+ PlaceSearch（POI详情）。
+// 两种地址都限定当前工作城市，避免手动切换城市后高德按全国相关性返回其他城市结果。
+// 目的地若需跨城，用户可在城市选择页切换工作城市后再进行搜索，保证搜索结果与订单城市一致。
+function searchByKeyword(value) {
   const sequence = ++searchSequence
   searchLoading.value = true
   searchMessage.value = ''
-  const cityCode = currentCityCode.value || selectedCity.value?.adcode || ''
-  const lat = Number(currentPoint.value.lat) || 0
-  const lng = Number(currentPoint.value.lng) || 0
-  try {
-    const { poiSearch } = await import('@/api/location')
-    const data = await poiSearch({
-      keyword: value,
-      city: cityCode,
-      lat,
-      lng,
-      size: 20
+
+  const normalizedKeyword = value.replace(/\s+/g, '').replace(/市$/, '')
+  const cityName = (currentCityName.value || selectedCity.value?.name || '').replace(/市$/, '')
+  // 剥离城市前缀，例如"宿迁宝龙"→"宝龙"
+  const localKeyword = cityName && normalizedKeyword.startsWith(cityName)
+    ? normalizedKeyword.slice(cityName.length)
+    : normalizedKeyword
+  // 搜索关键词：优先用剥离后的短词，保留原始输入作为备选
+  const searchKeyword = localKeyword || normalizedKeyword
+  const cityCode = currentCityCode.value || ''
+  // 目的地和上车点都必须使用当前工作城市，城市切换后不能继续沿用设备定位城市的结果。
+  const shouldLimitCity = Boolean(cityCode || cityName)
+
+  // ====== 关键词过滤：名称必须包含用户输入的关键词 ======
+  const isNameMatch = (name) => {
+    if (!name) return false
+    const cleanName = name.replace(/\s+/g, '')
+    // 精确匹配：名称包含完整关键词
+    if (cleanName.includes(searchKeyword)) return true
+    // 宽松匹配：原始输入也尝试匹配
+    if (searchKeyword !== value && cleanName.includes(value.replace(/\s+/g, ''))) return true
+    return false
+  }
+
+  // 结果去重与合并
+  const resultsById = new Map()
+  const mergedResults = []
+  const addItem = item => {
+    if (!item || !isNameMatch(item.name)) return  // 关键词过滤
+    const key = item.id || `${item.lng},${item.lat}`
+    if (!resultsById.has(key)) {
+      resultsById.set(key, item)
+      mergedResults.push(item)
+    }
+  }
+
+  let completedChannels = 0
+  const totalChannels = AMapSDK.value ? 3 : 1  // 后端地址解析 + InputTips + PlaceSearch
+
+  const finish = () => {
+    if (sequence !== searchSequence) return
+    searchLoading.value = false
+    searchResults.value = mergedResults
+    searchMessage.value = mergedResults.length ? '' : '未找到相关地点，请换个关键词试试'
+  }
+
+  const completeChannel = () => {
+    completedChannels += 1
+    if (completedChannels >= totalChannels) finish()
+  }
+
+  geocodeAddress({
+    address: value,
+    cityCode,
+    longitude: Number(currentPoint.value.lng || 0),
+    latitude: Number(currentPoint.value.lat || 0),
+    radius: searchMode.value === 'pickup' ? 10000 : 50000
+  }).then(result => {
+    if (sequence !== searchSequence || !hasValidCoordinate(result?.longitude, result?.latitude)) return
+    addItem({
+      id: `backend:${result.longitude},${result.latitude}:${result.name || value}`,
+      name: result.name || value,
+      address: result.address || result.name || value,
+      displayAddress: result.address || result.name || value,
+      lng: Number(result.longitude),
+      lat: Number(result.latitude),
+      cityName: currentCityName.value || selectedCity.value?.name || '',
+      cityCode: normalizeCityCode(result.cityCode || cityCode || ''),
+      distanceText: distanceText(result.distance)
     })
-    if (sequence !== searchSequence) return
-    const rawItems = Array.isArray(data?.items) ? data.items : []
-    const items = rawItems.map(p => ({
-      id: `${p.lng},${p.lat}`,
-      name: p.name || '未命名地点',
-      address: p.address || p.name || '',
-      displayAddress: p.address || p.name || '',
-      lng: p.lng,
-      lat: p.lat,
-      cityName: '',
-      cityCode: '',
-      distanceText: ''
-    }))
-    searchResults.value = items
-    searchMessage.value = items.length ? '' : '未找到相关地点，请换个关键词试试'
+  }).catch(error => {
+    console.warn('乘客端后端地址解析失败:', error)
+  }).finally(completeChannel)
+
+  if (!AMapSDK.value) return
+
+  // ====== 通道1: InputTips（高德关键词提示API）======
+  try {
+    const tipsSearch = new AMapSDK.value.InputTips({
+      city: shouldLimitCity ? cityCode || cityName || undefined : undefined,
+      citylimit: shouldLimitCity && Boolean(cityCode || cityName),
+      pageSize: 25
+    })
+    tipsSearch.search(value, (status, result) => {
+      if (sequence !== searchSequence) return
+      if (status === 'complete' && Array.isArray(result?.tips)) {
+        for (const tip of result.tips) {
+          if (!tip.location || !tip.name) continue
+          if (!isNameMatch(tip.name)) continue  // 关键词过滤
+          const lng = typeof tip.location.getLng === 'function' ? tip.location.getLng() : Number(tip.location.lng)
+          const lat = typeof tip.location.getLat === 'function' ? tip.location.getLat() : Number(tip.location.lat)
+          if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+          const prefix = [tip.district, tip.adname].filter(Boolean).join('')
+          const address = [prefix, tip.address || ''].filter(Boolean).join('') || tip.district || ''
+          addItem({
+            id: tip.id || `${lng},${lat}`,
+            name: tip.name,
+            address: address,
+            displayAddress: address,
+            lng, lat,
+            cityName: tip.district?.split?.('市')?.[0] ? `${tip.district.split('市')[0]}市` : '',
+            cityCode: '',
+            distanceText: ''
+          })
+        }
+      }
+      completeChannel()
+    })
   } catch (e) {
-    if (sequence !== searchSequence) return
-    console.warn('POI 搜索失败:', e)
-    searchResults.value = []
-    searchMessage.value = '地点搜索失败，请稍后重试'
-  } finally {
-    if (sequence === searchSequence) searchLoading.value = false
+    console.warn('InputTips 搜索失败:', e)
+    completeChannel()
+  }
+
+  // ====== 通道2: PlaceSearch（POI搜索）======
+  if (placeSearch.value) {
+    const poiSearch = new AMapSDK.value.PlaceSearch({
+      pageSize: 50,
+      pageIndex: 1,
+      extensions: 'all',
+      city: shouldLimitCity ? cityCode || undefined : undefined,
+      citylimit: shouldLimitCity && Boolean(cityCode)
+    })
+    poiSearch.setType('')
+    poiSearch.search(searchKeyword, (status, result) => {
+      if (sequence !== searchSequence) return
+      if (status === 'complete' && result?.poiList?.pois) {
+        for (const poi of result.poiList.pois) {
+          addItem(normalizePOI(poi))
+        }
+      }
+      completeChannel()
+    })
+  } else {
+    completeChannel()
   }
 }
 function searchNearby() {
@@ -690,10 +834,12 @@ function openActiveOrder() {
   router.push(/orders/)
 }
 
-onMounted(() => {
-  initMap()
+onMounted(async () => {
+  await initMap()
   loadCommonAddresses()
   loadActiveOrder()
+  const editMode = String(route.query.edit || '')
+  if (editMode === 'pickup' || editMode === 'destination') openLocationSearch(editMode)
   if (localStorage.getItem(newUserPendingGiftKey) === '1' && !localStorage.getItem(welcomeCouponKey)) {
     showWelcomeCoupon.value = true
   } else if (localStorage.getItem(loginCouponPendingKey) === '1') {

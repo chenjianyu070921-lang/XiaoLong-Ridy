@@ -58,22 +58,60 @@ func TestRequireAuthAllowsNormalDriverToken(t *testing.T) {
 
 func TestRequireAuthAllowsPendingDriverToCompleteProfile(t *testing.T) {
 	token := signDriverToken(t, int(driversproto.DriverStatus_DRIVER_STATUS_PENDING))
-	called := false
-	handler := RequireAuth(&svc.ServiceContext{SigningKey: "middleware-test-key"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		w.WriteHeader(http.StatusNoContent)
-	}))
+	for _, path := range []string{
+		"/api/driver/v1/vehicles",
+		"/api/driver/v1/vehicles/update",
+	} {
+		t.Run(path, func(t *testing.T) {
+			called := false
+			handler := RequireAuth(&svc.ServiceContext{SigningKey: "middleware-test-key"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusNoContent)
+			}))
 
-	req := httptest.NewRequest(http.MethodPost, "/api/driver/v1/vehicles", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, req)
+			req := httptest.NewRequest(http.MethodPost, path, nil)
+			req.Header.Set("Authorization", "Bearer "+token)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
 
-	if recorder.Code != http.StatusNoContent {
-		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusNoContent, recorder.Body.String())
+			if recorder.Code != http.StatusNoContent {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusNoContent, recorder.Body.String())
+			}
+			if !called {
+				t.Fatal("next handler was not called")
+			}
+		})
 	}
-	if !called {
-		t.Fatal("next handler was not called")
+}
+
+func TestRequireAuthRejectsUnavailableDriverOnPendingOnlyPath(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status driversproto.DriverStatus
+	}{
+		{name: "frozen", status: driversproto.DriverStatus_DRIVER_STATUS_FROZEN},
+		{name: "cancelled", status: driversproto.DriverStatus_DRIVER_STATUS_CANCELLED},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			token := signDriverToken(t, int(tc.status))
+			called := false
+			handler := RequireAuth(&svc.ServiceContext{SigningKey: "middleware-test-key"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			req := httptest.NewRequest(http.MethodPost, "/api/driver/v1/vehicles/update", nil)
+			req.Header.Set("Authorization", "Bearer "+token)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+
+			if recorder.Code != http.StatusForbidden {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+			}
+			if called {
+				t.Fatal("next handler should not be called")
+			}
+		})
 	}
 }
 

@@ -1,10 +1,11 @@
 Name: dispatchsvc.rpc
 ListenOn: 0.0.0.0:50056
+timeout: 10000
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 myredis:
   host: 115.191.16.159:6379
-  pass: ""
+  pass: "4ay1nkal3u8ed77y"
   db: 0
   poolSize: 20
   dialTimeout: 0
@@ -13,8 +14,11 @@ myredis:
 kafka:
   brokers:
     - 115.191.16.159:9092
-# 默认城市编码：宿迁市，用于 Redis GEO 城市桶。
-defaultCityCode: "321300"
+# 默认城市编码，用于 Redis GEO 城市桶。
+# 临时修复：全链路上报端（driversvc/location-consumer/locationsvc/job）硬编码写入
+# driver:geo:default，派单读取端必须与之一致，否则查不到任何候选司机（静默返回空）。
+# 正确做法应改为上报端按真实 cityCode 写入 driver:geo:<cityCode>，届时此处改回 "321300"。
+defaultCityCode: "default"
 # 是否允许 GEO 查不到司机时回退 mock 候选（仅联调演示用，默认关闭）
 enableMockDispatch: false
 # 派单超时阈值（秒），超过仍未接单的 Pending 记录视为超时并可重派
