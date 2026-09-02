@@ -8,7 +8,7 @@ orderRPCAddr: "127.0.0.1:50051"
 priceRPCAddr: "127.0.0.1:50053"
 payRPCAddr: "127.0.0.1:50054"
 dispatchRPCAddr: "127.0.0.1:50056"
-locationRPCAddr: "127.0.0.1:50055"
+locationRPCAddr: "127.0.0.1:9001"
 priceCityCode: "110000"
 mysqlDSN: ""
 # 七牛云配置通过环境变量注入；此处保留空值，避免密钥提交到仓库。

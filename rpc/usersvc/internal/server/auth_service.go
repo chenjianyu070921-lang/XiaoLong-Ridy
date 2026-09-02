@@ -139,6 +139,11 @@ func (s *UserServer) AdminGetUser(ctx context.Context, req *userproto.AdminUserD
 	return l.GetUser(req)
 }
 
+// AdminFreezeUser 转发管理后台用户冻结请求到用户域逻辑。
+func (s *UserServer) AdminFreezeUser(ctx context.Context, req *userproto.AdminFreezeUserRequest) (*userproto.AdminFreezeUserResponse, error) {
+	return logic.NewAdminUserLogic(ctx, s.svcCtx).FreezeUser(req)
+}
+
 // GetWallet 查询当前用户钱包余额与流水。
 func (s *UserServer) GetWallet(ctx context.Context, req *userproto.GetWalletRequest) (*userproto.GetWalletResponse, error) {
 	return logic.NewWalletLogic(ctx, s.svcCtx).GetWallet(req)

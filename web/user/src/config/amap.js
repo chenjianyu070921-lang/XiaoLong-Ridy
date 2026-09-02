@@ -1,8 +1,9 @@
 // 高德地图公共配置：集中管理乘客端地图 SDK 的默认 Key 和安全密钥。
 // 生产或个人环境可通过 .env.local 中的 VITE_AMAP_* 变量覆盖默认值。
+// 注意：这里的 key 必须是 Web端(JS API) 平台类型；后端 locationsvc 用独立的 Web服务 key。
 const publicAmapConfig = {
-  key: 'fe003b9e1b112c532e653d35fe9dbc89',
-  securityCode: '89b3eb6651cdbe10674ae29da44af88d'
+  key: '8b282c23710212a9761f53fed184c2aa',
+  securityCode: '2d360911e1fb4f65b9b2954d01c5d094'
 }
 
 // 读取高德配置，环境变量优先，未配置时使用项目公用配置。

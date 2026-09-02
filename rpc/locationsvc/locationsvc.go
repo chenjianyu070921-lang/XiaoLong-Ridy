@@ -27,22 +27,32 @@ func main() {
 
 	logx.DisableStat()
 
-	// ========== 配置中心：从 etcd 拉取配置，失败降级本地 yaml ==========
-	// 注意：启动前需要先把配置写入 etcd，key 为 locationsvc.yaml
+	// ========== 配置中心：优先从 etcd 拉取配置，etcd 不可用或读取失败时降级本地 yaml ==========
+	// 注意：etcd 可用时需先把配置写入 etcd，key 为 locationsvc.yaml
 	// docker exec etcd etcdctl put locationsvc.yaml < locationsvc.yaml
-	cc := configcenter.MustNewConfigCenter[config.Config](
-		configcenter.Config{Type: "yaml"},
-		subscriber.MustNewEtcdSubscriber(subscriber.EtcdConf{
-			Hosts: []string{"127.0.0.1:2379"},
-			Key:   "locationsvc.yaml",
-		}),
-	)
-
+	// 本地无 etcd 时（本地联调），subscriber.NewEtcdSubscriber 会返回错误，
+	// 直接回退 conf.MustLoad 本地文件，避免 MustNewEtcdSubscriber 直接 panic 中断启动。
 	var c config.Config
-	var err error
-	if c, err = cc.GetConfig(); err != nil {
-		logx.Errorf("从配置中心(etcd)加载配置失败: %v，降级加载本地文件 %s", err, *configFile)
+	var cc configcenter.Configurator[config.Config]
+	sub, err := subscriber.NewEtcdSubscriber(subscriber.EtcdConf{
+		Hosts: []string{"127.0.0.1:2379"},
+		Key:   "locationsvc.yaml",
+	})
+	if err != nil {
+		logx.Errorf("etcd 配置中心不可用(%v)，降级加载本地文件 %s", err, *configFile)
 		conf.MustLoad(*configFile, &c)
+	} else {
+		client, e := configcenter.NewConfigCenter[config.Config](configcenter.Config{Type: "yaml"}, sub)
+		if e != nil {
+			logx.Errorf("从配置中心加载配置失败(%v)，降级加载本地文件 %s", e, *configFile)
+			conf.MustLoad(*configFile, &c)
+		} else {
+			cc = client
+			if c, e = cc.GetConfig(); e != nil {
+				logx.Errorf("从配置中心读取配置失败(%v)，降级加载本地文件 %s", e, *configFile)
+				conf.MustLoad(*configFile, &c)
+			}
+		}
 	}
 	fmt.Printf("[配置中心] 配置加载成功: Provider=%s BaseUrl=%s\n", c.MapService.Provider, c.MapService.BaseUrl)
 
@@ -70,18 +80,20 @@ func main() {
 	// 注入数据库、Redis 与地图客户端
 	ctx := svc.NewServiceContext(c, mysqlDB, redisClient)
 
-	// ========== 配置热更新：etcd 配置变更后自动生效，无需重启 ==========
-	cc.AddListener(func() {
-		newCfg, e := cc.GetConfig()
-		if e != nil {
-			logx.Errorf("[配置中心] 热更新解析失败: %v", e)
-			return
-		}
-		oldKey := ctx.GetConfig().MapService.ApiKey
-		ctx.UpdateConfig(newCfg)
-		fmt.Printf("[配置中心] 检测到配置变更，已热更新: 地图ApiKey %s -> %s\n",
-			oldKey, newCfg.MapService.ApiKey)
-	})
+	// ========== 配置热更新：仅配置中心可用时监听；本地降级模式无热更新 ==========
+	if cc != nil {
+		cc.AddListener(func() {
+			newCfg, e := cc.GetConfig()
+			if e != nil {
+				logx.Errorf("[配置中心] 热更新解析失败: %v", e)
+				return
+			}
+			oldKey := ctx.GetConfig().MapService.ApiKey
+			ctx.UpdateConfig(newCfg)
+			fmt.Printf("[配置中心] 检测到配置变更，已热更新: 地图ApiKey %s -> %s\n",
+				oldKey, newCfg.MapService.ApiKey)
+		})
+	}
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		locationsvc.RegisterLocationServiceServer(grpcServer, server.NewLocationServiceServer(ctx))

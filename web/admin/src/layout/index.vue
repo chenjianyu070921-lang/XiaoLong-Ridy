@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { Odometer, User, Avatar, Tickets, Memo, Fold, Expand, Discount, List, Setting, Warning, DataAnalysis, Document, Management, Sunny, Moon, Money } from '@element-plus/icons-vue'
+import { Odometer, User, Avatar, Tickets, Memo, Fold, Expand, Discount, List, Setting, Warning, DataAnalysis, Document, Management, Sunny, Moon, Money, Location } from '@element-plus/icons-vue'
 import { logout, getMenus } from '../api/auth'
 import { useUserStore } from '../store/user'
 import { roleText, orDash } from '../utils/enums'
@@ -22,6 +22,7 @@ const pathToRoute = {
   '/orders/abnormal': '/orders/abnormal',
   '/operation-logs': '/operation-logs',
   '/admins': '/admins',
+  '/capacity': '/capacity',
 }
 
 // 静态菜单全集仅用于超级管理员的故障兜底。
@@ -41,6 +42,7 @@ const fallbackMenus = [
   { name: '活动配置', path: '/promotion-activities', icon: 'Discount' },
   { name: '投诉与申诉工单', path: '/work-orders', icon: 'Document' },
   { name: '数据统计', path: '/statistics', icon: 'DataAnalysis' },
+  { name: '实时运力', path: '/capacity', icon: 'Location' },
   { name: '导出任务', path: '/export-tasks', icon: 'Document' },
   { name: '黑名单', path: '/blacklist', icon: 'Warning' },
   { name: '风控命中记录', path: '/risk-hits', icon: 'Management' },
@@ -56,7 +58,7 @@ const restrictedRoleFallbackPaths = {
 // 工作台是所有已登录管理员都可访问的固定入口。
 const dashboardMenu = { name: '工作台', path: '/dashboard', icon: 'Odometer' }
 const menuItems = ref([dashboardMenu])
-const iconMap = { Odometer, User, Avatar, Tickets, Memo, Discount, List, Setting, Warning, DataAnalysis, Document, Management, Money }
+const iconMap = { Odometer, User, Avatar, Tickets, Memo, Discount, List, Setting, Warning, DataAnalysis, Document, Management, Money, Location }
 
 // 后端菜单不返回图标，前端按路径补齐，保证侧边栏视觉一致。
 const pathIcon = {
@@ -75,6 +77,7 @@ const pathIcon = {
   '/promotion-activities': 'Discount',
   '/work-orders': 'Document',
   '/statistics': 'DataAnalysis',
+  '/capacity': 'Location',
   '/export-tasks': 'Document',
   '/blacklist': 'Warning',
   '/risk-hits': 'Management',
@@ -98,6 +101,7 @@ const groupOf = (path) => ({
   '/blacklist': '工单与风控',
   '/risk-hits': '工单与风控',
   '/statistics': '数据与系统',
+  '/capacity': '订单中心',
   '/export-tasks': '数据与系统',
   '/operation-logs': '数据与系统',
   '/admins': '数据与系统',

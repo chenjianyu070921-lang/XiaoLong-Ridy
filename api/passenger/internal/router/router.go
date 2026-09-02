@@ -18,7 +18,14 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	registerCouponRoutes(mux, svcCtx)
 	registerReviewRoutes(mux, svcCtx)
 	registerWalletRoutes(mux, svcCtx)
+	registerLocationRoutes(mux, svcCtx)
 	return mux
+}
+
+// registerLocationRoutes 注册乘客端位置相关接口（POI 搜索等）。
+func registerLocationRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
+	// 目的地 POI 搜索，公开接口（无需登录），供 Home/AddressList 等页面调用。
+	mux.HandleFunc("/api/passenger/v1/location/poi-search", handler.SearchPOIHandler(svcCtx))
 }
 
 // registerWalletRoutes 注册乘客钱包查询、充值和提现接口。

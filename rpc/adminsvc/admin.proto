@@ -127,6 +127,8 @@ service AdminService {
   rpc GetCouponStatistics(StatisticsRequest) returns (CouponStatisticsResponse);
   // 查询用户统计。
   rpc GetUserStatistics(StatisticsRequest) returns (UserStatisticsResponse);
+  // 查询实时运力地图快照。
+  rpc GetCapacityMap(CapacityMapRequest) returns (CapacityMapResponse);
   // 创建导出任务。
   rpc CreateExportTask(ExportTaskRequest) returns (ExportTaskResponse);
   // 查询导出任务列表。
@@ -159,7 +161,7 @@ service AdminService {
   rpc ReleaseBlacklist(BlacklistRequest) returns (CommonResponse);
   // 查询风控命中记录。
   rpc ListRiskHitRecords(RiskHitRecordListRequest) returns (RiskHitRecordListResponse);
-  // 处置风控命中记录。
+  // 处置风控命中记录，action 支持 review_pass/add_blacklist/create_work_order/freeze。
   rpc HandleRiskHitRecords(RiskHitActionRequest) returns (RiskHitActionResponse);
   // 查询管理后台通知与审计补偿任务。
   rpc ListAdminAuditOutbox(AdminAuditOutboxListRequest) returns (AdminAuditOutboxListResponse);
@@ -489,6 +491,36 @@ message DriverListResponse {
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;
+}
+
+// CapacityMapRequest 是后台运力地图快照查询参数。
+message CapacityMapRequest {
+  int32 status = 1;         // 司机业务状态，0 表示全部
+  int32 online_status = 2;  // 听单状态，0 表示全部，1 在线，2 行程中
+  int32 limit = 3;          // 返回数量，默认100，最大200
+}
+
+// CapacityDriver 表示一个带最新位置的司机地图点。
+message CapacityDriver {
+  int64 driver_id = 1;
+  int32 driver_status = 2;
+  int32 online_status = 3;
+  string lng = 4;
+  string lat = 5;
+  string heading = 6;
+  string speed_kmh = 7;
+  string report_time = 8;
+}
+
+// CapacityMapResponse 是实时运力地图的只读聚合结果。
+message CapacityMapResponse {
+  string generated_at = 1;
+  repeated CapacityDriver drivers = 2;
+  int32 total = 3;
+  int32 available_count = 4;
+  int32 in_trip_count = 5;
+  int32 offline_count = 6;
+  int32 position_failure_count = 7;
 }
 message DriverCertificationListRequest {
   int32 page = 1;
@@ -1033,6 +1065,8 @@ message StatisticsOverviewResponse {
   string gmv = 6;
   int64 coupon_issue_count = 7;
   int64 blacklist_count = 8;
+  string generated_at = 9;
+  string data_as_of = 10;
 }
 
 message OrderStatisticsResponse {
@@ -1043,6 +1077,8 @@ message OrderStatisticsResponse {
   int64 payment_abnormal_count = 5;
   string completion_rate = 6;
   string cancel_rate = 7;
+  string generated_at = 8;
+  string data_as_of = 9;
 }
 
 message CouponStatisticsResponse {
@@ -1052,6 +1088,8 @@ message CouponStatisticsResponse {
   int64 used_coupon_count = 4;
   int64 expired_coupon_count = 5;
   string use_rate = 6;
+  string generated_at = 7;
+  string data_as_of = 8;
 }
 
 message UserStatisticsResponse {
@@ -1073,6 +1111,8 @@ message UserStatisticsResponse {
   string reorder_rate = 8;
   // 投诉率：complaint_user_count / active_user_count。
   string complaint_rate = 9;
+  string generated_at = 10;
+  string data_as_of = 11;
 }
 
 message DriverStatisticsResponse {
@@ -1098,6 +1138,8 @@ message DriverStatisticsResponse {
   string average_score = 10;
   // 统计时间范围内评分记录中的月投诉数合计。
   int64 total_complaint_count = 11;
+  string generated_at = 12;
+  string data_as_of = 13;
 }
 
 message FinanceStatisticsResponse {
@@ -1121,6 +1163,8 @@ message FinanceStatisticsResponse {
   string driver_income = 9;
   // 统计时间范围内平台补贴金额。
   string platform_subsidy = 10;
+  string generated_at = 11;
+  string data_as_of = 12;
 }
 
 message ExportTaskRequest {
@@ -1382,7 +1426,7 @@ message RiskHitRecordListResponse {
 message RiskHitActionRequest {
   // 待处置的风控命中记录 ID，支持单条和批量。
   repeated int64 ids = 1;
-  // 处置动作：review_pass/add_blacklist/create_work_order。
+  // 处置动作：review_pass/add_blacklist/create_work_order/freeze。
   string action = 2;
   // 处置原因、拉黑原因或转工单说明。
   string reason = 3;

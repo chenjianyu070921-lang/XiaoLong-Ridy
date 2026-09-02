@@ -532,122 +532,47 @@ function handleSearchResult(sequence, status, result) {
   searchResults.value = (result.poiList?.pois || []).map(normalizePOI).filter(Boolean)
 }
 
-// 双通道搜索：InputTips（关键词提示）+ PlaceSearch（POI详情）。
-// 两种地址都限定当前工作城市，避免手动切换城市后高德按全国相关性返回其他城市结果。
-// 目的地若需跨城，用户可在城市选择页切换工作城市后再进行搜索，保证搜索结果与订单城市一致。
-function searchByKeyword(value) {
+// 目的地关键词搜索改为后端代理：passenger-api → locationsvc.POISearch → AMap(后端 key)。
+// 不再走 AMap JS InputTips/PlaceSearch，避开浏览器侧 key 类型不匹配导致全部失败的问题。
+// 邻近浏览 searchNearby依赖 AMap JS（地图附近特殊浏览依赖 JS key，后续单独处理）。
+async function searchByKeyword(value) {
   const sequence = ++searchSequence
-  if (!AMapSDK.value) return Object.assign(searchLoading, { value: false })
   searchLoading.value = true
   searchMessage.value = ''
-
-  const normalizedKeyword = value.replace(/\s+/g, '').replace(/市$/, '')
-  const cityName = (currentCityName.value || selectedCity.value?.name || '').replace(/市$/, '')
-  // 剥离城市前缀，例如"宿迁宝龙"→"宝龙"
-  const localKeyword = cityName && normalizedKeyword.startsWith(cityName)
-    ? normalizedKeyword.slice(cityName.length)
-    : normalizedKeyword
-  // 搜索关键词：优先用剥离后的短词，保留原始输入作为备选
-  const searchKeyword = localKeyword || normalizedKeyword
-  const cityCode = currentCityCode.value || ''
-  // 目的地和上车点都必须使用当前工作城市，城市切换后不能继续沿用设备定位城市的结果。
-  const shouldLimitCity = Boolean(cityCode || cityName)
-
-  // ====== 关键词过滤：名称必须包含用户输入的关键词 ======
-  const isNameMatch = (name) => {
-    if (!name) return false
-    const cleanName = name.replace(/\s+/g, '')
-    // 精确匹配：名称包含完整关键词
-    if (cleanName.includes(searchKeyword)) return true
-    // 宽松匹配：原始输入也尝试匹配
-    if (searchKeyword !== value && cleanName.includes(value.replace(/\s+/g, ''))) return true
-    return false
-  }
-
-  // 结果去重与合并
-  const resultsById = new Map()
-  const mergedResults = []
-  const addItem = item => {
-    if (!item || !isNameMatch(item.name)) return  // 关键词过滤
-    const key = item.id || `${item.lng},${item.lat}`
-    if (!resultsById.has(key)) {
-      resultsById.set(key, item)
-      mergedResults.push(item)
-    }
-  }
-
-  let completedChannels = 0
-  const totalChannels = 2  // InputTips + PlaceSearch
-
-  const finish = () => {
-    if (sequence !== searchSequence) return
-    searchLoading.value = false
-    searchResults.value = mergedResults
-    searchMessage.value = mergedResults.length ? '' : '未找到相关地点，请换个关键词试试'
-  }
-
-  // ====== 通道1: InputTips（高德关键词提示API）======
+  const cityCode = currentCityCode.value || selectedCity.value?.adcode || ''
+  const lat = Number(currentPoint.value.lat) || 0
+  const lng = Number(currentPoint.value.lng) || 0
   try {
-    const tipsSearch = new AMapSDK.value.InputTips({
-      city: shouldLimitCity ? cityCode || cityName || undefined : undefined,
-      citylimit: shouldLimitCity && Boolean(cityCode || cityName),
-      pageSize: 25
+    const { poiSearch } = await import('@/api/location')
+    const data = await poiSearch({
+      keyword: value,
+      city: cityCode,
+      lat,
+      lng,
+      size: 20
     })
-    tipsSearch.search(value, (status, result) => {
-      if (sequence !== searchSequence) return
-      if (status === 'complete' && Array.isArray(result?.tips)) {
-        for (const tip of result.tips) {
-          if (!tip.location || !tip.name) continue
-          if (!isNameMatch(tip.name)) continue  // 关键词过滤
-          const lng = typeof tip.location.getLng === 'function' ? tip.location.getLng() : Number(tip.location.lng)
-          const lat = typeof tip.location.getLat === 'function' ? tip.location.getLat() : Number(tip.location.lat)
-          if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
-          const prefix = [tip.district, tip.adname].filter(Boolean).join('')
-          const address = [prefix, tip.address || ''].filter(Boolean).join('') || tip.district || ''
-          addItem({
-            id: tip.id || `${lng},${lat}`,
-            name: tip.name,
-            address: address,
-            displayAddress: address,
-            lng, lat,
-            cityName: tip.district?.split?.('市')?.[0] ? `${tip.district.split('市')[0]}市` : '',
-            cityCode: '',
-            distanceText: ''
-          })
-        }
-      }
-      completedChannels += 1
-      if (completedChannels >= totalChannels) finish()
-    })
+    if (sequence !== searchSequence) return
+    const rawItems = Array.isArray(data?.items) ? data.items : []
+    const items = rawItems.map(p => ({
+      id: `${p.lng},${p.lat}`,
+      name: p.name || '未命名地点',
+      address: p.address || p.name || '',
+      displayAddress: p.address || p.name || '',
+      lng: p.lng,
+      lat: p.lat,
+      cityName: '',
+      cityCode: '',
+      distanceText: ''
+    }))
+    searchResults.value = items
+    searchMessage.value = items.length ? '' : '未找到相关地点，请换个关键词试试'
   } catch (e) {
-    console.warn('InputTips 搜索失败:', e)
-    completedChannels += 1
-    if (completedChannels >= totalChannels) finish()
-  }
-
-  // ====== 通道2: PlaceSearch（POI搜索）======
-  if (placeSearch.value) {
-    const poiSearch = new AMapSDK.value.PlaceSearch({
-      pageSize: 50,
-      pageIndex: 1,
-      extensions: 'all',
-      city: shouldLimitCity ? cityCode || undefined : undefined,
-      citylimit: shouldLimitCity && Boolean(cityCode)
-    })
-    poiSearch.setType('')
-    poiSearch.search(searchKeyword, (status, result) => {
-      if (sequence !== searchSequence) return
-      if (status === 'complete' && result?.poiList?.pois) {
-        for (const poi of result.poiList.pois) {
-          addItem(normalizePOI(poi))
-        }
-      }
-      completedChannels += 1
-      if (completedChannels >= totalChannels) finish()
-    })
-  } else {
-    completedChannels += 1
-    if (completedChannels >= totalChannels) finish()
+    if (sequence !== searchSequence) return
+    console.warn('POI 搜索失败:', e)
+    searchResults.value = []
+    searchMessage.value = '地点搜索失败，请稍后重试'
+  } finally {
+    if (sequence === searchSequence) searchLoading.value = false
   }
 }
 function searchNearby() {

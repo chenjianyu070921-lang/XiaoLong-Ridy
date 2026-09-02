@@ -201,6 +201,11 @@ func (s *AdminServiceServer) GetOrderTrack(ctx context.Context, in *adminsvc.Ord
 	return l.GetOrderTrack(in)
 }
 
+// GetCapacityMap 查询实时运力地图快照。
+func (s *AdminServiceServer) GetCapacityMap(ctx context.Context, in *adminsvc.CapacityMapRequest) (*adminsvc.CapacityMapResponse, error) {
+	return adminservicelogic.NewGetCapacityMapLogic(ctx, s.svcCtx).GetCapacityMap(in)
+}
+
 // 后台取消订单。
 func (s *AdminServiceServer) CancelOrder(ctx context.Context, in *adminsvc.AdminCancelOrderRequest) (*adminsvc.CommonResponse, error) {
 	l := adminservicelogic.NewCancelOrderLogic(ctx, s.svcCtx)

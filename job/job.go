@@ -14,6 +14,7 @@ import (
 )
 
 var configFile = flag.String("f", "etc/job.yaml", "the config file")
+var dryRun = flag.Bool("dry-run", false, "只读取补偿队列和 outbox 摘要，不执行补偿")
 
 func main() {
 	flag.Parse()
@@ -25,6 +26,16 @@ func main() {
 
 	svcCtx := svc.NewServiceContext(c)
 	h := handler.NewCleanupHandler(svcCtx)
+	// 启动时先执行只读补偿预检，及时暴露依赖不可用和队列积压问题，不触发真实补偿。
+	if summary, err := h.DryRunCompensationSummary(context.Background()); err != nil {
+		logx.Errorf("补偿任务启动预检失败: %v", err)
+	} else {
+		logx.Infof("补偿任务启动预检: refund=%d dispatch=%d outbox_pending=%d outbox_failed=%d", summary.RefundEvents.Pending, summary.DispatchRetries.Pending, summary.AdminAuditOutbox.Pending, summary.AdminAuditOutbox.Failed)
+	}
+	if *dryRun {
+		logx.Info("dry-run 完成，未执行任何补偿动作")
+		return
+	}
 
 	go func() {
 		ticker := time.NewTicker(10 * time.Second)

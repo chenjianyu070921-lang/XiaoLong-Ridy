@@ -9,11 +9,14 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
+	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // 资质图片类型校验：仅允许常见图片扩展名。
@@ -46,12 +49,32 @@ func NewUploadCertificationLogic(ctx context.Context, svcCtx *svc.ServiceContext
 
 // UploadCertification 处理资质上传：解码校验图片、上传 MinIO、落库并返回访问 URL。
 func (l *UploadCertificationLogic) UploadCertification(in *proto.UploadCertificationRequest) (*proto.UploadCertificationResponse, error) {
-	// 校验司机 ID 与至少一张图片。
+	// 校验司机 ID、车辆 ID 与至少一张图片；认证资料必须绑定当前司机的有效车辆。
+	if in == nil {
+		return nil, status.Error(codes.InvalidArgument, "请求参数不能为空")
+	}
 	if in.DriverId <= 0 {
 		return nil, errInvalidDriverID
 	}
+	if in.VehicleId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "车辆 ID 不能为空")
+	}
 	if in.IdCardFront == "" && in.IdCardBack == "" && in.DriverLicense == "" && in.VehicleLicense == "" {
 		return nil, errEmptyCertification
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
+		return nil, status.Error(codes.FailedPrecondition, "车辆服务未就绪")
+	}
+	// 先校验车辆归属，再上传图片，避免错误请求在对象存储中留下无法被后台审核关联的孤立文件。
+	vehicle, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, uint64(in.VehicleId))
+	if err != nil {
+		if errors.Is(err, repository.ErrVehicleNotFound) {
+			return nil, status.Error(codes.NotFound, "车辆不存在")
+		}
+		return nil, err
+	}
+	if vehicle.DriverId != uint64(in.DriverId) {
+		return nil, status.Error(codes.PermissionDenied, "车辆不属于当前司机")
 	}
 
 	// 逐类上传图片到 MinIO，得到访问 URL。
@@ -108,7 +131,7 @@ func (l *UploadCertificationLogic) UploadCertification(in *proto.UploadCertifica
 	}
 
 	return &proto.UploadCertificationResponse{
-		Id: int64(saved.Id),
+		Id:            int64(saved.Id),
 		Certification: toCertificationInfo(saved),
 	}, nil
 }

@@ -435,8 +435,47 @@ func TestGetStatisticsOverview_RejectsUnsupportedCityFilter(t *testing.T) {
 	svcCtx, _, cleanup := newAdminSQLMock(t)
 	defer cleanup()
 	_, err := NewGetStatisticsOverviewLogic(context.Background(), svcCtx).GetStatisticsOverview(&adminsvc.StatisticsRequest{CityCode: "110000"})
-	if status.Code(err) != codes.FailedPrecondition {
-		t.Fatalf("GetStatisticsOverview() error code = %v, want FailedPrecondition", status.Code(err))
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("GetStatisticsOverview() error code = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
+// TestNormalizeStatisticsRequest_RejectsInvalidRanges 验证统计时间范围和未来时间保护。
+func TestNormalizeStatisticsRequest_RejectsInvalidRanges(t *testing.T) {
+	tooWideStart := time.Now().Add(-91 * 24 * time.Hour).Truncate(time.Second).Format(statisticsTimeLayout)
+	now := time.Now().Truncate(time.Second)
+	future := now.Add(time.Hour).Format(statisticsTimeLayout)
+	before := now.Add(-time.Hour).Format(statisticsTimeLayout)
+	for name, req := range map[string]*adminsvc.StatisticsRequest{
+		"too wide":   {StartTime: tooWideStart, EndTime: now.Format(statisticsTimeLayout)},
+		"future":     {StartTime: before, EndTime: future},
+		"reversed":   {StartTime: now.Format(statisticsTimeLayout), EndTime: before},
+		"bad format": {StartTime: "2026/09/01"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, _, err := normalizeStatisticsRequest(req); status.Code(err) != codes.InvalidArgument {
+				t.Fatalf("normalizeStatisticsRequest() code = %v, want InvalidArgument", status.Code(err))
+			}
+		})
+	}
+}
+
+// TestNormalizeStatisticsRequest_DefaultsToThirtyDays 验证空请求默认最近30天且时间格式稳定。
+func TestNormalizeStatisticsRequest_DefaultsToThirtyDays(t *testing.T) {
+	start, end, err := normalizeStatisticsRequest(nil)
+	if err != nil {
+		t.Fatalf("normalizeStatisticsRequest() error = %v", err)
+	}
+	startAt, err := time.ParseInLocation(statisticsTimeLayout, start, time.Local)
+	if err != nil {
+		t.Fatalf("start time parse error = %v", err)
+	}
+	endAt, err := time.ParseInLocation(statisticsTimeLayout, end, time.Local)
+	if err != nil {
+		t.Fatalf("end time parse error = %v", err)
+	}
+	if endAt.Sub(startAt) != statisticsDefaultRange {
+		t.Fatalf("default range = %v, want %v", endAt.Sub(startAt), statisticsDefaultRange)
 	}
 }
 

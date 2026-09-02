@@ -60,6 +60,28 @@ func (l *AdminUserLogic) GetUser(in *userproto.AdminUserDetailRequest) (*userpro
 	return adminUserFromModel(user), nil
 }
 
+// AdminFreezeUser 将用户状态设置为冻结。状态变更由 usersvc 仓储执行，避免后台服务越过用户域直接写表。
+func (l *AdminUserLogic) FreezeUser(in *userproto.AdminFreezeUserRequest) (*userproto.AdminFreezeUserResponse, error) {
+	if in.GetUserId() == 0 || in.GetOperatorId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "用户ID和操作管理员不能为空")
+	}
+	user, err := l.svcCtx.Users.FindByID(l.ctx, in.GetUserId())
+	if errors.Is(err, repository.ErrUserNotFound) {
+		return nil, status.Error(codes.NotFound, "用户不存在")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if user.Status == model.UserStatusFrozen {
+		return &userproto.AdminFreezeUserResponse{Success: true}, nil
+	}
+	user.Status = model.UserStatusFrozen
+	if err := l.svcCtx.Users.Update(l.ctx, user); err != nil {
+		return nil, err
+	}
+	return &userproto.AdminFreezeUserResponse{Success: true}, nil
+}
+
 // adminUserFromModel 将用户领域模型转换为管理后台专用 RPC 结构。
 // usersvc 只负责提供真实领域数据，最终展示脱敏由 adminsvc 按后台权限策略统一处理。
 func adminUserFromModel(user *model.User) *userproto.AdminUser {

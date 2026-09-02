@@ -18,9 +18,9 @@ RedisConf:
   Db: 0
   PoolSize: 10
 
-# 地图服务配置（后续对接高德/腾讯地图时使用）
+# 地图服务配置。ApiKey 与 etc/locationsvc.yaml 保持一致（f945 为仓库统一高德 key）。
 MapService:
-  ApiKey: "8e17f5be48667ed588da48a9822405f0"
+  ApiKey: "f94510299d67fe4e4a904a726936795a"
   Provider: "amap"
   BaseUrl: "https://restapi.amap.com/v3"
 

@@ -271,6 +271,14 @@ const originalCarPrice = computed(() => priceEstimate.value ? formatMoney(priceE
 const discountPrice = computed(() => priceEstimate.value ? formatMoney(priceEstimate.value.discountAmountCents) : '0.00')
 
 // 调用乘客网关预估接口。请求序号用于丢弃快速切换车型产生的过期响应。
+// 路线就绪且已选车型时，自动触发一次价格预估，避免从首页直达本页时
+// ¥-- 占位 + 立即叫车按钮被禁用的尴尬。
+watch(routeReady, (ready) => {
+  if (!ready) return
+  if (!orderStore.orderParams.carType) return
+  void refreshEstimate()
+})
+
 const refreshEstimate = async () => {
   const params = orderStore.orderParams
   if (!routeReady.value || !params.carType) return

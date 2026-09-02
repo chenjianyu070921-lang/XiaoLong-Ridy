@@ -1,9 +1,10 @@
 # 开发环境一键启动脚本（司机端 + 订单 + 后台 + 乘客 全部业务）
 # 用法：powershell -ExecutionPolicy Bypass -File scripts/start_all_dev.ps1
 $ErrorActionPreference = "Continue"
-$root = "D:\gocode\src\XiaoLong-Ridy"
+# 基于脚本所在目录解析仓库根目录，避免依赖开发机上的固定盘符路径。
+$root = (Resolve-Path (Join-Path $PSScriptRoot ".." )).Path
 # GOCACHE 之前遇到过损坏，固定到独立目录避免占用临时盘
-$env:GOCACHE = "D:\gocode\gocache"
+$env:GOCACHE = Join-Path $root ".gotmp\gocache-all"
 $env:GOFLAGS = "-mod=mod"
 $logDir = Join-Path $root "scripts\logs"
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
