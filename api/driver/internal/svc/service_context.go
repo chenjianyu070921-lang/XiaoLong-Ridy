@@ -9,10 +9,12 @@ import (
 
 	commonconfig "XiaoLong-Ridy/common/config"
 	"XiaoLong-Ridy/common/datasource"
+	qiniuutil "XiaoLong-Ridy/common/qiniu"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -230,6 +232,20 @@ type OrderClient interface {
 	FinishTrip(ctx context.Context, req *orderproto.FinishTripRequest) (*orderproto.FinishTripResponse, error)
 }
 
+type PayClient interface {
+	ListSettlements(ctx context.Context, req *payproto.ListSettlementsRequest) (*payproto.ListSettlementsResponse, error)
+}
+
+type payGRPCClient struct {
+	cli payproto.PayClient
+}
+
+func (g *payGRPCClient) ListSettlements(ctx context.Context, req *payproto.ListSettlementsRequest) (*payproto.ListSettlementsResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ListSettlements(ctx, req)
+}
+
 type orderGRPCClient struct {
 	cli orderproto.OrderClient
 }
@@ -314,15 +330,16 @@ func (g *locationGRPCClient) ReportLocation(ctx context.Context, req *locationpr
 type ServiceContext struct {
 	DriverClient         DriverClient
 	OrderClient          OrderClient
+	PayClient            PayClient
 	DispatchClient       DispatchClient
 	LocationClient       LocationClient
-	ReviewRepository     ReviewRepository
 	TrajectoryRepository TrajectoryRepository
 	HeatmapRepository    HeatmapRepository
 	SigningKey           string
 	InternalAuth         InternalAuthConfig
 	CodeCache            CodeCache
 	RedisClient          *redis.Client
+	Qiniu                *qiniuutil.Client
 	PushPollInterval     time.Duration
 	PushPollPageSize     int32
 }
@@ -351,11 +368,20 @@ func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, location
 	return NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, "", commonconfig.MysqlConf{})
 }
 
-func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword string, mysqlConf commonconfig.MysqlConf) *ServiceContext {
+func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword string, mysqlConf commonconfig.MysqlConf, payGRPCAddr ...string) *ServiceContext {
 	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpcDialOpts...)
 	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpcDialOpts...)
 	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpcDialOpts...)
 	locationConn, locationErr := grpc.NewClient(locationGRPCAddr, grpcDialOpts...)
+	var payConn *grpc.ClientConn
+	var payErr error
+	payTarget := ""
+	if len(payGRPCAddr) > 0 {
+		payTarget = strings.TrimSpace(payGRPCAddr[0])
+	}
+	if payTarget != "" {
+		payConn, payErr = grpc.NewClient(payTarget, grpcDialOpts...)
+	}
 
 	// Code cache: use Redis when configured, otherwise fall back to local memory.
 	var codeCache CodeCache
@@ -378,6 +404,9 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 	if orderErr == nil {
 		svcCtx.OrderClient = &orderGRPCClient{cli: orderproto.NewOrderClient(orderConn)}
 	}
+	if payTarget != "" && payErr == nil {
+		svcCtx.PayClient = &payGRPCClient{cli: payproto.NewPayClient(payConn)}
+	}
 	if dispatchErr == nil {
 		svcCtx.DispatchClient = &dispatchGRPCClient{cli: dispatchproto.NewDispatchClient(dispatchConn)}
 	}
@@ -388,9 +417,8 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 		db, err := datasource.NewMysqlClient(mysqlConf)
 		if err != nil {
 			// 妥协：MySQL 初始化失败不 panic，打日志后继续启动，Review/Trajectory 接口返回 501 降级。
-			logx.Errorf("driver api mysql init failed, review/trajectory endpoints will be unavailable: %v", err)
+			logx.Errorf("driver api mysql init failed, trajectory/heatmap storage will be unavailable: %v", err)
 		} else {
-			svcCtx.ReviewRepository = NewGormReviewRepository(db)
 			svcCtx.TrajectoryRepository = NewGormTrajectoryRepository(db)
 			svcCtx.HeatmapRepository = NewGormHeatmapRepository(db)
 		}

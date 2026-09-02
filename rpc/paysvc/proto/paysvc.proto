@@ -16,6 +16,7 @@ service Pay {
   rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
   // 司机结算：计算平台抽成与司机实收。
   rpc SettleOrder(SettleOrderRequest) returns (SettleOrderResponse);
+  rpc ListSettlements(ListSettlementsRequest) returns (ListSettlementsResponse);
 }
 
 // 支付渠道
@@ -107,4 +108,33 @@ message SettleOrderResponse {
   string settlement_no = 2;
   int64 platform_commission_cents = 3; // 平台抽成（分）
   int64 driver_income_cents = 4;       // 司机实收（分）
+}
+
+message ListSettlementsRequest {
+  int64 driver_id = 1;
+  int32 status = 2;
+  int64 start_at = 3;
+  int64 end_at = 4;
+  int32 page = 5;
+  int32 page_size = 6;
+}
+
+message SettlementBill {
+  int64 settlement_id = 1;
+  string settlement_no = 2;
+  int64 order_id = 3;
+  int64 driver_id = 4;
+  int64 total_amount_cents = 5;
+  int64 platform_commission_cents = 6;
+  int64 driver_income_cents = 7;
+  int32 status = 8;
+  int64 settled_at = 9;
+  int64 created_at = 10;
+}
+
+message ListSettlementsResponse {
+  repeated SettlementBill records = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }

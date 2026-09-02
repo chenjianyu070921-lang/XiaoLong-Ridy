@@ -68,18 +68,18 @@ func UpdateDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
-func UploadDriverAvatarHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+func AvatarUploadTokenHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
 			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
-		var req types.UploadDriverAvatarRequest
+		var req types.AvatarUploadTokenRequest
 		if !decodeJSON(w, r, &req) {
 			return
 		}
-		resp, err := logic.NewAvatarLogic().UploadDriverAvatar(int64(claims.AccountID), &req)
+		resp, err := logic.NewAvatarLogic().GetUploadToken(r.Context(), svcCtx, int64(claims.AccountID), &req)
 		if err != nil {
 			writeParamError(w, err)
 			return

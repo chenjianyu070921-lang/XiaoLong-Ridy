@@ -20,10 +20,6 @@ export function updateDriver(data) {
   return driverRequest.post('/drivers/update', data)
 }
 
-export function uploadDriverAvatar(avatar) {
-  return driverRequest.post('/drivers/avatar/upload', { avatar })
-}
-
 export function getDriver(config = {}) {
   return driverRequest.get('/drivers/get', config)
 }
@@ -124,12 +120,12 @@ export function getOrderHeatmap(data = {}, config = {}) {
   return driverRequest.post('/orders/heatmap', data, config)
 }
 
-export function getDriverOrderDetail(orderId) {
-  return driverRequest.post('/orders/detail', { orderId })
+export function getOrderTrajectory(data = {}, config = {}) {
+  return driverRequest.post('/orders/trajectory', data, config)
 }
 
-export function getOrderTrajectory(orderId, config = {}) {
-  return driverRequest.post('/orders/trajectory', { orderId }, config)
+export function getDriverOrderDetail(orderId) {
+  return driverRequest.post('/orders/detail', { orderId })
 }
 
 export function listDriverOrders(data = {}, config = {}) {
@@ -138,10 +134,6 @@ export function listDriverOrders(data = {}, config = {}) {
 
 export function listDriverDispatches(data = {}, config = {}) {
   return driverRequest.post('/orders/dispatches', data, config)
-}
-
-export function listPassengerReviews(data = {}, config = {}) {
-  return driverRequest.post('/reviews/list', data, config)
 }
 
 export default driverRequest

@@ -41,6 +41,7 @@ func (l *SettleOrderLogic) SettleOrder(in *proto.SettleOrderRequest) (*proto.Set
 
 	// 2. 生成结算单号并落库
 	settlementNo := genSettlementNo()
+	settledAt := time.Now()
 	s := &model.Settlement{
 		SettlementNo:           settlementNo,
 		OrderId:                uint64(in.OrderId),
@@ -50,6 +51,7 @@ func (l *SettleOrderLogic) SettleOrder(in *proto.SettleOrderRequest) (*proto.Set
 		PlatformCommission:     priceutil.CentsToYuan(commission),
 		DriverIncome:           priceutil.CentsToYuan(income),
 		Status:                 model.SettlementStatusSettled,
+		SettledAt:              &settledAt,
 	}
 
 	repo := repository.NewSettlementRepo(l.svcCtx.DB)
@@ -58,9 +60,9 @@ func (l *SettleOrderLogic) SettleOrder(in *proto.SettleOrderRequest) (*proto.Set
 	}
 
 	return &proto.SettleOrderResponse{
-		SettlementId:           int64(s.Id),
-		SettlementNo:           settlementNo,
+		SettlementId:            int64(s.Id),
+		SettlementNo:            settlementNo,
 		PlatformCommissionCents: commission,
-		DriverIncomeCents:      income,
+		DriverIncomeCents:       income,
 	}, nil
 }

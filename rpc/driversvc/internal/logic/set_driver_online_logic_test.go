@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
@@ -217,6 +218,10 @@ func (r *setDriverOnlineRepository) UpdateStatusAndLocation(_ context.Context, _
 }
 
 func (r *setDriverOnlineRepository) GetDriverScore(context.Context, uint64) (*model.DriverScore, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (r *setDriverOnlineRepository) RefreshDriverScoreMetrics(context.Context, uint64, time.Time, time.Time) (*model.DriverScore, error) {
 	return nil, errors.New("not implemented")
 }
 

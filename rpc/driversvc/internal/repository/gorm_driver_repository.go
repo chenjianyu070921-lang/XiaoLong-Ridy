@@ -2,11 +2,14 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
+	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm"
 )
 
@@ -254,4 +257,109 @@ func (r *gormDriverRepository) GetDriverScore(ctx context.Context, driverID uint
 		return nil, err
 	}
 	return &score, nil
+}
+
+func (r *gormDriverRepository) RefreshDriverScoreMetrics(ctx context.Context, driverID uint64, startAt, endAt time.Time) (*model.DriverScore, error) {
+	var completedOrders int64
+	if err := r.db.WithContext(ctx).Table("ride_order").
+		Where("driver_id = ? AND status = ? AND updated_at >= ? AND updated_at < ?", driverID, constants.OrderStatusCompleted, startAt, endAt).
+		Count(&completedOrders).Error; err != nil {
+		return nil, err
+	}
+
+	var cancelledOrders int64
+	if err := r.db.WithContext(ctx).Table("ride_order").
+		Where("driver_id = ? AND status = ? AND updated_at >= ? AND updated_at < ?", driverID, constants.OrderStatusCancelled, startAt, endAt).
+		Count(&cancelledOrders).Error; err != nil {
+		return nil, err
+	}
+
+	var avgRating sql.NullFloat64
+	if err := r.db.WithContext(ctx).Table("order_review").
+		Select("AVG(rating)").
+		Where("driver_id = ? AND created_at >= ? AND created_at < ?", driverID, startAt, endAt).
+		Scan(&avgRating).Error; err != nil {
+		return nil, err
+	}
+
+	var complaintCount int64
+	if err := r.db.WithContext(ctx).Table("admin_complaint_work_order").
+		Where("driver_id = ? AND created_at >= ? AND created_at < ?", driverID, startAt, endAt).
+		Count(&complaintCount).Error; err != nil {
+		return nil, err
+	}
+
+	existing, err := r.GetDriverScore(ctx, driverID)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceScore := 100.0
+	if existing != nil && existing.Score > 0 {
+		serviceScore = existing.Score
+	}
+	if avgRating.Valid {
+		serviceScore = avgRating.Float64 * 20.0
+	}
+	totalFinishedOrCancelled := completedOrders + cancelledOrders
+	cancelRate := 0.0
+	if totalFinishedOrCancelled > 0 {
+		cancelRate = float64(cancelledOrders) * 100.0 / float64(totalFinishedOrCancelled)
+	}
+
+	now := time.Now()
+	score := &model.DriverScore{
+		DriverId:            driverID,
+		Score:               serviceScore,
+		Level:               driverLevelFromServiceScore(serviceScore),
+		MonthOrders:         int(completedOrders),
+		MonthCancelRate:     cancelRate,
+		MonthComplaintCount: int(complaintCount),
+		UpdatedAt:           now,
+	}
+	if existing == nil {
+		if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "driver_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"score",
+				"level",
+				"month_orders",
+				"month_cancel_rate",
+				"month_complaint_count",
+				"updated_at",
+			}),
+		}).Create(score).Error; err != nil {
+			return nil, err
+		}
+		return score, nil
+	}
+	score.Id = existing.Id
+	if err := r.db.WithContext(ctx).Model(&model.DriverScore{}).
+		Where("driver_id = ?", driverID).
+		Updates(map[string]interface{}{
+			"score":                 score.Score,
+			"level":                 score.Level,
+			"month_orders":          score.MonthOrders,
+			"month_cancel_rate":     score.MonthCancelRate,
+			"month_complaint_count": score.MonthComplaintCount,
+			"updated_at":            now,
+		}).Error; err != nil {
+		return nil, err
+	}
+	return score, nil
+}
+
+func driverLevelFromServiceScore(score float64) int8 {
+	switch {
+	case score >= 95:
+		return 5
+	case score >= 90:
+		return 4
+	case score >= 80:
+		return 3
+	case score >= 70:
+		return 2
+	default:
+		return 1
+	}
 }

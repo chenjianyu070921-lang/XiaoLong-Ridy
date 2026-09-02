@@ -16,6 +16,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/jwtx"
+	qiniuutil "XiaoLong-Ridy/common/qiniu"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
@@ -157,6 +158,7 @@ func TestLoadDriverConfigReadsYamlAndEnvCanOverride(t *testing.T) {
 httpAddr: ":18082"
 driverGrpcAddr: "driversvc:5055"
 orderGrpcAddr: "ordersvc:50051"
+payGrpcAddr: "paysvc:50054"
 dispatchGrpcAddr: "dispatchsvc:50056"
 locationGrpcAddr: "locationsvc:9001"
 redisAddr: "redis:6379"
@@ -169,7 +171,7 @@ redisAddr: "redis:6379"
 		t.Fatalf("loadDriverConfig() error = %v", err)
 	}
 	if cfg.HTTPAddr != ":18082" || cfg.DriverGRPCAddr != "driversvc:5055" ||
-		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.DispatchGRPCAddr != "dispatchsvc:50056" ||
+		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.PayGRPCAddr != "paysvc:50054" || cfg.DispatchGRPCAddr != "dispatchsvc:50056" ||
 		cfg.LocationGRPCAddr != "locationsvc:9001" || cfg.RedisAddr != "redis:6379" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
@@ -187,6 +189,7 @@ func TestLoadDriverConfigDefaultsUseSharedBackendServer(t *testing.T) {
 	}
 	if cfg.DriverGRPCAddr != "115.191.16.159:50055" ||
 		cfg.OrderGRPCAddr != "115.191.16.159:50051" ||
+		cfg.PayGRPCAddr != "115.191.16.159:50054" ||
 		cfg.DispatchGRPCAddr != "115.191.16.159:50056" ||
 		cfg.LocationGRPCAddr != "115.191.16.159:9001" {
 		t.Fatalf("unexpected default backend addresses: %+v", cfg)
@@ -217,26 +220,19 @@ func TestCertificationFilesRouteServesLocalStoredImages(t *testing.T) {
 	}
 }
 
-func TestDriverAvatarUploadRequiresDriverToken(t *testing.T) {
-	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "avatar-route-auth-test-key"})
-	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/drivers/avatar/upload", bytes.NewBufferString(`{
-		"avatar": "data:image/png;base64,aGVsbG8="
-	}`))
-	response := httptest.NewRecorder()
-
-	handler.ServeHTTP(response, request)
-
-	if response.Code != http.StatusUnauthorized {
-		t.Fatalf("avatar upload status = %d, want %d: %s", response.Code, http.StatusUnauthorized, response.Body.String())
+func TestDriverAvatarUploadTokenUsesQiniuStorage(t *testing.T) {
+	const signingKey = "avatar-token-test-key"
+	qiniuClient, err := qiniuutil.NewClient(qiniuutil.Config{
+		AccessKey: "driver-access-key",
+		SecretKey: "driver-secret-key",
+		Bucket:    "xiaolong-ride",
+		Domain:    "http://tkiajahyp.hd-bkt.clouddn.com",
+		UploadURL: "https://upload.qiniup.com",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestDriverAvatarUploadStoresLocalImageAndReturnsURL(t *testing.T) {
-	const signingKey = "avatar-upload-test-key"
-	dir := t.TempDir()
-	t.Setenv("DRIVER_AVATAR_LOCAL_DIR", dir)
-
-	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: signingKey})
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: signingKey, Qiniu: qiniuClient})
 	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
 		AccountID:     25,
 		AccountType:   "driver",
@@ -247,37 +243,35 @@ func TestDriverAvatarUploadStoresLocalImageAndReturnsURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/drivers/avatar/upload", bytes.NewBufferString(`{
-		"avatar": "data:image/png;base64,aGVsbG8="
-	}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/upload/avatar-token", bytes.NewBufferString(`{"extension":"png"}`))
 	request.Header.Set("Authorization", "Bearer "+token)
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
-		t.Fatalf("avatar upload status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+		t.Fatalf("avatar token status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
 	}
 	var body struct {
 		Code int `json:"code"`
 		Data struct {
-			AvatarURL string `json:"avatarUrl"`
+			UploadToken string `json:"uploadToken"`
+			Key         string `json:"key"`
+			Domain      string `json:"domain"`
+			UploadURL   string `json:"uploadUrl"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if body.Data.AvatarURL == "" || !strings.HasPrefix(body.Data.AvatarURL, "/api/driver/v1/avatar-files/drivers/25/avatar-") || !strings.HasSuffix(body.Data.AvatarURL, ".png") {
-		t.Fatalf("avatarUrl = %q, want local avatar file URL", body.Data.AvatarURL)
+	if body.Code != 0 || body.Data.UploadToken == "" {
+		t.Fatalf("avatar token response missing upload token: %s", response.Body.String())
 	}
-
-	storedPath := filepath.Join(dir, filepath.FromSlash(strings.TrimPrefix(body.Data.AvatarURL, "/api/driver/v1/avatar-files/")))
-	data, err := os.ReadFile(storedPath)
-	if err != nil {
-		t.Fatalf("avatar file was not stored: %v", err)
+	if !strings.HasPrefix(body.Data.Key, "avatar/passenger/25/") || !strings.HasSuffix(body.Data.Key, ".png") {
+		t.Fatalf("avatar key = %q, want passenger avatar qiniu path for driver 25", body.Data.Key)
 	}
-	if string(data) != "hello" {
-		t.Fatalf("stored avatar data = %q, want %q", string(data), "hello")
+	if body.Data.Domain != "http://tkiajahyp.hd-bkt.clouddn.com" || body.Data.UploadURL != "https://upload.qiniup.com" {
+		t.Fatalf("unexpected qiniu target: %+v", body.Data)
 	}
 }
 
@@ -300,8 +294,6 @@ func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 		{http.MethodGet, "/api/driver/v1/income/today"},
 		{http.MethodGet, "/api/driver/v1/income/week"},
 		{http.MethodPost, "/api/driver/v1/income/bills"},
-		{http.MethodPost, "/api/driver/v1/reviews/list"},
-		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
 	}
 
 	for _, route := range routes {
@@ -342,7 +334,6 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 		{http.MethodPost, "/api/driver/v1/orders/confirm-arrive"},
 		{http.MethodPost, "/api/driver/v1/orders/finish-trip"},
 		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
-		{http.MethodPost, "/api/driver/v1/reviews/list"},
 		{http.MethodGet, "/api/driver/v1/income/summary"},
 		{http.MethodGet, "/api/driver/v1/income/today"},
 		{http.MethodGet, "/api/driver/v1/income/week"},

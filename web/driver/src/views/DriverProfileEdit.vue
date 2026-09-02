@@ -5,30 +5,30 @@
         <van-icon name="arrow-left" />
       </button>
       <div>
-        <span>司机资料</span>
-        <h1>编辑个人信息</h1>
+        <span>个人资料</span>
+        <h1>编辑资料</h1>
       </div>
     </header>
 
     <section class="avatar-edit-panel">
-      <button type="button" class="avatar-picker" aria-label="更换头像" @click="chooseAvatar">
+      <button type="button" class="avatar-picker" aria-label="编辑头像" @click="chooseAvatar">
         <img v-if="avatarPreview" :src="avatarPreview" alt="司机头像" />
         <span v-else class="avatar-fallback">{{ driverStore.displayName.slice(0, 1) || '--' }}</span>
         <b><van-icon name="photograph" /></b>
       </button>
       <div>
         <strong>{{ driverStore.displayName || '司机' }}</strong>
-        <p>{{ avatarChanged ? '已选择新头像，保存后生效' : '点击头像从本地图库选择照片' }}</p>
+        <p>{{ avatarChanged ? '点击更换头像' : '点击编辑资料' }}</p>
         <button type="button" class="avatar-gallery-button" @click="chooseAvatar">
           <van-icon name="photograph" />
-          <span>从本地图库选择</span>
+          <span>从相册选择</span>
         </button>
       </div>
       <input ref="avatarInput" class="avatar-file-input" type="file" accept="image/*" @change="readAvatarFile" />
     </section>
 
     <van-form class="profile-edit-form" @submit="submitProfile">
-      <van-field v-model="profileForm.realName" name="realName" label="姓名" placeholder="请输入司机姓名" clearable />
+      <van-field v-model="profileForm.realName" name="realName" label="姓名" placeholder="请输入姓名" clearable />
       <van-field v-model="profileForm.phone" name="phone" label="手机号" :placeholder="phonePlaceholder" clearable />
       <van-field v-model="profileForm.idCardNo" name="idCardNo" label="身份证号" :placeholder="idCardPlaceholder" clearable />
       <van-field v-model="profileForm.driverLicenseNo" name="driverLicenseNo" label="驾驶证号" placeholder="请输入驾驶证号" clearable />
@@ -45,17 +45,18 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { closeToast, showLoadingToast, showToast } from 'vant'
-import { uploadDriverAvatar } from '@/api/driver'
+import { getAvatarUploadToken, uploadToQiniu } from '@/api/upload'
 import { useDriverStore } from '@/stores/driver'
 
 const router = useRouter()
 const driverStore = useDriverStore()
 const avatarInput = ref(null)
 const submitting = ref(false)
-const avatarBase64 = ref('')
+const avatarFile = ref(null)
+const avatarObjectUrl = ref('')
 
 const profileForm = reactive({
   realName: '',
@@ -65,20 +66,24 @@ const profileForm = reactive({
   avatarUrl: ''
 })
 
-const avatarPreview = computed(() => avatarBase64.value || profileForm.avatarUrl || driverStore.driver.avatarUrl || '')
-const avatarChanged = computed(() => Boolean(avatarBase64.value))
-const phonePlaceholder = computed(() => driverStore.driver.phone || '请输入新的手机号')
-const idCardPlaceholder = computed(() => driverStore.driver.idCardNo || '请输入新的身份证号')
+const avatarPreview = computed(() => avatarObjectUrl.value || profileForm.avatarUrl || driverStore.driver.avatarUrl || '')
+const avatarChanged = computed(() => Boolean(avatarFile.value))
+const phonePlaceholder = computed(() => driverStore.driver.phone || '未绑定手机号')
+const idCardPlaceholder = computed(() => driverStore.driver.idCardNo || '未绑定身份证号')
 
 onMounted(async () => {
   await driverStore.refreshProfile({ silentError: true }).catch(() => null)
   syncProfileForm()
 })
 
+onBeforeUnmount(() => {
+  revokeAvatarObjectUrl()
+})
+
 function syncProfileForm() {
   profileForm.realName = driverStore.driver.realName || ''
-  profileForm.phone = ''
-  profileForm.idCardNo = ''
+  profileForm.phone = driverStore.driver.phone || ''
+  profileForm.idCardNo = driverStore.driver.idCardNo || ''
   profileForm.driverLicenseNo = driverStore.driver.driverLicenseNo || ''
   profileForm.avatarUrl = driverStore.driver.avatarUrl || ''
 }
@@ -96,14 +101,16 @@ async function readAvatarFile(event) {
     return
   }
   if (file.size > 5 * 1024 * 1024) {
-    showToast('头像图片不能超过5MB')
+    showToast('图片大小不能超过5MB')
     event.target.value = ''
     return
   }
   try {
-    avatarBase64.value = await fileToBase64(file)
+    revokeAvatarObjectUrl()
+    avatarFile.value = file
+    avatarObjectUrl.value = URL.createObjectURL(file)
   } catch (error) {
-    showToast(error?.message || '头像读取失败')
+    showToast(error?.message || '读取图片失败')
   } finally {
     event.target.value = ''
   }
@@ -111,13 +118,15 @@ async function readAvatarFile(event) {
 
 async function submitProfile() {
   if (submitting.value) return
+  if (!driverStore.driverId) {
+    showToast('请先重新登录')
+    return
+  }
   submitting.value = true
   showLoadingToast({ message: '保存中...', forbidClick: true, duration: 0 })
   try {
-    if (avatarBase64.value) {
-      const uploaded = await uploadDriverAvatar(avatarBase64.value)
-      profileForm.avatarUrl = uploaded.avatarUrl || ''
-      avatarBase64.value = ''
+    if (avatarFile.value) {
+      await uploadSelectedAvatar()
     }
     await driverStore.saveProfile(compact({
       realName: profileForm.realName,
@@ -127,14 +136,31 @@ async function submitProfile() {
       avatarUrl: profileForm.avatarUrl
     }))
     closeToast()
-    showToast('资料已保存')
+    showToast('保存成功')
     syncProfileForm()
   } catch (error) {
     closeToast()
-    showToast(error?.response?.data?.message || error?.message || '资料保存失败')
+    showToast(error?.response?.data?.message || error?.message || '保存失败')
   } finally {
     submitting.value = false
   }
+}
+
+async function uploadSelectedAvatar() {
+  const extension = avatarFile.value.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const tokenInfo = await getAvatarUploadToken(extension)
+  if (!tokenInfo?.uploadUrl || !tokenInfo?.uploadToken || !tokenInfo?.key || !tokenInfo?.domain) {
+    throw new Error('上传凭证缺失')
+  }
+  await uploadToQiniu(tokenInfo.uploadUrl, tokenInfo.uploadToken, tokenInfo.key, avatarFile.value)
+  profileForm.avatarUrl = buildAvatarUrl(tokenInfo.domain, tokenInfo.key)
+  avatarFile.value = null
+  revokeAvatarObjectUrl()
+}
+
+function revokeAvatarObjectUrl() {
+  if (avatarObjectUrl.value) URL.revokeObjectURL(avatarObjectUrl.value)
+  avatarObjectUrl.value = ''
 }
 
 function goBack() {
@@ -146,21 +172,18 @@ function compact(payload) {
   return Object.fromEntries(Object.entries(payload).filter(([, value]) => String(value ?? '').trim() !== ''))
 }
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('头像读取失败'))
-    reader.readAsDataURL(file)
-  })
+function buildAvatarUrl(domain, key) {
+  const base = String(domain || '').replace(/\/*$/, '')
+  const path = String(key || '').replace(/^\/+/, '')
+  return base && path ? `${base}/${path}` : base || path
 }
 
 function formatDriverStatus(status) {
   return {
     DRIVER_STATUS_PENDING: '待审核',
     DRIVER_STATUS_NORMAL: '正常',
-    DRIVER_STATUS_FROZEN: '冻结',
-    DRIVER_STATUS_CANCELLED: '注销'
+    DRIVER_STATUS_FROZEN: '已冻结',
+    DRIVER_STATUS_CANCELLED: '已注销'
   }[status] || status || '--'
 }
 </script>

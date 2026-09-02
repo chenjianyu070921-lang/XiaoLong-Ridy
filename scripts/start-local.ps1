@@ -69,7 +69,7 @@ if ($apiExe) {
 # ---------- 3. wait for ports ----------
 Write-Host ""
 Write-Host "Waiting for ports..."
-$ports = @{ 50055="driversvc"; 50051="ordersvc"; 50056="dispatchsvc"; 9001="locationsvc"; 8082="api/driver" }
+$ports = @{ 50055="driversvc"; 50051="ordersvc"; 50056="dispatchsvc"; 9001="locationsvc"; 18082="api/driver" }
 foreach ($kv in $ports.GetEnumerator()) { Wait-Port $kv.Key $kv.Value }
 Write-Host ""
 Write-Host "Done. Frontend localhost:5175 should now work."

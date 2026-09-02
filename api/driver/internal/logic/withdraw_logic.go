@@ -2,6 +2,9 @@ package logic
 
 import (
 	"context"
+	"errors"
+	"math"
+	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
@@ -21,19 +24,32 @@ func (l *WithdrawLogic) CreateWithdraw(driverID int64, req *types.CreateWithdraw
 	if driverID <= 0 || req == nil {
 		return nil, ErrInvalidParam
 	}
-	// #7 修复：提现金额必须为正数，防止负数/零金额提现
-	if req.Amount <= 0 {
-		return nil, ErrInvalidParam
+	if l.svcCtx == nil || l.svcCtx.DriverClient == nil {
+		return nil, ErrDriverClientNotConfigured
 	}
+	if err := validateWithdrawAmount(req.Amount); err != nil {
+		return nil, err
+	}
+
+	payeeName := strings.TrimSpace(req.PayeeName)
+	if payeeName == "" {
+		return nil, errors.New("payee name is required")
+	}
+	payAccount := strings.TrimSpace(req.PayAccount)
+	if payAccount == "" {
+		return nil, errors.New("pay account is required")
+	}
+
 	client, err := l.driverClient()
 	if err != nil {
 		return nil, err
 	}
+
 	resp, err := client.CreateWithdraw(l.ctx, &driversproto.CreateWithdrawRequest{
 		DriverId:   driverID,
-		Amount:     req.Amount,
-		PayeeName:  req.PayeeName,
-		PayAccount: req.PayAccount,
+		Amount:     normalizeWithdrawAmount(req.Amount),
+		PayeeName:  payeeName,
+		PayAccount: payAccount,
 	})
 	if err != nil {
 		return nil, err
@@ -86,4 +102,25 @@ func (l *WithdrawLogic) driverClient() (svc.DriverClient, error) {
 		return nil, ErrDriverClientNotConfigured
 	}
 	return l.svcCtx.DriverClient, nil
+}
+
+func validateWithdrawAmount(amount float64) error {
+	if math.IsNaN(amount) || math.IsInf(amount, 0) {
+		return errors.New("withdraw amount must be a finite number")
+	}
+	if amount <= 0 {
+		return errors.New("withdraw amount must be greater than 0")
+	}
+	if amount > 100000 {
+		return errors.New("withdraw amount exceeds limit")
+	}
+	cents := amount * 100
+	if math.Abs(cents-math.Round(cents)) > 1e-6 {
+		return errors.New("withdraw amount must not exceed 2 decimal places")
+	}
+	return nil
+}
+
+func normalizeWithdrawAmount(amount float64) float64 {
+	return math.Round(amount*100) / 100
 }

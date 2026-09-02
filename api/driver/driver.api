@@ -61,12 +61,16 @@ type UpdateDriverResponse {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
-type UploadDriverAvatarRequest {
-	Avatar string `json:"avatar"`
+type AvatarUploadTokenRequest {
+	Extension string `json:"extension"`
 }
 
-type UploadDriverAvatarResponse {
-	AvatarURL string `json:"avatarUrl"`
+type AvatarUploadTokenResponse {
+	UploadToken string `json:"uploadToken"`
+	Key         string `json:"key"`
+	Domain      string `json:"domain"`
+	UploadURL   string `json:"uploadUrl"`
+	ExpireSec   int64  `json:"expireSec"`
 }
 
 type GetDriverRequest {
@@ -82,6 +86,7 @@ type DriverDetail {
 	AvatarURL       string `json:"avatarUrl"`
 	Status          string `json:"status"`
 	OnlineStatus    int    `json:"onlineStatus"`
+	VehicleID       int64  `json:"vehicleId"`
 	CreatedAt       int64  `json:"createdAt"`
 	UpdatedAt       int64  `json:"updatedAt"`
 }
@@ -114,7 +119,6 @@ type SendSMSCodeRequest {
 type SendSMSCodeResponse {
 	Success  bool `json:"success"`
 	ExpireIn int  `json:"expireIn"`
-	Code     string `json:"code"`
 }
 
 type LoginByPasswordRequest {
@@ -128,9 +132,10 @@ type LoginBySMSRequest {
 }
 
 type DriverBrief {
-	ID     int64  `json:"id"`
-	Phone  string `json:"phone"`
-	Status string `json:"status"`
+	ID        int64  `json:"id"`
+	Phone     string `json:"phone"`
+	Status    string `json:"status"`
+	VehicleID int64  `json:"vehicleId"`
 }
 
 type LoginResponse {
@@ -536,7 +541,23 @@ type HeatmapResponse {
 	Points         []HeatmapPoint `json:"points"`
 	RadiusMeters   float64        `json:"radiusMeters"`
 	GridSizeMeters int64          `json:"gridSizeMeters"`
-	Cached         bool           `json:"cached"`
+}
+
+type GetTripTrajectoryRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type TrajectoryPoint {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	Heading   int32   `json:"heading"`
+	CreatedAt int64   `json:"createdAt"`
+}
+
+type GetTripTrajectoryResponse {
+	OrderID  int64             `json:"orderId"`
+	Points   []TrajectoryPoint  `json:"points"`
 }
 
 type GetMyOrderDetailRequest {
@@ -567,46 +588,6 @@ type OrderDetail {
 
 type GetMyOrderDetailResponse {
 	Order OrderDetail `json:"order"`
-}
-
-type ListPassengerReviewsRequest {
-	Page     int32 `json:"page"`
-	PageSize int32 `json:"pageSize"`
-}
-
-type PassengerReview {
-	OrderID   int64  `json:"orderId"`
-	Rating    int32  `json:"rating"`
-	Comment   string `json:"comment"`
-	CreatedAt int64  `json:"createdAt"`
-}
-
-type ListPassengerReviewsResponse {
-	List     []PassengerReview `json:"list"`
-	Total    int64             `json:"total"`
-	Page     int32             `json:"page"`
-	PageSize int32             `json:"pageSize"`
-	Degraded bool              `json:"degraded"`
-	Message  string            `json:"message"`
-}
-
-type GetTripTrajectoryRequest {
-	OrderID int64 `json:"orderId"`
-}
-
-type TrajectoryPoint {
-	Longitude float64 `json:"longitude"`
-	Latitude  float64 `json:"latitude"`
-	SpeedKmh  float64 `json:"speedKmh"`
-	Heading   int32   `json:"heading"`
-	CreatedAt int64   `json:"createdAt"`
-}
-
-type GetTripTrajectoryResponse {
-	OrderID  int64             `json:"orderId"`
-	Points   []TrajectoryPoint `json:"points"`
-	Degraded bool              `json:"degraded"`
-	Message  string            `json:"message"`
 }
 
 type AgentChatRequest {
@@ -645,8 +626,8 @@ service driver-api {
 	@handler UpdateDriverHandler
 	post /api/driver/v1/drivers/update (UpdateDriverRequest) returns (UpdateDriverResponse)
 
-	@handler UploadDriverAvatarHandler
-	post /api/driver/v1/drivers/avatar/upload (UploadDriverAvatarRequest) returns (UploadDriverAvatarResponse)
+	@handler AvatarUploadTokenHandler
+	post /api/driver/v1/upload/avatar-token (AvatarUploadTokenRequest) returns (AvatarUploadTokenResponse)
 
 	@handler GetDriverHandler
 	get /api/driver/v1/drivers/get (GetDriverRequest) returns (GetDriverResponse)
@@ -740,9 +721,6 @@ service driver-api {
 
 	@handler GetTripTrajectoryHandler
 	post /api/driver/v1/orders/trajectory (GetTripTrajectoryRequest) returns (GetTripTrajectoryResponse)
-
-	@handler ListPassengerReviewsHandler
-	post /api/driver/v1/reviews/list (ListPassengerReviewsRequest) returns (ListPassengerReviewsResponse)
 
 	@handler DriverPushWSHandler
 	get /api/driver/v1/ws (DriverPushWSRequest)

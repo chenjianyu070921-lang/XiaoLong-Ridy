@@ -9,6 +9,9 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestCreateWithdrawCreatesPendingRecord(t *testing.T) {
@@ -86,13 +89,113 @@ func TestListWithdrawsReturnsRepositoryRecords(t *testing.T) {
 	}
 }
 
+func TestAuditWithdrawApprovesPendingRecord(t *testing.T) {
+	repo := &fakeWithdrawRepository{
+		records: []*model.DriverWithdraw{{
+			Id:       88,
+			DriverId: 25,
+			Status:   withdrawStatusPending,
+		}},
+	}
+	logic := NewAuditWithdrawLogic(context.Background(), &svc.ServiceContext{DriverWithdrawRepository: repo})
+
+	resp, err := logic.AuditWithdraw(&proto.AuditWithdrawRequest{
+		WithdrawId: 88,
+		Approve:    true,
+		Remark:     "paid by finance",
+		OperatorId: 9001,
+		Ip:         "127.0.0.1",
+	})
+	if err != nil {
+		t.Fatalf("AuditWithdraw() error = %v", err)
+	}
+	if resp.GetDriverId() != 25 {
+		t.Fatalf("AuditWithdraw() driver id = %d, want 25", resp.GetDriverId())
+	}
+	if repo.auditID != 88 || repo.auditStatus != withdrawStatusPaid || repo.auditRemark != "paid by finance" || repo.auditPaidAt == nil {
+		t.Fatalf("audit call = id:%d status:%d remark:%q paidAt:%v", repo.auditID, repo.auditStatus, repo.auditRemark, repo.auditPaidAt)
+	}
+}
+
+func TestAuditWithdrawRejectsPendingRecordWithRemark(t *testing.T) {
+	repo := &fakeWithdrawRepository{
+		records: []*model.DriverWithdraw{{
+			Id:       89,
+			DriverId: 26,
+			Status:   withdrawStatusPending,
+		}},
+	}
+	logic := NewAuditWithdrawLogic(context.Background(), &svc.ServiceContext{DriverWithdrawRepository: repo})
+
+	resp, err := logic.AuditWithdraw(&proto.AuditWithdrawRequest{
+		WithdrawId: 89,
+		Approve:    false,
+		Remark:     "bank account mismatch",
+		OperatorId: 9001,
+	})
+	if err != nil {
+		t.Fatalf("AuditWithdraw() error = %v", err)
+	}
+	if resp.GetDriverId() != 26 {
+		t.Fatalf("AuditWithdraw() driver id = %d, want 26", resp.GetDriverId())
+	}
+	if repo.auditID != 89 || repo.auditStatus != withdrawStatusFailed || repo.auditRemark != "bank account mismatch" || repo.auditPaidAt != nil {
+		t.Fatalf("audit call = id:%d status:%d remark:%q paidAt:%v", repo.auditID, repo.auditStatus, repo.auditRemark, repo.auditPaidAt)
+	}
+}
+
+func TestAuditWithdrawAllowsOnlyPendingRecords(t *testing.T) {
+	repo := &fakeWithdrawRepository{
+		records: []*model.DriverWithdraw{{
+			Id:       90,
+			DriverId: 27,
+			Status:   int8(withdrawStatusPaid),
+		}},
+	}
+	logic := NewAuditWithdrawLogic(context.Background(), &svc.ServiceContext{DriverWithdrawRepository: repo})
+
+	_, err := logic.AuditWithdraw(&proto.AuditWithdrawRequest{
+		WithdrawId: 90,
+		Approve:    false,
+		Remark:     "late reject",
+		OperatorId: 9001,
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("AuditWithdraw() error = %v, want FailedPrecondition", err)
+	}
+	if repo.auditID != 0 {
+		t.Fatalf("non-pending withdraw should not be audited, audit id = %d", repo.auditID)
+	}
+}
+
+func TestAuditWithdrawRejectRequiresRemark(t *testing.T) {
+	repo := &fakeWithdrawRepository{}
+	logic := NewAuditWithdrawLogic(context.Background(), &svc.ServiceContext{DriverWithdrawRepository: repo})
+
+	_, err := logic.AuditWithdraw(&proto.AuditWithdrawRequest{
+		WithdrawId: 88,
+		Approve:    false,
+		OperatorId: 9001,
+	})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("AuditWithdraw() error = %v, want InvalidArgument", err)
+	}
+	if repo.auditID != 0 {
+		t.Fatalf("invalid reject should not be audited, audit id = %d", repo.auditID)
+	}
+}
+
 type fakeWithdrawRepository struct {
-	created  *model.DriverWithdraw
-	records  []*model.DriverWithdraw
-	total    int64
-	driverID uint64
-	page     int32
-	pageSize int32
+	created     *model.DriverWithdraw
+	records     []*model.DriverWithdraw
+	total       int64
+	driverID    uint64
+	page        int32
+	pageSize    int32
+	auditID     uint64
+	auditStatus int32
+	auditRemark string
+	auditPaidAt *time.Time
 }
 
 func (f *fakeWithdrawRepository) Create(_ context.Context, withdraw *model.DriverWithdraw) error {
@@ -123,5 +226,16 @@ func (f *fakeWithdrawRepository) GetByID(_ context.Context, id uint64) (*model.D
 }
 
 func (f *fakeWithdrawRepository) Audit(_ context.Context, id uint64, status int32, remark string, paidAt *time.Time) error {
+	f.auditID = id
+	f.auditStatus = status
+	f.auditRemark = remark
+	f.auditPaidAt = paidAt
+	for _, record := range f.records {
+		if record.Id == id {
+			record.Status = int8(status)
+			record.Remark = remark
+			record.PaidAt = paidAt
+		}
+	}
 	return nil
 }

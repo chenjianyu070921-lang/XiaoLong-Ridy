@@ -131,7 +131,7 @@ func normalizeLoginError(err error) error {
 	switch st.Code() {
 	case codes.PermissionDenied:
 		return ErrDriverFrozen
-	case codes.Unavailable:
+	case codes.Unavailable, codes.DeadlineExceeded, codes.Unimplemented:
 		return err
 	default:
 		if isDriverForbiddenLoginMessage(st.Message()) {

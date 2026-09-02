@@ -169,6 +169,10 @@ func (f *getDriverFakeDriverRepository) GetDriverScore(context.Context, uint64) 
 	return nil, nil
 }
 
+func (f *getDriverFakeDriverRepository) RefreshDriverScoreMetrics(context.Context, uint64, time.Time, time.Time) (*model.DriverScore, error) {
+	return nil, nil
+}
+
 func (f *getDriverFakeDriverRepository) Update(context.Context, uint64, map[string]interface{}) error {
 	return nil
 }

@@ -5,7 +5,7 @@ import "time"
 // DriverScore 对应 driver_score 表：司机服务分、等级与运营指标。
 type DriverScore struct {
 	Id                  uint64    `gorm:"primaryKey;column:id" json:"id"`                                    // 评分记录 ID
-	DriverId            uint64    `gorm:"column:driver_id" json:"driverId"`                                  // 司机 ID
+	DriverId            uint64    `gorm:"column:driver_id;not null;uniqueIndex:uk_driver_id" json:"driverId"` // 司机 ID
 	Score               float64   `gorm:"column:score;default:100.00" json:"score"`                          // 服务分
 	Level               int8      `gorm:"column:level;default:1" json:"level"`                               // 司机等级
 	MonthOrders         int       `gorm:"column:month_orders;default:0" json:"monthOrders"`                  // 本月完成订单数

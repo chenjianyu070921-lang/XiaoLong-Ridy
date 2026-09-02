@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/handler"
-	"XiaoLong-Ridy/api/driver/internal/logic"
 	"XiaoLong-Ridy/api/driver/internal/middleware"
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	commonconfig "XiaoLong-Ridy/common/config"
+	qiniuutil "XiaoLong-Ridy/common/qiniu"
 
 	"gopkg.in/yaml.v3"
 )
@@ -28,6 +28,8 @@ const defaultDriverGRPCAddr = "115.191.16.159:50055"
 
 const defaultOrderGRPCAddr = "115.191.16.159:50051"
 
+const defaultPayGRPCAddr = "115.191.16.159:50054"
+
 const defaultDispatchGRPCAddr = "115.191.16.159:50056"
 
 const defaultLocationGRPCAddr = "115.191.16.159:9001"
@@ -38,12 +40,18 @@ type driverConfig struct {
 	HTTPAddr         string                 `yaml:"httpAddr"`
 	DriverGRPCAddr   string                 `yaml:"driverGrpcAddr"`
 	OrderGRPCAddr    string                 `yaml:"orderGrpcAddr"`
+	PayGRPCAddr      string                 `yaml:"payGrpcAddr"`
 	DispatchGRPCAddr string                 `yaml:"dispatchGrpcAddr"`
 	LocationGRPCAddr string                 `yaml:"locationGrpcAddr"`
 	RedisAddr        string                 `yaml:"redisAddr"`
 	RedisPassword    string                 `yaml:"redisPassword"`
 	Mysql            commonconfig.MysqlConf `yaml:"mysql"`
 	InternalAuth     svc.InternalAuthConfig `yaml:"internalAuth"`
+	QiniuAccessKey   string                 `yaml:"qiniuAccessKey"`
+	QiniuSecretKey   string                 `yaml:"qiniuSecretKey"`
+	QiniuBucket      string                 `yaml:"qiniuBucket"`
+	QiniuDomain      string                 `yaml:"qiniuDomain"`
+	QiniuUploadURL   string                 `yaml:"qiniuUploadURL"`
 }
 
 func main() {
@@ -57,6 +65,7 @@ func main() {
 	address := envOr("DRIVER_HTTP_ADDR", cfg.HTTPAddr)
 	driverGRPCAddr := envOr("DRIVER_GRPC_ADDR", cfg.DriverGRPCAddr)
 	orderGRPCAddr := envOr("ORDER_GRPC_ADDR", cfg.OrderGRPCAddr)
+	payGRPCAddr := envOr("PAY_GRPC_ADDR", cfg.PayGRPCAddr)
 	dispatchGRPCAddr := envOr("DISPATCH_GRPC_ADDR", cfg.DispatchGRPCAddr)
 	locationGRPCAddr := envOr("LOCATION_GRPC_ADDR", cfg.LocationGRPCAddr)
 	redisAddr := envOr("DRIVER_REDIS_ADDR", cfg.RedisAddr)
@@ -68,8 +77,13 @@ func main() {
 		cfg.Mysql.Dsn = mysqlDSN
 	}
 
-	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword, cfg.Mysql)
+	svcCtx := svc.NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword, cfg.Mysql, payGRPCAddr)
 	svcCtx.InternalAuth = cfg.InternalAuth
+	if qiniuClient, err := newDriverQiniuClient(cfg); err != nil {
+		panic(fmt.Errorf("driver qiniu config: %w", err))
+	} else {
+		svcCtx.Qiniu = qiniuClient
+	}
 	if err := svcCtx.ValidateSigningKey(); err != nil {
 		panic(fmt.Errorf("driver api signing key check: %w", err))
 	}
@@ -85,7 +99,7 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
+	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s, ordersvc gRPC: %s, paysvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, payGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		panic(fmt.Errorf("start driver api: %w", err))
 	}
@@ -106,11 +120,26 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func newDriverQiniuClient(cfg driverConfig) (*qiniuutil.Client, error) {
+	qiniuCfg := qiniuutil.Config{
+		AccessKey: envOr("DRIVER_QINIU_ACCESS_KEY", envOr("PASSENGER_QINIU_ACCESS_KEY", cfg.QiniuAccessKey)),
+		SecretKey: envOr("DRIVER_QINIU_SECRET_KEY", envOr("PASSENGER_QINIU_SECRET_KEY", cfg.QiniuSecretKey)),
+		Bucket:    envOr("DRIVER_QINIU_BUCKET", envOr("PASSENGER_QINIU_BUCKET", cfg.QiniuBucket)),
+		Domain:    envOr("DRIVER_QINIU_DOMAIN", envOr("PASSENGER_QINIU_DOMAIN", cfg.QiniuDomain)),
+		UploadURL: envOr("DRIVER_QINIU_UPLOAD_URL", envOr("PASSENGER_QINIU_UPLOAD_URL", cfg.QiniuUploadURL)),
+	}
+	if qiniuCfg.AccessKey == "" && qiniuCfg.SecretKey == "" && qiniuCfg.Bucket == "" && qiniuCfg.Domain == "" {
+		return nil, nil
+	}
+	return qiniuutil.NewClient(qiniuCfg)
+}
+
 func loadDriverConfig(path string) (driverConfig, error) {
 	cfg := driverConfig{
 		HTTPAddr:         defaultHTTPAddress,
 		DriverGRPCAddr:   defaultDriverGRPCAddr,
 		OrderGRPCAddr:    defaultOrderGRPCAddr,
+		PayGRPCAddr:      defaultPayGRPCAddr,
 		DispatchGRPCAddr: defaultDispatchGRPCAddr,
 		LocationGRPCAddr: defaultLocationGRPCAddr,
 		RedisAddr:        defaultRedisAddr,
@@ -133,6 +162,9 @@ func loadDriverConfig(path string) (driverConfig, error) {
 	}
 	if cfg.OrderGRPCAddr == "" {
 		cfg.OrderGRPCAddr = defaultOrderGRPCAddr
+	}
+	if cfg.PayGRPCAddr == "" {
+		cfg.PayGRPCAddr = defaultPayGRPCAddr
 	}
 	if cfg.DispatchGRPCAddr == "" {
 		cfg.DispatchGRPCAddr = defaultDispatchGRPCAddr
@@ -172,14 +204,9 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 		"/api/driver/v1/certification-files/",
 		http.FileServer(http.Dir(localCertificationDir())),
 	))
-	mux.Handle("/api/driver/v1/avatar-files/", http.StripPrefix(
-		"/api/driver/v1/avatar-files/",
-		http.FileServer(http.Dir(logic.LocalAvatarDir())),
-	))
-
 	protected := middleware.RequireAuth(svcCtx)
+	mux.Handle("/api/driver/v1/upload/avatar-token", protected(methodSwitch("POST", handler.AvatarUploadTokenHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/update", protected(methodSwitch("POST", handler.UpdateDriverHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/avatar/upload", protected(methodSwitch("POST", handler.UploadDriverAvatarHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/get", protected(methodSwitch("GET", handler.GetDriverHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
@@ -211,7 +238,6 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/orders/confirm-arrive", protected(methodSwitch("POST", handler.ConfirmArriveHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", handler.FinishTripHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/trajectory", protected(methodSwitch("POST", handler.GetTripTrajectoryHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/reviews/list", protected(methodSwitch("POST", handler.ListPassengerReviewsHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/ws", handler.DriverPushWSHandler(svcCtx))
 	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", handler.AgentChatHandler())))
 

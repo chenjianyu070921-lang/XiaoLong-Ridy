@@ -25,8 +25,12 @@ func writeParamError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadGateway, 50002, "下游 ordersvc 不可用")
 		return
 	}
-	if errors.Is(err, logic.ErrReviewStorageNotConfigured) || errors.Is(err, logic.ErrTrajectoryStorageNotConfigured) {
-		writeError(w, http.StatusNotImplemented, 50003, err.Error())
+	if errors.Is(err, logic.ErrPayClientNotConfigured) {
+		writeError(w, http.StatusBadGateway, 50003, "下游 paysvc 不可用")
+		return
+	}
+	if errors.Is(err, logic.ErrQiniuNotConfigured) {
+		writeError(w, http.StatusBadGateway, 50004, "qiniu storage not configured")
 		return
 	}
 	if errors.Is(err, logic.ErrInvalidParam) {
@@ -40,7 +44,7 @@ func writeParamError(w http.ResponseWriter, err error) {
 
 	if st, ok := status.FromError(err); ok {
 		switch st.Code() {
-		case codes.Unavailable, codes.DeadlineExceeded:
+		case codes.Unavailable, codes.DeadlineExceeded, codes.Unimplemented:
 			// 下游服务不可用/超时统一映射为 502，避免被误判为 400 参数错误。
 			writeError(w, http.StatusBadGateway, 50001, "下游服务不可用或超时")
 			return

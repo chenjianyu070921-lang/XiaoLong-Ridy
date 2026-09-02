@@ -12,10 +12,10 @@ import (
 var (
 	ErrDriverClientNotConfigured      = errors.New("driver client not configured")
 	ErrOrderClientNotConfigured       = errors.New("order client not configured")
+	ErrPayClientNotConfigured         = errors.New("pay client not configured")
 	ErrDispatchClientNotConfigured    = errors.New("dispatch client not configured")
-	ErrReviewStorageNotConfigured     = errors.New("passenger review storage not configured")
-	ErrTrajectoryStorageNotConfigured = errors.New("trip trajectory storage not configured")
 	ErrHeatmapStorageNotConfigured    = errors.New("order heatmap storage not configured")
+	ErrTrajectoryStorageNotConfigured = errors.New("trajectory storage not configured")
 	ErrInvalidParam                   = errors.New("invalid param")
 	ErrForbiddenDriverResource        = errors.New("forbidden driver resource")
 )

@@ -1,8 +1,8 @@
 <template>
   <section class="h5-panel">
-    <div class="section-title"><h2>轨迹</h2></div>
+    <div class="section-title"><h2>检测范围</h2></div>
     <div class="trajectory-map-surface">
-      <div ref="mapContainer" class="driver-live-map" aria-label="订单实时轨迹地图"></div>
+      <div ref="mapContainer" class="driver-live-map" aria-label="订单轨迹地图"></div>
       <div v-if="mapStatusText" class="map-state" :class="{ error: mapError || trajectoryError }">{{ mapStatusText }}</div>
     </div>
     <div class="trajectory-form">

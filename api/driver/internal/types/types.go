@@ -89,12 +89,16 @@ type UpdateDriverResponse struct {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
-type UploadDriverAvatarRequest struct {
-	Avatar string `json:"avatar"`
+type AvatarUploadTokenRequest struct {
+	Extension string `json:"extension"`
 }
 
-type UploadDriverAvatarResponse struct {
-	AvatarURL string `json:"avatarUrl"`
+type AvatarUploadTokenResponse struct {
+	UploadToken string `json:"uploadToken"`
+	Key         string `json:"key"`
+	Domain      string `json:"domain"`
+	UploadURL   string `json:"uploadUrl"`
+	ExpireSec   int64  `json:"expireSec"`
 }
 
 type GetDriverRequest struct {
@@ -522,14 +526,18 @@ type DispatchRecord struct {
 }
 
 type OrderBrief struct {
-	OrderID             int64  `json:"orderId"`
-	OrderNo             string `json:"orderNo"`
-	FromAddress         string `json:"fromAddress"`
-	ToAddress           string `json:"toAddress"`
-	Status              int32  `json:"status"`
-	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
-	DistanceMeters      int64  `json:"distanceMeters"`
-	CreatedAt           int64  `json:"createdAt"`
+	OrderID             int64   `json:"orderId"`
+	OrderNo             string  `json:"orderNo"`
+	FromAddress         string  `json:"fromAddress"`
+	FromLongitude       float64 `json:"fromLongitude"`
+	FromLatitude        float64 `json:"fromLatitude"`
+	ToAddress           string  `json:"toAddress"`
+	ToLongitude         float64 `json:"toLongitude"`
+	ToLatitude          float64 `json:"toLatitude"`
+	Status              int32   `json:"status"`
+	EstimatedPriceCents int64   `json:"estimatedPriceCents"`
+	DistanceMeters      int64   `json:"distanceMeters"`
+	CreatedAt           int64   `json:"createdAt"`
 }
 type MyDispatchItem struct {
 	Dispatch DispatchRecord `json:"dispatch"`
@@ -573,7 +581,23 @@ type HeatmapResponse struct {
 	Points         []HeatmapPoint `json:"points"`
 	RadiusMeters   float64        `json:"radiusMeters"`
 	GridSizeMeters int64          `json:"gridSizeMeters"`
-	Cached         bool           `json:"cached"`
+}
+
+type GetTripTrajectoryRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type TrajectoryPoint struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	Heading   int32   `json:"heading"`
+	CreatedAt int64   `json:"createdAt"`
+}
+
+type GetTripTrajectoryResponse struct {
+	OrderID int64             `json:"orderId"`
+	Points  []TrajectoryPoint `json:"points"`
 }
 
 type GetMyOrderDetailRequest struct {
@@ -604,46 +628,6 @@ type OrderDetail struct {
 
 type GetMyOrderDetailResponse struct {
 	Order OrderDetail `json:"order"`
-}
-
-type ListPassengerReviewsRequest struct {
-	Page     int32 `json:"page"`
-	PageSize int32 `json:"pageSize"`
-}
-
-type PassengerReview struct {
-	OrderID   int64  `json:"orderId"`
-	Rating    int32  `json:"rating"`
-	Comment   string `json:"comment"`
-	CreatedAt int64  `json:"createdAt"`
-}
-
-type ListPassengerReviewsResponse struct {
-	List     []PassengerReview `json:"list"`
-	Total    int64             `json:"total"`
-	Page     int32             `json:"page"`
-	PageSize int32             `json:"pageSize"`
-	Degraded bool              `json:"degraded"`
-	Message  string            `json:"message"`
-}
-
-type GetTripTrajectoryRequest struct {
-	OrderID int64 `json:"orderId"`
-}
-
-type TrajectoryPoint struct {
-	Longitude float64 `json:"longitude"`
-	Latitude  float64 `json:"latitude"`
-	SpeedKmh  float64 `json:"speedKmh"`
-	Heading   int32   `json:"heading"`
-	CreatedAt int64   `json:"createdAt"`
-}
-
-type GetTripTrajectoryResponse struct {
-	OrderID  int64             `json:"orderId"`
-	Points   []TrajectoryPoint `json:"points"`
-	Degraded bool              `json:"degraded"`
-	Message  string            `json:"message"`
 }
 
 type AgentChatRequest struct {
