@@ -318,6 +318,7 @@ type ServiceContext struct {
 	LocationClient       LocationClient
 	ReviewRepository     ReviewRepository
 	TrajectoryRepository TrajectoryRepository
+	HeatmapRepository    HeatmapRepository
 	SigningKey           string
 	InternalAuth         InternalAuthConfig
 	CodeCache            CodeCache
@@ -391,6 +392,7 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 		} else {
 			svcCtx.ReviewRepository = NewGormReviewRepository(db)
 			svcCtx.TrajectoryRepository = NewGormTrajectoryRepository(db)
+			svcCtx.HeatmapRepository = NewGormHeatmapRepository(db)
 		}
 	}
 	return svcCtx

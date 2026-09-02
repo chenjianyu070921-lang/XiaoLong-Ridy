@@ -110,8 +110,10 @@ type DispatchClient interface {
 	ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error)
 }
 
-// LocationClient 定义 passenger API 查询司机最新位置和规划剩余路线的 RPC 契约。
+// LocationClient 定义 passenger API 调用位置服务的 RPC 契约。
 type LocationClient interface {
+	ReverseGeocode(ctx context.Context, req *locationproto.ReverseGeocodeReq, opts ...grpc.CallOption) (*locationproto.ReverseGeocodeResp, error)
+	POISearch(ctx context.Context, req *locationproto.POISearchReq, opts ...grpc.CallOption) (*locationproto.POISearchResp, error)
 	GetDriverLocation(ctx context.Context, req *locationproto.GetDriverLocationReq, opts ...grpc.CallOption) (*locationproto.GetDriverLocationResp, error)
 	RoutePlan(ctx context.Context, req *locationproto.RoutePlanReq, opts ...grpc.CallOption) (*locationproto.RoutePlanResp, error)
 }

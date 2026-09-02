@@ -122,6 +122,11 @@ func (h *CleanupHandler) RetryPendingDispatches() error {
 	return task.NewTask(h.svcCtx).RetryPendingDispatches(50)
 }
 
+// RetryRefundEvents 重试订单退款事件投递，避免订单状态已退款但支付消费者未收到事件。
+func (h *CleanupHandler) RetryRefundEvents() error {
+	return task.NewTask(h.svcCtx).RetryRefundEvents(50)
+}
+
 // RetryAdminAuditOutbox 扫描并补偿管理后台审计、司机冻结和司机通知 outbox。
 // 单条失败不会阻断整轮扫描，任务内部会维护 retry_count 和最终 failed 状态。
 func (h *CleanupHandler) RetryAdminAuditOutbox() error {

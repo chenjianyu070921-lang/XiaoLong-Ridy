@@ -67,57 +67,69 @@ func (r *Router) routes() {
 		writeJSON(w, http.StatusOK, map[string]any{"code": 0, "message": "ok"})
 	})
 
-	r.mux.HandleFunc("/admin/v1/auth/register", r.handleRegister)
-	r.mux.HandleFunc("/admin/v1/auth/login", r.handleLogin)
-	r.mux.HandleFunc("/admin/v1/auth/logout", r.authRequired(r.handleLogout))
-	r.mux.HandleFunc("/admin/v1/auth/me", r.authRequired(r.handleMe))
-	r.mux.HandleFunc("/admin/v1/menus", r.authRequired(r.handleMenus))
-	r.mux.HandleFunc("/admin/v1/admins", r.authRequired(r.handleAdmins))
-	r.mux.HandleFunc("/admin/v1/admins/", r.authRequired(r.handleAdminByID))
+	// 按业务域注册路由；各注册函数只做路径绑定，保持原有处理函数和鉴权行为。
+	r.registerAuthRoutes()
+	r.registerUserRoutes()
+	r.registerDriverRoutes()
+	r.registerMarketingRoutes()
+	r.registerStatisticsRoutes()
+	r.registerOperationRoutes()
+	r.registerOrderRoutes()
+}
 
-	r.mux.HandleFunc("/admin/v1/operation-logs", r.authRequired(r.handleOperationLogs))
+// handleNotificationOutbox 查询后台通知与审计补偿任务。
+func (r *Router) handleNotificationOutbox(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	query := req.URL.Query()
+	resp, err := logic.NewAdminAuditOutboxLogic(r.ctx).List(
+		req.Context(), intQuery(req, "page", 1), intQuery(req, "page_size", 20),
+		query.Get("status"), query.Get("module"), query.Get("action"), int64Query(req, "target_id", 0),
+	)
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
 
-	r.mux.HandleFunc("/admin/v1/users", r.authRequired(r.handleUsers))
-	r.mux.HandleFunc("/admin/v1/users/", r.authRequired(r.handleUserByID))
-	r.mux.HandleFunc("/admin/v1/user-coupons", r.authRequired(r.handleUserCoupons))
+// handleRefundRetryTasks 查询退款事件补偿队列。
+func (r *Router) handleRefundRetryTasks(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewRefundRetryLogic(r.ctx).List(req.Context(), int32Query(req, "page", 1), int32Query(req, "page_size", 20))
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
 
-	r.mux.HandleFunc("/admin/v1/drivers", r.authRequired(r.handleDrivers))
-	r.mux.HandleFunc("/admin/v1/drivers/", r.authRequired(r.handleDriverByID))
-
-	r.mux.HandleFunc("/admin/v1/driver-certifications", r.authRequired(r.handleDriverCertifications))
-	r.mux.HandleFunc("/admin/v1/driver-certifications/", r.authRequired(r.handleDriverCertificationByID))
-
-	r.mux.HandleFunc("/admin/v1/coupons", r.authRequired(r.handleCoupons))
-	r.mux.HandleFunc("/admin/v1/coupon-issue-tasks", r.authRequired(r.handleCouponIssueTasks))
-	r.mux.HandleFunc("/admin/v1/coupons/", r.authRequired(r.handleCouponByID))
-
-	r.mux.HandleFunc("/admin/v1/price-rules", r.authRequired(r.handlePriceRules))
-	r.mux.HandleFunc("/admin/v1/price-rules/", r.authRequired(r.handlePriceRuleByID))
-
-	r.mux.HandleFunc("/admin/v1/promotion-activities", r.authRequired(r.handlePromotionActivities))
-	r.mux.HandleFunc("/admin/v1/promotion-activities/", r.authRequired(r.handlePromotionActivityByID))
-
-	r.mux.HandleFunc("/admin/v1/statistics/overview", r.authRequired(r.handleStatisticsOverview))
-	r.mux.HandleFunc("/admin/v1/statistics/orders", r.authRequired(r.handleStatisticsOrders))
-	r.mux.HandleFunc("/admin/v1/statistics/drivers", r.authRequired(r.handleStatisticsDrivers))
-	r.mux.HandleFunc("/admin/v1/statistics/revenue", r.authRequired(r.handleStatisticsRevenue))
-	r.mux.HandleFunc("/admin/v1/statistics/coupons", r.authRequired(r.handleStatisticsCoupons))
-	r.mux.HandleFunc("/admin/v1/statistics/users", r.authRequired(r.handleStatisticsUsers))
-
-	r.mux.HandleFunc("/admin/v1/export-tasks", r.authRequired(r.handleExportTasks))
-	r.mux.HandleFunc("/admin/v1/export-tasks/", r.authRequired(r.handleExportTaskByNo))
-	r.mux.HandleFunc("/admin/v1/work-orders", r.authRequired(r.handleWorkOrders))
-	r.mux.HandleFunc("/admin/v1/work-orders/batch-actions", r.authRequired(r.handleWorkOrderBatchActions))
-	r.mux.HandleFunc("/admin/v1/work-orders/", r.authRequired(r.handleWorkOrderByID))
-
-	r.mux.HandleFunc("/admin/v1/blacklist", r.authRequired(r.handleBlacklists))
-	r.mux.HandleFunc("/admin/v1/blacklist/", r.authRequired(r.handleBlacklistByID))
-	r.mux.HandleFunc("/admin/v1/risk/hit-records", r.authRequired(r.handleRiskHitRecords))
-	r.mux.HandleFunc("/admin/v1/risk/hit-records/actions", r.authRequired(r.handleRiskHitRecordActions))
-
-	r.mux.HandleFunc("/admin/v1/orders", r.authRequired(r.handleOrders))
-	r.mux.HandleFunc("/admin/v1/orders/abnormal", r.authRequired(r.handleAbnormalOrders))
-	r.mux.HandleFunc("/admin/v1/orders/", r.authRequired(r.handleOrderByID))
+// handleRefundRetryTaskByNo 立即触发指定退款补偿任务。
+func (r *Router) handleRefundRetryTaskByNo(w http.ResponseWriter, req *http.Request) {
+	refundNo := strings.TrimPrefix(req.URL.Path, "/admin/v1/refund-retry-tasks/")
+	if refundNo == "" || strings.Contains(refundNo, "/") {
+		writeError(w, http.StatusBadRequest, 40001, "invalid refund number")
+		return
+	}
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	session := sessionFromContext(req.Context())
+	if session == nil {
+		writeError(w, http.StatusUnauthorized, 40101, "unauthorized")
+		return
+	}
+	if err := logic.NewRefundRetryLogic(r.ctx).Retry(req.Context(), refundNo, session.AdminID, clientIP(req)); err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, map[string]string{"message": "ok"})
 }
 
 // handleRegister 处理后台管理员注册。
@@ -528,10 +540,79 @@ func (r *Router) handleDriverByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		writeSuccess(w, types.CommonResponse{Message: "ok"})
+	case "unfreeze":
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.DriverFreezeRequest
+		if err := decodeJSON(req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		if err := driverLogic.UnfreezeDriver(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
 	default:
 		http.NotFound(w, req)
 		return
 	}
+}
+
+// handleDriverWithdrawals 返回司机提现申请列表，支持按状态、司机 ID、关键词过滤。
+func (r *Router) handleDriverWithdrawals(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		writeMethodNotAllowed(w)
+		return
+	}
+	resp, err := logic.NewDriverLogic(r.ctx).ListWithdrawals(
+		req.Context(),
+		int32Query(req, "page", 1),
+		int32Query(req, "page_size", 20),
+		int32Query(req, "status", 0),
+		int64Query(req, "driver_id", 0),
+		strings.TrimSpace(req.URL.Query().Get("keyword")),
+	)
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, resp)
+}
+
+// handleDriverWithdrawalByID 审核指定提现申请：approve 打款成功，reject 打款失败。
+func (r *Router) handleDriverWithdrawalByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/driver-withdrawals/")
+	if !ok || id <= 0 {
+		writeError(w, http.StatusBadRequest, 40001, "invalid withdraw id")
+		return
+	}
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var approve bool
+	switch action {
+	case "approve":
+		approve = true
+	case "reject":
+		approve = false
+	default:
+		http.NotFound(w, req)
+		return
+	}
+	var body types.DriverWithdrawHandleRequest
+	if err := decodeJSON(req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	if err := logic.NewDriverLogic(r.ctx).HandleWithdrawal(req.Context(), id, approve, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
 }
 
 // handleDriverCertifications 返回司机审核列表。
@@ -1563,11 +1644,17 @@ func validateNumericQueryParams(req *http.Request) error {
 		if !exists || len(value) == 0 || strings.TrimSpace(value[0]) == "" {
 			continue
 		}
-		// 发券任务状态使用 pending/processing/success/failed 字符串枚举，
-		// 不能套用其他列表接口的数字状态校验。
+		// 发券任务和通知补偿任务的 status 使用字符串枚举，
+		// 不能套用其他列表接口的数字状态校验，避免合法补偿状态被误判为非法数字参数。
 		if key == "status" && strings.HasPrefix(req.URL.Path, "/admin/v1/coupon-issue-tasks") {
 			switch value[0] {
 			case "pending", "processing", "success", "failed":
+				continue
+			}
+		}
+		if key == "status" && strings.HasPrefix(req.URL.Path, "/admin/v1/notification-outbox") {
+			switch value[0] {
+			case "pending", "running", "success", "failed":
 				continue
 			}
 		}

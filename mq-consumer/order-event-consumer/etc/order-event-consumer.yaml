@@ -15,9 +15,11 @@ Kafka:
 
 DispatchRPC:
   Target: 127.0.0.1:50056
+  Timeout: 10000
 
 OrderRPC:
   Target: 127.0.0.1:50051
+  Timeout: 10000
 
 Log:
   ServiceName: orderclient-event-consumer

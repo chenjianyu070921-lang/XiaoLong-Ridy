@@ -278,6 +278,39 @@ type AvatarUploadTokenResponse {
 	ExpireSec int64 `json:"expireSec"`
 }
 
+type ReverseGeocodeRequest {
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+}
+
+type ReverseGeocodeResponse {
+	Address string `json:"address"`
+	Province string `json:"province"`
+	CityName string `json:"cityName"`
+	District string `json:"district"`
+	PoiName string `json:"poiName"`
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+}
+
+type GeocodeRequest {
+	Address string `json:"address"`
+	CityCode string `json:"cityCode,optional"`
+	Longitude float64 `json:"longitude,optional"`
+	Latitude float64 `json:"latitude,optional"`
+	Radius int32 `json:"radius,optional"`
+}
+
+type GeocodeResponse {
+	Name string `json:"name"`
+	Address string `json:"address"`
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+	Category string `json:"category"`
+	Distance int32 `json:"distance"`
+	CityCode string `json:"cityCode"`
+}
+
 type OrderTrackingRequest {
 	OrderID int64 `json:"orderId"`
 }
@@ -442,6 +475,12 @@ service passenger-api {
 
 	@handler AvatarUploadTokenHandler
 	post /api/passenger/v1/upload/avatar-token (AvatarUploadTokenRequest) returns (AvatarUploadTokenResponse)
+
+	@handler ReverseGeocodeHandler
+	post /api/passenger/v1/location/reverse-geocode (ReverseGeocodeRequest) returns (ReverseGeocodeResponse)
+
+	@handler GeocodeHandler
+	post /api/passenger/v1/location/geocode (GeocodeRequest) returns (GeocodeResponse)
 
 	@handler CreateOrderHandler
 	post /api/passenger/v1/orders/create (CreateOrderRequest) returns (CreateOrderResponse)

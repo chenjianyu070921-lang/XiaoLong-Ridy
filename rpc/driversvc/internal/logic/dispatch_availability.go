@@ -20,27 +20,34 @@ func syncDispatchDriverOnline(ctx context.Context, svcCtx *svc.ServiceContext, d
 	if svcCtx == nil || svcCtx.RedisClient == nil {
 		return nil
 	}
+	if driverID <= 0 || !validLongitudeLatitude(longitude, latitude) {
+		return errInvalidLongitudeLatitude
+	}
 	member := strconv.FormatInt(driverID, 10)
 	geoKey := fmt.Sprintf(constants.RedisDriverGeo, defaultDispatchCity)
 	posKey := fmt.Sprintf(constants.RedisDriverPos, driverID)
 	reportTime := strconv.FormatInt(time.Now().Unix(), 10)
-	_, err := svcCtx.RedisClient.Pipelined(ctx, func(pipe redis.Pipeliner) error {
-		pipe.GeoAdd(ctx, geoKey, &redis.GeoLocation{
-			Name:      member,
-			Longitude: longitude,
-			Latitude:  latitude,
-		})
-		pipe.SAdd(ctx, constants.RedisDriverOnline, member)
-		pipe.HSet(ctx, posKey, map[string]interface{}{
-			"driver_id":   member,
-			"longitude":   strconv.FormatFloat(longitude, 'f', 6, 64),
-			"latitude":    strconv.FormatFloat(latitude, 'f', 6, 64),
-			"report_time": reportTime,
-		})
-		pipe.Expire(ctx, posKey, dispatchDriverPositionTTL)
-		return nil
-	})
-	return err
+	// 逐条写入：当前环境的 Redis 兼容层对 Pipelined 中的 SADD/ZADD 会静默丢弃（HSET 正常），
+	// 若用 Pipelined 会导致司机 GEO/在线集合写不进去，派单引擎筛不到司机、司机端搜不到订单。
+	if err := svcCtx.RedisClient.GeoAdd(ctx, geoKey, &redis.GeoLocation{
+		Name:      member,
+		Longitude: longitude,
+		Latitude:  latitude,
+	}).Err(); err != nil {
+		return err
+	}
+	if err := svcCtx.RedisClient.SAdd(ctx, constants.RedisDriverOnline, member).Err(); err != nil {
+		return err
+	}
+	if err := svcCtx.RedisClient.HSet(ctx, posKey, map[string]interface{}{
+		"driver_id":   member,
+		"longitude":   strconv.FormatFloat(longitude, 'f', 6, 64),
+		"latitude":    strconv.FormatFloat(latitude, 'f', 6, 64),
+		"report_time": reportTime,
+	}).Err(); err != nil {
+		return err
+	}
+	return svcCtx.RedisClient.Expire(ctx, posKey, dispatchDriverPositionTTL).Err()
 }
 
 // clearDispatchDriverBusy 将司机从忙碌集合（driver:busy）中移除。
@@ -61,11 +68,12 @@ func syncDispatchDriverOffline(ctx context.Context, svcCtx *svc.ServiceContext, 
 	member := strconv.FormatInt(driverID, 10)
 	geoKey := fmt.Sprintf(constants.RedisDriverGeo, defaultDispatchCity)
 	posKey := fmt.Sprintf(constants.RedisDriverPos, driverID)
-	_, err := svcCtx.RedisClient.Pipelined(ctx, func(pipe redis.Pipeliner) error {
-		pipe.SRem(ctx, constants.RedisDriverOnline, member)
-		pipe.ZRem(ctx, geoKey, member)
-		pipe.Del(ctx, posKey)
-		return nil
-	})
-	return err
+	// 逐条执行（同 syncDispatchDriverOnline：兼容层 Pipelined 会丢弃 ZREM/SREM）
+	if err := svcCtx.RedisClient.SRem(ctx, constants.RedisDriverOnline, member).Err(); err != nil {
+		return err
+	}
+	if err := svcCtx.RedisClient.ZRem(ctx, geoKey, member).Err(); err != nil {
+		return err
+	}
+	return svcCtx.RedisClient.Del(ctx, posKey).Err()
 }

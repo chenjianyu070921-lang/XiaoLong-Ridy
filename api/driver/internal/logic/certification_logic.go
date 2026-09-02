@@ -33,9 +33,23 @@ func (l *CertificationLogic) UploadCertification(driverID int64, req *types.Uplo
 	if req.IdCardFront == "" && req.IdCardBack == "" && req.DriverLicense == "" && req.VehicleLicense == "" {
 		return nil, errEmptyCertification
 	}
+	if req.VehicleID <= 0 {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.driverClient()
 	if err != nil {
 		return nil, err
+	}
+	vehicleResp, err := client.GetVehicle(l.ctx, &driversproto.GetVehicleRequest{Id: req.VehicleID})
+	if err != nil {
+		return nil, err
+	}
+	vehicle := vehicleResp.GetVehicle()
+	if vehicle == nil {
+		return nil, ErrInvalidParam
+	}
+	if vehicle.GetDriverId() != driverID {
+		return nil, ErrForbiddenDriverResource
 	}
 	resp, err := client.UploadCertification(l.ctx, &driversproto.UploadCertificationRequest{
 		DriverId:       driverID,

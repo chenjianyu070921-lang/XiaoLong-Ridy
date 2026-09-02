@@ -236,6 +236,7 @@ func (l *DriverLogic) GetDriver(id int64) (*types.GetDriverResponse, error) {
 		AvatarURL:       d.GetAvatarUrl(),
 		Status:          d.GetStatus().String(),
 		OnlineStatus:    int(d.GetOnlineStatus()),
+		VehicleID:       d.GetVehicleId(),
 		CreatedAt:       d.GetCreatedAt(),
 		UpdatedAt:       d.GetUpdatedAt(),
 	}}, nil
@@ -269,6 +270,7 @@ func (l *DriverLogic) GetDriverByPhone(phone string) (*types.GetDriverByPhoneRes
 		AvatarURL:       d.GetAvatarUrl(),
 		Status:          d.GetStatus().String(),
 		OnlineStatus:    int(d.GetOnlineStatus()),
+		VehicleID:       d.GetVehicleId(),
 		CreatedAt:       d.GetCreatedAt(),
 		UpdatedAt:       d.GetUpdatedAt(),
 	}}, nil

@@ -27,6 +27,16 @@ func main() {
 	h := handler.NewCleanupHandler(svcCtx)
 
 	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := h.RetryRefundEvents(); err != nil {
+				logx.Errorf("RetryRefundEvents failed: %v", err)
+			}
+		}
+	}()
+
+	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
 		for range ticker.C {

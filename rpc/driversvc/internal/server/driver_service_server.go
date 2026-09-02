@@ -58,6 +58,11 @@ func (s *DriverServiceServer) FreezeDriver(ctx context.Context, in *__proto.Free
 	return l.FreezeDriver(in)
 }
 
+func (s *DriverServiceServer) UnfreezeDriver(ctx context.Context, in *__proto.UnfreezeDriverRequest) (*__proto.CommonResponse, error) {
+	l := logic.NewUnfreezeDriverLogic(ctx, s.svcCtx)
+	return l.UnfreezeDriver(in)
+}
+
 func (s *DriverServiceServer) SetDriverOnline(ctx context.Context, in *__proto.SetDriverOnlineRequest) (*__proto.SetDriverOnlineResponse, error) {
 	l := logic.NewSetDriverOnlineLogic(ctx, s.svcCtx)
 	return l.SetDriverOnline(in)
@@ -156,4 +161,14 @@ func (s *DriverServiceServer) CreateWithdraw(ctx context.Context, in *__proto.Cr
 func (s *DriverServiceServer) ListWithdraws(ctx context.Context, in *__proto.ListWithdrawsRequest) (*__proto.ListWithdrawsResponse, error) {
 	l := logic.NewListWithdrawsLogic(ctx, s.svcCtx)
 	return l.ListWithdraws(in)
+}
+
+func (s *DriverServiceServer) AdminListWithdraws(ctx context.Context, in *__proto.AdminListWithdrawsRequest) (*__proto.ListWithdrawsResponse, error) {
+	l := logic.NewAdminListWithdrawsLogic(ctx, s.svcCtx)
+	return l.AdminListWithdraws(in)
+}
+
+func (s *DriverServiceServer) AuditWithdraw(ctx context.Context, in *__proto.AuditWithdrawRequest) (*__proto.AuditWithdrawResponse, error) {
+	l := logic.NewAuditWithdrawLogic(ctx, s.svcCtx)
+	return l.AuditWithdraw(in)
 }

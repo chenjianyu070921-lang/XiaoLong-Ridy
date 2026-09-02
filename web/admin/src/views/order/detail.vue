@@ -5,7 +5,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
-import { ordersApi } from '../../api/modules'
+import { ordersApi, usersApi } from '../../api/modules'
 import { carTypeText, orderStatusTag, orderStatusText, orDash } from '../../utils/enums'
 
 const route = useRoute()
@@ -18,6 +18,14 @@ const refunding = ref(false)
 const trackVisible = ref(false)
 const trackPoints = ref([])
 const detail = ref(null)
+const operationError = ref('')
+// 用户关联信息独立维护状态，避免附属查询失败影响订单主详情和人工操作。
+const userHistoryLoading = ref(false)
+const userCouponsLoading = ref(false)
+const userHistoryError = ref('')
+const userCouponsError = ref('')
+const userHistory = ref([])
+const userCoupons = ref([])
 
 const order = computed(() => detail.value?.order || {})
 const statusLogs = computed(() => detail.value?.status_logs || [])
@@ -38,11 +46,41 @@ const distance = (value) => value === null || value === undefined || value === '
 const duration = (value) => value === null || value === undefined || value === '' ? '-' : `${value} 秒`
 const requestID = (prefix) => crypto.randomUUID ? `${prefix}-${crypto.randomUUID()}` : `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
-// loadDetail 读取真实订单详情，主订单与关联数据由后端一次聚合返回。
+// loadUserRelations 读取下单用户的订单历史和优惠券历史。
+// 两类查询均经管理后台网关聚合，失败时仅记录对应区块错误，不影响订单详情主流程。
+const loadUserRelations = async (userID) => {
+  userHistory.value = []
+  userCoupons.value = []
+  userHistoryError.value = ''
+  userCouponsError.value = ''
+  if (!userID) return
+
+  userHistoryLoading.value = true
+  userCouponsLoading.value = true
+  const [historyResult, couponResult] = await Promise.allSettled([
+    usersApi.orders(userID, { page: 1, page_size: 10 }),
+    usersApi.coupons(userID, { page: 1, page_size: 10 }),
+  ])
+  if (historyResult.status === 'fulfilled') {
+    userHistory.value = historyResult.value?.list || []
+  } else {
+    userHistoryError.value = historyResult.reason?.message || '用户历史订单加载失败'
+  }
+  if (couponResult.status === 'fulfilled') {
+    userCoupons.value = couponResult.value?.list || []
+  } else {
+    userCouponsError.value = couponResult.reason?.message || '用户优惠券加载失败'
+  }
+  userHistoryLoading.value = false
+  userCouponsLoading.value = false
+}
+
+// loadDetail 先读取真实订单详情；主信息成功后再加载用户关联数据，保证主区块优先可用。
 const loadDetail = async () => {
   loading.value = true
   try {
     detail.value = await ordersApi.detail(route.params.id)
+    await loadUserRelations(detail.value?.order?.user_id)
   } finally {
     loading.value = false
   }
@@ -68,10 +106,13 @@ const cancelOrder = async () => {
     inputValidator: (value) => value?.trim() ? true : '取消原因不能为空',
   })
   canceling.value = true
+  operationError.value = ''
   try {
     await ordersApi.cancel(order.value.id, { reason: result.value.trim(), request_id: requestID('cancel') })
     ElMessage.success('订单已取消')
     await loadDetail()
+  } catch (error) {
+    operationError.value = error?.message || '取消订单失败，请确认订单状态和下游服务后重试'
   } finally {
     canceling.value = false
   }
@@ -90,6 +131,7 @@ const redispatchOrder = async () => {
     inputValidator: (value) => value?.trim() ? true : '改派原因不能为空',
   })
   redispatching.value = true
+  operationError.value = ''
   try {
     await ordersApi.redispatch(order.value.id, {
       new_driver_id: Number(driverInput.value),
@@ -98,6 +140,8 @@ const redispatchOrder = async () => {
     })
     ElMessage.success('订单已提交改派')
     await loadDetail()
+  } catch (error) {
+    operationError.value = error?.message || '人工改派失败，请确认司机和下游服务后重试'
   } finally {
     redispatching.value = false
   }
@@ -116,6 +160,7 @@ const refundOrder = async () => {
     inputValidator: (value) => value?.trim() ? true : '退款原因不能为空',
   })
   refunding.value = true
+  operationError.value = ''
   try {
     await ordersApi.refund(order.value.id, {
       refund_amount_cents: Math.round(Number(amountInput.value) * 100),
@@ -124,6 +169,8 @@ const refundOrder = async () => {
     })
     ElMessage.success('退款请求已提交')
     await loadDetail()
+  } catch (error) {
+    operationError.value = error?.message || '退款失败，请确认支付状态和下游服务后重试'
   } finally {
     refunding.value = false
   }
@@ -153,6 +200,7 @@ watch(() => route.params.id, loadDetail, { immediate: true })
       <el-button :loading="redispatching" :disabled="!canCancel" @click="redispatchOrder">人工改派</el-button>
       <el-button type="danger" :loading="refunding" @click="refundOrder">退款</el-button>
     </div>
+    <el-alert v-if="operationError" class="operation-error" :title="operationError" type="error" show-icon :closable="false" />
 
     <section class="panel">
       <div class="section-title">订单主信息</div>
@@ -173,6 +221,35 @@ watch(() => route.params.id, loadDetail, { immediate: true })
         <div v-if="order.cancel_by"><span>取消方</span><strong>{{ order.cancel_by }}</strong></div>
       </div>
     </section>
+
+    <div class="two-columns">
+      <section class="panel">
+        <div class="section-title">该用户历史订单</div>
+        <el-alert v-if="userHistoryError" class="relation-error" :title="userHistoryError" type="warning" show-icon :closable="false">
+          <template #default><el-button link type="warning" @click="loadUserRelations(order.user_id)">重新加载</el-button></template>
+        </el-alert>
+        <el-table v-else v-loading="userHistoryLoading" :data="userHistory" empty-text="暂无历史订单">
+          <el-table-column prop="order_no" label="订单号" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="status" label="状态" width="110"><template #default="scope">{{ orderStatusText(scope.row.status) }}</template></el-table-column>
+          <el-table-column prop="estimated_price" label="预估金额" width="120"><template #default="scope">{{ money(scope.row.estimated_price) }}</template></el-table-column>
+          <el-table-column prop="created_at" label="下单时间" min-width="170" />
+        </el-table>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">该用户优惠券</div>
+        <el-alert v-if="userCouponsError" class="relation-error" :title="userCouponsError" type="warning" show-icon :closable="false">
+          <template #default><el-button link type="warning" @click="loadUserRelations(order.user_id)">重新加载</el-button></template>
+        </el-alert>
+        <el-table v-else v-loading="userCouponsLoading" :data="userCoupons" empty-text="暂无优惠券">
+          <el-table-column prop="coupon_name" label="优惠券" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="coupon_type" label="类型" width="100" />
+          <el-table-column prop="face_value" label="面额" width="100"><template #default="scope">{{ money(scope.row.face_value) }}</template></el-table-column>
+          <el-table-column prop="status" label="状态" width="100" />
+          <el-table-column prop="expire_at" label="有效期至" min-width="170" />
+        </el-table>
+      </section>
+    </div>
 
     <section class="panel">
       <div class="section-title">订单状态流水</div>
@@ -263,5 +340,5 @@ watch(() => route.params.id, loadDetail, { immediate: true })
 </template>
 
 <style scoped>
-.order-detail{color:var(--text-color,#2e2c4e)}.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}.eyebrow{color:var(--brand,#6c5ce7);font-size:12px;letter-spacing:.1em;font-weight:600}.page-head h1{margin:7px 0 4px;font-size:26px;color:var(--text-color,#2e2c4e)}.page-head p{margin:0;color:var(--muted-color,#8b88a3)}.head-actions,.action-bar{display:flex;gap:10px}.action-bar{margin-bottom:16px}.panel{padding:20px;margin-bottom:16px;background:var(--panel-bg,#fff);border:1px solid var(--border-color,#e5e4f0);border-radius:14px;box-shadow:var(--card-shadow,none);overflow:auto}.section-title{margin-bottom:15px;color:var(--text-color,#2e2c4e);font-size:16px;font-weight:700;padding-left:10px;border-left:3px solid var(--brand,#6c5ce7)}.info-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.info-grid>div{min-width:0;padding:14px 16px;border-top:1px solid var(--border-color,#e5e4f0)}.info-grid span{display:block;margin-bottom:7px;color:var(--muted-color,#8b88a3);font-size:12px}.info-grid strong{display:block;overflow-wrap:anywhere;color:var(--text-color,#2e2c4e);font-weight:500}.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.two-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.two-columns .panel{margin-bottom:0}@media(max-width:1100px){.info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.page-head{display:block}.head-actions{margin-top:14px}.two-columns{grid-template-columns:1fr}.info-grid,.compact{grid-template-columns:1fr}.action-bar{flex-wrap:wrap}}
+.order-detail{color:var(--text-color,#2e2c4e)}.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}.eyebrow{color:var(--brand,#6c5ce7);font-size:12px;letter-spacing:.1em;font-weight:600}.page-head h1{margin:7px 0 4px;font-size:26px;color:var(--text-color,#2e2c4e)}.page-head p{margin:0;color:var(--muted-color,#8b88a3)}.head-actions,.action-bar{display:flex;gap:10px}.action-bar{margin-bottom:16px}.operation-error,.relation-error{margin-bottom:16px}.panel{padding:20px;margin-bottom:16px;background:var(--panel-bg,#fff);border:1px solid var(--border-color,#e5e4f0);border-radius:14px;box-shadow:var(--card-shadow,none);overflow:auto}.section-title{margin-bottom:15px;color:var(--text-color,#2e2c4e);font-size:16px;font-weight:700;padding-left:10px;border-left:3px solid var(--brand,#6c5ce7)}.info-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.info-grid>div{min-width:0;padding:14px 16px;border-top:1px solid var(--border-color,#e5e4f0)}.info-grid span{display:block;margin-bottom:7px;color:var(--muted-color,#8b88a3);font-size:12px}.info-grid strong{display:block;overflow-wrap:anywhere;color:var(--text-color,#2e2c4e);font-weight:500}.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.two-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.two-columns .panel{margin-bottom:0}@media(max-width:1100px){.info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.page-head{display:block}.head-actions{margin-top:14px}.two-columns{grid-template-columns:1fr}.info-grid,.compact{grid-template-columns:1fr}.action-bar{flex-wrap:wrap}}
 </style>

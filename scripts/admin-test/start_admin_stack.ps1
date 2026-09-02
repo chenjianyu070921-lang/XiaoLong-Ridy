@@ -1,13 +1,9 @@
 # Starts the admin HTTP/RPC test stack for the admin module:
-#   driversvc (8080) -> adminsvc (8084) -> api/admin (8717)
-#   dummy ordersvc placeholder (15051) keeps adminsvc startup dial happy
+#   ordersvc (50051) + driversvc (50055) -> adminsvc (8084) -> api/admin (8717)
 #
-# NOTE: rpc/ordersvc is intentionally NOT started. Its Config struct has a
-# `redis` key that conflicts with go-zero v1.7.2 RpcServerConf.Redis
-# ("conflict key redis, pay attention to anonymous fields"), so the service
-# cannot start with this go-zero version. Until module 4 fixes that config,
-# the admin cancel-order endpoint cannot be verified end-to-end; adminsvc
-# dials a placeholder gRPC listener instead.
+# 默认启动真实 ordersvc，确保取消、退款、改派能够进行真实跨服务联调。
+# 只有显式传入 -UseDummyOrders 才启动占位 gRPC；该模式只适用于路由/只读测试，
+# 不得作为订单写操作闭环通过的依据。
 #
 # Usage (PowerShell):
 #   .\scripts\admin-test\start_admin_stack.ps1
@@ -21,6 +17,7 @@
 param(
     [string]$RepoRoot = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
     [switch]$SkipBuild,
+    [switch]$UseDummyOrders,
     [switch]$Stop
 )
 
@@ -28,6 +25,7 @@ $ErrorActionPreference = "Stop"
 $logDir = Join-Path $RepoRoot ".gotmp\admin-test-logs"
 $binDir = Join-Path $RepoRoot ".gotmp\bin"
 $pidFile = Join-Path $logDir "pids.txt"
+$modeFile = Join-Path $logDir "ordersvc-mode.txt"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
@@ -62,6 +60,9 @@ $env:GOCACHE = Join-Path $RepoRoot ".gotmp\gocache"
 if ([string]::IsNullOrWhiteSpace($env:ADMINSVC_MYSQL_DSN)) {
     throw "请先设置 ADMINSVC_MYSQL_DSN"
 }
+if (-not $UseDummyOrders -and [string]::IsNullOrWhiteSpace($env:ORDERSVC_MYSQL_DSN)) {
+    throw "真实订单联调需要先设置 ORDERSVC_MYSQL_DSN；仅做路由/只读测试时可显式传入 -UseDummyOrders"
+}
 if ([string]::IsNullOrWhiteSpace($env:ADMIN_API_MYSQL_DSN)) {
     $env:ADMIN_API_MYSQL_DSN = $env:ADMINSVC_MYSQL_DSN
 }
@@ -81,18 +82,14 @@ Session:
   SessionTTLHours: 24
   TokenPrefix: "admin:sess:"
 OrdersRPC:
-  Target: 127.0.0.1:15051
+  Target: 127.0.0.1:50051
 DriversRPC:
-  Target: 127.0.0.1:8080
+  Target: 127.0.0.1:50055
 "@
 $adminsvcCfgPath = Join-Path $RepoRoot ".gotmp\adminsvc-admin-test.yaml"
 Set-Content -LiteralPath $adminsvcCfgPath -Value $adminsvcTestCfg -Encoding ASCII
 Write-Host "adminsvc test config: $adminsvcCfgPath"
 
-# ordersvc test config kept for reference (not started by default):
-#  - the redis key conflict is a struct-level issue and cannot be fixed by
-#    config alone; dispatch/price/pay point at placeholders for the blocking
-#    dial if the module-4 config issue is fixed later.
 $ordersvcTestCfg = @"
 Name: ordersvc.rpc
 ListenOn: 0.0.0.0:50051
@@ -128,8 +125,10 @@ if (-not $SkipBuild) {
         Push-Location (Join-Path $RepoRoot "api\admin")
         go build -o ..\..\.gotmp\bin\admin-api.exe .
         Pop-Location
-        Write-Host "Building dummygrpc..."
-        go build -o .gotmp\bin\dummygrpc.exe .\.gotmp\dummygrpc\main.go
+        if ($UseDummyOrders) {
+            Write-Host "Building dummygrpc..."
+            go build -o .gotmp\bin\dummygrpc.exe .\.gotmp\dummygrpc\main.go
+        }
     } finally {
         Pop-Location
     }
@@ -176,17 +175,28 @@ function Wait-TcpPort {
     return $false
 }
 
-# Start placeholder gRPC listener (stand-in for ordersvc), then driversvc,
-# then adminsvc, then api/admin.
-$dummy = Start-ServiceProcess -Name "dummygrpc" -Exe (Join-Path $binDir "dummygrpc.exe") `
-    -ArgList @() -WorkingDir $RepoRoot
-Start-Sleep -Seconds 1
+if ($UseDummyOrders) {
+    Set-Content -LiteralPath $modeFile -Value "dummy" -Encoding ASCII
+    Start-ServiceProcess -Name "dummygrpc" -Exe (Join-Path $binDir "dummygrpc.exe") `
+        -ArgList @() -WorkingDir $RepoRoot | Out-Null
+    Start-Sleep -Seconds 1
+    Write-Host "WARNING: using dummy ordersvc; order write operations are not end-to-end validated."
+} else {
+    Set-Content -LiteralPath $modeFile -Value "real" -Encoding ASCII
+    Start-ServiceProcess -Name "ordersvc" -Exe (Join-Path $binDir "ordersvc.exe") `
+        -ArgList @("-f", $ordersvcCfgPath) -WorkingDir $RepoRoot | Out-Null
+    Write-Host "Waiting for ordersvc:50051 ..."
+    if (-not (Wait-TcpPort -Port 50051)) {
+        Write-Host "ERROR: ordersvc did not start. See $logDir\ordersvc.err.log"
+        throw "真实 ordersvc 启动失败，订单跨服务联调阻塞"
+    }
+}
 
 $driversvc = Start-ServiceProcess -Name "driversvc" -Exe (Join-Path $binDir "driversvc.exe") `
     -ArgList @("-f", (Join-Path $RepoRoot "rpc\driversvc\etc\driversvc.yaml")) -WorkingDir $RepoRoot
 
-Write-Host "Waiting for driversvc:5055 ..."
-if (-not (Wait-TcpPort -Port 5055)) { Write-Host "ERROR: driversvc did not start. See $logDir\driversvc.err.log" }
+Write-Host "Waiting for driversvc:50055 ..."
+if (-not (Wait-TcpPort -Port 50055)) { Write-Host "ERROR: driversvc did not start. See $logDir\driversvc.err.log" }
 
 $adminsvc = Start-ServiceProcess -Name "adminsvc" -Exe (Join-Path $binDir "adminsvc.exe") `
     -ArgList @("-f", ".gotmp\adminsvc-admin-test.yaml") -WorkingDir $RepoRoot
@@ -205,7 +215,11 @@ Write-Host "Admin test stack is up:"
 Write-Host "  api/admin   http://127.0.0.1:8717"
 Write-Host "  adminsvc    grpc 127.0.0.1:8084"
 Write-Host "  driversvc   grpc 127.0.0.1:5055"
-Write-Host "  dummygrpc   grpc 127.0.0.1:15051 (ordersvc placeholder)"
+if ($UseDummyOrders) {
+    Write-Host "  dummygrpc   grpc 127.0.0.1:15051 (ordersvc placeholder; no write-flow validation)"
+} else {
+    Write-Host "  ordersvc    grpc 127.0.0.1:50051 (real cross-service target)"
+}
 Write-Host ""
 Write-Host "Next: .\scripts\admin-test\admin_api_test.ps1"
 Write-Host "Stop stack with: .\scripts\admin-test\start_admin_stack.ps1 -Stop"

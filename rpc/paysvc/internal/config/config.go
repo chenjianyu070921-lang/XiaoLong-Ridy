@@ -2,6 +2,7 @@ package config
 
 import (
 	"XiaoLong-Ridy/common/alipay"
+	cfg "XiaoLong-Ridy/common/config"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -9,10 +10,11 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 
-	Mysql    MysqlConf     `yaml:"mysql" json:"mysql"`
-	Alipay   alipay.Config `yaml:"alipay" json:"alipay"`
-	Kafka    KafkaConf     `yaml:"kafka" json:"kafka"`
-	Ordersvc OrdersvcConf  `yaml:"ordersvc" json:"ordersvc"`
+	Mysql       MysqlConf     `yaml:"mysql" json:"mysql"`
+	RefundRedis cfg.RedisConf `yaml:"refundRedis" json:"refundRedis,optional"`
+	Alipay      alipay.Config `yaml:"alipay" json:"alipay"`
+	Kafka       KafkaConf     `yaml:"kafka" json:"kafka"`
+	Ordersvc    OrdersvcConf  `yaml:"ordersvc" json:"ordersvc"`
 }
 
 type MysqlConf struct {

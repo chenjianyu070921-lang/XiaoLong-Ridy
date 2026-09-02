@@ -322,7 +322,10 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 	if err != nil {
 		return emptyOrderList(page, pageSize), nil
 	}
-	driverLongitude, driverLatitude, _ := parseDriverPosition(pos)
+	driverLongitude, driverLatitude, ok := parseDriverPosition(pos)
+	if !ok {
+		return emptyOrderList(page, pageSize), nil
+	}
 
 	// 读取派给当前司机的订单 ID 集合（dispatch_consumer 在派单时 SAdd，90s TTL）
 	availableKey := fmt.Sprintf(constants.RedisDriverAvailable, driverID)
@@ -335,12 +338,79 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 	if err != nil {
 		return nil, err
 	}
+	pendingDispatches, err := l.pendingDispatchOrderIDs(driverID)
+	if err != nil {
+		return nil, err
+	}
+	if len(orderIDStrs) == 0 {
+		orderIDStrs = orderIDStringsFromPendingDispatches(pendingDispatches)
+		if len(orderIDStrs) == 0 {
+			return emptyOrderList(page, pageSize), nil
+		}
+	}
+	items := l.availableOrdersFromAssignedSet(orderClient, orderIDStrs, pendingDispatches, driverID, driverLongitude, driverLatitude)
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].DistanceMeters == items[j].DistanceMeters {
+			return items[i].CreatedAt < items[j].CreatedAt
+		}
+		return items[i].DistanceMeters < items[j].DistanceMeters
+	})
+	total := int64(len(items))
+	items = paginateOrderBriefs(items, page, pageSize)
+	return &types.ListMyOrdersResponse{
+		List:     items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
 
+func (l *OrderLogic) pendingDispatchOrderIDs(driverID int64) (map[int64]struct{}, error) {
+	dispatchClient, err := l.dispatchClient()
+	if err != nil {
+		return nil, nil
+	}
+	resp, err := dispatchClient.ListDispatchRecords(l.ctx, &dispatchproto.ListDispatchRecordsRequest{
+		DriverId: driverID,
+		Status:   constants.DispatchStatusPending,
+		Page:     1,
+		PageSize: 1000,
+	})
+	if err != nil {
+		return nil, err
+	}
+	pending := make(map[int64]struct{}, len(resp.GetList()))
+	for _, record := range resp.GetList() {
+		if record.GetOrderId() > 0 && record.GetStatus() == constants.DispatchStatusPending {
+			pending[record.GetOrderId()] = struct{}{}
+		}
+	}
+	return pending, nil
+}
+
+func orderIDStringsFromPendingDispatches(pending map[int64]struct{}) []string {
+	orderIDStrs := make([]string, 0, len(pending))
+	for orderID := range pending {
+		if orderID > 0 {
+			orderIDStrs = append(orderIDStrs, strconv.FormatInt(orderID, 10))
+		}
+	}
+	sort.Strings(orderIDStrs)
+	return orderIDStrs
+}
+
+func (l *OrderLogic) availableOrdersFromAssignedSet(orderClient svc.OrderClient, orderIDStrs []string, pendingDispatches map[int64]struct{}, driverID int64, driverLongitude, driverLatitude float64) []types.OrderBrief {
 	items := make([]types.OrderBrief, 0, len(orderIDStrs))
 	for _, idStr := range orderIDStrs {
 		orderID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil || orderID <= 0 {
 			continue
+		}
+		if pendingDispatches != nil {
+			if _, ok := pendingDispatches[orderID]; !ok {
+				l.removeFromAvailable(driverID, orderID)
+				continue
+			}
 		}
 		detail, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: orderID})
 		if err != nil {
@@ -348,6 +418,7 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 		}
 		// 只展示仍处于待接单状态的订单（已被其他司机接走/已取消的自动过滤）
 		if detail.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
+			l.removeFromAvailable(driverID, orderID)
 			continue
 		}
 		distance := 0.0
@@ -368,23 +439,10 @@ func (l *OrderLogic) ListAvailableOrders(driverID int64, page, pageSize int32) (
 			CreatedAt:           detail.GetCreatedAt(),
 		})
 	}
-	sort.SliceStable(items, func(i, j int) bool {
-		if items[i].DistanceMeters == items[j].DistanceMeters {
-			return items[i].CreatedAt < items[j].CreatedAt
-		}
-		return items[i].DistanceMeters < items[j].DistanceMeters
-	})
-	total := int64(len(items))
-	items = paginateOrderBriefs(items, page, pageSize)
-	return &types.ListMyOrdersResponse{
-		List:     items,
-		Total:    total,
-		Page:     page,
-		PageSize: pageSize,
-	}, nil
+	return items
 }
 
-const availableOrderRadiusMeters = 3000.0
+const availableOrderRadiusMeters = 10000.0
 
 func emptyOrderList(page, pageSize int32) *types.ListMyOrdersResponse {
 	return &types.ListMyOrdersResponse{
@@ -404,7 +462,7 @@ func parseDriverPosition(pos map[string]string) (float64, float64, bool) {
 	if err != nil {
 		return 0, 0, false
 	}
-	if longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90 {
+	if !validLocation(longitude, latitude) {
 		return 0, 0, false
 	}
 	return longitude, latitude, true

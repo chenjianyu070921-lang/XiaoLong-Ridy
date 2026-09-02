@@ -27,6 +27,10 @@ type (
 	AdminRedispatchOrderResponse     = adminsvc.AdminRedispatchOrderResponse
 	AdminRefundOrderRequest          = adminsvc.AdminRefundOrderRequest
 	AdminRefundOrderResponse         = adminsvc.AdminRefundOrderResponse
+	RefundRetryTaskListRequest       = adminsvc.RefundRetryTaskListRequest
+	RefundRetryTaskRequest           = adminsvc.RefundRetryTaskRequest
+	RefundRetryTask                  = adminsvc.RefundRetryTask
+	RefundRetryTaskListResponse      = adminsvc.RefundRetryTaskListResponse
 	AuditDriverCertificationRequest  = adminsvc.AuditDriverCertificationRequest
 	AuthResponse                     = adminsvc.AuthResponse
 	Blacklist                        = adminsvc.Blacklist
@@ -59,6 +63,10 @@ type (
 	Driver                           = adminsvc.Driver
 	DriverDetailRequest              = adminsvc.DriverDetailRequest
 	FreezeDriverRequest              = adminsvc.FreezeDriverRequest
+	DriverWithdraw                   = adminsvc.DriverWithdraw
+	DriverWithdrawListRequest        = adminsvc.DriverWithdrawListRequest
+	DriverWithdrawListResponse       = adminsvc.DriverWithdrawListResponse
+	DriverWithdrawHandleRequest      = adminsvc.DriverWithdrawHandleRequest
 	DriverListRequest                = adminsvc.DriverListRequest
 	DriverListResponse               = adminsvc.DriverListResponse
 	DriverCertification              = adminsvc.DriverCertification
@@ -118,6 +126,9 @@ type (
 	RiskHitActionResponse            = adminsvc.RiskHitActionResponse
 	RiskHitRecordListRequest         = adminsvc.RiskHitRecordListRequest
 	RiskHitRecordListResponse        = adminsvc.RiskHitRecordListResponse
+	AdminAuditOutboxListRequest      = adminsvc.AdminAuditOutboxListRequest
+	AdminAuditOutbox                 = adminsvc.AdminAuditOutbox
+	AdminAuditOutboxListResponse     = adminsvc.AdminAuditOutboxListResponse
 	Settlement                       = adminsvc.Settlement
 	StatisticsOverviewResponse       = adminsvc.StatisticsOverviewResponse
 	StatisticsRequest                = adminsvc.StatisticsRequest
@@ -169,6 +180,12 @@ type (
 		ListDrivers(ctx context.Context, in *DriverListRequest, opts ...grpc.CallOption) (*DriverListResponse, error)
 		GetDriver(ctx context.Context, in *DriverDetailRequest, opts ...grpc.CallOption) (*Driver, error)
 		FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 解冻司机。
+		UnfreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 查询司机提现申请列表。
+		ListDriverWithdrawals(ctx context.Context, in *DriverWithdrawListRequest, opts ...grpc.CallOption) (*DriverWithdrawListResponse, error)
+		// 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+		HandleDriverWithdraw(ctx context.Context, in *DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error)
 		// 查询司机审核详情。
 		GetDriverCertification(ctx context.Context, in *DriverCertificationDetailRequest, opts ...grpc.CallOption) (*DriverCertification, error)
@@ -188,6 +205,8 @@ type (
 		RedispatchOrder(ctx context.Context, in *AdminRedispatchOrderRequest, opts ...grpc.CallOption) (*AdminRedispatchOrderResponse, error)
 		// 后台发起订单退款。
 		RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error)
+		ListRefundRetryTasks(ctx context.Context, in *RefundRetryTaskListRequest, opts ...grpc.CallOption) (*RefundRetryTaskListResponse, error)
+		RetryRefundTask(ctx context.Context, in *RefundRetryTaskRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询异常订单列表。
 		ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
 		// 查询优惠券模板列表。
@@ -260,6 +279,8 @@ type (
 		ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
 		// 处置风控命中记录。
 		HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
+		// 查询通知与审计补偿任务。
+		ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error)
 	}
 
 	defaultAdminService struct {
@@ -394,6 +415,24 @@ func (m *defaultAdminService) FreezeDriver(ctx context.Context, in *FreezeDriver
 	return client.FreezeDriver(ctx, in, opts...)
 }
 
+// 解冻司机。
+func (m *defaultAdminService) UnfreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.UnfreezeDriver(ctx, in, opts...)
+}
+
+// 查询司机提现申请列表。
+func (m *defaultAdminService) ListDriverWithdrawals(ctx context.Context, in *DriverWithdrawListRequest, opts ...grpc.CallOption) (*DriverWithdrawListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListDriverWithdrawals(ctx, in, opts...)
+}
+
+// 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+func (m *defaultAdminService) HandleDriverWithdraw(ctx context.Context, in *DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.HandleDriverWithdraw(ctx, in, opts...)
+}
+
 // 查询司机审核列表。
 func (m *defaultAdminService) ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
@@ -452,6 +491,18 @@ func (m *defaultAdminService) RedispatchOrder(ctx context.Context, in *AdminRedi
 func (m *defaultAdminService) RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.RefundOrder(ctx, in, opts...)
+}
+
+// ListRefundRetryTasks 查询退款事件补偿队列。
+func (m *defaultAdminService) ListRefundRetryTasks(ctx context.Context, in *RefundRetryTaskListRequest, opts ...grpc.CallOption) (*RefundRetryTaskListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListRefundRetryTasks(ctx, in, opts...)
+}
+
+// RetryRefundTask 立即触发指定退款事件补偿任务。
+func (m *defaultAdminService) RetryRefundTask(ctx context.Context, in *RefundRetryTaskRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.RetryRefundTask(ctx, in, opts...)
 }
 
 // 查询异常订单列表。
@@ -669,4 +720,10 @@ func (m *defaultAdminService) ListRiskHitRecords(ctx context.Context, in *RiskHi
 func (m *defaultAdminService) HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.HandleRiskHitRecords(ctx, in, opts...)
+}
+
+// ListAdminAuditOutbox 查询通知与审计补偿任务。
+func (m *defaultAdminService) ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListAdminAuditOutbox(ctx, in, opts...)
 }

@@ -11,6 +11,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/jwtx"
+	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
@@ -22,12 +23,12 @@ import (
 var activeWSConnections int64
 
 const (
-	pushAuthTimeout   = 10 * time.Second
-	pushPingEvery     = 25 * time.Second
-	pushPollEvery     = 3 * time.Second
-	pushPollPageSize  = 20
+	pushAuthTimeout    = 10 * time.Second
+	pushPingEvery      = 25 * time.Second
+	pushPollEvery      = 3 * time.Second
+	pushPollPageSize   = 20
 	maxSeenOrdersCache = 2000 // seenOrders 容量上限，超过后清空，避免长连接内存泄漏
-	maxWSConnections    = 5000 // 最大并发 WS 连接数，防止资源耗尽
+	maxWSConnections   = 5000 // 最大并发 WS 连接数，防止资源耗尽
 )
 
 type wsAuthMessage struct {
@@ -173,16 +174,27 @@ func sendPolledDispatchOrders(conn *websocket.Conn, svcCtx *svc.ServiceContext, 
 		if err != nil {
 			return sendWSJSON(conn, wsEnvelope{Type: "push_poll_error", Degraded: true, Message: err.Error(), ServerTime: time.Now().Unix()}) == nil
 		}
+		pendingDispatches, err := pendingDispatchOrderIDs(conn, svcCtx, driverID)
+		if err != nil {
+			return sendWSJSON(conn, wsEnvelope{Type: "push_poll_error", Degraded: true, Message: err.Error(), ServerTime: time.Now().Unix()}) == nil
+		}
 		for _, idStr := range orderIDStrs {
 			orderID, err := strconv.ParseInt(idStr, 10, 64)
 			if err != nil || orderID <= 0 {
 				continue
+			}
+			if pendingDispatches != nil {
+				if _, ok := pendingDispatches[orderID]; !ok {
+					_ = svcCtx.RedisClient.SRem(conn.Request().Context(), availableKey, orderID).Err()
+					continue
+				}
 			}
 			order, err := svcCtx.OrderClient.GetOrder(conn.Request().Context(), &orderproto.GetOrderRequest{OrderId: orderID})
 			if err != nil || order == nil {
 				continue
 			}
 			if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
+				_ = svcCtx.RedisClient.SRem(conn.Request().Context(), availableKey, orderID).Err()
 				continue
 			}
 			orders = append(orders, &orderproto.OrderSummary{
@@ -239,6 +251,28 @@ func sendPolledDispatchOrders(conn *websocket.Conn, svcCtx *svc.ServiceContext, 
 		}
 	}
 	return true
+}
+
+func pendingDispatchOrderIDs(conn *websocket.Conn, svcCtx *svc.ServiceContext, driverID int64) (map[int64]struct{}, error) {
+	if svcCtx == nil || svcCtx.DispatchClient == nil {
+		return nil, nil
+	}
+	resp, err := svcCtx.DispatchClient.ListDispatchRecords(conn.Request().Context(), &dispatchproto.ListDispatchRecordsRequest{
+		DriverId: driverID,
+		Status:   constants.DispatchStatusPending,
+		Page:     1,
+		PageSize: 1000,
+	})
+	if err != nil {
+		return nil, err
+	}
+	pending := make(map[int64]struct{}, len(resp.GetList()))
+	for _, record := range resp.GetList() {
+		if record.GetOrderId() > 0 && record.GetStatus() == constants.DispatchStatusPending {
+			pending[record.GetOrderId()] = struct{}{}
+		}
+	}
+	return pending, nil
 }
 
 func resolvePushPollInterval(svcCtx *svc.ServiceContext) time.Duration {

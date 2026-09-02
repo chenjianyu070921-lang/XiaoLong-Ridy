@@ -29,30 +29,32 @@ func main() {
 
 	logx.DisableStat()
 
+	// ========== 配置中心：从 etcd 拉取配置，失败降级本地 yaml ==========
+	// 注意：启动前需要先把配置写入 etcd，key 为 locationsvc.yaml
+	// docker exec etcd etcdctl put locationsvc.yaml < locationsvc.yaml
+	// etcd 不可用时（连接失败/拉取失败）降级加载本地文件，保证服务可启动
 	var c config.Config
-	// 默认从本地 YAML 加载，避免开发环境未启动 etcd 时阻断服务启动。
-	// 生产环境如需配置中心与热更新，可设置 LOCATIONSVC_ETCD_ENABLED=true。
-	conf.MustLoad(*configFile, &c)
 	var cc configcenter.Configurator[config.Config]
-	if enabled, _ := strconv.ParseBool(os.Getenv("LOCATIONSVC_ETCD_ENABLED")); enabled {
-		// 配置中心要求 etcd 中预先存在 locationsvc.yaml，内容格式为 YAML。
-		etcdSubscriber, err := subscriber.NewEtcdSubscriber(subscriber.EtcdConf{
-			Hosts: []string{envOr("LOCATIONSVC_ETCD_ADDR", "127.0.0.1:2379")},
-			Key:   "locationsvc.yaml",
-		})
-		if err != nil {
-			logx.Errorf("连接 etcd 配置中心失败: %v，继续使用本地文件 %s", err, *configFile)
-		} else if center, err := configcenter.NewConfigCenter[config.Config](configcenter.Config{Type: "yaml"}, etcdSubscriber); err != nil {
-			logx.Errorf("从 etcd 配置中心加载配置失败: %v，继续使用本地文件 %s", err, *configFile)
-		} else if remoteCfg, err := center.GetConfig(); err != nil {
-			logx.Errorf("读取 etcd 配置内容失败: %v，继续使用本地文件 %s", err, *configFile)
-		} else {
-			c = remoteCfg
-			cc = center
-			logx.Infof("已启用 etcd 配置中心")
-		}
+
+	sub, err := subscriber.NewEtcdSubscriber(subscriber.EtcdConf{
+		Hosts: []string{"127.0.0.1:2379"},
+		Key:   "locationsvc.yaml",
+	})
+	if err == nil {
+		cc, err = configcenter.NewConfigCenter[config.Config](
+			configcenter.Config{Type: "yaml"}, sub)
 	}
-	fmt.Printf("[配置中心] 配置加载成功: Provider=%s BaseUrl=%s\n", c.MapService.Provider, c.MapService.BaseUrl)
+	if err != nil {
+		cc = nil
+		logx.Errorf("配置中心(etcd)不可用: %v，降级加载本地文件 %s", err, *configFile)
+		conf.MustLoad(*configFile, &c)
+	} else if c, err = cc.GetConfig(); err != nil {
+		cc = nil
+		logx.Errorf("从配置中心(etcd)加载配置失败: %v，降级加载本地文件 %s", err, *configFile)
+		conf.MustLoad(*configFile, &c)
+	} else {
+		fmt.Printf("[配置中心] 配置加载成功: Provider=%s BaseUrl=%s\n", c.MapService.Provider, c.MapService.BaseUrl)
+	}
 
 	// 连接 MySQL
 	mysqlDB, err := datasource.NewMysqlClient(c.Mysql)
@@ -79,6 +81,7 @@ func main() {
 	ctx := svc.NewServiceContext(c, mysqlDB, redisClient)
 
 	// ========== 配置热更新：etcd 配置变更后自动生效，无需重启 ==========
+	// etcd 不可用（已降级本地 yaml）时不注册热更新监听
 	if cc != nil {
 		cc.AddListener(func() {
 			newCfg, e := cc.GetConfig()

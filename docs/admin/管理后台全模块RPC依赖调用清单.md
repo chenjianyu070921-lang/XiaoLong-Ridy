@@ -98,6 +98,7 @@
 | `POST /admin/v1/export-tasks` | `api/admin -> adminsvc.CreateExportTask`，写入 `admin_export_task` 并由 goroutine 生成 CSV | 后续对象存储下载 URL、重试/取消接口、过期清理 Job |
 | `GET /admin/v1/blacklist` | `api/admin -> adminsvc.ListBlacklists` | 后续联动风控缓存刷新 |
 | `GET /admin/v1/risk/hit-records` | `api/admin -> adminsvc.ListRiskHitRecords` | 返回由审计、黑名单和工单表推导的 `handle_status` 等处置闭环字段 |
+| `GET /admin/v1/notification-outbox` | `api/admin -> adminsvc.ListAdminAuditOutbox` | 查询通知/审计补偿的状态、重试次数和最近失败原因；实际重试仍由 `job.RetryAdminAuditOutbox` 负责 |
 | `POST /admin/v1/risk/hit-records/actions` | `api/admin -> adminsvc.HandleRiskHitRecords` | 超管可复核/拉黑/转工单，运营可复核/转工单，重复处置按单条失败返回 |
 
 ## 四、异步消息清单

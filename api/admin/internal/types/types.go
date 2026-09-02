@@ -155,6 +155,27 @@ type DriverFreezeRequest struct {
 	Remark string `json:"remark"` // 运营备注，可选
 }
 
+// DriverWithdrawalDTO 表示后台司机提现申请记录。
+type DriverWithdrawalDTO struct {
+	ID         int64  `json:"id"`
+	DriverID   int64  `json:"driver_id"`
+	WithdrawNo string `json:"withdraw_no"`
+	Amount     string `json:"amount"`
+	PayeeName  string `json:"payee_name"`
+	PayAccount string `json:"pay_account"`
+	Status     int32  `json:"status"`
+	Remark     string `json:"remark"`
+	AppliedAt  string `json:"applied_at"`
+	PaidAt     string `json:"paid_at"`
+	CreatedAt  string `json:"created_at"`
+}
+
+// DriverWithdrawHandleRequest 表示后台审核提现申请请求体。
+// approve=true 打款成功，approve=false 打款失败；打款失败时 remark 必填。
+type DriverWithdrawHandleRequest struct {
+	Remark string `json:"remark"`
+}
+
 // DriverCertificationListRequest 表示司机审核列表查询条件。
 type DriverCertificationListRequest struct {
 	Page        int
@@ -381,6 +402,18 @@ type OrderRefundResponse struct {
 	RefundCents int64  `json:"refund_cents"`
 	RefundNo    string `json:"refund_no"`
 	Message     string `json:"message"`
+}
+
+// RefundRetryTask 表示退款事件补偿任务。
+type RefundRetryTask struct {
+	OrderID      int64  `json:"order_id"`
+	OrderNo      string `json:"order_no"`
+	RefundNo     string `json:"refund_no"`
+	RefundCents  int64  `json:"refund_cents"`
+	OperatorType string `json:"operator_type"`
+	OperatorID   int64  `json:"operator_id"`
+	Attempt      int32  `json:"attempt"`
+	NextRetryAt  int64  `json:"next_retry_at"`
 }
 
 // Settlement 表示结算单信息。
@@ -677,6 +710,23 @@ type RiskHitActionRequest struct {
 	Reason         string  `json:"reason"`
 	WorkOrderTitle string  `json:"work_order_title"`
 	Priority       int32   `json:"priority"`
+}
+
+// AdminAuditOutboxDTO 表示通知与审计补偿任务列表项。
+type AdminAuditOutboxDTO struct {
+	ID            int64  `json:"id"`
+	EventNo       string `json:"event_no"`
+	Module        string `json:"module"`
+	Action        string `json:"action"`
+	TargetType    string `json:"target_type"`
+	TargetID      int64  `json:"target_id"`
+	AdminID       int64  `json:"admin_id"`
+	Detail        string `json:"detail"`
+	Status        string `json:"status"`
+	RetryCount    int32  `json:"retry_count"`
+	FailureReason string `json:"failure_reason"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 // OperationLogListRequest 表示操作日志列表查询条件。

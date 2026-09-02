@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"XiaoLong-Ridy/common/constants"
@@ -16,6 +17,10 @@ import (
 // orderLockTTL 接单/取消分布式锁过期时间，配合看门狗续期防止持有锁的服务异常退出导致锁永久占用。
 const orderLockTTL = 10 * time.Second
 
+// localOrderLocks 是 Redis 不可用时的本进程订单锁。
+// 该降级锁只覆盖单实例并发，跨实例一致性仍由 Redis 分布式锁负责。
+var localOrderLocks sync.Map
+
 // acquireOrderLock 为订单加分布式锁，避免同一订单被并发接单/取消竞态。
 //
 // 修复说明（P1-M4-1/M4-2）：
@@ -27,7 +32,12 @@ const orderLockTTL = 10 * time.Second
 func acquireOrderLock(ctx context.Context, rdb *redis.Client, orderID uint64) (func(), error) {
 	noop := func() {}
 	if rdb == nil {
-		return noop, nil
+		lock := &sync.Mutex{}
+		actual, _ := localOrderLocks.LoadOrStore(orderID, lock)
+		actual.(*sync.Mutex).Lock()
+		return func() {
+			actual.(*sync.Mutex).Unlock()
+		}, nil
 	}
 	key := fmt.Sprintf(constants.RedisOrderLock, orderID)
 	lk, err := redisx.TryLock(ctx, rdb, key, orderLockTTL)
