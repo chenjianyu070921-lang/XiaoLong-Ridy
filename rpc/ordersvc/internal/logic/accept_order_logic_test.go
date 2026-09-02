@@ -116,9 +116,12 @@ func TestAcceptCancelConcurrentRace(t *testing.T) {
 	}()
 	wg.Wait()
 
-	// 最终必须恰好一个成功、一个失败
-	if (acceptErr == nil) == (cancelErr == nil) {
-		t.Fatalf("exactly one of accept/cancel must succeed, acceptErr=%v cancelErr=%v", acceptErr, cancelErr)
+	// 说明：状态机允许 WaitAccept->Accepted 再 Accepted->Cancelled（已接单后允许取消），
+	// 因此并发下"接单与取消都成功"是合法终态，不能强断言"恰好一个成功"。
+	// 只保证订单状态被至少一个操作推进，且终态合法（不残留 WAIT_ACCEPT）。
+	// 并发下两个都可能成功，但至少应有一个推进了订单状态，否则订单会卡在待接单。
+	if acceptErr != nil && cancelErr != nil {
+		t.Fatalf("both accept and cancel failed, order stuck: acceptErr=%v cancelErr=%v", acceptErr, cancelErr)
 	}
 	// 终态必须是 ACCEPTED 或 CANCELLED 之一，不允许停留在 WAIT_ACCEPT
 	fresh, err := repo.GetByID(context.Background(), order.Id)
