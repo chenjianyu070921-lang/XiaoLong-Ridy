@@ -26,6 +26,7 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 func registerLocationRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/location/reverse-geocode", handler.ReverseGeocodeHandler(svcCtx))
 	mux.HandleFunc("/api/passenger/v1/location/geocode", handler.GeocodeHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/location/nearby-drivers", handler.NearbyDriversHandler(svcCtx))
 }
 
 // registerWalletRoutes 注册乘客钱包查询、充值和提现接口。

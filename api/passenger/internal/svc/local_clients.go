@@ -37,12 +37,13 @@ func (c *localPayClient) CreatePayment(ctx context.Context, req *payproto.Create
 		return nil, err
 	}
 	payment := &payproto.GetPaymentResponse{
-		PaymentId:     resp.GetPaymentId(),
-		PaymentNo:     resp.GetPaymentNo(),
-		OrderId:       req.GetOrderId(),
-		AmountCents:   req.GetAmountCents(),
-		Channel:       req.GetChannel().String(),
-		Status:        resp.GetStatus(),
+		PaymentId:   resp.GetPaymentId(),
+		PaymentNo:   resp.GetPaymentNo(),
+		OrderId:     req.GetOrderId(),
+		AmountCents: req.GetAmountCents(),
+		Channel:     req.GetChannel().String(),
+		// local 模式没有真实第三方回调，创建成功即视为支付成功，避免页面永久轮询待支付状态。
+		Status:        2,
 		TransactionId: resp.GetTransactionId(),
 	}
 	c.mu.Lock()

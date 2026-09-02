@@ -76,6 +76,7 @@ func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.Con
 		OperatorType: constants.OperatorSystem,
 		OperatorId:   0,
 		Remark:       remark,
+		PaidCents:    in.AmountCents,
 	}
 	ok, err := l.svcCtx.OrderRepository.CompleteOrder(l.ctx, order.Id, statusLog)
 	if err != nil {

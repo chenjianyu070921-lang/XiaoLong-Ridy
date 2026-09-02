@@ -94,6 +94,9 @@ type OrderDetail struct {
 	CreatedAt           int64   `json:"createdAt"`
 	UpdatedAt           int64   `json:"updatedAt"`
 	Rated               bool    `json:"rated"`
+	// DriverName 和 PlateNumber 供结束页直接展示司机称呼与车辆信息；下游未提供时前端显示友好占位。
+	DriverName  string `json:"driverName"`
+	PlateNumber string `json:"plateNumber"`
 }
 
 // CancelOrderRequest 表示取消订单请求参数。

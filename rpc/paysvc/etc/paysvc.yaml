@@ -27,3 +27,5 @@ kafka:
   topic: orderclient.paid
 ordersvc:
   target: 127.0.0.1:50051
+usersvc:
+  target: 127.0.0.1:50052

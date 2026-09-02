@@ -133,6 +133,11 @@ func (c *grpcOrderClient) GetOrder(ctx context.Context, req *orderproto.GetOrder
 	return c.cli.GetOrder(ctx, req)
 }
 
+// ConfirmPaid 补偿确认已成功支付的订单，确保支付表与订单表最终一致。
+func (c *grpcOrderClient) ConfirmPaid(ctx context.Context, req *orderproto.ConfirmPaidRequest) (*orderproto.ConfirmPaidResponse, error) {
+	return c.cli.ConfirmPaid(ctx, req)
+}
+
 func (c *grpcOrderClient) ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
 	return c.cli.ListOrders(ctx, req)
 }

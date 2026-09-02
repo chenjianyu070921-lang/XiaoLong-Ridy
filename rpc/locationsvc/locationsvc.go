@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
+	"time"
 
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/config"
@@ -20,6 +21,7 @@ import (
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"gorm.io/gorm"
 )
 
 var configFile = flag.String("f", "etc/locationsvc.yaml", "the config file")
@@ -57,23 +59,18 @@ func main() {
 	}
 
 	// 连接 MySQL
-	mysqlDB, err := datasource.NewMysqlClient(c.Mysql)
-	if err != nil {
-		panic(err)
-	}
-	sqlDB, err := mysqlDB.DB()
-	if err != nil {
-		panic(err)
-	}
-	if err := sqlDB.Ping(); err != nil {
-		panic(err)
-	}
+	mysqlDB, _ := connectMysqlWithRetry(c)
 	fmt.Println("MySQL 连接成功")
 
 	// 连接 Redis
 	redisClient := datasource.NewRedisClient(c.RedisConf)
-	if err := redisClient.Ping(context.Background()).Err(); err != nil {
-		panic(err)
+	for {
+		if err := redisClient.Ping(context.Background()).Err(); err == nil {
+			break
+		} else {
+			logx.Errorf("Redis 连接失败: %v，5 秒后重试", err)
+			time.Sleep(5 * time.Second)
+		}
 	}
 	fmt.Println("Redis 连接成功")
 
@@ -106,6 +103,29 @@ func main() {
 
 	fmt.Printf("Starting locationsvc rpc server at %s...\n", c.ListenOn)
 	s.Start()
+}
+
+// connectMysqlWithRetry 创建数据库连接并持续探测，避免依赖服务短暂不可用时 locationsvc 直接退出。
+// 连接成功后返回 ORM 客户端及底层 SQL 客户端，供服务上下文使用。
+func connectMysqlWithRetry(c config.Config) (*gorm.DB, *sql.DB) {
+	for {
+		mysqlDB, err := datasource.NewMysqlClient(c.Mysql)
+		if err == nil {
+			sqlDB, dbErr := mysqlDB.DB()
+			if dbErr == nil {
+				if pingErr := sqlDB.Ping(); pingErr == nil {
+					return mysqlDB, sqlDB
+				} else {
+					logx.Errorf("MySQL 连接失败: %v，5 秒后重试", pingErr)
+				}
+			} else {
+				logx.Errorf("获取 MySQL 连接池失败: %v，5 秒后重试", dbErr)
+			}
+		} else {
+			logx.Errorf("创建 MySQL 客户端失败: %v，5 秒后重试", err)
+		}
+		time.Sleep(5 * time.Second)
+	}
 }
 
 // envOr 返回非空环境变量，否则返回默认值，用于覆盖本地开发配置。

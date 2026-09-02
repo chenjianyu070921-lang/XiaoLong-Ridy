@@ -70,6 +70,9 @@ func writeAuthError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, 40301, "账号未审核通过或已被冻结/注销")
 	case logic.ErrCodeInvalid:
 		writeError(w, http.StatusBadRequest, 41001, "验证码错误")
+	case logic.ErrCodeSendFailed:
+		// 验证码生成或缓存不可用属于服务端依赖故障，返回 503 便于前端和监控正确识别。
+		writeError(w, http.StatusServiceUnavailable, 50004, "验证码服务暂不可用")
 	case logic.ErrDriverClientNotConfigured:
 		writeError(w, http.StatusBadGateway, 50001, "下游 driversvc 不可用")
 	default:
