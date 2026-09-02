@@ -32,7 +32,10 @@ func (l *ReportLocationLogic) ReportLocation(in *locationsvc.ReportLocationReq) 
 	if in.DriverId <= 0 {
 		return nil, fmt.Errorf("driver_id 非法: %d", in.DriverId)
 	}
-	if in.Lat < -90 || in.Lat > 90 || in.Lng < -180 || in.Lng > 180 {
+	// 与 driversvc 保持一致：除范围校验外，额外拒绝 (0,0)。
+	// 否则未授权定位的端会把 (0,0) 写入 Redis GEO，司机被"派到几内亚湾"，
+	// 距离超过最大搜索半径 20km，导致永远收不到派单。
+	if in.Lat < -90 || in.Lat > 90 || in.Lng < -180 || in.Lng > 180 || (in.Lat == 0 && in.Lng == 0) {
 		return nil, fmt.Errorf("经纬度非法: lat=%f lng=%f", in.Lat, in.Lng)
 	}
 

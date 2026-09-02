@@ -33,8 +33,9 @@ type OrderRepository interface {
 	StartTrip(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error)
 	// FinishTrip 将行程中订单改为待支付。
 	FinishTrip(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error)
-	// CompleteOrder 将待支付订单改为已完成，并写入完成日志。
-	CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog) (bool, error)
+	// CompleteOrder 将待支付订单改为已完成，写入完成日志，并落库实付金额 paidCents。
+	// paidCents 必落：下游退款金额取 order.PaidCents，若不落库则恒为 0，退款链路完全失效。
+	CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error)
 	// MarkDispatchAccepted 将指定司机的派单记录标记为已接受。
 	MarkDispatchAccepted(ctx context.Context, orderID, driverID uint64) error
 	// AppendStatusLog 追加一条状态日志。

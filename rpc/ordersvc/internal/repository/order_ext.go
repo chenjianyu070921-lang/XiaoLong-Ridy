@@ -11,14 +11,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// CompleteOrder 条件更新待支付订单为已完成并写入完成日志。
-func (r *gormOrderRepository) CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog) (bool, error) {
+// CompleteOrder 条件更新待支付订单为已完成，写入完成日志，并落库实付金额。
+func (r *gormOrderRepository) CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 从支付确认日志中读取实付金额，状态、金额和状态日志必须在同一事务提交。
 		paidCents := statusLog.PaidCents
 		res := tx.Model(&model.RideOrder{}).
 			Where("id = ? AND status = ? AND deleted_at IS NULL", orderID, constants.OrderStatusWaitPay).
 			Updates(map[string]interface{}{"status": constants.OrderStatusCompleted, "paid_cents": paidCents, "updated_at": time.Now()})
+
 		if res.Error != nil {
 			return res.Error
 		}
@@ -55,7 +56,7 @@ func (r *gormOrderRepository) MarkDispatchAccepted(ctx context.Context, orderID,
 }
 
 // CompleteOrder 内存版：待支付订单改为已完成。
-func (r *MemoryOrderRepository) CompleteOrder(_ context.Context, orderID uint64, statusLog *model.OrderStatusLog) (bool, error) {
+func (r *MemoryOrderRepository) CompleteOrder(_ context.Context, orderID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -69,6 +70,7 @@ func (r *MemoryOrderRepository) CompleteOrder(_ context.Context, orderID uint64,
 
 	now := time.Now()
 	order.Status = constants.OrderStatusCompleted
+	order.PaidCents = paidCents
 	order.UpdatedAt = now
 	r.appendLogLocked(orderID, statusLog, now)
 	return true, nil
