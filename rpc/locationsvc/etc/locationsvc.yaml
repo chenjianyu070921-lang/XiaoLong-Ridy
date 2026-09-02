@@ -1,4 +1,5 @@
 Name: locationsvc.rpc
+defaultCityCode: "321300"
 ListenOn: 0.0.0.0:9001
 
 Etcd:

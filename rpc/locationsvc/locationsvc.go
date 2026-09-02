@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"strconv"
 
 	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/locationsvc/internal/config"
@@ -104,4 +106,12 @@ func main() {
 
 	fmt.Printf("Starting locationsvc rpc server at %s...\n", c.ListenOn)
 	s.Start()
+}
+
+// envOr 返回非空环境变量，否则返回默认值，用于覆盖本地开发配置。
+func envOr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }

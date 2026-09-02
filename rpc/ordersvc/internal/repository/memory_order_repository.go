@@ -107,6 +107,11 @@ func (r *MemoryOrderRepository) Cancel(_ context.Context, orderID uint64, wantSt
 	return true, nil
 }
 
+// CancelWithCoupon 内存仓储没有独立券表，复用取消逻辑保持测试行为与生产接口一致。
+func (r *MemoryOrderRepository) CancelWithCoupon(ctx context.Context, orderID, _ uint64, wantStatuses []int8, cancelBy, reason string, statusLog *model.OrderStatusLog) (bool, error) {
+	return r.Cancel(ctx, orderID, wantStatuses, cancelBy, reason, statusLog)
+}
+
 // TimeoutCancel 只允许超时任务取消仍处于待接单且未绑定司机的订单。
 func (r *MemoryOrderRepository) TimeoutCancel(_ context.Context, orderID uint64, reason string, statusLog *model.OrderStatusLog) (bool, error) {
 	r.mu.Lock()

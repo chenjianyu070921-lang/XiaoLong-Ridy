@@ -28,9 +28,9 @@ redis:
   pass: "4ay1nkal3u8ed77y"
   db: 0
   poolSize: 20
-kafka:
-  brokers:
-    - 115.191.16.159:9092
+  dialTimeout: 0
+  readTimeout: 0
+  writeTimeout: 0
 timeoutseconds: 300
 dispatchtimeoutseconds: 60
 adminoutboxmaxretry: 5

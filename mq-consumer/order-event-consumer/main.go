@@ -15,7 +15,8 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-var configFile = flag.String("f", "etc/orderclient-event-consumer.yaml", "the config file")
+// configFile 默认指向仓库中实际维护的消费者配置文件；仍可通过 -f 覆盖。
+var configFile = flag.String("f", "etc/order-event-consumer.yaml", "the config file")
 
 func main() {
 	flag.Parse()
