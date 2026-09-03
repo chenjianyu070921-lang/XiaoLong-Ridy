@@ -13,6 +13,20 @@ type fakeLocationClient struct {
 	calls int
 }
 
+type fakeTrajectoryRepository struct {
+	recorded *svc.TrajectoryRecord
+}
+
+func (f *fakeTrajectoryRepository) RecordPoint(_ context.Context, record *svc.TrajectoryRecord) error {
+	copied := *record
+	f.recorded = &copied
+	return nil
+}
+
+func (f *fakeTrajectoryRepository) ListByOrder(_ context.Context, _, _ int64) ([]svc.TrajectoryRecord, error) {
+	return nil, nil
+}
+
 func (f *fakeLocationClient) ReportLocation(_ context.Context, req *locationproto.ReportLocationReq) (*locationproto.ReportLocationResp, error) {
 	f.calls++
 	return &locationproto.ReportLocationResp{Success: true}, nil

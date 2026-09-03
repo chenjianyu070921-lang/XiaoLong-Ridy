@@ -73,7 +73,7 @@ func TestUploadCertificationFallsBackToLocalStorageWhenMinioUnavailable(t *testi
 		t.Fatalf("UploadCertification() error = %v", err)
 	}
 	cert := resp.GetCertification()
-	if cert.GetId() != 99 || cert.GetVehicleId() != 77 || cert.GetAuditStatus() != int32(AuditStatusPassed) {
+	if cert.GetId() != 99 || cert.GetVehicleId() != 77 || cert.GetAuditStatus() != int32(AuditStatusPending) {
 		t.Fatalf("UploadCertification() response = %+v", resp)
 	}
 	if !strings.HasPrefix(cert.GetIdCardFrontUrl(), "/api/driver/v1/certification-files/drivers/25/id_card_front-") ||

@@ -136,3 +136,23 @@ func TestNormalizeLoginErrorTreatsPendingDriverAsForbidden(t *testing.T) {
 		t.Fatalf("normalizeLoginError() = %v, want %v", err, ErrDriverFrozen)
 	}
 }
+
+func TestNormalizeLoginErrorPreservesDownstreamTransportStatus(t *testing.T) {
+	cases := []struct {
+		name string
+		code codes.Code
+	}{
+		{name: "unavailable", code: codes.Unavailable},
+		{name: "deadline exceeded", code: codes.DeadlineExceeded},
+		{name: "unimplemented", code: codes.Unimplemented},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			downstream := status.Error(testCase.code, "downstream failed")
+			if got := normalizeLoginError(downstream); got != downstream {
+				t.Fatalf("normalizeLoginError() = %v, want %v", got, downstream)
+			}
+		})
+	}
+}

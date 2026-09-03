@@ -70,6 +70,9 @@ func (l *CertificationLogic) UploadCertification(driverID int64, req *types.Uplo
 
 // GetCertification 查询当前司机资质记录。
 func (l *CertificationLogic) GetCertification(driverID int64) (*types.GetCertificationResponse, error) {
+	if driverID <= 0 {
+		return nil, ErrInvalidParam
+	}
 	client, err := l.driverClient()
 	if err != nil {
 		return nil, err

@@ -12,7 +12,7 @@
 
 - No standalone `/workbench` route.
 - Homepage remains the driver workbench first screen.
-- Avatar upload route is `/api/driver/v1/drivers/avatar/upload`.
+- Avatar upload uses `/api/driver/v1/upload/avatar-token` and direct Qiniu upload.
 - Nearby order actions must pass the full order object to `handleOrderAction`.
 - Vant popup `teleport` must not receive boolean `false`.
 

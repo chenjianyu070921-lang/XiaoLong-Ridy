@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 )
@@ -30,6 +31,8 @@ type DriverRepository interface {
 	UpdateStatusAndLocation(ctx context.Context, driverID uint64, status int8) error
 	// GetDriverScore returns nil, nil when no score record exists.
 	GetDriverScore(ctx context.Context, driverID uint64) (*model.DriverScore, error)
+	// RefreshDriverScoreMetrics recalculates this month's score factors from source tables and upserts driver_score.
+	RefreshDriverScoreMetrics(ctx context.Context, driverID uint64, startAt, endAt time.Time) (*model.DriverScore, error)
 	// Update 按 ID 增量更新司机字段。
 	Update(ctx context.Context, id uint64, updates map[string]interface{}) error
 	// Delete 软删除指定司机（设置 deleted_at）。
