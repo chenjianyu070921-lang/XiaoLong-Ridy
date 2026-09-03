@@ -108,3 +108,39 @@
   color: #6b7280;
   font-size: 12px;
 }
+
+.withdraw-record-section {
+  margin-top: 12px;
+}
+
+.withdraw-status {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 800;
+}
+
+.withdraw-status.status-1 {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.withdraw-status.status-2 {
+  background: #ecfdf3;
+  color: #15803d;
+}
+
+.withdraw-status.status-3 {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.withdraw-remark {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

@@ -29,8 +29,16 @@ func writeParamError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadGateway, 50003, "下游 paysvc 不可用")
 		return
 	}
+	if errors.Is(err, logic.ErrPriceClientNotConfigured) {
+		writeError(w, http.StatusBadGateway, 50005, "下游 pricesvc 不可用")
+		return
+	}
 	if errors.Is(err, logic.ErrQiniuNotConfigured) {
 		writeError(w, http.StatusBadGateway, 50004, "qiniu storage not configured")
+		return
+	}
+	if errors.Is(err, logic.ErrReviewRepositoryNotConfigured) {
+		writeError(w, http.StatusServiceUnavailable, 50001, "评价存储不可用")
 		return
 	}
 	if errors.Is(err, logic.ErrInvalidParam) {

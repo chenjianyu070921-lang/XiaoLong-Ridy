@@ -31,6 +31,9 @@ func TestGetIncomeSummaryUsesPaysvcSettlements(t *testing.T) {
 	if resp.DriverID != 25 || resp.CompletedOrders != 2 || resp.TotalIncomeCents != 3500 || resp.Source != "paysvc.settlement" {
 		t.Fatalf("GetIncomeSummary() response = %+v", resp)
 	}
+	if resp.WithdrawableCents != 3500 {
+		t.Fatalf("GetIncomeSummary() withdrawable cents = %d, want 3500", resp.WithdrawableCents)
+	}
 	if client.listSettlementsRequest.GetDriverId() != 25 ||
 		client.listSettlementsRequest.GetStatus() != 2 ||
 		client.listSettlementsRequest.GetPageSize() != 100 {

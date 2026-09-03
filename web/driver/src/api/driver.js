@@ -24,10 +24,6 @@ export function getDriver(config = {}) {
   return driverRequest.get('/drivers/get', config)
 }
 
-export function listNearbyDrivers(data = {}, config = {}) {
-  return driverRequest.post('/drivers/nearby', data, config)
-}
-
 export function getDriverAiScore(config = {}) {
   return driverRequest.get('/drivers/ai-score', config)
 }
@@ -66,6 +62,10 @@ export function deleteVehicle(id) {
 
 export function createWithdraw(data) {
   return driverRequest.post('/withdraws', data)
+}
+
+export function listWithdraws(data = {}, config = {}) {
+  return driverRequest.post('/withdraws/list', data, config)
 }
 
 export function uploadCertification(data) {
@@ -112,16 +112,20 @@ export function finishTrip(data) {
   return driverRequest.post('/orders/finish-trip', data)
 }
 
+export function getRealtimeFare(data = {}, config = {}) {
+  return driverRequest.post('/orders/realtime-fare', data, config)
+}
+
 export function listAvailableOrders(data = {}, config = {}) {
-  return driverRequest.post('/orders/available', data, config)
+  return listGrabOrders(data, config)
+}
+
+export function listGrabOrders(data = {}, config = {}) {
+  return driverRequest.post('/orders/grab-list', data, config)
 }
 
 export function getOrderHeatmap(data = {}, config = {}) {
   return driverRequest.post('/orders/heatmap', data, config)
-}
-
-export function getOrderTrajectory(data = {}, config = {}) {
-  return driverRequest.post('/orders/trajectory', data, config)
 }
 
 export function getDriverOrderDetail(orderId) {
@@ -134,6 +138,21 @@ export function listDriverOrders(data = {}, config = {}) {
 
 export function listDriverDispatches(data = {}, config = {}) {
   return driverRequest.post('/orders/dispatches', data, config)
+}
+
+export function listReceivedReviews(params = {}, config = {}) {
+  return driverRequest.get('/reviews/received', {
+    ...config,
+    params: { page: params.page || 1, pageSize: params.pageSize || 20, ...(config.params || {}) }
+  })
+}
+
+export function listGivenReviews(data = {}, config = {}) {
+  return driverRequest.post('/reviews/given', data, config)
+}
+
+export function submitDriverReview(data) {
+  return driverRequest.post('/reviews/submit', data)
 }
 
 export default driverRequest

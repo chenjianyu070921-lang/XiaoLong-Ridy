@@ -1,7 +1,5 @@
 <template>
   <main class="driver-home-page">
-    <div id="driver-home-popups"></div>
-
     <section v-show="activeTab === 0" class="home-workbench">
       <header class="driver-status-bar">
         <button type="button" class="driver-avatar-button" aria-label="编辑司机资料" @click="openProfileEdit">
@@ -64,6 +62,11 @@
             <strong>{{ selectedHomeOrder?.toAddress || '导航中' }}</strong>
           </div>
           <p class="route-line">{{ selectedHomeOrder?.fromAddress || '--' }} -> {{ selectedHomeOrder?.toAddress || '--' }}</p>
+          <div v-if="isRealtimeFareActive" class="realtime-fare-strip">
+            <span>实时费用</span>
+            <strong>{{ realtimeFareAmountText }}</strong>
+            <small>{{ realtimeFareStateText }}</small>
+          </div>
           <div class="panel-actions three-actions">
             <button type="button" class="primary" @click="navigateToPickup(selectedHomeOrder)">导航</button>
             <button type="button" @click="contactPassenger(selectedHomeOrder)">联系乘客</button>
@@ -122,7 +125,6 @@
         @update:order-mode="orderMode = $event"
         @update:order-status="orderStatus = $event"
         @order-detail="loadOrderDetail"
-        @select-trajectory="selectTrajectory"
         @order-action="handleOrderAction"
         @open-finish="openFinish"
         @load-vehicle="loadVehicle"
@@ -135,13 +137,11 @@
         @submit-certification="submitCertification"
         @load-income="loadIncome"
         @open-withdraw="openWithdraw"
-        @load-reviews="loadReviews"
-        @update:trajectory-order-id="trajectoryOrderId = $event"
-        @load-trajectory="loadTrajectory"
+        @open-reviews="openPassengerReviews"
+        @open-help="openHelpCenter"
         @edit-profile="openProfileEdit"
-        @open-assets="openDriverAssets"
-        @open-orders="activeTab = 1"
       />
+      <DriverReviewsPanel v-model:visible="reviewsPanelVisible" :mode="reviewsPanelMode" />
     </section>
 
     <van-tabbar v-model="activeTab" class="driver-tabbar" fixed safe-area-inset-bottom>
@@ -216,9 +216,8 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { closeToast, showConfirmDialog, showDialog, showLoadingToast, showToast } from 'vant'
-import AMapLoader from '@amap/amap-jsapi-loader'
 import {
   acceptOrder,
   confirmArrive,
@@ -231,7 +230,7 @@ import {
   getDriverOrderDetail,
   getIncomeSummary,
   getOrderHeatmap,
-  getOrderTrajectory,
+  getRealtimeFare,
   getTodayIncome,
   getVehicle,
   getWeekIncome,
@@ -240,7 +239,6 @@ import {
   listDriverDispatches,
   listDriverOrders,
   listIncomeBills,
-  listPassengerReviews,
   rejectOrder,
   reportDriverLocation,
   setDriverOffline,
@@ -251,31 +249,60 @@ import {
 } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
 import { resolveCreatedVehicle } from '@/utils/vehicle'
+import {
+  formatPrice,
+  formatDistance,
+  formatTime,
+  formatOrderStatus,
+  formatDispatchStatus,
+  formatDriverStatus
+} from '@/utils/driver-format'
 import DriverOrdersPanel from '@/components/driver-home/DriverOrdersPanel.vue'
-import DriverAssetsPanel from '@/components/driver-home/DriverAssetsPanel.vue'
 import DriverMinePanel from '@/components/driver-home/DriverMinePanel.vue'
-import { getAmapConfig } from '@/config/amap'
+import DriverReviewsPanel from '@/components/driver-home/DriverReviewsPanel.vue'
+import { loadDriverAmap } from '@/config/amap'
 import { normalizeBrowserLocationForAmap } from '@/utils/geo'
 import '@/styles/driver-home-panels.css'
 
 const router = useRouter()
+const route = useRoute()
 const driverStore = useDriverStore()
 
 const tabItems = [
   { title: '首页', icon: 'wap-home-o' },
   { title: '订单', icon: 'orders-o' },
-  { title: '资产', icon: 'balance-o' },
   { title: '我的', icon: 'user-o' }
 ]
 
-const activeTab = ref(0)
-// 从个人中心快捷入口跳转到资产模块，并选中对应子分区。
-const openDriverAssets = (section) => { activeTab.value = 2; nextTick(() => { /* 资产面板保持上次选择 */ }) }
-const mineSection = ref('profile')
+const homeTabQueryValues = ['home', 'orders', 'mine']
+
+function resolveHomeTab(value) {
+  const rawValue = Array.isArray(value) ? value[0] : value
+  if (rawValue === 'orders' || rawValue === '1') return 1
+  if (rawValue === 'mine' || rawValue === '2') return 2
+  return 0
+}
+
+function homeTabQueryValue(tab) {
+  return homeTabQueryValues[Number(tab)] || homeTabQueryValues[0]
+}
+
+async function replaceHomeTabQuery(tab) {
+  if (route.path !== '/home') return
+  const tabValue = homeTabQueryValue(tab)
+  if (route.query.tab === tabValue) return
+  await router.replace({ path: '/home', query: { ...route.query, tab: tabValue } })
+}
+
+async function pushFromCurrentHomeTab(path) {
+  await replaceHomeTabQuery(activeTab.value)
+  router.push(path)
+}
+
+const activeTab = ref(resolveHomeTab(route.query.tab))
 const tabPanelComponents = [
   null,
   DriverOrdersPanel,
-  DriverAssetsPanel,
   DriverMinePanel
 ]
 const activePanelComponent = computed(() => tabPanelComponents[activeTab.value] || null)
@@ -312,33 +339,16 @@ const activePanelProps = computed(() => {
   if (activeTab.value === 2) {
     return {
       driverStore,
-      vehicleForm,
-      certificationForm,
-      certUploading,
-      certItems,
-      certSubmitting: certSubmitting.value,
-      certStatusIcon: certStatusIcon.value,
       incomeSummary: incomeSummary.value,
       todayIncome: todayIncome.value,
-      weekIncome: weekIncome.value,
-      incomeBills: incomeBills.value,
+      serviceScore: serviceScore.value,
       formatPrice,
-      formatTime,
-      formatVehicleStatus,
-      formatCertificationStatus
+      formatDriverStatus
     }
   }
-  return {
-    driverStore,
-    defaultSection: mineSection.value,
-    reviews: reviews.value,
-    trajectoryOrderId: trajectoryOrderId.value,
-    trajectoryError: trajectoryError.value,
-    trajectoryPoints: trajectoryPoints.value,
-    formatDriverStatus,
-    formatTime
-  }
+  return {}
 })
+
 const workLoading = ref(false)
 const serviceScore = ref('--')
 const orders = ref([])
@@ -362,10 +372,6 @@ const incomeSummary = ref({})
 const todayIncome = ref({})
 const weekIncome = ref({})
 const incomeBills = ref([])
-const reviews = ref([])
-const trajectoryOrderId = ref('')
-const trajectoryPoints = ref([])
-const trajectoryError = ref('')
 const finishVisible = ref(false)
 const finishOrder = ref(null)
 // finishSubmitting 防止结束行程请求重复提交，并向司机明确展示请求正在处理。
@@ -387,6 +393,9 @@ const withdrawForm = reactive({ amount: '', payeeName: '', payAccount: '' })
 const listenModeEnabled = ref(localStorage.getItem('driverListenModeEnabled') !== '0')
 const previewOrder = ref(null)
 const homeRouteAddress = ref(localStorage.getItem('driverHomeRouteAddress') || '')
+const realtimeFare = ref(null)
+const realtimeFareLoading = ref(false)
+const realtimeFareError = ref('')
 
 const orderModeOptions = [
   { text: '我的订单', value: 'orders' },
@@ -398,9 +407,9 @@ const orderStatusOptions = [
   { text: '待接单', value: 1 },
   { text: '已接单', value: 2 },
   { text: '行程中', value: 3 },
-  { text: '已完成', value: 4 },
-  { text: '已取消', value: 5 },
-  { text: '已关闭', value: 6 }
+  { text: '待支付', value: 4 },
+  { text: '已完成', value: 5 },
+  { text: '已取消', value: 6 }
 ]
 
 const vehicleForm = reactive({
@@ -427,11 +436,19 @@ const finishForm = reactive({ actualDistanceM: 0, actualDurationS: 0 })
 
 const heartbeatIntervalMs = 30000
 const foregroundHeartbeatMinGapMs = 5000
+const realtimeFareIntervalMs = 15000
+const realtimeFareMinDistanceDeltaM = 5
 let heartbeatTimer = null
 let heartbeatInFlight = false
 let lastHeartbeatAt = 0
 let locationTimer = null
 let tripTimer = null
+let realtimeFareTimer = null
+let realtimeFareInFlight = false
+let realtimeFareRequestSeq = 0
+let realtimeFareStartedAt = 0
+let realtimeFareDistanceM = 0
+let realtimeFareLastLocation = null
 let geoWatchId = null
 let pushSocket = null
 let reconnectTimer = null
@@ -450,6 +467,8 @@ let heatmapLayer = null
 let heatmapCenterMarker = null
 let heatmapGeolocation = null
 let heatmapRefreshTimer = null
+const homeDriverPulseContent = '<div class="driver-location-pulse"><div class="pulse-ring"></div><div class="pulse-ring delay"></div><div class="pulse-core"></div></div>'
+
 
 const phaseLabel = computed(() => {
   if (driverStore.tripPhase === 'pickup') return '接驾中'
@@ -480,6 +499,21 @@ const homePanelMode = computed(() => {
   if (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2 || Number(selectedHomeOrder.value?.status) === 3) return 'driving'
   if (selectedHomeOrder.value) return 'order'
   return 'idle'
+})
+const isRealtimeFareActive = computed(() => {
+  return homePanelMode.value === 'driving'
+    && (driverStore.tripPhase === 'trip' || Number(selectedHomeOrder.value?.status) === 3)
+    && !!resolveOrderId(selectedHomeOrder.value)
+})
+const realtimeFareAmountText = computed(() => {
+  const realtimeCents = Number(realtimeFare.value?.totalCents)
+  if (Number.isFinite(realtimeCents) && realtimeCents > 0) return formatPrice(realtimeCents)
+  return formatPrice(selectedHomeOrder.value?.estimatedPriceCents || 0)
+})
+const realtimeFareStateText = computed(() => {
+  if (realtimeFareLoading.value) return '刷新中'
+  if (realtimeFareError.value || !realtimeFare.value) return '暂用预估'
+  return '实时计价'
 })
 const homeMapStatusText = computed(() => {
   if (homeMapError.value) return homeMapError.value
@@ -520,11 +554,16 @@ onUnmounted(() => {
 })
 
 watch(activeTab, (tab) => {
-  if (tab !== 3) mineSection.value = 'profile'
+  void replaceHomeTabQuery(tab)
   if (tab === 0) {
     nextTick(() => refreshHomeWorkbench())
   }
   loadCurrentTabData()
+})
+
+watch(() => route.query.tab, (tab) => {
+  const nextTab = resolveHomeTab(tab)
+  if (activeTab.value !== nextTab) activeTab.value = nextTab
 })
 
 watch(listenModeEnabled, (enabled) => {
@@ -533,6 +572,14 @@ watch(listenModeEnabled, (enabled) => {
 
 watch(selectedHomeOrder, () => {
   renderHomeMapData()
+  resetRealtimeFareTracking()
+  if (isRealtimeFareActive.value) startRealtimeFarePolling()
+  else stopRealtimeFarePolling(true)
+})
+
+watch(() => [driverStore.tripPhase, driverStore.onlineStatus], () => {
+  if (isRealtimeFareActive.value) startRealtimeFarePolling()
+  else stopRealtimeFarePolling(true)
 })
 
 watch(heatmapVisible, async (visible) => {
@@ -575,12 +622,9 @@ async function loadCurrentTabData() {
   }
   if (activeTab.value === 2) {
     return Promise.allSettled([
-      safeApiCall(() => loadIncome(config), null, { silent: true }),
-      safeApiCall(() => loadVehicle(config), null, { silent: true }),
-      safeApiCall(() => loadCertification(config), null, { silent: true })
+      safeApiCall(() => loadIncome(config), null, { silent: true })
     ])
   }
-  if (activeTab.value === 3) return safeApiCall(() => loadReviews(config), null, { silent: true })
   return null
 }
 
@@ -677,6 +721,7 @@ function rememberWorkLocation(location) {
   const normalized = normalizeBrowserLocationForAmap(location)
   lastLongitude = Number(normalized.longitude)
   lastLatitude = Number(normalized.latitude)
+  updateRealtimeFareTracking({ longitude: lastLongitude, latitude: lastLatitude })
   syncHomeMapCenterToDriver({ longitude: lastLongitude, latitude: lastLatitude })
   renderHomeMapData()
   return { longitude: lastLongitude, latitude: lastLatitude }
@@ -690,6 +735,7 @@ function startRealtimeWork() {
   startHeartbeat()
   startLocationReporting()
   startTripRealtime()
+  startRealtimeFarePolling()
   connectPushChannel()
 }
 
@@ -697,6 +743,7 @@ function stopRealtimeWork() {
   stopHeartbeat()
   stopLocationReporting()
   stopTripRealtime()
+  stopRealtimeFarePolling()
   if (reconnectTimer) {
     window.clearTimeout(reconnectTimer)
     reconnectTimer = null
@@ -749,6 +796,8 @@ function resumeRealtimeWorkOnForeground() {
   if (!locationTimer) startLocationReporting()
   else void reportCurrentLocation()
   if (!tripTimer) startTripRealtime()
+  if (!realtimeFareTimer) startRealtimeFarePolling()
+  else void refreshRealtimeFare()
   connectPushChannel()
 }
 
@@ -785,7 +834,7 @@ async function reportCurrentLocation() {
 }
 
 function openProfileEdit() {
-  router.push('/profile/edit')
+  pushFromCurrentHomeTab('/profile/edit')
 }
 
 function showNotifications() {
@@ -796,6 +845,7 @@ async function refreshHomeWorkbench() {
   if (activeTab.value !== 0) return
   await ensureHomeMap()
   await Promise.allSettled([
+    loadNearbyOrders(nearbyOrderPage.value, { silentError: true }),
     refreshHomeHeatmap()
   ])
   renderHomeMapData()
@@ -806,19 +856,12 @@ async function ensureHomeMap() {
   await nextTick()
   const container = getConnectedHomeMapContainer()
   if (!container) return
-  const { key, securityCode } = getAmapConfig()
-  if (!key) {
-    homeMapError.value = '未配置高德地图Key'
-    return
-  }
   try {
     const currentLocation = await ensureWorkLocation()
-    if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
-    homeAMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.HeatMap'] })
+    homeAMap = await loadDriverAmap(['AMap.HeatMap'])
     if (homeMapInstance) return
     const activeContainer = getConnectedHomeMapContainer()
     if (!activeContainer) return
-    window.AMap = homeAMap
     homeMapInstance = new homeAMap.Map(activeContainer, {
       zoom: 15,
       viewMode: '2D',
@@ -841,7 +884,7 @@ async function ensureHomeMap() {
     renderHomeMapData()
   } catch (error) {
     homeMapReady.value = false
-    homeMapError.value = '高德地图加载失败'
+    homeMapError.value = '高德地图加载失败：' + (error?.message || String(error || ''))
     console.error('driver home AMap error:', error)
   }
 }
@@ -876,7 +919,13 @@ function renderHomeDriverMarker() {
   const location = readRememberedWorkLocation() || workLocationDefault
   const position = [Number(location.longitude), Number(location.latitude)]
   if (!homeDriverMarker) {
-    homeDriverMarker = new homeAMap.Marker({ position, title: '司机当前位置', anchor: 'center', zIndex: 120 })
+    homeDriverMarker = new homeAMap.Marker({
+      position,
+      content: homeDriverPulseContent,
+      title: '?????????',
+      anchor: 'center',
+      zIndex: 120
+    })
     homeMapInstance.add(homeDriverMarker)
   } else {
     homeDriverMarker.setPosition(position)
@@ -905,7 +954,7 @@ function renderHomeHeatmapLayer() {
       count: Number(point.weight || 0)
     }))
     .filter((point) => Number.isFinite(point.lng) && Number.isFinite(point.lat) && point.count > 0)
-  homeHeatmapLayer?.setDataSet({ data, max: Math.max(1, ...data.map((point) => point.count)) })
+  applyHeatmapData(homeHeatmapLayer, data)
 }
 
 function renderHomeOrderMarkers() {
@@ -948,7 +997,7 @@ function centerHomeMapOnDriver() {
 }
 
 function destroyHomeMap() {
-  homeHeatmapLayer?.setDataSet?.({ data: [], max: 1 })
+  homeHeatmapLayer?.hide?.()
   homeMapInstance?.destroy()
   homeAMap = null
   homeMapInstance = null
@@ -968,15 +1017,8 @@ function openHeatmap() {
 
 async function ensureHeatmapMap() {
   if (heatmapMapInstance || !heatmapMapContainer.value) return
-  const { key, securityCode } = getAmapConfig()
-  if (!key) {
-    heatmapMapError.value = '未配置高德地图Key'
-    return
-  }
   try {
-    if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
-    heatmapAMap = await AMapLoader.load({ key, version: '2.0', plugins: ['AMap.HeatMap', 'AMap.Geolocation'] })
-    window.AMap = heatmapAMap
+    heatmapAMap = await loadDriverAmap(['AMap.HeatMap', 'AMap.Geolocation'])
     heatmapMapInstance = new heatmapAMap.Map(heatmapMapContainer.value, {
       zoom: 12,
       viewMode: '2D',
@@ -1013,7 +1055,7 @@ async function ensureHeatmapMap() {
     heatmapCenterMarker = null
     heatmapGeolocation = null
     heatmapMapReady.value = false
-    heatmapMapError.value = '高德地图加载失败'
+    heatmapMapError.value = '高德地图加载失败：' + (error?.message || String(error || ''))
     console.error('driver heatmap AMap error:', error)
   }
 }
@@ -1085,9 +1127,8 @@ function renderHeatmapPoints() {
       count: Number(point.weight || 0)
     }))
     .filter((point) => Number.isFinite(point.lng) && Number.isFinite(point.lat) && point.count > 0)
-  const max = Math.max(1, ...data.map((point) => point.count))
 
-  heatmapLayer?.setDataSet({ data, max })
+  applyHeatmapData(heatmapLayer, data)
   if (!heatmapCenterMarker) {
     heatmapCenterMarker = new heatmapAMap.Marker({ position: centerPosition, title: '司机当前位置', anchor: 'center', zIndex: 120 })
     heatmapMapInstance.add(heatmapCenterMarker)
@@ -1095,6 +1136,19 @@ function renderHeatmapPoints() {
     heatmapCenterMarker.setPosition(centerPosition)
   }
   heatmapMapInstance.setZoomAndCenter(data.length ? 14 : 13, centerPosition)
+}
+
+function applyHeatmapData(layer, data) {
+  if (!layer) return
+  if (!data.length) {
+    layer.hide?.()
+    return
+  }
+  layer.show?.()
+  layer.setDataSet({
+    data,
+    max: Math.max(1, ...data.map((point) => point.count))
+  })
 }
 
 function startHeatmapRealtime() {
@@ -1108,7 +1162,7 @@ function stopHeatmapRealtime() {
 }
 
 function destroyHeatmapMap() {
-  heatmapLayer?.setDataSet?.({ data: [], max: 1 })
+  heatmapLayer?.hide?.()
   heatmapMapInstance?.destroy()
   heatmapAMap = null
   heatmapMapInstance = null
@@ -1131,6 +1185,128 @@ function startTripRealtime() {
 function stopTripRealtime() {
   if (tripTimer) window.clearInterval(tripTimer)
   tripTimer = null
+}
+
+function startRealtimeFarePolling() {
+  if (!isRealtimeFareActive.value) return
+  if (!realtimeFareStartedAt) realtimeFareStartedAt = Date.now()
+  void refreshRealtimeFare()
+  if (realtimeFareTimer) return
+  realtimeFareTimer = window.setInterval(refreshRealtimeFare, realtimeFareIntervalMs)
+}
+
+function stopRealtimeFarePolling(clearState = false) {
+  if (realtimeFareTimer) window.clearInterval(realtimeFareTimer)
+  realtimeFareTimer = null
+  realtimeFareRequestSeq += 1
+  realtimeFareInFlight = false
+  realtimeFareLoading.value = false
+  if (clearState) {
+    realtimeFare.value = null
+    realtimeFareError.value = ''
+    resetRealtimeFareTracking()
+  }
+}
+
+async function refreshRealtimeFare() {
+  if (!isRealtimeFareActive.value || realtimeFareInFlight) return
+  const order = selectedHomeOrder.value
+  const orderId = resolveOrderId(order)
+  if (!orderId) return
+  realtimeFareInFlight = true
+  realtimeFareLoading.value = true
+  const requestSeq = ++realtimeFareRequestSeq
+  try {
+    const metrics = realtimeFareMetrics(order)
+    const data = await getRealtimeFare({
+      orderId,
+      actualDistanceM: metrics.actualDistanceM,
+      actualDurationS: metrics.actualDurationS
+    }, { silentError: true })
+    if (requestSeq !== realtimeFareRequestSeq || !isRealtimeFareActive.value || resolveOrderId(selectedHomeOrder.value) !== orderId) return
+    realtimeFare.value = data || null
+    realtimeFareError.value = ''
+  } catch (error) {
+    if (requestSeq !== realtimeFareRequestSeq) return
+    realtimeFareError.value = apiErrorMessage(error, '实时费用暂不可用')
+  } finally {
+    if (requestSeq === realtimeFareRequestSeq) {
+      realtimeFareLoading.value = false
+      realtimeFareInFlight = false
+    }
+  }
+}
+
+function realtimeFareMetrics(order) {
+  const elapsedSeconds = realtimeFareStartedAt ? Math.max(0, Math.round((Date.now() - realtimeFareStartedAt) / 1000)) : 0
+  const distanceM = firstPositiveNumber(
+    realtimeFareDistanceM,
+    finishForm.actualDistanceM,
+    order?.actualDistanceM,
+    order?.estimatedDistanceM
+  )
+  const durationS = firstPositiveNumber(
+    elapsedSeconds,
+    finishForm.actualDurationS,
+    order?.actualDurationS,
+    order?.estimatedDurationS
+  )
+  return {
+    actualDistanceM: Math.round(distanceM),
+    actualDurationS: Math.round(durationS)
+  }
+}
+
+function updateRealtimeFareTracking(location) {
+  if (!isRealtimeFareActive.value) return
+  if (!realtimeFareStartedAt) realtimeFareStartedAt = Date.now()
+  const point = normalizeRealtimeFareLocation(location)
+  if (!point) return
+  if (!realtimeFareLastLocation) {
+    realtimeFareLastLocation = point
+    return
+  }
+  const deltaM = distanceBetweenMeters(realtimeFareLastLocation, point)
+  realtimeFareLastLocation = point
+  if (deltaM >= realtimeFareMinDistanceDeltaM && deltaM < 2000) {
+    realtimeFareDistanceM += deltaM
+  }
+}
+
+function resetRealtimeFareTracking() {
+  realtimeFareStartedAt = isRealtimeFareActive.value ? Date.now() : 0
+  realtimeFareDistanceM = 0
+  realtimeFareLastLocation = readRememberedWorkLocation()
+}
+
+function normalizeRealtimeFareLocation(location) {
+  const longitude = Number(location?.longitude)
+  const latitude = Number(location?.latitude)
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude) || (longitude === 0 && latitude === 0)) return null
+  return { longitude, latitude }
+}
+
+function firstPositiveNumber(...values) {
+  for (const value of values) {
+    const number = Number(value)
+    if (Number.isFinite(number) && number > 0) return number
+  }
+  return 0
+}
+
+function distanceBetweenMeters(from, to) {
+  const earthRadiusM = 6371000
+  const fromLat = degreesToRadians(from.latitude)
+  const toLat = degreesToRadians(to.latitude)
+  const deltaLat = degreesToRadians(to.latitude - from.latitude)
+  const deltaLng = degreesToRadians(to.longitude - from.longitude)
+  const a = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(fromLat) * Math.cos(toLat) * Math.sin(deltaLng / 2) ** 2
+  return earthRadiusM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function degreesToRadians(value) {
+  return Number(value) * Math.PI / 180
 }
 
 function connectPushChannel() {
@@ -1166,7 +1342,7 @@ function handlePushMessage(raw) {
       if (activeTab.value === 1) loadOrders(orderPage.value)
     } else if (payload.type === 'dispatch.new') {
       showToast('收到新的派单')
-      if (activeTab.value === 1) void loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
+      void loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
     }
   } catch {
     // Push messages are best-effort; malformed messages should not block the H5 page.
@@ -1436,6 +1612,7 @@ async function submitFinishTrip() {
       actualDurationS: Number(finishForm.actualDurationS || 0)
     })
     finishVisible.value = false
+    stopRealtimeFarePolling(true)
     driverStore.setCurrentOrder(null, 'idle')
     if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
     showToast('行程已结束，应收' + formatPrice(res?.payableAmountCents))
@@ -1627,34 +1804,16 @@ function showIncomeLoadFailure(failures) {
   }).catch(() => {})
 }
 
-async function loadReviews(config = {}) {
-  const res = await listPassengerReviews({ page: 1, pageSize: 20 }, config)
-  reviews.value = Array.isArray(res.list) ? res.list : []
+const reviewsPanelVisible = ref(false)
+const reviewsPanelMode = ref('received')
+
+function openPassengerReviews() {
+  reviewsPanelMode.value = 'received'
+  reviewsPanelVisible.value = true
 }
 
-function selectTrajectory(orderId) {
-  trajectoryOrderId.value = Number(orderId || 0)
-  mineSection.value = 'trajectory'
-  activeTab.value = 3
-  loadTrajectory()
-}
-
-async function loadTrajectory() {
-  const orderId = Number(trajectoryOrderId.value || driverStore.currentOrderId || 0)
-  if (!orderId) {
-    trajectoryError.value = '请输入订单ID'
-    showToast('请输入订单ID')
-    return
-  }
-
-  try {
-    trajectoryError.value = ''
-    const res = await getOrderTrajectory(orderId, { silentError: true })
-    trajectoryPoints.value = Array.isArray(res.points) ? res.points : []
-  } catch (error) {
-    trajectoryPoints.value = []
-    trajectoryError.value = apiErrorMessage(error, '轨迹查询失败')
-  }
+function openHelpCenter() {
+  showToast('帮助中心暂未开放')
 }
 
 async function refreshProfile() {
@@ -1700,59 +1859,6 @@ function dateToUnixSeconds(value) {
   return Number.isFinite(time) ? Math.floor(time / 1000) : 0
 }
 
-function formatPrice(cents) {
-  const value = Number(cents)
-  return Number.isFinite(value) ? '¥' + (value / 100).toFixed(2) : '--'
-}
-
-function formatDistance(meters) {
-  const value = Number(meters)
-  if (!Number.isFinite(value) || value < 0) return '--'
-  return (value / 1000).toFixed(value >= 10000 ? 0 : 1)
-}
-
-function formatDuration(seconds) {
-  const value = Number(seconds)
-  if (!Number.isFinite(value) || value <= 0) return '--'
-  const minutes = Math.max(1, Math.round(value / 60))
-  return minutes + '分钟'
-}
-
-function formatTime(timestamp) {
-  const value = Number(timestamp)
-  if (!value) return '--'
-  return new Date(value * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-
-function formatOrderStatus(status) {
-  return { 1: '待接单', 2: '已接单', 3: '行程中', 4: '已完成', 5: '已取消', 6: '已关闭' }[Number(status || 0)] || '--'
-}
-
-function formatDispatchStatus(status) {
-  return { 1: '等待响应', 2: '司机接受', 3: '司机拒绝', 4: '派单超时', 5: '派单取消' }[Number(status || 0)] || '--'
-}
-
-function formatDriverStatus(status) {
-  return {
-    DRIVER_STATUS_PENDING: '待审核',
-    DRIVER_STATUS_NORMAL: '正常',
-    DRIVER_STATUS_FROZEN: '冻结',
-    DRIVER_STATUS_CANCELLED: '注销'
-  }[status] || status || '--'
-}
-
-function formatVehicleStatus(status) {
-  return {
-    VEHICLE_STATUS_PENDING: '待审核',
-    VEHICLE_STATUS_NORMAL: '正常',
-    VEHICLE_STATUS_DISABLED: '停用'
-  }[status] || status || '--'
-}
-
-function formatCertificationStatus(status) {
-  return { 1: '待审核', 2: '审核通过', 3: '审核驳回' }[Number(status || 0)] || '--'
-}
-
 function deviceId() {
   const key = 'driverDeviceId'
   let value = localStorage.getItem(key)
@@ -1781,6 +1887,22 @@ function deviceId() {
 .message-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: #fff7e6; color: #f59e0b; font-size: 18px; }
 .home-map-stage { position: relative; height: calc(100vh - 180px); min-height: 460px; margin: 10px -12px 0; overflow: hidden; background: #dfe8f3; }
 .home-amap { position: absolute; inset: 0; width: 100%; height: 100%; }
+.driver-location-pulse { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
+.driver-location-pulse .pulse-core { position: relative; z-index: 1; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; background: #5B5CFF; box-shadow: 0 0 0 6px rgba(91, 92, 255, .18); }
+.driver-location-pulse .pulse-ring { position: absolute; width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(91, 92, 255, .4); animation: pulse-ring 2s ease-out infinite; }
+.driver-location-pulse .pulse-ring.delay { animation-delay: 1s; }
+.driver-location-pulse .pulse-core, .driver-location-pulse .pulse-ring { pointer-events: none; }
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
 .heatmap-legend { position: absolute; left: 12px; top: 12px; z-index: 5; display: inline-flex; align-items: center; gap: 5px; padding: 7px 9px; border-radius: 999px; background: rgba(255,255,255,.94); color: #667085; font-size: 11px; font-weight: 800; box-shadow: 0 6px 16px rgba(15,23,42,.14); }
 .heatmap-legend i { width: 18px; height: 8px; border-radius: 999px; }
 .heat-low { background: #3b82f6; }
@@ -1794,6 +1916,10 @@ function deviceId() {
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .panel-heading span { min-width: 0; color: #7a8496; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
 .panel-heading strong { color: #172033; font-size: 20px; line-height: 1.2; text-align: right; overflow-wrap: anywhere; }
+.realtime-fare-strip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 38px; padding: 8px 10px; border: 1px solid #e6eaf2; border-radius: 8px; background: #f7f9fc; }
+.realtime-fare-strip span { color: #667085; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.realtime-fare-strip strong { min-width: 0; color: #172033; font-size: 18px; line-height: 1.1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.realtime-fare-strip small { color: #5B5CFF; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .order-brief-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .order-brief-grid span { min-height: 30px; padding: 7px 8px; border-radius: 8px; background: #f2f5fa; color: #344054; text-align: center; font-size: 12px; font-weight: 800; }
 .panel-actions, .idle-controls { display: grid; gap: 8px; }

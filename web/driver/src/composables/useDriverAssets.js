@@ -10,6 +10,7 @@ import {
   getVehicle,
   getWeekIncome,
   listIncomeBills,
+  listWithdraws,
   updateVehicle,
   uploadCertification
 } from '@/api/driver'
@@ -43,6 +44,7 @@ export function useDriverAssets() {
   const todayIncome = ref({})
   const weekIncome = ref({})
   const incomeBills = ref([])
+  const withdrawRecords = ref([])
   const withdrawVisible = ref(false)
   const withdrawLoading = ref(false)
   const withdrawForm = reactive({ amount: '', payeeName: '', payAccount: '' })
@@ -200,21 +202,23 @@ export function useDriverAssets() {
       { label: '收入汇总', task: () => getIncomeSummary(config) },
       { label: '今日收入', task: () => getTodayIncome(config) },
       { label: '本周收入', task: () => getWeekIncome(config) },
-      { label: '收入明细', task: () => listIncomeBills({ page: 1, pageSize: 20 }, config) }
+      { label: '收入明细', task: () => listIncomeBills({ page: 1, pageSize: 20 }, config) },
+      { label: '提现记录', task: () => listWithdraws({ page: 1, pageSize: 20 }, config) }
     ]
-    const [summary, today, week, bills] = await Promise.allSettled(incomeRequests.map((item) => item.task()))
+    const [summary, today, week, bills, withdraws] = await Promise.allSettled(incomeRequests.map((item) => item.task()))
     incomeSummary.value = summary.status === 'fulfilled' ? summary.value : {}
     todayIncome.value = today.status === 'fulfilled' ? today.value : {}
     weekIncome.value = week.status === 'fulfilled' ? week.value : {}
     incomeBills.value = bills.status === 'fulfilled' && Array.isArray(bills.value.list) ? bills.value.list : []
+    withdrawRecords.value = withdraws.status === 'fulfilled' && Array.isArray(withdraws.value.list) ? withdraws.value.list : []
 
     if (!config.silentError) {
-      const failures = [summary, today, week, bills]
+      const failures = [summary, today, week, bills, withdraws]
         .map((result, index) => result.status === 'rejected' ? incomeRequests[index].label + ': ' + apiErrorMessage(result.reason, '请求失败') : '')
         .filter(Boolean)
       if (failures.length) showIncomeLoadFailure(failures)
     }
-    return { summary: incomeSummary.value, today: todayIncome.value, week: weekIncome.value, bills: incomeBills.value }
+    return { summary: incomeSummary.value, today: todayIncome.value, week: weekIncome.value, bills: incomeBills.value, withdraws: withdrawRecords.value }
   }
 
   function openWithdraw() {
@@ -268,6 +272,7 @@ export function useDriverAssets() {
     todayIncome,
     weekIncome,
     incomeBills,
+    withdrawRecords,
     withdrawVisible,
     withdrawLoading,
     withdrawForm,

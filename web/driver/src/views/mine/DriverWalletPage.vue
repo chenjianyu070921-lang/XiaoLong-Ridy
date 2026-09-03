@@ -24,6 +24,25 @@
       @open-withdraw="openWithdraw"
     />
 
+    <section class="page-stack withdraw-record-section">
+      <div class="detail-section-head">
+        <h2>提现记录</h2>
+        <span>{{ withdrawRecords.length }} 条</span>
+      </div>
+      <div v-if="withdrawRecords.length === 0" class="empty-state">暂无提现记录</div>
+      <article v-for="record in withdrawRecords" :key="record.id || record.withdrawNo" class="record-card withdraw-record-card">
+        <div class="record-head">
+          <strong>{{ record.withdrawNo || '提现申请' }}</strong>
+          <span class="withdraw-status" :class="'status-' + Number(record.status || 0)">{{ formatWithdrawStatus(record.status) }}</span>
+        </div>
+        <div class="record-meta">
+          <span>{{ formatPrice(withdrawAmountCents(record.amount)) }}</span>
+          <span>{{ formatTime(record.appliedAt || record.createdAt) }}</span>
+        </div>
+        <p v-if="record.remark" class="withdraw-remark">{{ record.remark }}</p>
+      </article>
+    </section>
+
     <van-popup v-model:show="withdrawVisible" round position="bottom" teleport="body">
       <section class="page-sheet">
         <h2>申请提现</h2>
@@ -55,6 +74,7 @@ const {
   todayIncome,
   weekIncome,
   incomeBills,
+  withdrawRecords,
   withdrawVisible,
   withdrawLoading,
   withdrawForm,
@@ -68,7 +88,19 @@ onMounted(() => {
 })
 
 function goHome() {
-  if (window.history.length > 1) router.back()
-  else router.replace('/home')
+  router.back()
+}
+
+function withdrawAmountCents(amount) {
+  const value = Number(amount)
+  return Number.isFinite(value) ? Math.round(value * 100) : 0
+}
+
+function formatWithdrawStatus(status) {
+  return {
+    1: '申请中',
+    2: '打款成功',
+    3: '打款失败'
+  }[Number(status || 0)] || '--'
 }
 </script>

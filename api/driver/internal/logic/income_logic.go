@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	incomePageSize          int32 = 100
-	incomePageFetchWorkers        = 8
-	maxIncomeSettlementPages      = 20
-	incomeSource                  = "paysvc.settlement"
-	settlementStatusSettled int32 = 2
+	incomePageSize           int32 = 100
+	incomePageFetchWorkers         = 8
+	maxIncomeSettlementPages       = 20
+	incomeSource                   = "paysvc.settlement"
+	settlementStatusSettled  int32 = 2
 )
 
 var incomeNow = time.Now
@@ -42,10 +42,11 @@ func (l *IncomeLogic) GetIncomeSummary(driverID int64) (*types.GetIncomeSummaryR
 		source = incomeSource + ":capped"
 	}
 	return &types.GetIncomeSummaryResponse{
-		DriverID:         driverID,
-		CompletedOrders:  summary.count,
-		TotalIncomeCents: summary.incomeCents,
-		Source:           source,
+		DriverID:          driverID,
+		CompletedOrders:   summary.count,
+		TotalIncomeCents:  summary.incomeCents,
+		WithdrawableCents: summary.incomeCents,
+		Source:            source,
 	}, nil
 }
 

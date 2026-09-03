@@ -11,6 +11,7 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	priceproto "XiaoLong-Ridy/rpc/pricesvc/proto"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -21,7 +22,6 @@ type fakeOrderClient struct {
 	getOrderResponseDriverID  int64
 	getOrderResponseStatus    orderproto.OrderStatus
 	acceptRequest             *orderproto.AcceptOrderRequest
-	cancelRequest             *orderproto.CancelOrderRequest
 	arriveRequest             *orderproto.ConfirmArriveRequest
 	startRequest              *orderproto.StartTripRequest
 	finishRequest             *orderproto.FinishTripRequest
@@ -104,11 +104,6 @@ func (f *fakeOrderClient) AcceptOrder(_ context.Context, req *orderproto.AcceptO
 	return &orderproto.AcceptOrderResponse{OrderId: req.OrderId, Status: orderproto.OrderStatus_ORDER_STATUS_ACCEPTED}, nil
 }
 
-func (f *fakeOrderClient) CancelOrder(_ context.Context, req *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error) {
-	f.cancelRequest = req
-	return &orderproto.CancelOrderResponse{OrderId: req.OrderId, Status: orderproto.OrderStatus_ORDER_STATUS_CANCELLED}, nil
-}
-
 func (f *fakeOrderClient) StartTrip(_ context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error) {
 	f.startRequest = req
 	return &orderproto.StartTripResponse{OrderId: req.OrderId, Status: orderproto.OrderStatus_ORDER_STATUS_ON_TRIP}, nil
@@ -132,6 +127,34 @@ func (f *fakeOrderClient) FinishTrip(_ context.Context, req *orderproto.FinishTr
 	}, nil
 }
 
+type fakePriceClient struct {
+	estimateRequest  *priceproto.EstimatePriceRequest
+	estimateResponse *priceproto.EstimatePriceResponse
+	estimateErr      error
+}
+
+func (f *fakePriceClient) EstimatePrice(_ context.Context, req *priceproto.EstimatePriceRequest) (*priceproto.EstimatePriceResponse, error) {
+	f.estimateRequest = req
+	if f.estimateErr != nil {
+		return nil, f.estimateErr
+	}
+	if f.estimateResponse != nil {
+		return f.estimateResponse, nil
+	}
+	return &priceproto.EstimatePriceResponse{
+		PriceRuleId: 77,
+		TotalCents:  4860,
+		Detail: &priceproto.PriceDetail{
+			BaseFeeCents:     1300,
+			DistanceFeeCents: 2600,
+			TimeFeeCents:     720,
+			NightFeeCents:    0,
+			DynamicFeeCents:  240,
+			TotalCents:       4860,
+		},
+	}, nil
+}
+
 func TestAcceptOrderForwardsDriverAndOrder(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
@@ -145,25 +168,6 @@ func TestAcceptOrderForwardsDriverAndOrder(t *testing.T) {
 	}
 	if client.acceptRequest.GetDriverId() != 25 || client.acceptRequest.GetOrderId() != 1001 {
 		t.Fatalf("AcceptOrder() request = %+v", client.acceptRequest)
-	}
-}
-
-func TestCancelOrderForwardsDriverOperatorAndReason(t *testing.T) {
-	client := &fakeOrderClient{}
-	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
-
-	resp, err := logic.CancelOrder(25, &types.CancelOrderRequest{OrderID: 1001, Reason: "driver unavailable"})
-	if err != nil {
-		t.Fatalf("CancelOrder() error = %v", err)
-	}
-	if resp.OrderID != 1001 || resp.Status != int32(orderproto.OrderStatus_ORDER_STATUS_CANCELLED) {
-		t.Fatalf("CancelOrder() response = %+v", resp)
-	}
-	if client.cancelRequest.GetOperatorId() != 25 ||
-		client.cancelRequest.GetOperatorType() != constants.OperatorDriver ||
-		client.cancelRequest.GetOrderId() != 1001 ||
-		client.cancelRequest.GetReason() != "driver unavailable" {
-		t.Fatalf("CancelOrder() request = %+v", client.cancelRequest)
 	}
 }
 
@@ -233,6 +237,75 @@ func TestFinishTripForwardsTripMetrics(t *testing.T) {
 	}
 }
 
+func TestGetRealtimeFareRequiresOnTripOrderOwnedByDriverAndReturnsPriceDetail(t *testing.T) {
+	orderClient := &fakeOrderClient{getOrderResponseStatus: orderproto.OrderStatus_ORDER_STATUS_ON_TRIP}
+	priceClient := &fakePriceClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderClient: orderClient,
+		PriceClient: priceClient,
+	})
+
+	resp, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{
+		OrderID:         1001,
+		ActualDistanceM: 13800,
+		ActualDurationS: 2040,
+	})
+	if err != nil {
+		t.Fatalf("GetRealtimeFare() error = %v", err)
+	}
+	if resp.OrderID != 1001 || resp.TotalCents != 4860 || resp.PriceRuleID != 77 || resp.Source != "pricesvc" {
+		t.Fatalf("GetRealtimeFare() response = %+v", resp)
+	}
+	if resp.Detail.BaseFeeCents != 1300 || resp.Detail.DynamicFeeCents != 240 || resp.Detail.TotalCents != 4860 {
+		t.Fatalf("GetRealtimeFare() detail = %+v", resp.Detail)
+	}
+	if orderClient.getOrderRequest == nil || orderClient.getOrderRequest.GetOrderId() != 1001 {
+		t.Fatalf("GetRealtimeFare() order request = %+v", orderClient.getOrderRequest)
+	}
+	if priceClient.estimateRequest.GetUserId() != 300 ||
+		priceClient.estimateRequest.GetCityCode() != "110000" ||
+		priceClient.estimateRequest.GetCarType() != 1 ||
+		priceClient.estimateRequest.GetDistanceM() != 13800 ||
+		priceClient.estimateRequest.GetDurationS() != 2040 {
+		t.Fatalf("GetRealtimeFare() price request = %+v", priceClient.estimateRequest)
+	}
+}
+
+func TestGetRealtimeFareRejectsOtherDriverOrder(t *testing.T) {
+	priceClient := &fakePriceClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderClient: &fakeOrderClient{
+			getOrderResponseDriverID: 26,
+			getOrderResponseStatus:   orderproto.OrderStatus_ORDER_STATUS_ON_TRIP,
+		},
+		PriceClient: priceClient,
+	})
+
+	_, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{OrderID: 1001, ActualDistanceM: 1})
+	if err != ErrForbiddenDriverResource {
+		t.Fatalf("GetRealtimeFare() error = %v, want %v", err, ErrForbiddenDriverResource)
+	}
+	if priceClient.estimateRequest != nil {
+		t.Fatalf("GetRealtimeFare() should not call pricesvc for another driver's order, got %+v", priceClient.estimateRequest)
+	}
+}
+
+func TestGetRealtimeFareRejectsNonTripOrder(t *testing.T) {
+	priceClient := &fakePriceClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderClient: &fakeOrderClient{getOrderResponseStatus: orderproto.OrderStatus_ORDER_STATUS_ACCEPTED},
+		PriceClient: priceClient,
+	})
+
+	_, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{OrderID: 1001, ActualDistanceM: 1})
+	if err != ErrInvalidParam {
+		t.Fatalf("GetRealtimeFare() error = %v, want %v", err, ErrInvalidParam)
+	}
+	if priceClient.estimateRequest != nil {
+		t.Fatalf("GetRealtimeFare() should not call pricesvc for non-trip order, got %+v", priceClient.estimateRequest)
+	}
+}
+
 func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
@@ -251,6 +324,9 @@ func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 	}
 	if _, err := logic.FinishTrip(25, &types.FinishTripRequest{OrderID: 1001, ActualDistanceM: -1}); err != ErrInvalidParam {
 		t.Fatalf("FinishTrip(negative distance) error = %v, want %v", err, ErrInvalidParam)
+	}
+	if _, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{OrderID: 1001, ActualDurationS: -1}); err != ErrInvalidParam {
+		t.Fatalf("GetRealtimeFare(negative duration) error = %v, want %v", err, ErrInvalidParam)
 	}
 }
 
@@ -659,7 +735,7 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
-// available set seed; 1002 is filtered out because it is too far away.
+	// available set seed; 1002 is filtered out because it is too far away.
 	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, driverID), "1001", "1002", "1003").Err(); err != nil {
 		t.Fatalf("SAdd available() error = %v", err)
 	}

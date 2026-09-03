@@ -129,21 +129,12 @@ func (l *UploadCertificationLogic) UploadCertification(in *proto.UploadCertifica
 	if vehicleLicenseURL != "" {
 		cert.VehicleLicenseUrl = vehicleLicenseURL
 	}
-	// 上传即成功：直接置为审核通过，司机可立即听单，无需等待人工审核。
-	cert.AuditStatus = AuditStatusPassed
+	// 上传资质进入待审核，由后台审核通过时（UpdateAudit）联动激活司机与车辆状态。
+	cert.AuditStatus = AuditStatusPending
 
 	saved, err := l.svcCtx.CertificationRepository.Upsert(l.ctx, cert)
 	if err != nil {
 		return nil, err
-	}
-
-	// 上传即成功联动司机状态为正常（NORMAL），确保司机可立即上线听单。
-	if l.svcCtx.DriverRepository != nil {
-		if err := l.svcCtx.DriverRepository.Update(l.ctx, cert.DriverId, map[string]interface{}{
-			"status": int8(proto.DriverStatus_DRIVER_STATUS_NORMAL),
-		}); err != nil {
-			l.Errorf("update driver status to normal after certification upload failed: %v", err)
-		}
 	}
 
 	return &proto.UploadCertificationResponse{

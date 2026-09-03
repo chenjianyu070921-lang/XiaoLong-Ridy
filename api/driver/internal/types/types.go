@@ -57,21 +57,6 @@ type RegisterDriverResponse struct {
 	CreatedAt int64  `json:"createdAt"`
 }
 
-type CreateDriverRequest struct {
-	Phone           string `json:"phone"`
-	Password        string `json:"password"`
-	RealName        string `json:"realName"`
-	IdCardNo        string `json:"idCardNo"`
-	DriverLicenseNo string `json:"driverLicenseNo"`
-	AvatarURL       string `json:"avatarUrl"`
-}
-
-type CreateDriverResponse struct {
-	ID        int64  `json:"id"`
-	Status    string `json:"status"`
-	CreatedAt int64  `json:"createdAt"`
-}
-
 type UpdateDriverRequest struct {
 	ID              int64   `json:"id"`
 	Phone           *string `json:"phone,omitempty"`
@@ -121,15 +106,6 @@ type DriverDetail struct {
 
 type GetDriverResponse struct {
 	Driver DriverDetail `json:"driver"`
-}
-
-type DeleteDriverRequest struct {
-	ID int64 `form:"id"`
-}
-
-type DeleteResponse struct {
-	ID      int64 `json:"id"`
-	Success bool  `json:"success"`
 }
 
 type SendSMSCodeRequest struct {
@@ -339,33 +315,6 @@ type DeleteVehicleResponse struct {
 	Success bool  `json:"success"`
 }
 
-type GetDriverByPhoneRequest struct {
-	Phone string `json:"phone" form:"phone"`
-}
-
-type GetDriverByPhoneResponse struct {
-	Driver DriverDetail `json:"driver"`
-}
-
-type NearbyDriver struct {
-	DriverID       int64   `json:"driverId"`
-	Longitude      float64 `json:"longitude"`
-	Latitude       float64 `json:"latitude"`
-	DistanceMeters int32   `json:"distanceMeters"`
-}
-
-type ListNearbyDriversRequest struct {
-	Longitude    float64 `json:"longitude"`
-	Latitude     float64 `json:"latitude"`
-	RadiusMeters float64 `json:"radiusMeters"`
-	Limit        int32   `json:"limit"`
-}
-
-type ListNearbyDriversResponse struct {
-	List    []NearbyDriver `json:"list"`
-	Drivers []NearbyDriver `json:"drivers"`
-}
-
 type CommonResponse struct {
 	Message string `json:"message"`
 }
@@ -409,10 +358,11 @@ type ListWithdrawsResponse struct {
 }
 
 type GetIncomeSummaryResponse struct {
-	DriverID         int64  `json:"driverId"`
-	CompletedOrders  int64  `json:"completedOrders"`
-	TotalIncomeCents int64  `json:"totalIncomeCents"`
-	Source           string `json:"source"`
+	DriverID          int64  `json:"driverId"`
+	CompletedOrders   int64  `json:"completedOrders"`
+	TotalIncomeCents  int64  `json:"totalIncomeCents"`
+	WithdrawableCents int64  `json:"withdrawableCents"`
+	Source            string `json:"source"`
 }
 
 type PeriodIncomeResponse struct {
@@ -454,16 +404,6 @@ type AcceptOrderResponse struct {
 	Status  int32 `json:"status"`
 }
 
-type CancelOrderRequest struct {
-	OrderID int64  `json:"orderId"`
-	Reason  string `json:"reason"`
-}
-
-type CancelOrderResponse struct {
-	OrderID int64 `json:"orderId"`
-	Status  int32 `json:"status"`
-}
-
 type ConfirmArriveRequest struct {
 	OrderID int64 `json:"orderId"`
 }
@@ -492,6 +432,29 @@ type FinishTripResponse struct {
 	OrderID            int64 `json:"orderId"`
 	Status             int32 `json:"status"`
 	PayableAmountCents int64 `json:"payableAmountCents"`
+}
+
+type RealtimeFareRequest struct {
+	OrderID         int64 `json:"orderId"`
+	ActualDistanceM int64 `json:"actualDistanceM"`
+	ActualDurationS int64 `json:"actualDurationS"`
+}
+
+type RealtimeFareDetail struct {
+	BaseFeeCents     int64 `json:"baseFeeCents"`
+	DistanceFeeCents int64 `json:"distanceFeeCents"`
+	TimeFeeCents     int64 `json:"timeFeeCents"`
+	NightFeeCents    int64 `json:"nightFeeCents"`
+	DynamicFeeCents  int64 `json:"dynamicFeeCents"`
+	TotalCents       int64 `json:"totalCents"`
+}
+
+type RealtimeFareResponse struct {
+	OrderID     int64              `json:"orderId"`
+	PriceRuleID int64              `json:"priceRuleId"`
+	TotalCents  int64              `json:"totalCents"`
+	Source      string             `json:"source"`
+	Detail      RealtimeFareDetail `json:"detail"`
 }
 
 type RejectOrderRequest struct {
@@ -581,23 +544,6 @@ type HeatmapResponse struct {
 	Points         []HeatmapPoint `json:"points"`
 	RadiusMeters   float64        `json:"radiusMeters"`
 	GridSizeMeters int64          `json:"gridSizeMeters"`
-}
-
-type GetTripTrajectoryRequest struct {
-	OrderID int64 `json:"orderId"`
-}
-
-type TrajectoryPoint struct {
-	Longitude float64 `json:"longitude"`
-	Latitude  float64 `json:"latitude"`
-	SpeedKmh  float64 `json:"speedKmh"`
-	Heading   int32   `json:"heading"`
-	CreatedAt int64   `json:"createdAt"`
-}
-
-type GetTripTrajectoryResponse struct {
-	OrderID int64             `json:"orderId"`
-	Points  []TrajectoryPoint `json:"points"`
 }
 
 type GetMyOrderDetailRequest struct {

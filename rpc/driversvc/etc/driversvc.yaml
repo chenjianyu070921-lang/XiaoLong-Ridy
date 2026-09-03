@@ -5,8 +5,9 @@ ListenOn: 0.0.0.0:50055
 Timeout: 30000
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
-# 本地联调 JWT 签名密钥，需与 api/driver 端保持一致以便互相校验。
-signingKey: local-development-signing-key
+# JWT signing key must be injected at runtime with DRIVERSVC_SIGNING_KEY.
+# Keep this empty so the service fails closed when deployment injection is missing.
+signingKey: ""
 # Redis：维护司机在线状态与多端互踢（deviceID 绑定）。
 driverRedis:
   host: 115.191.16.159:6379

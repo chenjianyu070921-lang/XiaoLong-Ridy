@@ -22,7 +22,6 @@ type fakeDriverClient struct {
 	uploadCertificationRequest  *driversproto.UploadCertificationRequest
 	createWithdrawRequest       *driversproto.CreateWithdrawRequest
 	getDriverByPhoneRequest     *driversproto.GetDriverByPhoneRequest
-	nearbyDriversRequest        *driversproto.ListNearbyDriversRequest
 	reportLocationResponse      *driversproto.ReportLocationResponse
 	setServiceStatusResponse    *driversproto.SetDriverServiceStatusResponse
 	loginResponse               *driversproto.LoginResponse
@@ -36,7 +35,6 @@ type fakeDriverClient struct {
 	uploadCertificationResponse *driversproto.UploadCertificationResponse
 	createWithdrawResponse      *driversproto.CreateWithdrawResponse
 	getDriverByPhoneResponse    *driversproto.GetDriverByPhoneResponse
-	nearbyDriversResponse       *driversproto.ListNearbyDriversResponse
 }
 
 func (f *fakeDriverClient) CreateDriver(context.Context, *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
@@ -225,21 +223,6 @@ func (f *fakeDriverClient) GetDriverByPhone(_ context.Context, req *driversproto
 			Phone:  req.GetPhone(),
 			Status: driversproto.DriverStatus_DRIVER_STATUS_NORMAL,
 		},
-	}, nil
-}
-
-func (f *fakeDriverClient) ListNearbyDrivers(_ context.Context, req *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error) {
-	f.nearbyDriversRequest = req
-	if f.nearbyDriversResponse != nil {
-		return f.nearbyDriversResponse, nil
-	}
-	return &driversproto.ListNearbyDriversResponse{
-		Drivers: []*driversproto.NearbyDriver{{
-			DriverId:       25,
-			Longitude:      req.GetLongitude(),
-			Latitude:       req.GetLatitude(),
-			DistanceMeters: 1200,
-		}},
 	}, nil
 }
 

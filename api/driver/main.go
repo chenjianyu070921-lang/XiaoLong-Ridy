@@ -33,6 +33,8 @@ const defaultOrderGRPCAddr = "115.191.16.159:50051"
 
 const defaultPayGRPCAddr = "115.191.16.159:50054"
 
+const defaultPriceGRPCAddr = "115.191.16.159:50053"
+
 const defaultDispatchGRPCAddr = "115.191.16.159:50056"
 
 const defaultLocationGRPCAddr = "115.191.16.159:50057"
@@ -40,21 +42,23 @@ const defaultLocationGRPCAddr = "115.191.16.159:50057"
 const defaultRedisAddr = ""
 
 type driverConfig struct {
-	HTTPAddr         string                 `yaml:"httpAddr"`
-	DriverGRPCAddr   string                 `yaml:"driverGrpcAddr"`
-	OrderGRPCAddr    string                 `yaml:"orderGrpcAddr"`
-	PayGRPCAddr      string                 `yaml:"payGrpcAddr"`
-	DispatchGRPCAddr string                 `yaml:"dispatchGrpcAddr"`
-	LocationGRPCAddr string                 `yaml:"locationGrpcAddr"`
-	RedisAddr        string                 `yaml:"redisAddr"`
-	RedisPassword    string                 `yaml:"redisPassword"`
-	Mysql            commonconfig.MysqlConf `yaml:"mysql"`
-	InternalAuth     svc.InternalAuthConfig `yaml:"internalAuth"`
-	QiniuAccessKey   string                 `yaml:"qiniuAccessKey"`
-	QiniuSecretKey   string                 `yaml:"qiniuSecretKey"`
-	QiniuBucket      string                 `yaml:"qiniuBucket"`
-	QiniuDomain      string                 `yaml:"qiniuDomain"`
-	QiniuUploadURL   string                 `yaml:"qiniuUploadURL"`
+	HTTPAddr           string                 `yaml:"httpAddr"`
+	DriverGRPCAddr     string                 `yaml:"driverGrpcAddr"`
+	OrderGRPCAddr      string                 `yaml:"orderGrpcAddr"`
+	PayGRPCAddr        string                 `yaml:"payGrpcAddr"`
+	PriceGRPCAddr      string                 `yaml:"priceGrpcAddr"`
+	DispatchGRPCAddr   string                 `yaml:"dispatchGrpcAddr"`
+	LocationGRPCAddr   string                 `yaml:"locationGrpcAddr"`
+	CORSAllowedOrigins []string               `yaml:"corsAllowedOrigins"`
+	RedisAddr          string                 `yaml:"redisAddr"`
+	RedisPassword      string                 `yaml:"redisPassword"`
+	Mysql              commonconfig.MysqlConf `yaml:"mysql"`
+	InternalAuth       svc.InternalAuthConfig `yaml:"internalAuth"`
+	QiniuAccessKey     string                 `yaml:"qiniuAccessKey"`
+	QiniuSecretKey     string                 `yaml:"qiniuSecretKey"`
+	QiniuBucket        string                 `yaml:"qiniuBucket"`
+	QiniuDomain        string                 `yaml:"qiniuDomain"`
+	QiniuUploadURL     string                 `yaml:"qiniuUploadURL"`
 }
 
 func main() {
@@ -69,6 +73,7 @@ func main() {
 	driverGRPCAddr := envOr("DRIVER_GRPC_ADDR", cfg.DriverGRPCAddr)
 	orderGRPCAddr := envOr("ORDER_GRPC_ADDR", cfg.OrderGRPCAddr)
 	payGRPCAddr := envOr("PAY_GRPC_ADDR", cfg.PayGRPCAddr)
+	priceGRPCAddr := envOr("PRICE_GRPC_ADDR", cfg.PriceGRPCAddr)
 	dispatchGRPCAddr := envOr("DISPATCH_GRPC_ADDR", cfg.DispatchGRPCAddr)
 	locationGRPCAddr := envOr("LOCATION_GRPC_ADDR", cfg.LocationGRPCAddr)
 	redisAddr := envOr("DRIVER_REDIS_ADDR", cfg.RedisAddr)
@@ -88,6 +93,7 @@ func main() {
 		commonconfig.RedisConf{Host: redisAddr, Pass: redisPassword},
 		cfg.Mysql,
 		payGRPCAddr,
+		priceGRPCAddr,
 	)
 	svcCtx.InternalAuth = cfg.InternalAuth
 	if qiniuClient, err := newDriverQiniuClient(cfg); err != nil {
@@ -105,13 +111,13 @@ func main() {
 
 	server := &http.Server{
 		Addr:         address,
-		Handler:      recoverMiddleware(newHTTPHandler(svcCtx)),
+		Handler:      recoverMiddleware(withCORS(newHTTPHandler(svcCtx), driverCORSAllowedOrigins(cfg))),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
-	log.Printf("driver api started at http://%s  (driversvc gRPC: %s, ordersvc gRPC: %s, paysvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, payGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
+	log.Printf("driver api started at http://%s  (driversvc gRPC: %s, ordersvc gRPC: %s, paysvc gRPC: %s, pricesvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, payGRPCAddr, priceGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
 	stopCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {
@@ -163,6 +169,7 @@ func loadDriverConfig(path string) (driverConfig, error) {
 		DriverGRPCAddr:   defaultDriverGRPCAddr,
 		OrderGRPCAddr:    defaultOrderGRPCAddr,
 		PayGRPCAddr:      defaultPayGRPCAddr,
+		PriceGRPCAddr:    defaultPriceGRPCAddr,
 		DispatchGRPCAddr: defaultDispatchGRPCAddr,
 		LocationGRPCAddr: defaultLocationGRPCAddr,
 		RedisAddr:        defaultRedisAddr,
@@ -189,6 +196,9 @@ func loadDriverConfig(path string) (driverConfig, error) {
 	if cfg.PayGRPCAddr == "" {
 		cfg.PayGRPCAddr = defaultPayGRPCAddr
 	}
+	if cfg.PriceGRPCAddr == "" {
+		cfg.PriceGRPCAddr = defaultPriceGRPCAddr
+	}
 	if cfg.DispatchGRPCAddr == "" {
 		cfg.DispatchGRPCAddr = defaultDispatchGRPCAddr
 	}
@@ -203,6 +213,34 @@ func envOr(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func driverCORSAllowedOrigins(cfg driverConfig) []string {
+	if origins := splitCSVEnv("DRIVER_CORS_ALLOWED_ORIGINS"); len(origins) > 0 {
+		return origins
+	}
+	return compactStrings(cfg.CORSAllowedOrigins)
+}
+
+func splitCSVEnv(key string) []string {
+	return compactStrings(strings.Split(os.Getenv(key), ","))
+}
+
+func compactStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func localCertificationDir() string {
@@ -249,22 +287,54 @@ func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/income/week", protected(methodSwitch("GET", handler.GetWeekIncomeHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/income/bills", protected(methodSwitch("POST", handler.ListIncomeBillsHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/accept", protected(methodSwitch("POST", handler.AcceptOrderHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/cancel", protected(methodSwitch("POST", handler.CancelOrderHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/reject", protected(methodSwitch("POST", handler.RejectOrderHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/dispatches", protected(methodSwitch("POST", handler.ListMyDispatchesHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/available", protected(methodSwitch("POST", handler.ListAvailableOrdersHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/grab-list", protected(methodSwitch("POST", handler.ListAvailableOrdersHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/heatmap", protected(methodSwitch("POST", handler.GetOrderHeatmapHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/list", protected(methodSwitch("POST", handler.ListMyOrdersHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/detail", protected(methodSwitch("POST", handler.GetMyOrderDetailHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/nearby", protected(methodSwitch("POST", handler.ListNearbyDriversHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/start-trip", protected(methodSwitch("POST", handler.StartTripHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/confirm-arrive", protected(methodSwitch("POST", handler.ConfirmArriveHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/realtime-fare", protected(methodSwitch("POST", handler.GetRealtimeFareHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", handler.FinishTripHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/trajectory", protected(methodSwitch("POST", handler.GetTripTrajectoryHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/ws", handler.DriverPushWSHandler(svcCtx))
+	mux.Handle("/api/driver/v1/reviews/received", protected(methodSwitch("GET", handler.ListReceivedReviewsHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/reviews/submit", protected(methodSwitch("POST", handler.SubmitDriverReviewHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/reviews/given", protected(methodSwitch("POST", handler.ListGivenReviewsHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", handler.AgentChatHandler())))
 
 	return middleware.InternalServiceAuth(svcCtx)(mux)
+}
+
+func withCORS(next http.Handler, allowedOrigins []string) http.Handler {
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, origin := range compactStrings(allowedOrigins) {
+		allowed[origin] = struct{}{}
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		if origin == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if _, ok := allowed[origin]; !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		header := w.Header()
+		header.Set("Access-Control-Allow-Origin", origin)
+		header.Add("Vary", "Origin")
+		header.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		header.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Internal-Service-Token, X-Trace-Id")
+		header.Set("Access-Control-Max-Age", "600")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func internalOrDriverAuth(svcCtx *svc.ServiceContext, h http.HandlerFunc) http.Handler {

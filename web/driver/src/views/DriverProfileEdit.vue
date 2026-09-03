@@ -164,8 +164,7 @@ function revokeAvatarObjectUrl() {
 }
 
 function goBack() {
-  if (window.history.length > 1) router.back()
-  else router.replace('/home')
+  router.back()
 }
 
 function compact(payload) {

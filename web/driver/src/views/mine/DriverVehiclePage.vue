@@ -50,7 +50,6 @@ onMounted(() => {
 })
 
 function goHome() {
-  if (window.history.length > 1) router.back()
-  else router.replace('/home')
+  router.back()
 }
 </script>
