@@ -50,6 +50,10 @@ service DriverService {
   rpc GetCertification(GetCertificationRequest) returns (GetCertificationResponse);
   rpc ApproveCertification(AuditCertificationRequest) returns (CommonResponse);
   rpc RejectCertification(AuditCertificationRequest) returns (CommonResponse);
+  // 管理后台分页查询司机认证审核记录，可按关键词与审核状态筛选。
+  rpc AdminListCertifications(AdminListCertificationsRequest) returns (AdminListCertificationsResponse);
+  // 管理后台按认证记录 ID 查询详情。
+  rpc AdminGetCertification(AdminGetCertificationRequest) returns (AdminCertification);
 
   rpc CreateWithdraw(CreateWithdrawRequest) returns (CreateWithdrawResponse);
   rpc ListWithdraws(ListWithdrawsRequest) returns (ListWithdrawsResponse);
@@ -372,6 +376,51 @@ message GetCertificationRequest {
 message GetCertificationResponse {
   CertificationInfo certification = 1;
   bool found = 2;
+}
+
+// AdminListCertificationsRequest 表示管理后台司机认证审核列表筛选条件。
+message AdminListCertificationsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;          // 司机手机号/姓名或车牌号
+  optional int32 audit_status = 4; // 审核状态：1待审核 2通过 3驳回；不传表示全部
+  string start_time = 5;       // 认证创建开始时间，格式 2006-01-02 15:04:05
+  string end_time = 6;         // 认证创建结束时间，格式 2006-01-02 15:04:05
+}
+
+// AdminCertification 表示管理后台展示的司机认证审核记录（含司机与车辆摘要）。
+message AdminCertification {
+  int64 id = 1;
+  int64 driver_id = 2;
+  int64 vehicle_id = 3;
+  string driver_phone = 4;
+  string driver_name = 5;
+  int32 driver_status = 6;
+  string plate_no = 7;
+  int32 vehicle_status = 8;
+  string id_card_front_url = 9;
+  string id_card_back_url = 10;
+  string driver_license_url = 11;
+  string vehicle_license_url = 12;
+  int32 audit_status = 13;
+  string audit_remark = 14;
+  int64 audited_by = 15;
+  int64 audited_at = 16;       // Unix 秒，未审核为 0
+  int64 created_at = 17;       // Unix 秒
+  int64 updated_at = 18;       // Unix 秒
+}
+
+// AdminListCertificationsResponse 表示管理后台认证审核分页结果。
+message AdminListCertificationsResponse {
+  repeated AdminCertification list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// AdminGetCertificationRequest 表示管理后台认证详情查询条件。
+message AdminGetCertificationRequest {
+  int64 id = 1;
 }
 
 message HeartbeatRequest {

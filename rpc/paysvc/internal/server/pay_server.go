@@ -52,3 +52,9 @@ func (s *PayServer) SettleOrder(ctx context.Context, in *proto.SettleOrderReques
 	l := logic.NewSettleOrderLogic(ctx, s.svcCtx)
 	return l.SettleOrder(in)
 }
+
+// 结算查询：按订单ID查询司机结算单，供管理后台展示。
+func (s *PayServer) GetSettlement(ctx context.Context, in *proto.GetSettlementRequest) (*proto.GetSettlementResponse, error) {
+	l := logic.NewGetSettlementLogic(ctx, s.svcCtx)
+	return l.GetSettlement(in)
+}

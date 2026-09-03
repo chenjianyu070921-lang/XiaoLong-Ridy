@@ -2,7 +2,6 @@ package adminservicelogic
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -81,49 +80,4 @@ func scanDispatchRecord(rows *sql.Rows) (*adminsvc.DispatchRecord, error) {
 	return &item, nil
 }
 
-// scanOrderPrice 将价格明细转换为 protobuf。
-func scanOrderPrice(row *sql.Row) (*adminsvc.OrderPrice, error) {
-	var item adminsvc.OrderPrice
-	err := row.Scan(
-		&item.Id, &item.OrderId, &item.PriceRuleId, &item.EstimatedPrice, &item.ActualPrice,
-		&item.BaseFee, &item.DistanceFee, &item.TimeFee, &item.NightFee, &item.DynamicFee,
-		&item.DiscountAmount, &item.PlatformSubsidy, &item.PayableAmount, &item.Status,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("scan orderclient price: %w", err)
-	}
-	return &item, nil
-}
 
-// scanPayment 将支付记录转换为 protobuf。
-func scanPayment(row *sql.Row) (*adminsvc.Payment, error) {
-	var item adminsvc.Payment
-	var paidAt sql.NullTime
-	err := row.Scan(&item.Id, &item.PaymentNo, &item.OrderId, &item.UserId, &item.Amount, &item.Channel, &item.Status, &item.TransactionId, &item.RefundAmount, &paidAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("scan payment: %w", err)
-	}
-	item.PaidAt = formatNullTime(paidAt)
-	return &item, nil
-}
-
-// scanSettlement 将结算记录转换为 protobuf。
-func scanSettlement(row *sql.Row) (*adminsvc.Settlement, error) {
-	var item adminsvc.Settlement
-	var settledAt sql.NullTime
-	err := row.Scan(&item.Id, &item.SettlementNo, &item.OrderId, &item.DriverId, &item.TotalAmount, &item.PlatformCommissionRate, &item.PlatformCommission, &item.DriverIncome, &item.Status, &settledAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("scan settlement: %w", err)
-	}
-	item.SettledAt = formatNullTime(settledAt)
-	return &item, nil
-}

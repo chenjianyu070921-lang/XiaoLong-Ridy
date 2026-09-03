@@ -754,3 +754,72 @@ type OperationLogDTO struct {
 	IP         string `json:"ip"`
 	CreatedAt  string `json:"created_at"`
 }
+
+// ---- AI 运营助手相关类型 ----
+
+// AiAskRequest 表示受限运营问答请求体。
+type AiAskRequest struct {
+	Scene          string `json:"scene"`
+	Question       string `json:"question"`
+	ConversationID string `json:"conversation_id"`
+	StartTime      string `json:"start_time"`
+	EndTime        string `json:"end_time"`
+	DemoMode       bool   `json:"demo_mode"`
+}
+
+// AiEvidenceDTO 表示回答中的一条数据证据。
+type AiEvidenceDTO struct {
+	Label      string `json:"label"`
+	Value      string `json:"value"`
+	Comparison string `json:"comparison,omitempty"`
+}
+
+// AiPriorityDTO 表示需要优先处理的订单或风控记录。
+type AiPriorityDTO struct {
+	Type    string   `json:"type"`
+	ID      string   `json:"id"`
+	Level   string   `json:"level"`
+	Reasons []string `json:"reasons"`
+	Route   string   `json:"route"`
+}
+
+// AiActionDTO 表示建议动作（仅页面跳转）。
+type AiActionDTO struct {
+	Type  string `json:"type"`
+	Label string `json:"label"`
+	Route string `json:"route"`
+}
+
+// AiAnswerDTO 表示服务端校验后的标准化回答。
+type AiAnswerDTO struct {
+	Summary        string          `json:"summary"`
+	Evidence       []AiEvidenceDTO `json:"evidence"`
+	Priorities     []AiPriorityDTO `json:"priorities"`
+	Actions        []AiActionDTO   `json:"actions"`
+	SourceMode     string          `json:"source_mode"`
+	Citations      []string        `json:"citations"`
+	ConversationID string          `json:"conversation_id"`
+	TraceID        string          `json:"trace_id"`
+}
+
+// AiSuggestionDTO 表示场景快捷问题。
+type AiSuggestionDTO struct {
+	Scene       string `json:"scene"`
+	QuickPrompt string `json:"quick_prompt"`
+}
+
+// AiConversationSummaryDTO 表示 AI 会话摘要。
+type AiConversationSummaryDTO struct {
+	ConversationID string `json:"conversation_id"`
+	Scene          string `json:"scene"`
+	SourceMode     string `json:"source_mode"`
+	Summary        string `json:"summary"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
+// AiFeedbackRequest 表示回答反馈请求体。
+type AiFeedbackRequest struct {
+	ConversationID string `json:"conversation_id"`
+	TraceID        string `json:"trace_id"`
+	Helpful        bool   `json:"helpful"`
+}

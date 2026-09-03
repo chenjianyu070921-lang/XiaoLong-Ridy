@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -13,6 +14,8 @@ import (
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -137,6 +140,56 @@ func (l *AdminListUserCouponsLogic) AdminListUserCoupons(in *userproto.AdminList
 	resp.Page = int32(page)
 	resp.PageSize = int32(pageSize)
 	return resp, nil
+}
+
+// AdminIssueCouponLogic 处理管理后台批量发券 RPC。
+type AdminIssueCouponLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+	logx.Logger
+}
+
+// NewAdminIssueCouponLogic 创建后台发券逻辑实例。
+func NewAdminIssueCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AdminIssueCouponLogic {
+	return &AdminIssueCouponLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+}
+
+// AdminIssueCoupon 批量向指定用户发放优惠券。
+// 券模板库存、单用户领取上限与有效期由 usersvc 仓储统一校验，逐个用户独立事务，单个失败不影响其余用户。
+func (l *AdminIssueCouponLogic) AdminIssueCoupon(in *userproto.AdminIssueCouponRequest) (*userproto.AdminIssueCouponResponse, error) {
+	if in.GetCouponId() == 0 {
+		return nil, status.Error(codes.InvalidArgument, "优惠券ID不能为空")
+	}
+	if len(in.GetUserIds()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "发券目标用户不能为空")
+	}
+	if in.GetOperatorId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "操作管理员不能为空")
+	}
+	coupons, err := couponRepository(l.svcCtx)
+	if err != nil {
+		return nil, err
+	}
+	var successCount, failCount int64
+	failures := make([]string, 0)
+	for _, userID := range in.GetUserIds() {
+		if userID == 0 {
+			failCount++
+			failures = append(failures, "user_id=0: 无效用户")
+			continue
+		}
+		if _, claimErr := coupons.Claim(l.ctx, userID, in.GetCouponId()); claimErr != nil {
+			failCount++
+			failures = append(failures, fmt.Sprintf("user_id=%d: %v", userID, mapCouponRepositoryError(claimErr)))
+			continue
+		}
+		successCount++
+	}
+	return &userproto.AdminIssueCouponResponse{
+		SuccessCount:   successCount,
+		FailCount:      failCount,
+		FailureReasons: failures,
+	}, nil
 }
 
 // normalizeCouponPage 统一用户券查询的分页边界，避免下游收到无效 LIMIT/OFFSET。

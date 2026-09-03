@@ -245,3 +245,11 @@ func (r *setDriverOnlineCertificationRepository) GetByDriverID(_ context.Context
 func (r *setDriverOnlineCertificationRepository) UpdateAudit(context.Context, int64, int64, string, int8) error {
 	return nil
 }
+
+func (r *setDriverOnlineCertificationRepository) AdminList(context.Context, repository.AdminCertificationFilter) ([]*repository.AdminCertificationRow, int64, error) {
+	return nil, 0, nil
+}
+
+func (r *setDriverOnlineCertificationRepository) AdminGetByID(context.Context, uint64) (*repository.AdminCertificationRow, error) {
+	return nil, repository.ErrCertificationNotFound
+}

@@ -18,6 +18,8 @@ type (
 	CreatePaymentResponse = proto.CreatePaymentResponse
 	GetPaymentRequest     = proto.GetPaymentRequest
 	GetPaymentResponse    = proto.GetPaymentResponse
+	GetSettlementRequest  = proto.GetSettlementRequest
+	GetSettlementResponse = proto.GetSettlementResponse
 	NotifyPaymentRequest  = proto.NotifyPaymentRequest
 	NotifyPaymentResponse = proto.NotifyPaymentResponse
 	RefundPaymentRequest  = proto.RefundPaymentRequest
@@ -36,6 +38,8 @@ type (
 		RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error)
 		// 司机结算：计算平台抽成与司机实收。
 		SettleOrder(ctx context.Context, in *SettleOrderRequest, opts ...grpc.CallOption) (*SettleOrderResponse, error)
+		// 结算查询：按订单ID查询司机结算单，供管理后台展示。
+		GetSettlement(ctx context.Context, in *GetSettlementRequest, opts ...grpc.CallOption) (*GetSettlementResponse, error)
 	}
 
 	defaultPay struct {
@@ -77,4 +81,10 @@ func (m *defaultPay) RefundPayment(ctx context.Context, in *RefundPaymentRequest
 func (m *defaultPay) SettleOrder(ctx context.Context, in *SettleOrderRequest, opts ...grpc.CallOption) (*SettleOrderResponse, error) {
 	client := proto.NewPayClient(m.cli.Conn())
 	return client.SettleOrder(ctx, in, opts...)
+}
+
+// 结算查询：按订单ID查询司机结算单，供管理后台展示。
+func (m *defaultPay) GetSettlement(ctx context.Context, in *GetSettlementRequest, opts ...grpc.CallOption) (*GetSettlementResponse, error) {
+	client := proto.NewPayClient(m.cli.Conn())
+	return client.GetSettlement(ctx, in, opts...)
 }

@@ -165,6 +165,16 @@ service AdminService {
   rpc HandleRiskHitRecords(RiskHitActionRequest) returns (RiskHitActionResponse);
   // 查询管理后台通知与审计补偿任务。
   rpc ListAdminAuditOutbox(AdminAuditOutboxListRequest) returns (AdminAuditOutboxListResponse);
+  // 提交受限运营问答并返回结构化回答（AI 运营助手）。
+  rpc AskAiAgent(AiAskRequest) returns (AiAnswerResponse);
+  // 读取当前管理员可见的三个快捷问题。
+  rpc GetAiSuggestions(AiSuggestionsRequest) returns (AiSuggestionsResponse);
+  // 查询当前管理员自己的 AI 问答会话摘要。
+  rpc GetAiHistory(AiHistoryRequest) returns (AiHistoryResponse);
+  // 记录 AI 回答是否有帮助。
+  rpc AiFeedback(AiFeedbackRequest) returns (CommonResponse);
+  // 结束并清空指定 AI 会话。
+  rpc DeleteAiConversation(AiConversationRequest) returns (CommonResponse);
 }
 
 message Admin {
@@ -1481,4 +1491,96 @@ message AdminAuditOutboxListResponse {
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;
+}
+
+// ---- AI 运营助手相关消息 ----
+
+// AiAskRequest 是受限运营问答请求。scene 仅限 overview / abnormal_order / risk_review。
+message AiAskRequest {
+  string scene = 1;
+  string question = 2;
+  // conversation_id 可选，携带时延续多轮；场景必须与会话一致。
+  string conversation_id = 3;
+  string start_time = 4;
+  string end_time = 5;
+  // demo_mode 仅本地/答辩环境允许，生产配置必须拒绝。
+  bool demo_mode = 6;
+  int64 admin_id = 7;
+}
+
+// AiEvidence 是回答中的一条数据证据。
+message AiEvidence {
+  string label = 1;
+  string value = 2;
+  string comparison = 3;
+}
+
+// AiPriority 是需要优先处理的订单或风控记录。
+message AiPriority {
+  string type = 1;   // order / risk
+  string id = 2;
+  string level = 3;  // high / medium / low
+  repeated string reasons = 4;
+  string route = 5;
+}
+
+// AiAction 是建议动作，仅支持页面跳转。
+message AiAction {
+  string type = 1;   // navigate
+  string label = 2;
+  string route = 3;
+}
+
+// AiAnswerResponse 是服务端校验后的标准化回答。
+message AiAnswerResponse {
+  string summary = 1;
+  repeated AiEvidence evidence = 2;
+  repeated AiPriority priorities = 3;
+  repeated AiAction actions = 4;
+  // source_mode：realtime / demo_snapshot / template_fallback
+  string source_mode = 5;
+  repeated string citations = 6;
+  string conversation_id = 7;
+  string trace_id = 8;
+}
+
+message AiSuggestionsRequest {
+  int64 admin_id = 1;
+}
+
+message AiSuggestion {
+  string scene = 1;
+  string quick_prompt = 2;
+}
+
+message AiSuggestionsResponse {
+  repeated AiSuggestion items = 1;
+}
+
+message AiHistoryRequest {
+  int64 admin_id = 1;
+}
+
+message AiConversationSummary {
+  string conversation_id = 1;
+  string scene = 2;
+  string source_mode = 3;
+  string summary = 4;
+  string updated_at = 5;
+}
+
+message AiHistoryResponse {
+  repeated AiConversationSummary items = 1;
+}
+
+message AiFeedbackRequest {
+  string conversation_id = 1;
+  string trace_id = 2;
+  bool helpful = 3;
+  int64 admin_id = 4;
+}
+
+message AiConversationRequest {
+  string conversation_id = 1;
+  int64 admin_id = 2;
 }
