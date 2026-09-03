@@ -22,6 +22,36 @@ const routes = [
     name: 'DriverProfileEdit',
     component: () => import('@/views/DriverProfileEdit.vue'),
     meta: { requiresDriverAuth: true }
+  },
+  {
+    path: '/mine/wallet',
+    name: 'DriverMineWallet',
+    component: () => import('@/views/mine/DriverWalletPage.vue'),
+    meta: { requiresDriverAuth: true }
+  },
+  {
+    path: '/mine/vehicle',
+    name: 'DriverMineVehicle',
+    component: () => import('@/views/mine/DriverVehiclePage.vue'),
+    meta: { requiresDriverAuth: true }
+  },
+  {
+    path: '/mine/certification',
+    name: 'DriverMineCertification',
+    component: () => import('@/views/mine/DriverCertificationPage.vue'),
+    meta: { requiresDriverAuth: true }
+  },
+  {
+    path: '/mine/income',
+    name: 'DriverMineIncome',
+    component: () => import('@/views/mine/DriverIncomePage.vue'),
+    meta: { requiresDriverAuth: true }
+  },
+  {
+    path: '/mine/orders',
+    name: 'DriverMineOrders',
+    component: () => import('@/views/mine/DriverOrderRecordsPage.vue'),
+    meta: { requiresDriverAuth: true }
   }
 ]
 

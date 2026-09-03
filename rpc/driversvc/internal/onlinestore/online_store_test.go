@@ -126,3 +126,26 @@ func TestHeartbeatNoRecord(t *testing.T) {
 		t.Fatalf("expected online, got %d", status)
 	}
 }
+
+func TestDefaultTTLSurvivesOneMobileTimerClamp(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	defer rdb.Close()
+	defer mr.Close()
+
+	s := NewStore(rdb, 0)
+	ctx := context.Background()
+	if err := s.SetOnline(ctx, 300, "dev-mobile", 116.40, 39.90); err != nil {
+		t.Fatalf("SetOnline failed: %v", err)
+	}
+
+	mr.FastForward(65 * time.Second)
+
+	st, err := s.Get(ctx, 300)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if st == nil || st.OnlineStatus != Online {
+		t.Fatalf("expected driver to remain online after one clamped heartbeat window, got %+v", st)
+	}
+}

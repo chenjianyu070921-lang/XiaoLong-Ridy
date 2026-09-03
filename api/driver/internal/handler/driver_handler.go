@@ -25,22 +25,6 @@ func RegisterDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
-// CreateDriverHandler handles backend-created driver accounts.
-func CreateDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.CreateDriverRequest
-		if !decodeJSON(w, r, &req) {
-			return
-		}
-		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).CreateDriver(&req)
-		if err != nil {
-			writeParamError(w, err)
-			return
-		}
-		writeSuccess(w, resp)
-	}
-}
-
 // UpdateDriverHandler updates driver profile fields.
 func UpdateDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -68,18 +52,18 @@ func UpdateDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
-func UploadDriverAvatarHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+func AvatarUploadTokenHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := middleware.ClaimsFromContext(r.Context())
 		if claims == nil {
 			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
 			return
 		}
-		var req types.UploadDriverAvatarRequest
+		var req types.AvatarUploadTokenRequest
 		if !decodeJSON(w, r, &req) {
 			return
 		}
-		resp, err := logic.NewAvatarLogic().UploadDriverAvatar(int64(claims.AccountID), &req)
+		resp, err := logic.NewAvatarLogic().GetUploadToken(r.Context(), svcCtx, int64(claims.AccountID), &req)
 		if err != nil {
 			writeParamError(w, err)
 			return
@@ -116,47 +100,6 @@ func GetDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
-// GetDriverByPhoneHandler returns a driver profile by phone number.
-func GetDriverByPhoneHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		claims := middleware.ClaimsFromContext(r.Context())
-		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
-			return
-		}
-		var req types.GetDriverByPhoneRequest
-		if !decodeJSON(w, r, &req) {
-			return
-		}
-		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).GetDriverByPhone(req.Phone)
-		if err != nil {
-			writeParamError(w, err)
-			return
-		}
-		writeSuccess(w, resp)
-	}
-}
-
-// ListNearbyDriversHandler returns nearby online drivers for dispatching.
-func ListNearbyDriversHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !middleware.IsInternalCall(r.Context()) && middleware.ClaimsFromContext(r.Context()) == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
-			return
-		}
-		var req types.ListNearbyDriversRequest
-		if !decodeJSON(w, r, &req) {
-			return
-		}
-		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).ListNearbyDrivers(&req)
-		if err != nil {
-			writeParamError(w, err)
-			return
-		}
-		writeSuccess(w, resp)
-	}
-}
-
 // GetOrderHeatmapHandler returns nearby wait-accept order heat points for the current driver.
 func GetOrderHeatmapHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -170,23 +113,6 @@ func GetOrderHeatmapHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		resp, err := logic.NewHeatmapLogic(r.Context(), svcCtx).GetOrderHeatmap(int64(claims.AccountID), &req)
-		if err != nil {
-			writeParamError(w, err)
-			return
-		}
-		writeSuccess(w, resp)
-	}
-}
-
-// DeleteDriverHandler deletes a driver by id. This route is not used by driver web.
-func DeleteDriverHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := decodeQueryID(r, "id")
-		if !ok {
-			writeError(w, http.StatusBadRequest, 50000, "司机ID不合法")
-			return
-		}
-		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).DeleteDriver(id)
 		if err != nil {
 			writeParamError(w, err)
 			return

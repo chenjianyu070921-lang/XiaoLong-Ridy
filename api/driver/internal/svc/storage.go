@@ -12,17 +12,6 @@ import (
 
 const maxTrajectoryPoints = 2000
 
-type PassengerReviewRecord struct {
-	OrderID   int64
-	Rating    int32
-	Comment   string
-	CreatedAt time.Time
-}
-
-type ReviewRepository interface {
-	ListByDriver(ctx context.Context, driverID int64, page, pageSize int32) ([]PassengerReviewRecord, int64, error)
-}
-
 type TrajectoryRecord struct {
 	OrderID    int64
 	DriverID   int64
@@ -45,37 +34,6 @@ type HeatmapOrderLocation struct {
 
 type HeatmapRepository interface {
 	ListWaitAcceptOrderLocations(ctx context.Context, longitude, latitude, radiusMeters float64) ([]HeatmapOrderLocation, error)
-}
-
-type gormReviewRepository struct {
-	db *gorm.DB
-}
-
-func NewGormReviewRepository(db *gorm.DB) ReviewRepository {
-	return &gormReviewRepository{db: db}
-}
-
-func (r *gormReviewRepository) ListByDriver(ctx context.Context, driverID int64, page, pageSize int32) ([]PassengerReviewRecord, int64, error) {
-	var total int64
-	query := r.db.WithContext(ctx).Model(&orderReviewRow{}).Where("driver_id = ?", driverID)
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	var rows []orderReviewRow
-	offset := int((page - 1) * pageSize)
-	if err := query.Order("created_at DESC").Offset(offset).Limit(int(pageSize)).Find(&rows).Error; err != nil {
-		return nil, 0, err
-	}
-	records := make([]PassengerReviewRecord, 0, len(rows))
-	for _, row := range rows {
-		records = append(records, PassengerReviewRecord{
-			OrderID:   int64(row.OrderID),
-			Rating:    int32(row.Rating),
-			Comment:   row.Comment,
-			CreatedAt: row.CreatedAt,
-		})
-	}
-	return records, total, nil
 }
 
 type gormTrajectoryRepository struct {
@@ -155,22 +113,6 @@ func (r *gormTrajectoryRepository) RecordPoint(ctx context.Context, record *Traj
 		Direction:  int16(record.Heading),
 		RecordedAt: recordedAt,
 	}).Error
-}
-
-type orderReviewRow struct {
-	ID        uint64    `gorm:"column:id;primaryKey"`
-	OrderID   uint64    `gorm:"column:order_id"`
-	UserID    uint64    `gorm:"column:user_id"`
-	DriverID  uint64    `gorm:"column:driver_id"`
-	Rating    int8      `gorm:"column:rating"`
-	Comment   string    `gorm:"column:comment"`
-	Tags      string    `gorm:"column:tags"`
-	CreatedAt time.Time `gorm:"column:created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at"`
-}
-
-func (orderReviewRow) TableName() string {
-	return "order_review"
 }
 
 type rideTrackPointRow struct {

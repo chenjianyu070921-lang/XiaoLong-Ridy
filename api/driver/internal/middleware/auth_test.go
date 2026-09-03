@@ -84,6 +84,36 @@ func TestRequireAuthAllowsPendingDriverToCompleteProfile(t *testing.T) {
 	}
 }
 
+func TestRequireAuthAllowsPendingDriverToViewIncome(t *testing.T) {
+	token := signDriverToken(t, int(driversproto.DriverStatus_DRIVER_STATUS_PENDING))
+	for _, path := range []string{
+		"/api/driver/v1/income/summary",
+		"/api/driver/v1/income/today",
+		"/api/driver/v1/income/week",
+		"/api/driver/v1/income/bills",
+	} {
+		t.Run(path, func(t *testing.T) {
+			called := false
+			handler := RequireAuth(&svc.ServiceContext{SigningKey: "middleware-test-key"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusNoContent)
+			}))
+
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.Header.Set("Authorization", "Bearer "+token)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+
+			if recorder.Code != http.StatusNoContent {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusNoContent, recorder.Body.String())
+			}
+			if !called {
+				t.Fatal("next handler was not called")
+			}
+		})
+	}
+}
+
 func TestRequireAuthRejectsUnavailableDriverOnPendingOnlyPath(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

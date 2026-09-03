@@ -35,32 +35,6 @@ func AcceptOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
-// CancelOrderHandler POST /api/driver/v1/orders/cancel
-// Current driver cancels an accepted order before trip start.
-func CancelOrderHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		claims := middleware.ClaimsFromContext(r.Context())
-		if claims == nil {
-			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
-			return
-		}
-		var req types.CancelOrderRequest
-		if !decodeJSON(w, r, &req) {
-			return
-		}
-		if req.OrderID <= 0 {
-			writeError(w, http.StatusBadRequest, 50000, "invalid orderId")
-			return
-		}
-		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).CancelOrder(int64(claims.AccountID), &req)
-		if err != nil {
-			writeParamError(w, err)
-			return
-		}
-		writeSuccess(w, resp)
-	}
-}
-
 // StartTripHandler POST /api/driver/v1/orders/start-trip
 // Current driver starts the trip.
 func StartTripHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
@@ -105,6 +79,32 @@ func FinishTripHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).FinishTrip(int64(claims.AccountID), &req)
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
+// GetRealtimeFareHandler POST /api/driver/v1/orders/realtime-fare
+// Current driver queries pricesvc-calculated fare while the trip is on-going.
+func GetRealtimeFareHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		var req types.RealtimeFareRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		if req.OrderID <= 0 || req.ActualDistanceM < 0 || req.ActualDurationS < 0 {
+			writeError(w, http.StatusBadRequest, 50000, "invalid realtime fare parameters")
+			return
+		}
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).GetRealtimeFare(int64(claims.AccountID), &req)
 		if err != nil {
 			writeParamError(w, err)
 			return

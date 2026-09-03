@@ -1,4 +1,6 @@
 import { strict as assert } from 'node:assert'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { resolveCreatedVehicle, resolveDriverVehicleId } from '../src/utils/vehicle.js'
 
 const payload = {
@@ -51,5 +53,17 @@ assert.equal(fallback.status, 'VEHICLE_STATUS_PENDING', 'fallback vehicle must k
 assert.equal(resolveDriverVehicleId({ vehicleId: 88 }, null), 88, 'driver profile vehicleId must be usable without local cache')
 assert.equal(resolveDriverVehicleId({ vehicleId: 0 }, { id: 44 }), 44, 'cached vehicle id must be used when profile has no vehicleId')
 assert.equal(resolveDriverVehicleId({}, null), 0, 'missing vehicle id must resolve to zero')
+
+const root = resolve(import.meta.dirname, '..')
+const useDriverAssets = readFileSync(resolve(root, 'src/composables/useDriverAssets.js'), 'utf8')
+const driverFormat = readFileSync(resolve(root, 'src/utils/driver-format.js'), 'utf8')
+const vehiclePanel = readFileSync(resolve(root, 'src/components/driver-home/DriverVehiclePanel.vue'), 'utf8')
+
+assert.match(useDriverAssets, /await\s+driverStore\.refreshProfile\(\{\s*silentError:\s*true\s*\}\)/, 'vehicle page must refresh driver profile before loading vehicle id')
+assert.match(useDriverAssets, /driverStore\.vehicleId[\s\S]*updateVehicle\(\{\s*\.\.\.payload,\s*id:\s*driverStore\.vehicleId\s*\}\)/, 'existing vehicle submit must update instead of creating a duplicate vehicle')
+assert.match(driverFormat, /export function unixSecondsToDateInput/, 'vehicle API timestamps must be formatted for date inputs')
+assert.match(useDriverAssets, /unixSecondsToDateInput\(driverStore\.vehicle\.registrationDate\)/, 'vehicle form must convert registration timestamp to date input value')
+assert.match(useDriverAssets, /unixSecondsToDateInput\(driverStore\.vehicle\.insuranceExpireAt\)/, 'vehicle form must convert insurance timestamp to date input value')
+assert.match(vehiclePanel, /driverStore\.vehicleId[\s\S]*'更新车辆'[\s\S]*'提交车辆'/, 'vehicle submit button must show update text when a vehicle already exists')
 
 console.log('driver vehicle create checks passed')

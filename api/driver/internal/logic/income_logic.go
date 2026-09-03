@@ -7,11 +7,16 @@ import (
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
-	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 )
 
-// incomeConcurrency 限制并发查询订单数，避免打挂 ordersvc
-const incomeConcurrency = 10
+const (
+	incomePageSize           int32 = 100
+	incomePageFetchWorkers         = 8
+	maxIncomeSettlementPages       = 20
+	incomeSource                   = "paysvc.settlement"
+	settlementStatusSettled  int32 = 2
+)
 
 var incomeNow = time.Now
 
@@ -28,47 +33,20 @@ func (l *IncomeLogic) GetIncomeSummary(driverID int64) (*types.GetIncomeSummaryR
 	if driverID <= 0 {
 		return nil, ErrInvalidParam
 	}
-	client, err := l.orderClient()
+	summary, err := l.sumSettlements(driverID, 0, 0)
 	if err != nil {
 		return nil, err
 	}
-	var totalIncome int64
-	var completedOrders int64
-	page := int32(1)
-	pageSize := int32(100)
-	for {
-		resp, err := client.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
-			DriverId: driverID,
-			Status:   orderproto.OrderStatus_ORDER_STATUS_COMPLETED,
-			Page:     page,
-			PageSize: pageSize,
-		})
-		if err != nil {
-			return nil, err
-		}
-		// 收集本页订单 ID，并发查询收入（替代原串行 N+1）
-		orderIDs := make([]int64, 0, len(resp.GetList()))
-		for _, order := range resp.GetList() {
-			orderIDs = append(orderIDs, order.GetOrderId())
-		}
-		incomeMap, err := l.batchOrderIncomeCents(client, orderIDs)
-		if err != nil {
-			return nil, err
-		}
-		for _, id := range orderIDs {
-			totalIncome += incomeMap[id]
-			completedOrders++
-		}
-		if int64(page)*int64(pageSize) >= resp.GetTotal() || len(resp.GetList()) == 0 {
-			break
-		}
-		page++
+	source := incomeSource
+	if summary.capped {
+		source = incomeSource + ":capped"
 	}
 	return &types.GetIncomeSummaryResponse{
-		DriverID:         driverID,
-		CompletedOrders:  completedOrders,
-		TotalIncomeCents: totalIncome,
-		Source:           "ordersvc.completed_orders",
+		DriverID:          driverID,
+		CompletedOrders:   summary.count,
+		TotalIncomeCents:  summary.incomeCents,
+		WithdrawableCents: summary.incomeCents,
+		Source:            source,
 	}, nil
 }
 
@@ -88,55 +66,24 @@ func (l *IncomeLogic) getPeriodIncome(driverID int64, period string, start, end 
 	if driverID <= 0 {
 		return nil, ErrInvalidParam
 	}
-	client, err := l.orderClient()
+	startAt := start.Unix()
+	endAt := end.Unix()
+	summary, err := l.sumSettlements(driverID, startAt, endAt)
 	if err != nil {
 		return nil, err
 	}
-	startAt := start.Unix()
-	endAt := end.Unix()
-	var totalIncome int64
-	var completedOrders int64
-	page := int32(1)
-	pageSize := int32(100)
-	for {
-		resp, err := client.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
-			DriverId: driverID,
-			Status:   orderproto.OrderStatus_ORDER_STATUS_COMPLETED,
-			Page:     page,
-			PageSize: pageSize,
-		})
-		if err != nil {
-			return nil, err
-		}
-		// 筛选时间范围内的订单，并发查询收入
-		var orderIDs []int64
-		for _, order := range resp.GetList() {
-			createdAt := order.GetCreatedAt()
-			if createdAt >= startAt && createdAt < endAt {
-				orderIDs = append(orderIDs, order.GetOrderId())
-			}
-		}
-		incomeMap, err := l.batchOrderIncomeCents(client, orderIDs)
-		if err != nil {
-			return nil, err
-		}
-		for _, id := range orderIDs {
-			totalIncome += incomeMap[id]
-			completedOrders++
-		}
-		if int64(page)*int64(pageSize) >= resp.GetTotal() || len(resp.GetList()) == 0 {
-			break
-		}
-		page++
+	source := incomeSource
+	if summary.capped {
+		source = incomeSource + ":capped"
 	}
 	return &types.PeriodIncomeResponse{
 		DriverID:         driverID,
 		Period:           period,
-		CompletedOrders:  completedOrders,
-		TotalIncomeCents: totalIncome,
+		CompletedOrders:  summary.count,
+		TotalIncomeCents: summary.incomeCents,
 		StartAt:          startAt,
 		EndAt:            endAt,
-		Source:           "ordersvc.completed_orders",
+		Source:           source,
 	}, nil
 }
 
@@ -154,26 +101,17 @@ func (l *IncomeLogic) ListIncomeBills(driverID int64, req *types.ListIncomeBills
 	if driverID <= 0 || req == nil {
 		return nil, ErrInvalidParam
 	}
-	client, err := l.orderClient()
+	client, err := l.payClient()
 	if err != nil {
 		return nil, err
 	}
 	page, pageSize := clampPage(req.Page, req.PageSize)
-	resp, err := client.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
+	resp, err := client.ListSettlements(l.ctx, &payproto.ListSettlementsRequest{
 		DriverId: driverID,
-		Status:   orderproto.OrderStatus_ORDER_STATUS_COMPLETED,
+		Status:   settlementStatusSettled,
 		Page:     page,
 		PageSize: pageSize,
 	})
-	if err != nil {
-		return nil, err
-	}
-	// 并发查询本页订单收入
-	orderIDs := make([]int64, 0, len(resp.GetList()))
-	for _, order := range resp.GetList() {
-		orderIDs = append(orderIDs, order.GetOrderId())
-	}
-	incomeMap, err := l.batchOrderIncomeCents(client, orderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -181,83 +119,136 @@ func (l *IncomeLogic) ListIncomeBills(driverID int64, req *types.ListIncomeBills
 		Total:    resp.GetTotal(),
 		Page:     resp.GetPage(),
 		PageSize: resp.GetPageSize(),
-		Source:   "ordersvc.completed_orders",
+		Source:   incomeSource,
 	}
-	for _, order := range resp.GetList() {
+	for _, bill := range resp.GetRecords() {
 		result.List = append(result.List, types.IncomeBill{
-			OrderID:     order.GetOrderId(),
-			OrderNo:     order.GetOrderNo(),
-			IncomeCents: incomeMap[order.GetOrderId()],
-			Status:      int32(order.GetStatus()),
-			CreatedAt:   order.GetCreatedAt(),
+			OrderID:     bill.GetOrderId(),
+			OrderNo:     bill.GetSettlementNo(),
+			IncomeCents: bill.GetDriverIncomeCents(),
+			Status:      bill.GetStatus(),
+			CreatedAt:   settlementDisplayTime(bill),
 		})
 	}
 	return result, nil
 }
 
-// batchOrderIncomeCents 并发查询多个订单的司机收入，限制并发度避免打挂 ordersvc。
-// 替代原串行 N+1 调用（每个订单单独调 GetOrder）。
-func (l *IncomeLogic) batchOrderIncomeCents(client svc.OrderClient, orderIDs []int64) (map[int64]int64, error) {
-	if len(orderIDs) == 0 {
-		return map[int64]int64{}, nil
-	}
-	results := make(map[int64]int64, len(orderIDs))
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, incomeConcurrency)
-	var firstErr error
+type incomeSettlementSummary struct {
+	count       int64
+	incomeCents int64
+	capped      bool
+}
 
-	for _, id := range orderIDs {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(orderID int64) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			amount, err := l.orderIncomeCents(client, orderID)
+func (l *IncomeLogic) sumSettlements(driverID, startAt, endAt int64) (incomeSettlementSummary, error) {
+	client, err := l.payClient()
+	if err != nil {
+		return incomeSettlementSummary{}, err
+	}
+	firstResp, err := client.ListSettlements(l.ctx, &payproto.ListSettlementsRequest{
+		DriverId: driverID,
+		Status:   settlementStatusSettled,
+		StartAt:  startAt,
+		EndAt:    endAt,
+		Page:     1,
+		PageSize: incomePageSize,
+	})
+	if err != nil {
+		return incomeSettlementSummary{}, err
+	}
+
+	var summary incomeSettlementSummary
+	accumulateSettlementSummary(&summary, firstResp.GetRecords())
+	totalPages := int((firstResp.GetTotal() + int64(incomePageSize) - 1) / int64(incomePageSize))
+	if totalPages <= 1 || len(firstResp.GetRecords()) == 0 {
+		return summary, nil
+	}
+	if totalPages > maxIncomeSettlementPages {
+		summary.capped = true
+		totalPages = maxIncomeSettlementPages
+	}
+
+	ctx, cancel := context.WithCancel(l.ctx)
+	defer cancel()
+
+	pageCh := make(chan int32)
+	errCh := make(chan error, 1)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	worker := func() {
+		defer wg.Done()
+		for page := range pageCh {
+			resp, err := client.ListSettlements(ctx, &payproto.ListSettlementsRequest{
+				DriverId: driverID,
+				Status:   settlementStatusSettled,
+				StartAt:  startAt,
+				EndAt:    endAt,
+				Page:     page,
+				PageSize: incomePageSize,
+			})
 			if err != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = err
+				select {
+				case errCh <- err:
+				default:
 				}
-				mu.Unlock()
+				cancel()
 				return
 			}
 			mu.Lock()
-			results[orderID] = amount
+			accumulateSettlementSummary(&summary, resp.GetRecords())
 			mu.Unlock()
-		}(id)
+		}
 	}
+
+	workerCount := incomePageFetchWorkers
+	if remaining := totalPages - 1; remaining < workerCount {
+		workerCount = remaining
+	}
+	wg.Add(workerCount)
+	for i := 0; i < workerCount; i++ {
+		go worker()
+	}
+
+	go func() {
+		defer close(pageCh)
+		for page := int32(2); int(page) <= totalPages; page++ {
+			select {
+			case <-ctx.Done():
+				return
+			case pageCh <- page:
+			}
+		}
+	}()
+
 	wg.Wait()
-	if firstErr != nil {
-		return nil, firstErr
+	select {
+	case err := <-errCh:
+		return incomeSettlementSummary{}, err
+	default:
 	}
-	return results, nil
+	return summary, nil
 }
 
-func (l *IncomeLogic) orderIncomeCents(client svc.OrderClient, orderID int64) (int64, error) {
-	order, err := client.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: orderID})
-	if err != nil {
-		return 0, err
+func accumulateSettlementSummary(summary *incomeSettlementSummary, bills []*payproto.SettlementBill) {
+	for _, bill := range bills {
+		summary.count++
+		summary.incomeCents += bill.GetDriverIncomeCents()
 	}
-	if order == nil {
-		return 0, nil
-	}
-
-	// Driver income follows the settled order amount, not the booking estimate.
-	amount := order.GetPayableCents()
-	if amount <= 0 {
-		amount = order.GetPaidCents()
-	}
-	amount -= order.GetRefundCents()
-	if amount < 0 {
-		return 0, nil
-	}
-	return amount, nil
 }
 
-func (l *IncomeLogic) orderClient() (svc.OrderClient, error) {
-	if l.svcCtx == nil || l.svcCtx.OrderClient == nil {
-		return nil, ErrOrderClientNotConfigured
+func settlementDisplayTime(bill *payproto.SettlementBill) int64 {
+	if bill == nil {
+		return 0
 	}
-	return l.svcCtx.OrderClient, nil
+	if bill.GetSettledAt() > 0 {
+		return bill.GetSettledAt()
+	}
+	return bill.GetCreatedAt()
+}
+
+func (l *IncomeLogic) payClient() (svc.PayClient, error) {
+	if l.svcCtx == nil || l.svcCtx.PayClient == nil {
+		return nil, ErrPayClientNotConfigured
+	}
+	return l.svcCtx.PayClient, nil
 }

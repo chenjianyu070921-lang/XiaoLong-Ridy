@@ -3,6 +3,9 @@ package middleware
 import (
 	"net"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -11,16 +14,16 @@ import (
 // 说明：当前为单实例本地联调方案，未按用户维度共享；多实例或生产环境
 // 应替换为 Redis 令牌桶（如 go-zero periodlimit）以保证全局限流一致。
 type loginLimiter struct {
-	mu       sync.Mutex
-	buckets  map[string]*window
-	limit    int           // 窗口内最大允许次数
-	window   time.Duration // 窗口大小
-	now      func() time.Time
+	mu      sync.Mutex
+	buckets map[string]*window
+	limit   int           // 窗口内最大允许次数
+	window  time.Duration // 窗口大小
+	now     func() time.Time
 }
 
 type window struct {
-	count    int
-	resetAt  time.Time
+	count   int
+	resetAt time.Time
 }
 
 // newLoginLimiter 构造限流器：每个 key 在 window 内最多允许 limit 次。
@@ -40,6 +43,7 @@ func (l *loginLimiter) allow(key string) bool {
 	defer l.mu.Unlock()
 
 	now := l.now()
+	l.cleanupExpired(now)
 	w, ok := l.buckets[key]
 	if !ok || now.After(w.resetAt) {
 		l.buckets[key] = &window{count: 1, resetAt: now.Add(l.window)}
@@ -52,14 +56,55 @@ func (l *loginLimiter) allow(key string) bool {
 	return true
 }
 
-// clientKey 从请求中取客户端 IP 作为限流维度：优先取 X-Forwarded-For，回退解析 RemoteAddr 的 host 部分。
-func clientKey(r *http.Request) string {
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		return fwd
+func (l *loginLimiter) cleanupExpired(now time.Time) {
+	for key, bucket := range l.buckets {
+		if now.After(bucket.resetAt) {
+			delete(l.buckets, key)
+		}
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+}
+
+// clientKey uses RemoteAddr by default. X-Forwarded-For is trusted only when
+// DRIVER_TRUSTED_PROXY_HOPS declares the number of trusted rightmost proxy hops.
+func clientKey(r *http.Request) string {
+	if key := clientKeyFromForwardedFor(r.Header.Get("X-Forwarded-For"), trustedProxyHops()); key != "" {
+		return key
+	}
+	return remoteAddrHost(r.RemoteAddr)
+}
+
+func clientKeyFromForwardedFor(forwardedFor string, trustedHops int) string {
+	if trustedHops <= 0 || strings.TrimSpace(forwardedFor) == "" {
+		return ""
+	}
+	parts := strings.Split(forwardedFor, ",")
+	index := len(parts) - trustedHops
+	if index < 0 {
+		return ""
+	}
+	ip := strings.TrimSpace(parts[index])
+	if net.ParseIP(ip) == nil {
+		return ""
+	}
+	return ip
+}
+
+func trustedProxyHops() int {
+	value := strings.TrimSpace(os.Getenv("DRIVER_TRUSTED_PROXY_HOPS"))
+	if value == "" {
+		return 0
+	}
+	hops, err := strconv.Atoi(value)
+	if err != nil || hops < 0 {
+		return 0
+	}
+	return hops
+}
+
+func remoteAddrHost(remoteAddr string) string {
+	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		return remoteAddr
 	}
 	return host
 }

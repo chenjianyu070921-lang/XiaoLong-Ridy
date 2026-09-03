@@ -60,7 +60,11 @@ func allowPendingDriverPath(path string) bool {
 		"/api/driver/v1/drivers/certification",
 		"/api/driver/v1/vehicles",
 		"/api/driver/v1/vehicles/get",
-		"/api/driver/v1/vehicles/update":
+		"/api/driver/v1/vehicles/update",
+		"/api/driver/v1/income/summary",
+		"/api/driver/v1/income/today",
+		"/api/driver/v1/income/week",
+		"/api/driver/v1/income/bills":
 		return true
 	default:
 		return false

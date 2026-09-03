@@ -23,6 +23,10 @@ func main() {
 
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
+	c.ApplyRuntimeSigningKey()
+	if err := c.ValidateSigningKey(); err != nil {
+		panic(fmt.Errorf("driversvc signing key check: %w", err))
+	}
 	ctx := svc.NewServiceContext(c)
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {

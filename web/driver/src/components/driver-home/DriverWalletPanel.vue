@@ -25,7 +25,7 @@
       <div><span>本周</span><strong>{{ formatPrice(weekIncome.totalIncomeCents) }}</strong></div>
     </div>
     <div v-if="incomeBills.length === 0" class="empty-state">--</div>
-    <article v-for="bill in incomeBills" :key="bill.id || bill.orderId" class="compact-card">
+    <article v-for="bill in incomeBills" :key="bill.orderId" class="compact-card">
       <strong>{{ bill.orderNo || '订单 ' + bill.orderId }}</strong>
       <span>{{ formatPrice(bill.incomeCents) }} · {{ formatTime(bill.createdAt) }}</span>
     </article>

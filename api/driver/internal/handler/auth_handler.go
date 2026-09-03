@@ -7,11 +7,11 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // SendSMSCodeHandler POST /api/driver/v1/auth/send-sms-code
-// 发送登录短信验证码（联调阶段验证码输出到日志顶替短信通道）。
 func SendSMSCodeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.SendSMSCodeRequest
@@ -28,7 +28,6 @@ func SendSMSCodeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // LoginByPasswordHandler POST /api/driver/v1/auth/login-by-password
-// 手机号 + 密码登录，成功返回 JWT。
 func LoginByPasswordHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.LoginByPasswordRequest
@@ -45,7 +44,6 @@ func LoginByPasswordHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 }
 
 // LoginBySMSHandler POST /api/driver/v1/auth/login-by-sms
-// 手机号 + 验证码登录，成功返回 JWT。
 func LoginBySMSHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.LoginBySMSRequest
@@ -61,7 +59,7 @@ func LoginBySMSHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
-// writeAuthError 将认证相关错误映射为统一错误响应。
+// writeAuthError maps auth failures to HTTP responses.
 func writeAuthError(w http.ResponseWriter, err error) {
 	switch err {
 	case logic.ErrDriverAuthFailed:
@@ -76,9 +74,15 @@ func writeAuthError(w http.ResponseWriter, err error) {
 	case logic.ErrDriverClientNotConfigured:
 		writeError(w, http.StatusBadGateway, 50001, "下游 driversvc 不可用")
 	default:
-		// gRPC status 透传（如 driversvc 返回的 driver not found）。
-		if _, ok := status.FromError(err); ok {
-			writeError(w, http.StatusUnauthorized, 40102, "账号或密码错误")
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.Unavailable, codes.DeadlineExceeded, codes.Unimplemented:
+				writeError(w, http.StatusBadGateway, 50001, "下游服务不可用或超时")
+			case codes.PermissionDenied:
+				writeError(w, http.StatusForbidden, 40301, "账号未审核通过或已被冻结/注销")
+			default:
+				writeError(w, http.StatusUnauthorized, 40102, "账号或密码错误")
+			}
 			return
 		}
 		writeError(w, http.StatusBadRequest, 50000, err.Error())
