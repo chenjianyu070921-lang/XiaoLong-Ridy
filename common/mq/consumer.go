@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/IBM/sarama"
 	"github.com/redis/go-redis/v9"
@@ -129,12 +130,29 @@ func (c *KafkaConsumer) loadOffset(ctx context.Context, topic string, partition 
 	return n
 }
 
+// saveOffsetMaxRetries offset 持久化最大重试次数。
+const saveOffsetMaxRetries = 3
+
 // saveOffset 持久化消费进度（下一条待消费 offset）。
+// Redis 写入失败时有限次数重试（指数退避），重试耗尽输出业务告警日志。
 func (c *KafkaConsumer) saveOffset(ctx context.Context, topic string, partition int32, next int64) {
 	if c.redis == nil {
 		return
 	}
-	_ = c.redis.Set(ctx, c.offsetKey(topic, partition), next, 0).Err()
+	key := c.offsetKey(topic, partition)
+	var lastErr error
+	for i := 0; i < saveOffsetMaxRetries; i++ {
+		if err := c.redis.Set(ctx, key, next, 0).Err(); err != nil {
+			lastErr = err
+			logx.Errorf("save offset failed (attempt %d/%d), topic=%s partition=%d offset=%d: %v",
+				i+1, saveOffsetMaxRetries, topic, partition, next, err)
+			time.Sleep(time.Duration(i+1) * 50 * time.Millisecond)
+			continue
+		}
+		return
+	}
+	logx.Errorf("[ALERT] save offset exhausted retries, topic=%s partition=%d offset=%d last_error=%v",
+		topic, partition, next, lastErr)
 }
 
 // processMessage 调用业务处理函数；失败时写入死信队列（<topic>.dlq）。
