@@ -53,6 +53,13 @@ func (s *PayServer) SettleOrder(ctx context.Context, in *__proto.SettleOrderRequ
 	return l.SettleOrder(in)
 }
 
+// 结算查询：按订单ID查询司机结算单，供管理后台展示。
+func (s *PayServer) GetSettlement(ctx context.Context, in *__proto.GetSettlementRequest) (*__proto.GetSettlementResponse, error) {
+	l := logic.NewGetSettlementLogic(ctx, s.svcCtx)
+	return l.GetSettlement(in)
+}
+
+// 结算列表：按司机/状态/时间范围分页查询结算单。
 func (s *PayServer) ListSettlements(ctx context.Context, in *__proto.ListSettlementsRequest) (*__proto.ListSettlementsResponse, error) {
 	l := logic.NewListSettlementsLogic(ctx, s.svcCtx)
 	return l.ListSettlements(in)

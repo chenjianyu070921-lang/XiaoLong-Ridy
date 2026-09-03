@@ -10,6 +10,8 @@ import (
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
 	dispatchsvc "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	ordersvc "XiaoLong-Ridy/rpc/ordersvc/proto"
+	paysvcproto "XiaoLong-Ridy/rpc/paysvc/proto"
+	pricesvcproto "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc/codes"
@@ -95,48 +97,67 @@ func (l *GetOrderLogic) GetOrder(in *adminsvc.OrderDetailRequest) (*adminsvc.Ord
 	}
 
 	price, payment, settlement := (*adminsvc.OrderPrice)(nil), (*adminsvc.Payment)(nil), (*adminsvc.Settlement)(nil)
-	if l.svcCtx == nil || l.svcCtx.MySQL == nil {
-		degraded = append(degraded, "price", "payment", "settlement")
-	} else {
-		price, err = scanOrderPrice(l.svcCtx.MySQL.QueryRowContext(l.ctx, `
-			SELECT id, order_id, price_rule_id, CAST(estimated_price AS CHAR), CAST(actual_price AS CHAR),
-			       CAST(base_fee AS CHAR), CAST(distance_fee AS CHAR), CAST(time_fee AS CHAR),
-			       CAST(night_fee AS CHAR), CAST(dynamic_fee AS CHAR), CAST(discount_amount AS CHAR),
-			       CAST(platform_subsidy AS CHAR), CAST(payable_amount AS CHAR), status
-			FROM order_price
-			WHERE order_id = ?
-		`, in.GetId()))
-		if err != nil {
+	// 价格明细改由 pricesvc 查询，支付与结算改由 paysvc 查询，避免后台跨服务直读资金与价格表。
+	if l.svcCtx != nil && l.svcCtx.PricesSvc != nil {
+		if priceResp, priceErr := l.svcCtx.PricesSvc.GetOrderPrice(l.ctx, &pricesvcproto.GetOrderPriceRequest{OrderId: in.GetId()}); priceErr != nil {
 			degraded = append(degraded, "price")
-			price = nil
+		} else if priceResp != nil {
+			price = &adminsvc.OrderPrice{
+				Id:              priceResp.GetId(),
+				OrderId:         priceResp.GetOrderId(),
+				PriceRuleId:     priceResp.GetPriceRuleId(),
+				EstimatedPrice:  formatCents(priceResp.GetEstimatedPriceCents()),
+				ActualPrice:     formatCents(priceResp.GetActualPriceCents()),
+				BaseFee:         formatCents(priceResp.GetBaseFeeCents()),
+				DistanceFee:     formatCents(priceResp.GetDistanceFeeCents()),
+				TimeFee:         formatCents(priceResp.GetTimeFeeCents()),
+				NightFee:        formatCents(priceResp.GetNightFeeCents()),
+				DynamicFee:      formatCents(priceResp.GetDynamicFeeCents()),
+				DiscountAmount:  formatCents(priceResp.GetDiscountAmountCents()),
+				PlatformSubsidy: formatCents(priceResp.GetPlatformSubsidyCents()),
+				PayableAmount:   formatCents(priceResp.GetPayableAmountCents()),
+				Status:          priceResp.GetStatus(),
+			}
 		}
+	} else {
+		degraded = append(degraded, "price")
+	}
 
-		payment, err = scanPayment(l.svcCtx.MySQL.QueryRowContext(l.ctx, `
-			SELECT id, payment_no, order_id, user_id, CAST(amount AS CHAR), channel, status,
-			       transaction_id, CAST(refund_amount AS CHAR), paid_at
-			FROM payment
-			WHERE order_id = ?
-			ORDER BY id DESC
-			LIMIT 1
-		`, in.GetId()))
-		if err != nil {
+	if l.svcCtx != nil && l.svcCtx.PaySvc != nil {
+		if payResp, payErr := l.svcCtx.PaySvc.GetPayment(l.ctx, &paysvcproto.GetPaymentRequest{OrderId: in.GetId()}); payErr != nil {
 			degraded = append(degraded, "payment")
-			payment = nil
+		} else if payResp != nil {
+			payment = &adminsvc.Payment{
+				Id:            payResp.GetPaymentId(),
+				PaymentNo:     payResp.GetPaymentNo(),
+				OrderId:       payResp.GetOrderId(),
+				UserId:        payResp.GetUserId(),
+				Amount:        formatCents(payResp.GetAmountCents()),
+				Channel:       payResp.GetChannel(),
+				Status:        payResp.GetStatus(),
+				TransactionId: payResp.GetTransactionId(),
+				RefundAmount:  formatCents(payResp.GetRefundAmountCents()),
+				PaidAt:        unixText(payResp.GetPaidAt()),
+			}
 		}
-
-		settlement, err = scanSettlement(l.svcCtx.MySQL.QueryRowContext(l.ctx, `
-			SELECT id, settlement_no, order_id, driver_id, CAST(total_amount AS CHAR),
-			       CAST(platform_commission_rate AS CHAR), CAST(platform_commission AS CHAR),
-			       CAST(driver_income AS CHAR), status, settled_at
-			FROM settlement
-			WHERE order_id = ?
-			ORDER BY id DESC
-			LIMIT 1
-		`, in.GetId()))
-		if err != nil {
+		if setResp, setErr := l.svcCtx.PaySvc.GetSettlement(l.ctx, &paysvcproto.GetSettlementRequest{OrderId: in.GetId()}); setErr != nil {
 			degraded = append(degraded, "settlement")
-			settlement = nil
+		} else if setResp != nil {
+			settlement = &adminsvc.Settlement{
+				Id:                     setResp.GetSettlementId(),
+				SettlementNo:           setResp.GetSettlementNo(),
+				OrderId:                setResp.GetOrderId(),
+				DriverId:               setResp.GetDriverId(),
+				TotalAmount:            formatCents(setResp.GetTotalAmountCents()),
+				PlatformCommissionRate:  setResp.GetPlatformCommissionRate(),
+				PlatformCommission:      formatCents(setResp.GetPlatformCommissionCents()),
+				DriverIncome:            formatCents(setResp.GetDriverIncomeCents()),
+				Status:                  setResp.GetStatus(),
+				SettledAt:               unixText(setResp.GetSettledAt()),
+			}
 		}
+	} else {
+		degraded = append(degraded, "payment", "settlement")
 	}
 
 	return &adminsvc.OrderDetail{

@@ -9,7 +9,9 @@ import { ordersApi, marketingApi, statisticsApi, riskApi, logsApi, refundRetryAp
 import { text, pageData } from '../../utils/format'
 import { orderStatusText, userStatusText, driverStatusText, vehicleStatusText, auditStatusText, carTypeText, roleText } from '../../utils/enums'
 import BusinessFormDialog from '../../components/BusinessFormDialog.vue'
+import AiAgentDrawer from '../../components/AiAgentDrawer.vue'
 
+const aiDrawer = ref(false)
 const route = useRoute(); const router = useRouter(); const loading = ref(false); const rows = ref([]); const total = ref(0); const page = ref(1); const pageSize = ref(20); const detail = ref(null); const dialog = ref(false); const dialogType = ref(''); const dialogRecord = ref({}); const submitting = ref(false); const downloading = ref(false); const selectionRows = ref([])
 const filterState = reactive({})
 const title = computed(() => route.meta.title || '工作台');
@@ -251,6 +253,7 @@ onMounted(async () => { syncRouteQuery(); if (kind.value === 'dashboard' || isSt
       </div>
     </el-drawer>
     <BusinessFormDialog v-model="dialog" :type="dialogType" :title="dialogTitle" :record="dialogRecord" :loading="submitting" @submit="submitAction" />
+    <AiAgentDrawer v-model="aiDrawer" />
   </section>
 </template>
 

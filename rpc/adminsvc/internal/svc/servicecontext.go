@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"time"
 
+	"XiaoLong-Ridy/rpc/adminsvc/internal/aiagent"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/config"
 	dispatchsvcproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversvcproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	locationsvcproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	ordersvcproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	paysvcproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	pricesvcproto "XiaoLong-Ridy/rpc/pricesvc/price"
 	pushsvcproto "XiaoLong-Ridy/rpc/pushesvc/pushesvc"
 	usersvcproto "XiaoLong-Ridy/rpc/usersvc/proto"
@@ -37,8 +39,15 @@ type ServiceContext struct {
 	LocationSvc        locationsvcproto.LocationServiceClient
 	PricesRPCClient    zrpc.Client
 	PricesSvc          pricesvcproto.Price
+	PaysRPCClient      zrpc.Client
+	PaySvc             paysvcproto.PayClient
 	PushRPCClient      zrpc.Client
 	PushSvc            pushsvcproto.PushServiceClient
+
+	// AI 运营助手依赖：会话存储共享，模型默认禁用（走本地模板降级）。
+	AiAgentStore aiagent.SessionStore
+	AiAgentCfg   aiagent.Config
+	AiAgentModel aiagent.ModelClient
 }
 
 // NewServiceContext 初始化 MySQL、Redis 以及下游 RPC 客户端。
@@ -63,13 +72,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		c.Session.TokenPrefix = "admin:sess:"
 	}
 
-	var ordersClient, dispatchClient, usersClient, driversClient, locationsClient, pricesClient, pushClient zrpc.Client
+	var ordersClient, dispatchClient, usersClient, driversClient, locationsClient, pricesClient, paysClient, pushClient zrpc.Client
 	var ordersSvc ordersvcproto.OrderClient
 	var dispatchSvc dispatchsvcproto.DispatchClient
 	var usersSvc usersvcproto.UserClient
 	var driversSvc driversvcproto.DriverServiceClient
 	var locationsSvc locationsvcproto.LocationServiceClient
 	var pricesSvc pricesvcproto.Price
+	var paysSvc paysvcproto.PayClient
 	var pushSvc pushsvcproto.PushServiceClient
 	// 本地最小服务集无需预建不可达下游连接；默认配置仍完整初始化全部下游 RPC 客户端。
 	if !c.DisableDownstreamRPC {
@@ -97,6 +107,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		if err != nil {
 			panic(err)
 		}
+		paysClient, paysSvc, err = newPaysRPCClient(c.PaysRPC)
+		if err != nil {
+			panic(err)
+		}
 		pushClient, pushSvc, err = newPushRPCClient(c.PushRPC)
 		if err != nil {
 			panic(err)
@@ -119,8 +133,26 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		LocationSvc:        locationsSvc,
 		PricesRPCClient:    pricesClient,
 		PricesSvc:          pricesSvc,
+		PaysRPCClient:      paysClient,
+		PaySvc:             paysSvc,
 		PushRPCClient:      pushClient,
 		PushSvc:            pushSvc,
+		// AI 运营助手：默认无外部模型，会话用进程内存储（单实例）。
+		AiAgentStore: aiagent.NewInMemoryStore(),
+		AiAgentCfg: aiagent.Config{
+			DemoEnabled: c.AiAgent.DemoEnabled,
+			Model: aiagent.ModelConfig{
+				Endpoint:       c.AiAgent.Model.Endpoint,
+				Name:           c.AiAgent.Model.Name,
+				TimeoutSeconds: c.AiAgent.Model.TimeoutSeconds,
+			},
+			Conversation: aiagent.ConversationConfig{
+				TTLSeconds: c.AiAgent.Conversation.TTLSeconds,
+				MaxRounds:  c.AiAgent.Conversation.MaxRounds,
+				KeyPrefix:  c.AiAgent.Conversation.KeyPrefix,
+			},
+		},
+		AiAgentModel: aiagent.DisabledModel{},
 	}
 }
 
@@ -204,6 +236,18 @@ func newPricesRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, pricesvcproto.Pric
 		return nil, nil, err
 	}
 	return client, pricesvcproto.NewPrice(client), nil
+}
+
+// newPaysRPCClient 初始化 paysvc 客户端，供后台订单详情查询支付与结算记录。
+func newPaysRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, paysvcproto.PayClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50054"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, paysvcproto.NewPayClient(client.Conn()), nil
 }
 
 // newPushRPCClient 初始化 pushsvc 客户端，供后台跨服务操作后通知司机端。

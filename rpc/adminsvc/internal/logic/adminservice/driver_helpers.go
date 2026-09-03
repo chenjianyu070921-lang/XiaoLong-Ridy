@@ -2,8 +2,6 @@ package adminservicelogic
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -16,31 +14,32 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// buildCertificationWhere builds filters for the driver certification audit list.
-func buildCertificationWhere(in *adminsvc.DriverCertificationListRequest) (string, []any) {
-	parts := make([]string, 0)
-	args := make([]any, 0)
-	if in.GetKeyword() != "" {
-		parts = append(parts, "(d.phone LIKE ? OR d.real_name LIKE ? OR v.plate_no LIKE ?)")
-		kw := "%" + in.GetKeyword() + "%"
-		args = append(args, kw, kw, kw)
+// adminCertificationFromDriverSvc 将 driversvc 后台认证记录转换为管理后台协议结构。
+// 认证数据由 driversvc 关联司机/车辆后返回，adminsvc 只做展示字段适配。
+func adminCertificationFromDriverSvc(item *driverproto.AdminCertification) *adminsvc.DriverCertification {
+	if item == nil {
+		return nil
 	}
-	if in.GetAuditStatus() > 0 {
-		parts = append(parts, "c.audit_status = ?")
-		args = append(args, in.GetAuditStatus())
+	return &adminsvc.DriverCertification{
+		Id:                item.GetId(),
+		DriverId:          item.GetDriverId(),
+		VehicleId:         item.GetVehicleId(),
+		DriverPhone:       item.GetDriverPhone(),
+		DriverName:        item.GetDriverName(),
+		DriverStatus:      item.GetDriverStatus(),
+		PlateNo:           item.GetPlateNo(),
+		VehicleStatus:     item.GetVehicleStatus(),
+		IdCardFrontUrl:    item.GetIdCardFrontUrl(),
+		IdCardBackUrl:     item.GetIdCardBackUrl(),
+		DriverLicenseUrl:  item.GetDriverLicenseUrl(),
+		VehicleLicenseUrl: item.GetVehicleLicenseUrl(),
+		AuditStatus:       item.GetAuditStatus(),
+		AuditRemark:       item.GetAuditRemark(),
+		AuditedBy:         item.GetAuditedBy(),
+		AuditedAt:         unixText(item.GetAuditedAt()),
+		CreatedAt:         unixText(item.GetCreatedAt()),
+		UpdatedAt:         unixText(item.GetUpdatedAt()),
 	}
-	if in.GetStartTime() != "" {
-		parts = append(parts, "c.created_at >= ?")
-		args = append(args, in.GetStartTime())
-	}
-	if in.GetEndTime() != "" {
-		parts = append(parts, "c.created_at <= ?")
-		args = append(args, in.GetEndTime())
-	}
-	if len(parts) == 0 {
-		return "", args
-	}
-	return " WHERE " + strings.Join(parts, " AND "), args
 }
 
 // notifyDriverBestEffort 通过 pushsvc 给司机端发送站内信和 App 推送。
@@ -89,26 +88,6 @@ func freezeRiskDriverAfterBlacklist(ctx context.Context, svcCtx *svc.ServiceCont
 	return notifyDriverBestEffort(ctx, svcCtx, driverID, adminID, "账号已被冻结", reason, "risk_freeze", ip)
 }
 
-// scanCertificationRows converts one driver certification list row.
-func scanCertificationRows(rows *sql.Rows) (*adminsvc.DriverCertification, error) {
-	var item adminsvc.DriverCertification
-	var auditedAt, createdAt, updatedAt sql.NullTime
-	err := rows.Scan(
-		&item.Id, &item.DriverId, &item.VehicleId,
-		&item.DriverPhone, &item.DriverName, &item.DriverStatus,
-		&item.PlateNo, &item.VehicleStatus,
-		&item.IdCardFrontUrl, &item.IdCardBackUrl, &item.DriverLicenseUrl, &item.VehicleLicenseUrl,
-		&item.AuditStatus, &item.AuditRemark, &item.AuditedBy, &auditedAt, &createdAt, &updatedAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("scan certification row: %w", err)
-	}
-	item.AuditedAt = formatNullTime(auditedAt)
-	item.CreatedAt = formatNullTime(createdAt)
-	item.UpdatedAt = formatNullTime(updatedAt)
-	return &item, nil
-}
-
 // auditCertification routes the admin audit request to driversvc and records the audit trail.
 func auditCertification(ctx context.Context, svcCtx *svc.ServiceContext, in *adminsvc.AuditDriverCertificationRequest, auditStatus int32) error {
 	if in.GetId() <= 0 {
@@ -144,27 +123,4 @@ func auditCertification(ctx context.Context, svcCtx *svc.ServiceContext, in *adm
 		return fmt.Errorf("driver certification audit writeback failed: %w", err)
 	}
 	return nil
-}
-
-// scanCertificationRow converts the driver certification detail row.
-func scanCertificationRow(row *sql.Row) (*adminsvc.DriverCertification, error) {
-	var item adminsvc.DriverCertification
-	var auditedAt, createdAt, updatedAt sql.NullTime
-	err := row.Scan(
-		&item.Id, &item.DriverId, &item.VehicleId,
-		&item.DriverPhone, &item.DriverName, &item.DriverStatus,
-		&item.PlateNo, &item.VehicleStatus,
-		&item.IdCardFrontUrl, &item.IdCardBackUrl, &item.DriverLicenseUrl, &item.VehicleLicenseUrl,
-		&item.AuditStatus, &item.AuditRemark, &item.AuditedBy, &auditedAt, &createdAt, &updatedAt,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, status.Error(codes.NotFound, "driver certification record not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("scan certification: %w", err)
-	}
-	item.AuditedAt = formatNullTime(auditedAt)
-	item.CreatedAt = formatNullTime(createdAt)
-	item.UpdatedAt = formatNullTime(updatedAt)
-	return &item, nil
 }

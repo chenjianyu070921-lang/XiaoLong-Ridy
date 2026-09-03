@@ -22,6 +22,7 @@ const (
 	Price_EstimatePrice_FullMethodName        = "/pricesvc.Price/EstimatePrice"
 	Price_CalculateDiscount_FullMethodName    = "/pricesvc.Price/CalculateDiscount"
 	Price_SaveActualOrderPrice_FullMethodName = "/pricesvc.Price/SaveActualOrderPrice"
+	Price_GetOrderPrice_FullMethodName        = "/pricesvc.Price/GetOrderPrice"
 	Price_ListPriceRules_FullMethodName       = "/pricesvc.Price/ListPriceRules"
 	Price_GetPriceRule_FullMethodName         = "/pricesvc.Price/GetPriceRule"
 	Price_CreatePriceRule_FullMethodName      = "/pricesvc.Price/CreatePriceRule"
@@ -41,6 +42,8 @@ type PriceClient interface {
 	CalculateDiscount(ctx context.Context, in *CalculateDiscountRequest, opts ...grpc.CallOption) (*CalculateDiscountResponse, error)
 	// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
 	SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error)
+	// 订单价格明细查询：供管理后台按订单ID查询 order_price 快照。
+	GetOrderPrice(ctx context.Context, in *GetOrderPriceRequest, opts ...grpc.CallOption) (*OrderPriceInfo, error)
 	// 计价规则列表查询。
 	ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error)
 	// 计价规则详情查询。
@@ -85,6 +88,16 @@ func (c *priceClient) SaveActualOrderPrice(ctx context.Context, in *SaveActualOr
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SaveActualOrderPriceResponse)
 	err := c.cc.Invoke(ctx, Price_SaveActualOrderPrice_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *priceClient) GetOrderPrice(ctx context.Context, in *GetOrderPriceRequest, opts ...grpc.CallOption) (*OrderPriceInfo, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OrderPriceInfo)
+	err := c.cc.Invoke(ctx, Price_GetOrderPrice_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +166,8 @@ type PriceServer interface {
 	CalculateDiscount(context.Context, *CalculateDiscountRequest) (*CalculateDiscountResponse, error)
 	// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
 	SaveActualOrderPrice(context.Context, *SaveActualOrderPriceRequest) (*SaveActualOrderPriceResponse, error)
+	// 订单价格明细查询：供管理后台按订单ID查询 order_price 快照。
+	GetOrderPrice(context.Context, *GetOrderPriceRequest) (*OrderPriceInfo, error)
 	// 计价规则列表查询。
 	ListPriceRules(context.Context, *PriceRuleListRequest) (*PriceRuleListResponse, error)
 	// 计价规则详情查询。
@@ -178,6 +193,9 @@ func (UnimplementedPriceServer) CalculateDiscount(context.Context, *CalculateDis
 }
 func (UnimplementedPriceServer) SaveActualOrderPrice(context.Context, *SaveActualOrderPriceRequest) (*SaveActualOrderPriceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SaveActualOrderPrice not implemented")
+}
+func (UnimplementedPriceServer) GetOrderPrice(context.Context, *GetOrderPriceRequest) (*OrderPriceInfo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderPrice not implemented")
 }
 func (UnimplementedPriceServer) ListPriceRules(context.Context, *PriceRuleListRequest) (*PriceRuleListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListPriceRules not implemented")
@@ -257,6 +275,24 @@ func _Price_SaveActualOrderPrice_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PriceServer).SaveActualOrderPrice(ctx, req.(*SaveActualOrderPriceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Price_GetOrderPrice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrderPriceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PriceServer).GetOrderPrice(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Price_GetOrderPrice_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PriceServer).GetOrderPrice(ctx, req.(*GetOrderPriceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -369,6 +405,10 @@ var Price_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SaveActualOrderPrice",
 			Handler:    _Price_SaveActualOrderPrice_Handler,
+		},
+		{
+			MethodName: "GetOrderPrice",
+			Handler:    _Price_GetOrderPrice_Handler,
 		},
 		{
 			MethodName: "ListPriceRules",

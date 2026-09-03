@@ -2,7 +2,7 @@
 #
 # 启动的服务与端口：
 #   usersvc(50052) ordersvc(50051) dispatchsvc(50056) pricesvc(50053) paysvc(50054)
-#   driversvc(50055) locationsvc(9001)
+#   driversvc(50055) locationsvc(50057)
 #   adminsvc(8084) api/passenger(8091) api/admin(8717) api/driver(8082)
 #   管理前端 vite(5173) 司机前端 vite(5175) 乘客端 H5 vite(5174)
 #
@@ -103,7 +103,7 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 Set-Content -LiteralPath $pidFile -Value @() -Encoding ASCII
 
 # 目标端口预检，避免误连入旧服务。
-foreach ($port in @(50051, 50052, 50053, 50054, 50055, 50056, 9001, 8084, 8091, 8717, 8082, 5173, 5174, 5175)) {
+foreach ($port in @(50051, 50052, 50053, 50054, 50055, 50056, 50057, 8084, 8091, 8717, 8082, 5173, 5174, 5175)) {
     if (-not (Test-LocalPortAvailable -Port $port)) {
         throw "端口 $port 已被占用。为避免影响已有服务，本脚本未执行任何启动操作。"
     }
@@ -324,15 +324,19 @@ PushRPC:
 Set-Content -LiteralPath $adminsvcCfg -Value $adminsvcTemplate -Encoding UTF8
 
 # 生成 locationsvc 本地运行时配置：去掉 Etcd 注册（本地无 etcd），凭据复用共享 DSN/Redis，
-# 地图 ApiKey 从 locationsvc 原始配置提取，避免在脚本中硬编码。
+# 地图 ApiKey 与默认城市编码从 locationsvc 原始配置提取，避免在脚本中硬编码。
 $locationsvcCfg = Join-Path $logDir "locationsvc.runtime.yaml"
 $locationsvcSrc = Get-Content -LiteralPath (Join-Path $RepoRoot "rpc\locationsvc\etc\locationsvc.yaml")
 $amapKeyLine = $locationsvcSrc | Where-Object { $_ -match '^\s*ApiKey:' } | Select-Object -First 1
 $amapKey = (($amapKeyLine -replace '^\s*ApiKey:\s*', '').Trim().Trim('"'))
 if ([string]::IsNullOrWhiteSpace($amapKey)) { throw "未能从 locationsvc.yaml 提取 amap ApiKey" }
+$cityCodeLine = $locationsvcSrc | Where-Object { $_ -match '^\s*defaultCityCode:' } | Select-Object -First 1
+$cityCode = (($cityCodeLine -replace '^\s*defaultCityCode:\s*', '').Trim().Trim('"'))
+if ([string]::IsNullOrWhiteSpace($cityCode)) { throw "未能从 locationsvc.yaml 提取 defaultCityCode" }
 $locationsvcTemplate = @"
 Name: locationsvc.rpc
-ListenOn: 0.0.0.0:9001
+defaultCityCode: "$cityCode"
+ListenOn: 0.0.0.0:50057
 Mysql:
   Dsn: "$dsn"
   MaxOpenConn: 100
@@ -456,7 +460,7 @@ if (-not (Wait-LocalPort -Port 50055)) { Fail-Startup -Message "driversvc 未在
 Start-ManagedProcess -Name "locationsvc" -FilePath (Join-Path $binDir "locationsvc.exe") `
     -ArgumentList @("-f", $locationsvcCfg) `
     -WorkingDirectory (Join-Path $RepoRoot "rpc\locationsvc")
-if (-not (Wait-LocalPort -Port 9001)) { Fail-Startup -Message "locationsvc 未在 9001 监听，请查看 $logDir\locationsvc.err.log" }
+if (-not (Wait-LocalPort -Port 50057)) { Fail-Startup -Message "locationsvc 未在 50057 监听，请查看 $logDir\locationsvc.err.log" }
 
 # 8. adminsvc
 Start-ManagedProcess -Name "adminsvc" -FilePath (Join-Path $binDir "adminsvc.exe") `
@@ -525,6 +529,6 @@ Write-Host "  乘客端 H5       http://127.0.0.1:5174"
 Write-Host "  管理后台        http://127.0.0.1:5173  (API 经 8717)"
 Write-Host "  司机端 API      http://127.0.0.1:8082"
 Write-Host "  司机端 H5       http://127.0.0.1:5175"
-Write-Host "  RPC: usersvc=50052 ordersvc=50051 dispatchsvc=50056 pricesvc=50053 paysvc=50054 driversvc=50055 locationsvc=9001 adminsvc=8084"
+Write-Host "  RPC: usersvc=50052 ordersvc=50051 dispatchsvc=50056 pricesvc=50053 paysvc=50054 driversvc=50055 locationsvc=50057 adminsvc=8084"
 Write-Host "  日志目录：$logDir"
 Write-Host "  停止服务：.\scripts\run-passenger-to-admin.ps1 -Stop"

@@ -11,10 +11,12 @@ import (
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
+	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -479,16 +481,19 @@ func TestNormalizeStatisticsRequest_DefaultsToThirtyDays(t *testing.T) {
 	}
 }
 
-// TestIssueCoupon_RejectsDraftCoupon 验证草稿券不能进入发券事务，防止未发布规则提前影响用户权益。
-func TestIssueCoupon_RejectsDraftCoupon(t *testing.T) {
-	svcCtx, mock, cleanup := newAdminSQLMock(t)
+// fakeIssueCouponUsersClient 提供后台发券 RPC 的最小测试替身，按请求用户数返回全量成功。
+type fakeIssueCouponUsersClient struct {
+	usersvc.UserClient
+}
+
+func (f *fakeIssueCouponUsersClient) AdminIssueCoupon(_ context.Context, in *usersvc.AdminIssueCouponRequest, _ ...grpc.CallOption) (*usersvc.AdminIssueCouponResponse, error) {
+	return &usersvc.AdminIssueCouponResponse{SuccessCount: int64(len(in.GetUserIds())), FailCount: 0}, nil
+}
+
+// TestIssueCoupon_RequiresUserService 验证用户服务不可用时后台发券直接失败，不降级为直写券表。
+func TestIssueCoupon_RequiresUserService(t *testing.T) {
+	svcCtx, _, cleanup := newAdminSQLMock(t)
 	defer cleanup()
-	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT valid_end_at, status, total_count, received_count, per_user_limit`).
-		WithArgs(int64(10)).
-		WillReturnRows(sqlmock.NewRows([]string{"valid_end_at", "status", "total_count", "received_count", "per_user_limit"}).
-			AddRow(time.Now().Add(time.Hour), int32(1), int64(10), int64(0), int64(1)))
-	mock.ExpectRollback()
 	_, err := NewIssueCouponLogic(context.Background(), svcCtx).IssueCoupon(&adminsvc.CouponIssueRequest{
 		CouponId: 10, AdminId: 1, TargetType: "user", TargetConfig: `{"user_ids":[1001]}`,
 	})
@@ -497,28 +502,15 @@ func TestIssueCoupon_RejectsDraftCoupon(t *testing.T) {
 	}
 }
 
-// TestIssueCoupon_WritesPublishRecordInTransaction 验证实际发券、任务和发布记录必须同事务提交。
+// TestIssueCoupon_WritesPublishRecordInTransaction 验证发券经 usersvc 完成后，任务、审计与发布记录在本地事务提交，且不再直写券表。
 func TestIssueCoupon_WritesPublishRecordInTransaction(t *testing.T) {
 	svcCtx, mock, cleanup := newAdminSQLMock(t)
 	defer cleanup()
-	validEndAt := time.Now().Add(time.Hour)
+	svcCtx.UsersSvc = &fakeIssueCouponUsersClient{}
 	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT valid_end_at, status, total_count, received_count, per_user_limit`).
-		WithArgs(int64(10)).
-		WillReturnRows(sqlmock.NewRows([]string{"valid_end_at", "status", "total_count", "received_count", "per_user_limit"}).
-			AddRow(validEndAt, int32(2), int64(10), int64(0), int64(1)))
-	mock.ExpectQuery(`SELECT COUNT\(1\) FROM user_coupon WHERE user_id = \? AND coupon_id = \?`).
-		WithArgs(int64(1001), int64(10)).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-	mock.ExpectExec(`INSERT INTO user_coupon`).
-		WithArgs(int64(1001), int64(10), sqlmock.AnyArg(), validEndAt).
-		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec(`INSERT INTO admin_coupon_issue_task`).
 		WithArgs(sqlmock.AnyArg(), int64(10), "user", `{"user_ids":[1001]}`, 1, int64(1), int64(0), int32(3), "", int64(9001)).
 		WillReturnResult(sqlmock.NewResult(2, 1))
-	mock.ExpectExec(`UPDATE coupon SET received_count = received_count \+ \? WHERE id = \?`).
-		WithArgs(int64(1), int64(10)).
-		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`INSERT INTO admin_operation_log`).
 		WithArgs(int64(9001), "coupon", "issue", "coupon", int64(10), sqlmock.AnyArg(), "127.0.0.1").
 		WillReturnResult(sqlmock.NewResult(3, 1))

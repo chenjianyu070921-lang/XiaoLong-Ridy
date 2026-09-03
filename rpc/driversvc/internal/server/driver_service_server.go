@@ -153,6 +153,16 @@ func (s *DriverServiceServer) RejectCertification(ctx context.Context, in *__pro
 	return l.RejectCertification(in)
 }
 
+func (s *DriverServiceServer) AdminListCertifications(ctx context.Context, in *__proto.AdminListCertificationsRequest) (*__proto.AdminListCertificationsResponse, error) {
+	l := logic.NewAdminListCertificationsLogic(ctx, s.svcCtx)
+	return l.AdminListCertifications(in)
+}
+
+func (s *DriverServiceServer) AdminGetCertification(ctx context.Context, in *__proto.AdminGetCertificationRequest) (*__proto.AdminCertification, error) {
+	l := logic.NewAdminGetCertificationLogic(ctx, s.svcCtx)
+	return l.AdminGetCertification(in)
+}
+
 func (s *DriverServiceServer) CreateWithdraw(ctx context.Context, in *__proto.CreateWithdrawRequest) (*__proto.CreateWithdrawResponse, error) {
 	l := logic.NewCreateWithdrawLogic(ctx, s.svcCtx)
 	return l.CreateWithdraw(in)

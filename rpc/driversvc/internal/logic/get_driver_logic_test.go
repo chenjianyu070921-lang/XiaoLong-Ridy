@@ -236,6 +236,12 @@ func (getDriverBrokenCertificationRepository) GetByDriverID(context.Context, uin
 func (getDriverBrokenCertificationRepository) UpdateAudit(context.Context, int64, int64, string, int8) error {
 	return nil
 }
+func (getDriverBrokenCertificationRepository) AdminList(context.Context, repository.AdminCertificationFilter) ([]*repository.AdminCertificationRow, int64, error) {
+	return nil, 0, nil
+}
+func (getDriverBrokenCertificationRepository) AdminGetByID(context.Context, uint64) (*repository.AdminCertificationRow, error) {
+	return nil, repository.ErrCertificationNotFound
+}
 
 type getDriverCertificationRepository struct {
 	certification *model.DriverCertification
@@ -252,4 +258,10 @@ func (r getDriverCertificationRepository) GetByDriverID(context.Context, uint64)
 }
 func (r getDriverCertificationRepository) UpdateAudit(context.Context, int64, int64, string, int8) error {
 	return nil
+}
+func (getDriverCertificationRepository) AdminList(context.Context, repository.AdminCertificationFilter) ([]*repository.AdminCertificationRow, int64, error) {
+	return nil, 0, nil
+}
+func (getDriverCertificationRepository) AdminGetByID(context.Context, uint64) (*repository.AdminCertificationRow, error) {
+	return nil, repository.ErrCertificationNotFound
 }

@@ -40,6 +40,12 @@ func (s *PriceServer) SaveActualOrderPrice(ctx context.Context, in *__proto.Save
 	return l.SaveActualOrderPrice(in)
 }
 
+// 订单价格明细查询：供管理后台按订单ID查询 order_price 快照。
+func (s *PriceServer) GetOrderPrice(ctx context.Context, in *__proto.GetOrderPriceRequest) (*__proto.OrderPriceInfo, error) {
+	l := logic.NewGetOrderPriceLogic(ctx, s.svcCtx)
+	return l.GetOrderPrice(in)
+}
+
 // 计价规则列表查询。
 func (s *PriceServer) ListPriceRules(ctx context.Context, in *__proto.PriceRuleListRequest) (*__proto.PriceRuleListResponse, error) {
 	// 计价规则管理集中在 PriceRuleAdminLogic，避免 goctl 默认 stub 与真实实现并存。

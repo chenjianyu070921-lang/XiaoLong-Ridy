@@ -14,19 +14,21 @@ import (
 )
 
 type (
-	CreatePaymentRequest    = __proto.CreatePaymentRequest
-	CreatePaymentResponse   = __proto.CreatePaymentResponse
-	GetPaymentRequest       = __proto.GetPaymentRequest
-	GetPaymentResponse      = __proto.GetPaymentResponse
-	ListSettlementsRequest  = __proto.ListSettlementsRequest
-	ListSettlementsResponse = __proto.ListSettlementsResponse
-	NotifyPaymentRequest    = __proto.NotifyPaymentRequest
-	NotifyPaymentResponse   = __proto.NotifyPaymentResponse
-	RefundPaymentRequest    = __proto.RefundPaymentRequest
-	RefundPaymentResponse   = __proto.RefundPaymentResponse
-	SettleOrderRequest      = __proto.SettleOrderRequest
-	SettleOrderResponse     = __proto.SettleOrderResponse
-	SettlementBill          = __proto.SettlementBill
+	CreatePaymentRequest      = __proto.CreatePaymentRequest
+	CreatePaymentResponse     = __proto.CreatePaymentResponse
+	GetPaymentRequest         = __proto.GetPaymentRequest
+	GetPaymentResponse        = __proto.GetPaymentResponse
+	GetSettlementRequest      = __proto.GetSettlementRequest
+	GetSettlementResponse     = __proto.GetSettlementResponse
+	ListSettlementsRequest    = __proto.ListSettlementsRequest
+	ListSettlementsResponse   = __proto.ListSettlementsResponse
+	NotifyPaymentRequest      = __proto.NotifyPaymentRequest
+	NotifyPaymentResponse     = __proto.NotifyPaymentResponse
+	RefundPaymentRequest      = __proto.RefundPaymentRequest
+	RefundPaymentResponse     = __proto.RefundPaymentResponse
+	SettleOrderRequest        = __proto.SettleOrderRequest
+	SettleOrderResponse       = __proto.SettleOrderResponse
+	SettlementBill            = __proto.SettlementBill
 
 	Pay interface {
 		// 支付预下单：创建支付单并调第三方下单（本期为 mock）。
@@ -39,6 +41,9 @@ type (
 		RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error)
 		// 司机结算：计算平台抽成与司机实收。
 		SettleOrder(ctx context.Context, in *SettleOrderRequest, opts ...grpc.CallOption) (*SettleOrderResponse, error)
+		// 结算查询：按订单ID查询司机结算单，供管理后台展示。
+		GetSettlement(ctx context.Context, in *GetSettlementRequest, opts ...grpc.CallOption) (*GetSettlementResponse, error)
+		// 结算列表：按司机/状态/时间范围分页查询结算单。
 		ListSettlements(ctx context.Context, in *ListSettlementsRequest, opts ...grpc.CallOption) (*ListSettlementsResponse, error)
 	}
 
@@ -83,6 +88,13 @@ func (m *defaultPay) SettleOrder(ctx context.Context, in *SettleOrderRequest, op
 	return client.SettleOrder(ctx, in, opts...)
 }
 
+// 结算查询：按订单ID查询司机结算单，供管理后台展示。
+func (m *defaultPay) GetSettlement(ctx context.Context, in *GetSettlementRequest, opts ...grpc.CallOption) (*GetSettlementResponse, error) {
+	client := __proto.NewPayClient(m.cli.Conn())
+	return client.GetSettlement(ctx, in, opts...)
+}
+
+// 结算列表：按司机/状态/时间范围分页查询结算单。
 func (m *defaultPay) ListSettlements(ctx context.Context, in *ListSettlementsRequest, opts ...grpc.CallOption) (*ListSettlementsResponse, error) {
 	client := __proto.NewPayClient(m.cli.Conn())
 	return client.ListSettlements(ctx, in, opts...)

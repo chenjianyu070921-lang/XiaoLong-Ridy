@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v3.19.4
-// source: rpc/paysvc/proto/paysvc.proto
+// source: proto/paysvc.proto
 
 package proto
 
@@ -24,6 +24,7 @@ const (
 	Pay_GetPayment_FullMethodName      = "/paysvc.Pay/GetPayment"
 	Pay_RefundPayment_FullMethodName   = "/paysvc.Pay/RefundPayment"
 	Pay_SettleOrder_FullMethodName     = "/paysvc.Pay/SettleOrder"
+	Pay_GetSettlement_FullMethodName   = "/paysvc.Pay/GetSettlement"
 	Pay_ListSettlements_FullMethodName = "/paysvc.Pay/ListSettlements"
 )
 
@@ -43,6 +44,9 @@ type PayClient interface {
 	RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error)
 	// 司机结算：计算平台抽成与司机实收。
 	SettleOrder(ctx context.Context, in *SettleOrderRequest, opts ...grpc.CallOption) (*SettleOrderResponse, error)
+	// 结算查询：按订单ID查询司机结算单，供管理后台展示。
+	GetSettlement(ctx context.Context, in *GetSettlementRequest, opts ...grpc.CallOption) (*GetSettlementResponse, error)
+	// 结算列表：按司机/状态/时间范围分页查询结算单。
 	ListSettlements(ctx context.Context, in *ListSettlementsRequest, opts ...grpc.CallOption) (*ListSettlementsResponse, error)
 }
 
@@ -104,6 +108,16 @@ func (c *payClient) SettleOrder(ctx context.Context, in *SettleOrderRequest, opt
 	return out, nil
 }
 
+func (c *payClient) GetSettlement(ctx context.Context, in *GetSettlementRequest, opts ...grpc.CallOption) (*GetSettlementResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSettlementResponse)
+	err := c.cc.Invoke(ctx, Pay_GetSettlement_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *payClient) ListSettlements(ctx context.Context, in *ListSettlementsRequest, opts ...grpc.CallOption) (*ListSettlementsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListSettlementsResponse)
@@ -130,6 +144,9 @@ type PayServer interface {
 	RefundPayment(context.Context, *RefundPaymentRequest) (*RefundPaymentResponse, error)
 	// 司机结算：计算平台抽成与司机实收。
 	SettleOrder(context.Context, *SettleOrderRequest) (*SettleOrderResponse, error)
+	// 结算查询：按订单ID查询司机结算单，供管理后台展示。
+	GetSettlement(context.Context, *GetSettlementRequest) (*GetSettlementResponse, error)
+	// 结算列表：按司机/状态/时间范围分页查询结算单。
 	ListSettlements(context.Context, *ListSettlementsRequest) (*ListSettlementsResponse, error)
 	mustEmbedUnimplementedPayServer()
 }
@@ -155,6 +172,9 @@ func (UnimplementedPayServer) RefundPayment(context.Context, *RefundPaymentReque
 }
 func (UnimplementedPayServer) SettleOrder(context.Context, *SettleOrderRequest) (*SettleOrderResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SettleOrder not implemented")
+}
+func (UnimplementedPayServer) GetSettlement(context.Context, *GetSettlementRequest) (*GetSettlementResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSettlement not implemented")
 }
 func (UnimplementedPayServer) ListSettlements(context.Context, *ListSettlementsRequest) (*ListSettlementsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListSettlements not implemented")
@@ -270,6 +290,24 @@ func _Pay_SettleOrder_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Pay_GetSettlement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSettlementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PayServer).GetSettlement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Pay_GetSettlement_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PayServer).GetSettlement(ctx, req.(*GetSettlementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Pay_ListSettlements_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListSettlementsRequest)
 	if err := dec(in); err != nil {
@@ -316,10 +354,14 @@ var Pay_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Pay_SettleOrder_Handler,
 		},
 		{
+			MethodName: "GetSettlement",
+			Handler:    _Pay_GetSettlement_Handler,
+		},
+		{
 			MethodName: "ListSettlements",
 			Handler:    _Pay_ListSettlements_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "rpc/paysvc/proto/paysvc.proto",
+	Metadata: "proto/paysvc.proto",
 }
