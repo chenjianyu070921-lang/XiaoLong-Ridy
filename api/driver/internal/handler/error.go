@@ -41,6 +41,10 @@ func writeParamError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusServiceUnavailable, 50001, "评价存储不可用")
 		return
 	}
+	if errors.Is(err, logic.ErrTrajectoryRepositoryNotConfigured) {
+		writeError(w, http.StatusServiceUnavailable, 50001, "轨迹存储不可用")
+		return
+	}
 	if errors.Is(err, logic.ErrInvalidParam) {
 		writeError(w, http.StatusBadRequest, 50000, err.Error())
 		return

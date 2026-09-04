@@ -67,9 +67,13 @@
             <strong>{{ realtimeFareAmountText }}</strong>
             <small>{{ realtimeFareStateText }}</small>
           </div>
-          <div class="panel-actions three-actions">
+          <div class="panel-actions driving-actions">
+            <button v-if="canFinishSelectedHomeOrder" type="button" class="primary" @click="openFinish(selectedHomeOrder)">结束行程</button>
+            <button v-else-if="canStartSelectedHomeOrder" type="button" class="primary" @click="handleOrderAction('start-trip', selectedHomeOrder)">开始行程</button>
             <button type="button" class="primary" @click="navigateToPickup(selectedHomeOrder)">导航</button>
             <button type="button" @click="contactPassenger(selectedHomeOrder)">联系乘客</button>
+            <button type="button" @click="openTrajectoryPanel(selectedHomeOrder)">查看轨迹</button>
+            <button v-if="canConfirmSelectedHomeArrival" type="button" @click="handleOrderAction('confirm-arrive', selectedHomeOrder)">到达</button>
             <button type="button" @click="reportAbnormal">异常上报</button>
           </div>
         </template>
@@ -127,16 +131,8 @@
         @order-detail="loadOrderDetail"
         @order-action="handleOrderAction"
         @open-finish="openFinish"
-        @load-vehicle="loadVehicle"
-        @submit-vehicle="submitVehicle"
-        @submit-vehicle-update="submitVehicleUpdate"
-        @remove-vehicle="removeVehicle"
-        @load-certification="loadCertification"
-        @read-cert-file="readCertFile"
-        @remove-cert-image="removeCertImage"
-        @submit-certification="submitCertification"
-        @load-income="loadIncome"
-        @open-withdraw="openWithdraw"
+        @open-trajectory="openTrajectoryPanel"
+
         @open-reviews="openPassengerReviews"
         @open-help="openHelpCenter"
         @edit-profile="openProfileEdit"
@@ -160,6 +156,17 @@
           </button>
         </van-form>
       </section>
+    </van-popup>
+
+    <van-popup v-model:show="trajectoryVisible" teleport="#driver-home-popups" class="driver-trajectory-popup" round position="bottom" :style="trajectoryPhoneSheetStyle">
+      <DriverTrajectoryPanel
+        v-if="trajectoryVisible"
+        v-model:trajectory-order-id="trajectoryOrderId"
+        :trajectory-error="trajectoryError"
+        :trajectory-points="trajectoryPoints"
+        :format-time="formatTime"
+        @load-trajectory="loadTrajectory"
+      />
     </van-popup>
 
     <van-popup v-model:show="heatmapVisible" teleport="#driver-home-popups" class="driver-heatmap-popup" round position="bottom" :style="heatmapPhoneSheetStyle">
@@ -196,59 +203,34 @@
         </div>
       </section>
     </van-popup>
-
-    <van-popup v-model:show="withdrawVisible" round position="bottom" teleport="#driver-home-popups">
-      <section class="withdraw-panel">
-        <h2>申请提现</h2>
-        <van-form>
-          <van-field v-model="withdrawForm.amount" type="number" label="提现金额" placeholder="请输入金额" />
-          <van-field v-model="withdrawForm.payeeName" label="收款人" placeholder="请输入收款人姓名" />
-          <van-field v-model="withdrawForm.payAccount" label="收款账号" placeholder="请输入收款账号" />
-          <!-- 显式 click 触发，兼容移动 WebView 对 Vant submit 事件处理不完整的情况。 -->
-          <button class="primary-action" type="button" :disabled="withdrawLoading" @click="submitWithdraw">
-            {{ withdrawLoading ? '提交中...' : '确认提现' }}
-          </button>
-        </van-form>
-      </section>
-    </van-popup>
   </main>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { closeToast, showConfirmDialog, showDialog, showLoadingToast, showToast } from 'vant'
+import { closeToast, showDialog, showLoadingToast, showToast } from 'vant'
 import {
   acceptOrder,
   confirmArrive,
-  createWithdraw,
-  createVehicle,
-  deleteVehicle,
   finishTrip,
-  getCertification,
   getDriverAiScore,
   getDriverOrderDetail,
-  getIncomeSummary,
   getOrderHeatmap,
+  getOrderTrajectory,
   getRealtimeFare,
-  getTodayIncome,
-  getVehicle,
-  getWeekIncome,
   heartbeatDriver,
   listAvailableOrders,
   listDriverDispatches,
   listDriverOrders,
-  listIncomeBills,
   rejectOrder,
   reportDriverLocation,
   setDriverOffline,
   setDriverOnline,
-  startTrip,
-  updateVehicle,
-  uploadCertification
+  startTrip
 } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
-import { resolveCreatedVehicle } from '@/utils/vehicle'
+import { useDriverAssets } from '@/composables/useDriverAssets'
 import {
   formatPrice,
   formatDistance,
@@ -260,8 +242,10 @@ import {
 import DriverOrdersPanel from '@/components/driver-home/DriverOrdersPanel.vue'
 import DriverMinePanel from '@/components/driver-home/DriverMinePanel.vue'
 import DriverReviewsPanel from '@/components/driver-home/DriverReviewsPanel.vue'
+import DriverTrajectoryPanel from '@/components/driver-home/DriverTrajectoryPanel.vue'
 import { loadDriverAmap } from '@/config/amap'
 import { normalizeBrowserLocationForAmap } from '@/utils/geo'
+import { apiErrorMessage, safeApiCall } from '@/utils/safe-request'
 import '@/styles/driver-home-panels.css'
 
 const router = useRouter()
@@ -342,6 +326,7 @@ const activePanelProps = computed(() => {
       incomeSummary: incomeSummary.value,
       todayIncome: todayIncome.value,
       serviceScore: serviceScore.value,
+      orderStats: orderStats.value,
       formatPrice,
       formatDriverStatus
     }
@@ -352,6 +337,7 @@ const activePanelProps = computed(() => {
 const workLoading = ref(false)
 const serviceScore = ref('--')
 const orders = ref([])
+const orderStats = ref({ total: 0, pending: 0, serving: 0, done: 0, cancelled: 0 })
 const orderMode = ref('orders')
 const orderStatus = ref(0)
 const orderPage = ref(1)
@@ -368,10 +354,7 @@ const nearbyOrderExpandedLoading = ref(false)
 const nearbyOrderExpandedPage = ref(1)
 const nearbyOrderExpandedPageSize = 10
 const nearbyOrderExpandedTotal = ref(0)
-const incomeSummary = ref({})
-const todayIncome = ref({})
-const weekIncome = ref({})
-const incomeBills = ref([])
+const { incomeSummary, todayIncome, loadIncome } = useDriverAssets()
 const finishVisible = ref(false)
 const finishOrder = ref(null)
 // finishSubmitting 防止结束行程请求重复提交，并向司机明确展示请求正在处理。
@@ -387,15 +370,17 @@ const homeMapError = ref('')
 const heatmapMapContainer = ref(null)
 const heatmapMapReady = ref(false)
 const heatmapMapError = ref('')
-const withdrawVisible = ref(false)
-const withdrawLoading = ref(false)
-const withdrawForm = reactive({ amount: '', payeeName: '', payAccount: '' })
 const listenModeEnabled = ref(localStorage.getItem('driverListenModeEnabled') !== '0')
 const previewOrder = ref(null)
 const homeRouteAddress = ref(localStorage.getItem('driverHomeRouteAddress') || '')
 const realtimeFare = ref(null)
 const realtimeFareLoading = ref(false)
 const realtimeFareError = ref('')
+const trajectoryVisible = ref(false)
+const trajectoryOrderId = ref('')
+const trajectoryError = ref('')
+const trajectoryPoints = ref([])
+let trajectoryRequestSeq = 0
 
 const orderModeOptions = [
   { text: '我的订单', value: 'orders' },
@@ -412,26 +397,6 @@ const orderStatusOptions = [
   { text: '已取消', value: 6 }
 ]
 
-const vehicleForm = reactive({
-  plateNo: '',
-  brand: '',
-  model: '',
-  color: '',
-  vehicleType: 1,
-  registrationDate: '',
-  insuranceNo: '',
-  insuranceExpireAt: ''
-})
-const certificationForm = reactive({ idCardFront: '', idCardBack: '', driverLicense: '', vehicleLicense: '' })
-const certUploading = reactive({ idCardFront: false, idCardBack: false, driverLicense: false, vehicleLicense: false })
-const certFileRefs = reactive({})
-const certSubmitting = ref(false)
-const certItems = [
-  { key: 'idCardFront', title: '身份证正面', tip: '人像面，信息清晰' },
-  { key: 'idCardBack', title: '身份证反面', tip: '国徽面，有效期清晰' },
-  { key: 'driverLicense', title: '驾驶证', tip: '正副页，准驾车型清晰' },
-  { key: 'vehicleLicense', title: '行驶证', tip: '正副页，车牌号清晰' }
-]
 const finishForm = reactive({ actualDistanceM: 0, actualDurationS: 0 })
 
 const heartbeatIntervalMs = 30000
@@ -500,6 +465,10 @@ const homePanelMode = computed(() => {
   if (selectedHomeOrder.value) return 'order'
   return 'idle'
 })
+const selectedHomeOrderStatus = computed(() => Number(selectedHomeOrder.value?.status || 0))
+const canStartSelectedHomeOrder = computed(() => !!resolveOrderId(selectedHomeOrder.value) && (driverStore.tripPhase === 'pickup' || selectedHomeOrderStatus.value === 2))
+const canFinishSelectedHomeOrder = computed(() => !!resolveOrderId(selectedHomeOrder.value) && (driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2 || selectedHomeOrderStatus.value === 3))
+const canConfirmSelectedHomeArrival = computed(() => !!resolveOrderId(selectedHomeOrder.value) && !canFinishSelectedHomeOrder.value && selectedHomeOrderStatus.value === 2)
 const isRealtimeFareActive = computed(() => {
   return homePanelMode.value === 'driving'
     && (driverStore.tripPhase === 'trip' || Number(selectedHomeOrder.value?.status) === 3)
@@ -531,6 +500,10 @@ const heatmapStatusText = computed(() => {
   return ''
 })
 const heatmapPhoneSheetStyle = {
+  height: 'min(88vh, 760px)',
+  width: 'min(100vw, 390px)'
+}
+const trajectoryPhoneSheetStyle = {
   height: 'min(88vh, 760px)',
   width: 'min(100vw, 390px)'
 }
@@ -596,15 +569,14 @@ watch(heatmapVisible, async (visible) => {
 })
 
 async function loadDashboardData() {
-  const [profile, score] = await Promise.allSettled([
-    safeApiCall(() => driverStore.refreshProfile({ silentError: true }), null, { silent: true }),
-    safeApiCall(() => getDriverAiScore({ silentError: true }), null, { silent: true })
+  const [, score] = await Promise.allSettled([
+    safeApiCall(() => driverStore.refreshProfile({ silentError: true })),
+    safeApiCall(() => getDriverAiScore({ silentError: true }))
   ])
 
   if (score.status === 'fulfilled' && score.value) {
     serviceScore.value = Number(score.value.aiScore || score.value.score || 0).toFixed(1)
   }
-  if (profile.status === 'fulfilled' && profile.value) syncForms()
   await loadCurrentTabData()
   if (activeTab.value === 0) {
     await refreshHomeWorkbench()
@@ -616,39 +588,27 @@ async function loadCurrentTabData() {
   if (activeTab.value === 0) return null
   if (activeTab.value === 1) {
     return Promise.allSettled([
-      safeApiCall(() => loadOrders(1, config), null, { silent: true }),
-      safeApiCall(() => loadNearbyOrders(1, config), null, { silent: true })
+      safeApiCall(() => loadOrders(1, config)),
+      safeApiCall(() => loadNearbyOrders(1, config))
     ])
   }
   if (activeTab.value === 2) {
     return Promise.allSettled([
-      safeApiCall(() => loadIncome(config), null, { silent: true })
+      safeApiCall(() => loadIncome(config)),
+      safeApiCall(() => loadOrderStats(config))
     ])
   }
   return null
 }
 
-function syncForms() {
-  if (driverStore.vehicle) {
-    Object.assign(vehicleForm, {
-      plateNo: driverStore.vehicle.plateNo || '',
-      brand: driverStore.vehicle.brand || '',
-      model: driverStore.vehicle.model || '',
-      color: driverStore.vehicle.color || '',
-      vehicleType: Number(driverStore.vehicle.vehicleType || 1),
-      insuranceNo: driverStore.vehicle.insuranceNo || ''
-    })
-  }
-}
-
 async function setOnline() {
   await ensureWorkLocation()
-  await setWorkStatus(() => setDriverOnline(workStatusPayload()), 1, '已上线，开始接单')
+  await setWorkStatus(() => setDriverOnline(workStatusPayload(), { silentError: true }), 1, '已上线，开始接单')
 }
 
 async function setOffline() {
   await ensureWorkLocation()
-  await setWorkStatus(() => setDriverOffline(workStatusPayload()), 0, '已下线')
+  await setWorkStatus(() => setDriverOffline(workStatusPayload(), { silentError: true }), 0, '已下线')
 }
 
 function toggleListening() {
@@ -779,7 +739,7 @@ async function sendHeartbeatNow(options = {}) {
     await ensureWorkLocation()
     const payload = workStatusPayload()
     if (!payload.longitude || !payload.latitude) return null
-    return await safeApiCall(() => heartbeatDriver(payload), null, { silent: true })
+    return await safeApiCall(() => heartbeatDriver(payload, { silentError: true }))
   } finally {
     heartbeatInFlight = false
   }
@@ -830,7 +790,7 @@ async function reportCurrentLocation() {
   await ensureWorkLocation()
   const payload = workStatusPayload()
   if (!payload.longitude || !payload.latitude) return
-  safeApiCall(() => reportDriverLocation(payload), null, { silent: true })
+  safeApiCall(() => reportDriverLocation(payload, { silentError: true }))
 }
 
 function openProfileEdit() {
@@ -922,7 +882,7 @@ function renderHomeDriverMarker() {
     homeDriverMarker = new homeAMap.Marker({
       position,
       content: homeDriverPulseContent,
-      title: '?????????',
+      title: '司机当前位置',
       anchor: 'center',
       zIndex: 120
     })
@@ -1177,7 +1137,7 @@ function startTripRealtime() {
   stopTripRealtime()
   tripTimer = window.setInterval(() => {
     if (driverStore.currentOrderId) {
-      safeApiCall(() => getDriverOrderDetail(Number(driverStore.currentOrderId)), null, { silent: true })
+      safeApiCall(() => getDriverOrderDetail(Number(driverStore.currentOrderId), { silentError: true }))
     }
   }, 20000)
 }
@@ -1358,13 +1318,32 @@ async function loadOrders(page = orderPage.value, config = {}) {
   })
   let data
 
-  if (orderMode.value === 'available') data = await loadAvailableOrders(payload, config)
-  else if (orderMode.value === 'dispatches') data = await loadDispatches(payload, config)
+  if (orderMode.value === 'dispatches') data = await loadDispatches(payload, config)
   else data = await listDriverOrders(payload, config)
 
   orders.value = Array.isArray(data?.list) ? data.list : []
   orderTotal.value = Number(data?.total || orders.value.length || 0)
   syncCurrentTripFromOrders(orders.value)
+}
+
+async function loadOrderStats(config) {
+  const requestConfig = config || {}
+  const statRequests = [
+    ['total', 0],
+    ['pending', 2],
+    ['serving', 3],
+    ['done', 5],
+    ['cancelled', 6]
+  ]
+  const results = await Promise.allSettled(statRequests.map(([, status]) => listDriverOrders({ page: 1, pageSize: 1, status }, requestConfig)))
+  const nextStats = { ...orderStats.value }
+  results.forEach((result, index) => {
+    if (result.status !== 'fulfilled') return
+    const total = Number(result.value?.total)
+    nextStats[statRequests[index][0]] = Number.isFinite(total) ? total : 0
+  })
+  orderStats.value = nextStats
+  return nextStats
 }
 
 async function loadDispatches(payload, config = {}) {
@@ -1385,14 +1364,6 @@ async function loadDispatches(payload, config = {}) {
         createdAt: item.order?.createdAt || item.dispatch?.createdAt
       }))
       : []
-  }
-}
-
-async function loadAvailableOrders(payload, config = {}) {
-  const data = await listAvailableOrders(payload, config)
-  return {
-    ...data,
-    list: Array.isArray(data.list) ? data.list.map((item) => ({ ...item, source: 'available' })) : []
   }
 }
 
@@ -1464,10 +1435,11 @@ async function handleOrderAction(action, order) {
   }
 
   const config = {
-    accept: { request: () => acceptOrder(orderId), phase: 'pickup', message: '接单成功' },
-    reject: { request: async () => { const reason = await askRejectReason(); return rejectOrder(orderId, reason) }, phase: 'idle', message: '已拒单' },
-    'confirm-arrive': { request: () => confirmArrive(orderId), phase: 'pickup', message: '已确认到达' },
-    'start-trip': { request: () => startTrip(orderId), phase: 'trip', message: '行程已开始' }
+    // 统一静默：失败文案由下方 catch 用「订单操作失败」统一给出，避免与拦截器重复提示
+    accept: { request: () => acceptOrder(orderId, { silentError: true }), phase: 'pickup', message: '接单成功' },
+    reject: { request: async () => { const reason = await askRejectReason(); return rejectOrder(orderId, reason, { silentError: true }) }, phase: 'idle', message: '已拒单' },
+    'confirm-arrive': { request: () => confirmArrive(orderId, { silentError: true }), phase: 'pickup', message: '已确认到达' },
+    'start-trip': { request: () => startTrip(orderId, { silentError: true }), phase: 'trip', message: '行程已开始' }
   }[action]
 
   if (!config) return
@@ -1516,14 +1488,52 @@ function isWaitAcceptOrder(order) {
 }
 
 async function loadOrderDetail(orderId) {
-  const res = await safeApiCall(() => getDriverOrderDetail(Number(orderId)), '订单详情加载失败')
+  const res = await safeApiCall(() => getDriverOrderDetail(Number(orderId)))
   if (!res) return
   const order = res.order || res
-  driverStore.setCurrentOrder(order, Number(order.status) === 3 ? 'trip' : Number(order.status) === 2 ? 'pickup' : driverStore.tripPhase)
+  const status = Number(order.status)
+  if ([2, 3].includes(status)) {
+    driverStore.setCurrentOrder(order, status === 3 ? 'trip' : 'pickup')
+  }
   showDialog({
     title: order.orderNo || '订单 ' + order.orderId,
     message: (order.fromAddress || '--') + '\n到\n' + (order.toAddress || '--') + '\n' + formatPrice(order.estimatedPriceCents)
   })
+}
+
+async function openTrajectoryPanel(order) {
+  const orderId = resolveOrderId(order)
+  if (!orderId) {
+    showToast('订单ID无效')
+    return
+  }
+  trajectoryOrderId.value = orderId
+  trajectoryPoints.value = []
+  trajectoryError.value = ''
+  trajectoryVisible.value = true
+  await loadTrajectory()
+}
+
+async function loadTrajectory() {
+  const orderId = Number(trajectoryOrderId.value || 0)
+  if (!orderId) {
+    trajectoryRequestSeq += 1
+    trajectoryError.value = '请输入订单ID'
+    trajectoryPoints.value = []
+    return
+  }
+  const requestSeq = ++trajectoryRequestSeq
+  try {
+    trajectoryError.value = ''
+    const data = await getOrderTrajectory(orderId, { silentError: true })
+    if (requestSeq !== trajectoryRequestSeq || Number(trajectoryOrderId.value || 0) !== orderId) return
+    trajectoryPoints.value = Array.isArray(data?.points) ? data.points : []
+    if (trajectoryPoints.value.length === 0) trajectoryError.value = '暂无轨迹点'
+  } catch (error) {
+    if (requestSeq !== trajectoryRequestSeq || Number(trajectoryOrderId.value || 0) !== orderId) return
+    trajectoryPoints.value = []
+    trajectoryError.value = apiErrorMessage(error, '轨迹加载失败')
+  }
 }
 
 async function askRejectReason() {
@@ -1598,7 +1608,7 @@ function orderDropoffPosition(order) {
 
 async function submitFinishTrip() {
   if (finishSubmitting.value) return
-  const orderId = Number(finishOrder.value?.orderId || driverStore.currentOrderId || 0)
+  const orderId = Number(resolveOrderId(finishOrder.value) || driverStore.currentOrderId || 0)
   if (!orderId) {
     showToast('订单ID无效')
     return
@@ -1610,13 +1620,14 @@ async function submitFinishTrip() {
       orderId,
       actualDistanceM: Number(finishForm.actualDistanceM || 0),
       actualDurationS: Number(finishForm.actualDurationS || 0)
-    })
+    }, { silentError: true })
     finishVisible.value = false
     stopRealtimeFarePolling(true)
+    previewOrder.value = null
     driverStore.setCurrentOrder(null, 'idle')
     if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
     showToast('行程已结束，应收' + formatPrice(res?.payableAmountCents))
-    await loadOrders(orderPage.value)
+    await loadOrders(orderPage.value, { silentError: true })
   } catch (error) {
     showDialog({
       title: '结束行程失败',
@@ -1625,183 +1636,6 @@ async function submitFinishTrip() {
   } finally {
     finishSubmitting.value = false
   }
-}
-
-async function loadVehicle(config = {}) {
-  if (!driverStore.vehicleId) return
-  const res = await getVehicle(driverStore.vehicleId, config)
-  driverStore.setVehicle(res.vehicle || res)
-  syncForms()
-}
-
-function vehiclePayload() {
-  return compact({
-    plateNo: vehicleForm.plateNo,
-    brand: vehicleForm.brand,
-    model: vehicleForm.model,
-    color: vehicleForm.color,
-    vehicleType: Number(vehicleForm.vehicleType || 0),
-    registrationDate: dateToUnixSeconds(vehicleForm.registrationDate),
-    insuranceNo: vehicleForm.insuranceNo,
-    insuranceExpireAt: dateToUnixSeconds(vehicleForm.insuranceExpireAt)
-  })
-}
-
-async function submitVehicle() {
-  const payload = vehiclePayload()
-  const res = await safeApiCall(() => createVehicle(payload), '车辆提交失败')
-  if (!res) return
-  const vehicle = await resolveCreatedVehicle(payload, res, (id) => getVehicle(id, { silentError: true }))
-  driverStore.setVehicle(vehicle)
-  syncForms()
-  showToast('车辆提交成功')
-}
-
-async function submitVehicleUpdate() {
-  if (!driverStore.vehicleId) {
-    showToast('请先查询或提交车辆')
-    return
-  }
-  const res = await safeApiCall(() => updateVehicle({ ...vehiclePayload(), id: driverStore.vehicleId }), '车辆更新失败')
-  if (!res) return
-  showToast('车辆已更新')
-  await loadVehicle()
-}
-
-async function removeVehicle() {
-  if (!driverStore.vehicleId) {
-    showToast('请先查询或提交车辆')
-    return
-  }
-  try {
-    await showConfirmDialog({ title: '删除车辆', message: '确认删除当前车辆？' })
-  } catch {
-    return
-  }
-  const res = await safeApiCall(() => deleteVehicle(driverStore.vehicleId), '车辆删除失败')
-  if (!res) return
-  driverStore.setVehicle(null)
-  showToast('车辆已删除')
-}
-
-async function loadCertification(config = {}) {
-  const res = await getCertification(config)
-  driverStore.setCertification(res.found === false ? null : (res.certification || res))
-  syncForms()
-}
-
-async function submitCertification() {
-  const vehicleId = driverStore.vehicleId || driverStore.certification?.vehicleId
-  if (!vehicleId) {
-    showToast('请先在「车辆」页面绑定车辆')
-    return
-  }
-  const hasImage = certItems.some(item => certificationForm[item.key])
-  if (!hasImage) {
-    showToast('请至少上传一项资质图片')
-    return
-  }
-  certSubmitting.value = true
-  const payload = compact({
-    vehicleId: Number(vehicleId),
-    idCardFront: certificationForm.idCardFront,
-    idCardBack: certificationForm.idCardBack,
-    driverLicense: certificationForm.driverLicense,
-    vehicleLicense: certificationForm.vehicleLicense
-  })
-  try {
-    const res = await safeApiCall(() => uploadCertification(payload), '资质上传失败')
-    if (!res) return
-    showToast('资质已提交，请等待审核')
-    await loadCertification()
-  } finally {
-    certSubmitting.value = false
-  }
-}
-
-const certStatusIcon = computed(() => {
-  const status = driverStore.certification?.auditStatus
-  if (status === 2) return 'checked'
-  if (status === 3) return 'warning-o'
-  return 'clock-o'
-})
-
-async function readCertFile(event, field) {
-  const file = event.target.files?.[0]
-  if (!file) return
-  if (file.size > 5 * 1024 * 1024) {
-    showToast('图片不能超过5MB')
-    event.target.value = ''
-    return
-  }
-  certUploading[field] = true
-  try {
-    certificationForm[field] = await fileToBase64(file)
-  } finally {
-    certUploading[field] = false
-    event.target.value = ''
-  }
-}
-
-function triggerCertUpload(field) {
-  certFileRefs[field]?.click()
-}
-
-function removeCertImage(field) {
-  certificationForm[field] = ''
-}
-
-async function loadIncome(config = {}) {
-  const incomeRequests = [
-    { label: '收入汇总', task: () => getIncomeSummary(config) },
-    { label: '今日收入', task: () => getTodayIncome(config) },
-    { label: '本周收入', task: () => getWeekIncome(config) },
-    { label: '收入明细', task: () => listIncomeBills({ page: 1, pageSize: 20 }, config) }
-  ]
-  const [summary, today, week, bills] = await Promise.allSettled(incomeRequests.map((item) => item.task()))
-  incomeSummary.value = summary.status === 'fulfilled' ? summary.value : {}
-  todayIncome.value = today.status === 'fulfilled' ? today.value : {}
-  weekIncome.value = week.status === 'fulfilled' ? week.value : {}
-  incomeBills.value = bills.status === 'fulfilled' && Array.isArray(bills.value.list) ? bills.value.list : []
-
-  const failures = [summary, today, week, bills]
-    .map((result, index) => result.status === 'rejected' ? incomeRequests[index].label + ': ' + apiErrorMessage(result.reason, '请求失败') : '')
-    .filter(Boolean)
-  if (failures.length) showIncomeLoadFailure(failures)
-}
-
-function openWithdraw() {
-  withdrawVisible.value = true
-}
-
-async function submitWithdraw() {
-  const amount = Number(withdrawForm.amount)
-  if (!Number.isFinite(amount) || amount <= 0 || !withdrawForm.payeeName.trim() || !withdrawForm.payAccount.trim()) {
-    showToast('请填写完整的提现信息')
-    return
-  }
-  withdrawLoading.value = true
-  try {
-    const res = await safeApiCall(() => createWithdraw({
-      amount,
-      payeeName: withdrawForm.payeeName.trim(),
-      payAccount: withdrawForm.payAccount.trim()
-    }), '提现申请失败')
-    if (!res) return
-    withdrawVisible.value = false
-    Object.assign(withdrawForm, { amount: '', payeeName: '', payAccount: '' })
-    showToast('提现申请已提交')
-    await loadIncome({ silentError: true })
-  } finally {
-    withdrawLoading.value = false
-  }
-}
-
-function showIncomeLoadFailure(failures) {
-  showDialog({
-    title: '收入数据加载失败',
-    message: failures.join('\n')
-  }).catch(() => {})
 }
 
 const reviewsPanelVisible = ref(false)
@@ -1817,21 +1651,7 @@ function openHelpCenter() {
 }
 
 async function refreshProfile() {
-  const res = await safeApiCall(() => driverStore.refreshProfile(), '资料刷新失败')
-  if (res) syncForms()
-}
-
-async function safeApiCall(task, fallbackMessage = '请求失败', options = {}) {
-  try {
-    return await task()
-  } catch (error) {
-    if (!options.silent) showToast(apiErrorMessage(error, fallbackMessage))
-    return null
-  }
-}
-
-function apiErrorMessage(error, fallbackMessage = '请求失败') {
-  return error?.response?.data?.message || error?.message || fallbackMessage
+  await safeApiCall(() => driverStore.refreshProfile())
 }
 
 function logoutDriver() {
@@ -1842,21 +1662,6 @@ function logoutDriver() {
 
 function compact(payload) {
   return Object.fromEntries(Object.entries(payload).filter(([, value]) => String(value ?? '').trim() !== ''))
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('文件读取失败'))
-    reader.readAsDataURL(file)
-  })
-}
-
-function dateToUnixSeconds(value) {
-  if (!value) return 0
-  const time = new Date(value + 'T00:00:00').getTime()
-  return Number.isFinite(time) ? Math.floor(time / 1000) : 0
 }
 
 function deviceId() {
@@ -1924,6 +1729,7 @@ function deviceId() {
 .order-brief-grid span { min-height: 30px; padding: 7px 8px; border-radius: 8px; background: #f2f5fa; color: #344054; text-align: center; font-size: 12px; font-weight: 800; }
 .panel-actions, .idle-controls { display: grid; gap: 8px; }
 .three-actions { grid-template-columns: 1.1fr .9fr .9fr; }
+.driving-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .panel-actions button, .home-route-button { min-height: 42px; border: 1px solid #d7dce5; border-radius: 999px; background: #fff; color: #344054; font-size: 14px; font-weight: 800; }
 .panel-actions button.primary { border-color: #5B5CFF; background: #5B5CFF; color: #fff; }
 .idle-controls { grid-template-columns: minmax(0, 1fr) 92px; align-items: center; }
@@ -1938,7 +1744,7 @@ function deviceId() {
 .go-online { border: 0; background: #5B5CFF; color: #fff; box-shadow: 0 8px 18px rgba(91,92,255,.28); }
 .finish-panel, .withdraw-panel, .heatmap-panel { padding: 18px 14px 22px; background: #f6f7fb; }
 .finish-panel h2, .withdraw-panel h2 { margin: 0 0 14px; text-align: center; }
-.driver-heatmap-popup { left: 0; right: 0; width: min(100vw, 390px); margin: 0 auto; overflow: hidden; }
+.driver-heatmap-popup, .driver-trajectory-popup { left: 0; right: 0; width: min(100vw, 390px); margin: 0 auto; overflow: hidden; }
 .heatmap-panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); background: #f6f7fb; }
 .heatmap-sheet-grabber { width: 42px; height: 4px; margin: 0 auto 10px; border-radius: 999px; background: #cbd5e1; }
 .heatmap-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }

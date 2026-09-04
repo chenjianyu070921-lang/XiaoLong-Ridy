@@ -43,10 +43,10 @@ func TestValidateSigningKeyRejectsDefaultSigningKey(t *testing.T) {
 	}
 }
 
-func TestResolveSigningKeyReturnsEmptyWhenEnvMissing(t *testing.T) {
+func TestResolveSigningKeyFallsBackToLocalKeyWhenEnvMissing(t *testing.T) {
 	t.Setenv("DRIVER_SIGNING_KEY", "")
 
-	if got := resolveSigningKey(); got != "" {
-		t.Fatalf("resolveSigningKey() = %q, want empty value when DRIVER_SIGNING_KEY is missing", got)
+	if got := resolveSigningKey(); got != localFallbackSigningKey {
+		t.Fatalf("resolveSigningKey() = %q, want local fallback key %q", got, localFallbackSigningKey)
 	}
 }

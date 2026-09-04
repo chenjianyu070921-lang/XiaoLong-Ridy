@@ -89,6 +89,7 @@
         <button type="button" @click="emit('order-detail', resolveOrderId(order))">详情</button>
         <button v-if="canAccept(order)" type="button" class="primary" @click="emit('order-action', 'accept', order)">接单</button>
         <button v-if="canAccept(order)" type="button" @click="emit('order-action', 'reject', order)">拒单</button>
+        <button v-if="canViewTrajectory(order)" type="button" @click="emit('open-trajectory', order)">轨迹</button>
         <button v-if="Number(order.status) === 2" type="button" @click="emit('order-action', 'confirm-arrive', order)">到达</button>
         <button v-if="Number(order.status) === 2" type="button" @click="emit('order-action', 'start-trip', order)">开始</button>
         <button v-if="Number(order.status) === 3" type="button" class="primary" @click="emit('open-finish', order)">结束</button>
@@ -193,7 +194,8 @@ const emit = defineEmits([
   'open-nearby-popup',
   'order-detail',
   'order-action',
-  'open-finish'
+  'open-finish',
+  'open-trajectory'
 ])
 
 const orderModeModel = computed({
@@ -229,6 +231,10 @@ function orderStatusClass(order) {
   if (status === 6 || status === 7) return 'cancelled'
   if (Number(order?.dispatchStatus || 0) === 1) return 'pending'
   return 'pending'
+}
+
+function canViewTrajectory(order) {
+  return [2, 3, 4, 5].includes(Number(order?.status || 0))
 }
 </script>
 

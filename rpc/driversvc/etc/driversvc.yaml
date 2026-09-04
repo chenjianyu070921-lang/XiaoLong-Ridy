@@ -5,9 +5,11 @@ ListenOn: 0.0.0.0:50055
 Timeout: 30000
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
-# JWT signing key must be injected at runtime with DRIVERSVC_SIGNING_KEY.
-# Keep this empty so the service fails closed when deployment injection is missing.
-signingKey: ""
+# JWT 签名密钥。本地/联调填明文，保证克隆仓库后可直接 make run-driversvc。
+# 生产部署请设置环境变量 DRIVERSVC_SIGNING_KEY 注入强密钥，会覆盖此处的值
+# （见 internal/config.Config.ApplyRuntimeSigningKey）。
+# 注意：不可填 "local-development-signing-key"，启动校验会拒绝该默认弱值。
+signingKey: "driversvc-local-dev-key"
 # Redis：维护司机在线状态与多端互踢（deviceID 绑定）。
 driverRedis:
   host: 115.191.16.159:6379

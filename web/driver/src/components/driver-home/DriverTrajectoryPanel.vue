@@ -1,6 +1,6 @@
 <template>
   <section class="h5-panel">
-    <div class="section-title"><h2>检测范围</h2></div>
+    <div class="section-title"><h2>订单轨迹</h2></div>
     <div class="trajectory-map-surface">
       <div ref="mapContainer" class="driver-live-map" aria-label="订单轨迹地图"></div>
       <div v-if="mapStatusText" class="map-state" :class="{ error: mapError || trajectoryError }">{{ mapStatusText }}</div>
@@ -12,7 +12,11 @@
     </div>
     <div v-if="trajectoryPoints.length === 0" class="empty-state">--</div>
     <div v-else class="trajectory-list">
-      <article v-for="point in trajectoryPoints" :key="point.id || point.reportTime || point.createdAt" class="compact-card">
+      <article
+        v-for="(point, index) in trajectoryPoints"
+        :key="point.id || `${point.reportTime || point.createdAt || 'point'}:${point.longitude}:${point.latitude}:${index}`"
+        class="compact-card"
+      >
         <strong>{{ point.latitude || '--' }}, {{ point.longitude || '--' }}</strong>
         <span>速度 {{ point.speedKmh ?? '--' }} km/h · {{ formatTime(point.reportTime || point.createdAt) }}</span>
       </article>

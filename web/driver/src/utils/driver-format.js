@@ -26,6 +26,20 @@ export function formatPrice(cents) {
   return Number.isFinite(value) ? '¥' + (value / 100).toFixed(2) : '--'
 }
 
+/**
+ * 后端金额单位契约（已核对后端实现，勿凭字段名猜测）：
+ * - 收入、订单金额统一为「分」，字段名以 Cents 结尾：incomeCents / totalIncomeCents /
+ *   estimatedPriceCents / payableAmountCents。
+ * - 提现金额 driver_withdraw.amount 为「元」：DB 为 DECIMAL(10,2)，proto 为 double，
+ *   经 rpc/driversvc/internal/logic/list_withdraws_logic.go 原样透传，全链路无换算。
+ * 两者单位不同，故提现金额必须在数据入口经本函数归一化为「分」，才能与收入共用 formatPrice。
+ * 若后端日后将提现金额也改为「分」，只需去掉 normalizeWithdrawRecord 中的本调用。
+ */
+export function yuanToCents(yuan) {
+  const value = Number(yuan)
+  return Number.isFinite(value) ? Math.round(value * 100) : 0
+}
+
 export function formatDistance(meters) {
   const value = Number(meters)
   if (!Number.isFinite(value) || value < 0) return '--'

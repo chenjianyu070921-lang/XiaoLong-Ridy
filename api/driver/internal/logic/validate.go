@@ -10,14 +10,15 @@ import (
 )
 
 var (
-	ErrDriverClientNotConfigured   = errors.New("driver client not configured")
-	ErrOrderClientNotConfigured    = errors.New("order client not configured")
-	ErrPayClientNotConfigured      = errors.New("pay client not configured")
-	ErrPriceClientNotConfigured    = errors.New("price client not configured")
-	ErrDispatchClientNotConfigured = errors.New("dispatch client not configured")
-	ErrHeatmapStorageNotConfigured = errors.New("order heatmap storage not configured")
-	ErrInvalidParam                = errors.New("invalid param")
-	ErrForbiddenDriverResource     = errors.New("forbidden driver resource")
+	ErrDriverClientNotConfigured         = errors.New("driver client not configured")
+	ErrOrderClientNotConfigured          = errors.New("order client not configured")
+	ErrPayClientNotConfigured            = errors.New("pay client not configured")
+	ErrPriceClientNotConfigured          = errors.New("price client not configured")
+	ErrDispatchClientNotConfigured       = errors.New("dispatch client not configured")
+	ErrHeatmapStorageNotConfigured       = errors.New("order heatmap storage not configured")
+	ErrTrajectoryRepositoryNotConfigured = errors.New("order trajectory repository not configured")
+	ErrInvalidParam                      = errors.New("invalid param")
+	ErrForbiddenDriverResource           = errors.New("forbidden driver resource")
 )
 
 const (

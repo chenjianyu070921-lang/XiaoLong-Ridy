@@ -63,6 +63,7 @@ import { useRouter } from 'vue-router'
 import { closeToast, showLoadingToast, showToast } from 'vant'
 import { sendDriverSMSCode } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
+import { apiErrorMessage } from '@/utils/safe-request'
 
 const router = useRouter()
 const driverStore = useDriverStore()
@@ -100,6 +101,11 @@ function normalizePhone(phone) {
 
 function validatePhone(phone) {
   return driverPhoneRegexp.test(normalizePhone(phone))
+}
+
+function validatePassword(password) {
+  const value = String(password || '')
+  return value.length >= 8 && value.length <= 72
 }
 
 async function sendCode() {
@@ -171,6 +177,10 @@ async function handleRegister() {
     showToast('请填写完整注册信息')
     return
   }
+  if (!validatePassword(registerForm.password)) {
+    showToast('密码长度需为 8-72 位')
+    return
+  }
 
   try {
     loading.value = true
@@ -185,10 +195,6 @@ async function handleRegister() {
   } finally {
     loading.value = false
   }
-}
-
-function apiErrorMessage(error, fallbackMessage) {
-  return error?.response?.data?.message || error?.message || fallbackMessage
 }
 </script>
 

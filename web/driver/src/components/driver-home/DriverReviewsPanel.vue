@@ -83,7 +83,7 @@ function formatReviewTime(ts) {
 async function loadReceived() {
   receivedLoading.value = true
   try {
-    const res = await listReceivedReviews({ page: 1, pageSize: 20 })
+    const res = await listReceivedReviews({ page: 1, pageSize: 20 }, { silentError: true })
     receivedList.value = res?.list || []
   } catch (e) {
     showToast(e?.response?.data?.message || '加载评价失败')
@@ -95,7 +95,7 @@ async function loadReceived() {
 async function loadGiven() {
   givenLoading.value = true
   try {
-    const res = await listGivenReviews({ page: 1, pageSize: 20 })
+    const res = await listGivenReviews({ page: 1, pageSize: 20 }, { silentError: true })
     givenList.value = res?.list || []
   } catch (e) {
     showToast(e?.response?.data?.message || '加载评价失败')
@@ -117,7 +117,7 @@ async function submitReview() {
       rating: form.value.rating,
       comment: form.value.comment,
       tags: form.value.tags
-    })
+    }, { silentError: true })
     showToast('评价已提交')
     form.value = { orderId: '', rating: 0, comment: '', tags: '' }
     showSubmit.value = false

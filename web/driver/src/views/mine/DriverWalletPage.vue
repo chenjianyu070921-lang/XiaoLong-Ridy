@@ -36,7 +36,7 @@
           <span class="withdraw-status" :class="'status-' + Number(record.status || 0)">{{ formatWithdrawStatus(record.status) }}</span>
         </div>
         <div class="record-meta">
-          <span>{{ formatPrice(withdrawAmountCents(record.amount)) }}</span>
+          <span>{{ formatPrice(record.amountCents) }}</span>
           <span>{{ formatTime(record.appliedAt || record.createdAt) }}</span>
         </div>
         <p v-if="record.remark" class="withdraw-remark">{{ record.remark }}</p>
@@ -91,11 +91,7 @@ function goHome() {
   router.back()
 }
 
-function withdrawAmountCents(amount) {
-  const value = Number(amount)
-  return Number.isFinite(value) ? Math.round(value * 100) : 0
-}
-
+// 提现金额单位（后端为「元」）已在 useDriverAssets 的数据入口归一化为 amountCents，此处直接按「分」展示。
 function formatWithdrawStatus(status) {
   return {
     1: '申请中',

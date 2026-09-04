@@ -64,6 +64,9 @@ assert.match(useDriverAssets, /driverStore\.vehicleId[\s\S]*updateVehicle\(\{\s*
 assert.match(driverFormat, /export function unixSecondsToDateInput/, 'vehicle API timestamps must be formatted for date inputs')
 assert.match(useDriverAssets, /unixSecondsToDateInput\(driverStore\.vehicle\.registrationDate\)/, 'vehicle form must convert registration timestamp to date input value')
 assert.match(useDriverAssets, /unixSecondsToDateInput\(driverStore\.vehicle\.insuranceExpireAt\)/, 'vehicle form must convert insurance timestamp to date input value')
-assert.match(vehiclePanel, /driverStore\.vehicleId[\s\S]*'更新车辆'[\s\S]*'提交车辆'/, 'vehicle submit button must show update text when a vehicle already exists')
+assert.match(vehiclePanel, /driverStore\.vehicle\?\.id\s*\|\|\s*'--'/, 'vehicle panel must render the actual cached vehicle id')
+assert.match(vehiclePanel, /emit\('submit-vehicle',?\)/, 'vehicle panel must keep the create-or-update submit action')
+assert.match(vehiclePanel, />提交车辆<\/button>/, 'vehicle panel primary submit button must keep the current submit copy')
+assert.match(vehiclePanel, /emit\('submit-vehicle-update',?\)[\s\S]*>更新<\/button>/, 'vehicle panel must keep the separate explicit update action')
 
 console.log('driver vehicle create checks passed')

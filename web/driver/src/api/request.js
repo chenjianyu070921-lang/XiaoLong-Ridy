@@ -22,7 +22,10 @@ driverRequest.interceptors.response.use(
   (response) => {
     const res = response.data
     if (res.code === 0 || res.code === 200) {
-      return res.data !== undefined ? res.data : res
+      const payload = res.data
+      // 成功但 data 为 null 时降级为空对象，避免下游（persistSession / refreshProfile 等）
+      // 直接访问 null.driver / null.token 触发 Cannot read properties of null。
+      return payload !== undefined ? (payload ?? {}) : res
     }
     const message = res.message || '请求失败'
     if (!response.config?.silentError) {

@@ -45,6 +45,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { showToast } from 'vant'
 import { listDriverDispatches, listDriverOrders } from '@/api/driver'
 import { formatDispatchStatus, formatOrderStatus, formatPrice, formatTime } from '@/utils/driver-format'
 import '@/styles/driver-home-panels.css'
@@ -84,13 +85,14 @@ async function loadRecords() {
   try {
     const payload = { page: page.value, pageSize }
     const res = mode.value === 'dispatches'
-      ? await listDriverDispatches(payload)
-      : await listDriverOrders(payload)
+      ? await listDriverDispatches(payload, { silentError: true })
+      : await listDriverOrders(payload, { silentError: true })
     records.value = Array.isArray(res?.list) ? res.list : []
     total.value = Number(res?.total || records.value.length || 0)
   } catch (error) {
     records.value = []
     total.value = 0
+    showToast(error?.message || '订单记录加载失败')
   } finally {
     loading.value = false
   }

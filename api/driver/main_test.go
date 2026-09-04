@@ -366,6 +366,7 @@ func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 		{http.MethodPost, "/api/driver/v1/orders/dispatches"},
 		{http.MethodPost, "/api/driver/v1/orders/grab-list"},
 		{http.MethodPost, "/api/driver/v1/orders/list"},
+		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
 		{http.MethodPost, "/api/driver/v1/orders/realtime-fare"},
 		{http.MethodGet, "/api/driver/v1/income/summary"},
 		{http.MethodGet, "/api/driver/v1/income/today"},
@@ -391,7 +392,6 @@ func TestUnusedDriverHTTPRoutesAreNotExposed(t *testing.T) {
 		method string
 		path   string
 	}{
-		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
 		{http.MethodPost, "/api/driver/v1/drivers/nearby"},
 		{http.MethodPost, "/api/driver/v1/orders/cancel"},
 	}
@@ -449,6 +449,7 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 		{http.MethodPost, "/api/driver/v1/orders/reject"},
 		{http.MethodPost, "/api/driver/v1/orders/start-trip"},
 		{http.MethodPost, "/api/driver/v1/orders/confirm-arrive"},
+		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
 		{http.MethodPost, "/api/driver/v1/orders/realtime-fare"},
 		{http.MethodPost, "/api/driver/v1/orders/finish-trip"},
 		{http.MethodGet, "/api/driver/v1/income/summary"},
@@ -466,6 +467,29 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 			}
 		})
 	}
+}
+
+type routeTrajectoryRepository struct {
+	listDriverID int64
+	listOrderID  int64
+}
+
+func (r *routeTrajectoryRepository) ListByOrder(_ context.Context, driverID, orderID int64) ([]svc.TrajectoryRecord, error) {
+	r.listDriverID = driverID
+	r.listOrderID = orderID
+	return []svc.TrajectoryRecord{{
+		OrderID:    orderID,
+		DriverID:   driverID,
+		Longitude:  116.391,
+		Latitude:   39.907,
+		SpeedKmh:   27.5,
+		Heading:    90,
+		RecordedAt: time.Unix(123, 0),
+	}}, nil
+}
+
+func (r *routeTrajectoryRepository) RecordPoint(_ context.Context, _ *svc.TrajectoryRecord) error {
+	return nil
 }
 
 type routePriceClient struct {
@@ -548,6 +572,58 @@ func TestRealtimeFareRouteReturnsPriceDetail(t *testing.T) {
 	}
 	if priceClient.estimateRequest.GetDistanceM() != 13800 || priceClient.estimateRequest.GetDurationS() != 2040 {
 		t.Fatalf("EstimatePrice() request = %+v", priceClient.estimateRequest)
+	}
+}
+
+func TestOrderTrajectoryRouteReturnsCurrentDriverPoints(t *testing.T) {
+	const signingKey = "trajectory-route-test-key"
+	repo := &routeTrajectoryRepository{}
+	handler := newHTTPHandler(&svc.ServiceContext{
+		SigningKey:           signingKey,
+		TrajectoryRepository: repo,
+	})
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/orders/trajectory", bytes.NewBufferString(`{"orderId":1001}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if repo.listDriverID != 25 || repo.listOrderID != 1001 {
+		t.Fatalf("trajectory repository request = driver:%d order:%d", repo.listDriverID, repo.listOrderID)
+	}
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			OrderID int64 `json:"orderId"`
+			Points  []struct {
+				Longitude  float64 `json:"longitude"`
+				Latitude   float64 `json:"latitude"`
+				SpeedKmh   float64 `json:"speedKmh"`
+				Heading    int32   `json:"heading"`
+				ReportTime int64   `json:"reportTime"`
+			} `json:"points"`
+			Total int64 `json:"total"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Code != 0 || body.Data.OrderID != 1001 || body.Data.Total != 1 || len(body.Data.Points) != 1 ||
+		body.Data.Points[0].Longitude != 116.391 || body.Data.Points[0].Latitude != 39.907 ||
+		body.Data.Points[0].SpeedKmh != 27.5 || body.Data.Points[0].Heading != 90 || body.Data.Points[0].ReportTime != 123 {
+		t.Fatalf("unexpected trajectory response: %s", response.Body.String())
 	}
 }
 

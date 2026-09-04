@@ -134,7 +134,7 @@ async function submitProfile() {
       idCardNo: profileForm.idCardNo,
       driverLicenseNo: profileForm.driverLicenseNo,
       avatarUrl: profileForm.avatarUrl
-    }))
+    }), { silentError: true })
     closeToast()
     showToast('保存成功')
     syncProfileForm()

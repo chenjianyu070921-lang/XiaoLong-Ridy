@@ -19,8 +19,10 @@ func TestUploadCertificationRejectsVehicleFromAnotherDriver(t *testing.T) {
 	logic := NewCertificationLogic(context.Background(), &svc.ServiceContext{DriverClient: client})
 
 	_, err := logic.UploadCertification(25, &types.UploadCertificationRequest{
-		VehicleID:   77,
-		IdCardFront: "not-decoded-at-api-layer",
+		VehicleID:       77,
+		IdCardNo:        "11010119900101153X",
+		RealName:        "张三",
+		DriverLicenseNo: "DL10000001",
 	})
 
 	if err != ErrForbiddenDriverResource {
@@ -35,7 +37,11 @@ func TestUploadCertificationRequiresVehicleID(t *testing.T) {
 	client := &fakeDriverClient{}
 	logic := NewCertificationLogic(context.Background(), &svc.ServiceContext{DriverClient: client})
 
-	if _, err := logic.UploadCertification(25, &types.UploadCertificationRequest{IdCardFront: "image"}); err != ErrInvalidParam {
+	if _, err := logic.UploadCertification(25, &types.UploadCertificationRequest{
+		IdCardNo:        "11010119900101153X",
+		RealName:        "张三",
+		DriverLicenseNo: "DL10000001",
+	}); err != ErrInvalidParam {
 		t.Fatalf("UploadCertification() error = %v, want %v", err, ErrInvalidParam)
 	}
 	if client.getVehicleRequest != nil || client.uploadCertificationRequest != nil {
