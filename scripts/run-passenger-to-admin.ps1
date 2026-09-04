@@ -53,7 +53,9 @@ function Test-LocalPortAvailable {
 function Wait-LocalPort {
     param(
         [Parameter(Mandatory = $true)][int]$Port,
-        [int]$TimeoutSeconds = 30
+        # 依赖的 MySQL/Redis 在远端，服务启动时的建表与连接探测可能耗时数十秒，
+        # 超时窗口需明显大于本地场景，否则会误判为启动失败。
+        [int]$TimeoutSeconds = 120
     )
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
@@ -119,7 +121,20 @@ $signingLine = $usersvcCfg | Where-Object { $_ -match '^\s*signingKey:' } | Sele
 $signingKey = (($signingLine -replace '^\s*signingKey:\s*', '').Trim().Trim('"'))
 if ([string]::IsNullOrWhiteSpace($dsn)) { throw "未能从 usersvc.yaml 提取 mysql dsn" }
 if ([string]::IsNullOrWhiteSpace($redisPass)) { throw "未能从 usersvc.yaml 提取 redis pass" }
-if ([string]::IsNullOrWhiteSpace($signingKey)) { throw "未能从 usersvc.yaml 提取 token signingKey" }
+
+# driversvc 与 api/driver 会拒绝默认占位签名密钥（local-development-signing-key）。
+# 当 usersvc.yaml 仍使用占位值时，改用持久化的本地开发密钥文件（位于 git 忽略的 .gotmp 下，
+# 不写入仓库；跨重启保持稳定，避免每次启动都让已有登录态失效）。
+$defaultSigningKey = "local-development-signing-key"
+if ([string]::IsNullOrWhiteSpace($signingKey) -or $signingKey -eq $defaultSigningKey) {
+    $localKeyFile = Join-Path $logDir "local-signing.key"
+    if (-not (Test-Path -LiteralPath $localKeyFile)) {
+        $generated = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        Set-Content -LiteralPath $localKeyFile -Value $generated -Encoding ASCII -NoNewline
+    }
+    $signingKey = (Get-Content -LiteralPath $localKeyFile -Raw).Trim()
+}
+if ([string]::IsNullOrWhiteSpace($signingKey)) { throw "未能确定本地共享令牌签名密钥" }
 
 # 生成 adminsvc 无 etcd 的临时配置，下游 RPC 全部指向本机真实端口并懒连接。
 $adminsvcTemplate = @"
@@ -301,12 +316,15 @@ MenuRoles:
 OrdersRPC:
   target: 127.0.0.1:50051
   nonblock: true
+  timeout: 30000
 DispatchRPC:
   target: 127.0.0.1:50056
   nonblock: true
+  timeout: 30000
 UsersRPC:
   target: 127.0.0.1:50052
   nonblock: true
+  timeout: 30000
 DriversRPC:
   target: 127.0.0.1:50055
   nonblock: true
@@ -314,12 +332,15 @@ DriversRPC:
 PricesRPC:
   target: 127.0.0.1:50053
   nonblock: true
+  timeout: 30000
 LocationsRPC:
   target: 127.0.0.1:50057
   nonblock: true
+  timeout: 30000
 PushRPC:
   target: 127.0.0.1:9002
   nonblock: true
+  timeout: 30000
 "@
 Set-Content -LiteralPath $adminsvcCfg -Value $adminsvcTemplate -Encoding UTF8
 
@@ -337,6 +358,7 @@ $locationsvcTemplate = @"
 Name: locationsvc.rpc
 defaultCityCode: "$cityCode"
 ListenOn: 0.0.0.0:50057
+Timeout: 30000
 Mysql:
   Dsn: "$dsn"
   MaxOpenConn: 100
@@ -485,7 +507,7 @@ $env:DRIVER_HTTP_ADDR = ":8082"
 $env:DRIVER_GRPC_ADDR = "127.0.0.1:50055"
 $env:ORDER_GRPC_ADDR = "127.0.0.1:50051"
 $env:DISPATCH_GRPC_ADDR = "127.0.0.1:50056"
-$env:LOCATION_GRPC_ADDR = "127.0.0.1:9001"
+$env:LOCATION_GRPC_ADDR = "127.0.0.1:50057"
 Start-ManagedProcess -Name "driver-api" -FilePath (Join-Path $binDir "driver-api.exe") `
     -ArgumentList @("-f", (Join-Path $RepoRoot "api\driver\etc\driver.yaml")) `
     -WorkingDirectory (Join-Path $RepoRoot "api\driver")

@@ -335,6 +335,61 @@ func (s *AdminServiceServer) RollbackPromotionActivity(ctx context.Context, in *
 	return l.RollbackPromotionActivity(in)
 }
 
+// ListDriverPunishmentRules 查询司机处罚规则。
+func (s *AdminServiceServer) ListDriverPunishmentRules(ctx context.Context, in *adminsvc.DriverPunishmentRuleListRequest) (*adminsvc.DriverPunishmentRuleListResponse, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).ListRules(in)
+}
+
+// CreateDriverPunishmentRule 创建司机处罚规则。
+func (s *AdminServiceServer) CreateDriverPunishmentRule(ctx context.Context, in *adminsvc.DriverPunishmentRuleRequest) (*adminsvc.DriverPunishmentRule, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).CreateRule(in)
+}
+
+// UpdateDriverPunishmentRule 更新司机处罚规则。
+func (s *AdminServiceServer) UpdateDriverPunishmentRule(ctx context.Context, in *adminsvc.DriverPunishmentRuleRequest) (*adminsvc.DriverPunishmentRule, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).UpdateRule(in)
+}
+
+// SetDriverPunishmentRuleStatus 启用或停用司机处罚规则。
+func (s *AdminServiceServer) SetDriverPunishmentRuleStatus(ctx context.Context, in *adminsvc.DriverPunishmentRuleStatusRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).SetRuleStatus(in)
+}
+
+// ListDriverPunishments 查询司机处罚单。
+func (s *AdminServiceServer) ListDriverPunishments(ctx context.Context, in *adminsvc.DriverPunishmentListRequest) (*adminsvc.DriverPunishmentListResponse, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).ListPunishments(in)
+}
+
+// GetDriverPunishment 查询司机处罚单详情。
+func (s *AdminServiceServer) GetDriverPunishment(ctx context.Context, in *adminsvc.DriverPunishmentDetailRequest) (*adminsvc.DriverPunishment, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).GetPunishment(in)
+}
+
+// CreateDriverPunishment 创建司机处罚单并写入可靠事件。
+func (s *AdminServiceServer) CreateDriverPunishment(ctx context.Context, in *adminsvc.DriverPunishmentRequest) (*adminsvc.DriverPunishment, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).CreatePunishment(in)
+}
+
+// CancelDriverPunishment 撤销尚未生效的司机处罚单。
+func (s *AdminServiceServer) CancelDriverPunishment(ctx context.Context, in *adminsvc.DriverPunishmentActionRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).CancelPunishment(in)
+}
+
+// ListPunishmentAppeals 查询司机处罚申诉。
+func (s *AdminServiceServer) ListPunishmentAppeals(ctx context.Context, in *adminsvc.PunishmentAppealListRequest) (*adminsvc.PunishmentAppealListResponse, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).ListAppeals(in)
+}
+
+// CreatePunishmentAppeal 创建司机处罚申诉。
+func (s *AdminServiceServer) CreatePunishmentAppeal(ctx context.Context, in *adminsvc.PunishmentAppealRequest) (*adminsvc.PunishmentAppeal, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).CreateAppeal(in)
+}
+
+// ReviewPunishmentAppeal 审核司机处罚申诉。
+func (s *AdminServiceServer) ReviewPunishmentAppeal(ctx context.Context, in *adminsvc.PunishmentAppealReviewRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewDriverPunishmentLogic(ctx, s.svcCtx).ReviewAppeal(in)
+}
+
 func (s *AdminServiceServer) GetStatisticsOverview(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.StatisticsOverviewResponse, error) {
 	l := adminservicelogic.NewGetStatisticsOverviewLogic(ctx, s.svcCtx)
 	return l.GetStatisticsOverview(in)

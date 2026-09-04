@@ -2,6 +2,7 @@ package adminservicelogic
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -74,6 +75,16 @@ func (l *RefundOrderLogic) RefundOrder(in *adminsvc.AdminRefundOrderRequest) (*a
 		Reason:            reason,
 	})
 	if err != nil {
+		// 下游失败时先落持久化补偿任务，再释放短期幂等锁，避免仅依赖单实例 Redis。
+		_, taskErr := l.svcCtx.MySQL.ExecContext(l.ctx, `
+			INSERT INTO admin_refund_compensation_task
+				(task_no, order_id, refund_no, refund_cents, reason, status, next_retry_at, failure_reason, request_id, created_by)
+			VALUES (?, ?, ?, ?, ?, 'pending', NOW(), ?, ?, ?)
+			ON DUPLICATE KEY UPDATE failure_reason=VALUES(failure_reason), next_retry_at=NOW(), updated_at=NOW()
+		`, newAdminTaskNo("RC"), in.GetOrderId(), requestID, in.GetRefundAmountCents(), reason, err.Error(), requestID, in.GetAdminId())
+		if taskErr != nil && taskErr != sql.ErrNoRows {
+			l.Logger.Errorf("落库退款补偿任务失败: %v", taskErr)
+		}
 		// 下游未完成退款时释放幂等键，允许调用方使用同一个 request_id 安全重试。
 		releaseCancelOrderIdempotency(l.ctx, l.svcCtx, idempotencyKey)
 		return nil, err

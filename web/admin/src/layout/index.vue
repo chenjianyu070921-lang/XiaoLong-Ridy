@@ -18,6 +18,7 @@ const pathToRoute = {
   '/users': '/users',
   '/driver-certifications': '/driver-certifications',
   '/drivers': '/drivers',
+  '/punishments': '/punishments',
   '/orders': '/orders',
   '/orders/abnormal': '/orders/abnormal',
   '/operation-logs': '/operation-logs',
@@ -32,6 +33,7 @@ const fallbackMenus = [
   { name: '用户管理', path: '/users', icon: 'User' },
   { name: '司机审核', path: '/driver-certifications', icon: 'Avatar' },
   { name: '司机列表', path: '/drivers', icon: 'Avatar' },
+  { name: '处罚管理', path: '/punishments', icon: 'Warning' },
   { name: '司机提现', path: '/driver-withdrawals', icon: 'Money' },
   { name: '订单管理', path: '/orders', icon: 'Tickets' },
   { name: '异常订单', path: '/orders/abnormal', icon: 'Warning' },
@@ -51,7 +53,7 @@ const fallbackMenus = [
 // 菜单接口失败时，普通角色只展示与其日常查询职责匹配的基础入口。
 // 这是安全兜底，不依赖前端传入的 role，也不将受限配置类模块暴露到导航。
 const restrictedRoleFallbackPaths = {
-  2: ['/users', '/driver-certifications', '/drivers', '/driver-withdrawals', '/orders', '/orders/abnormal', '/operation-logs', '/coupons', '/coupon-issue-tasks', '/price-rules', '/promotion-activities', '/work-orders', '/statistics', '/export-tasks', '/blacklist', '/risk-hits'],
+  2: ['/users', '/driver-certifications', '/drivers', '/punishments', '/driver-withdrawals', '/orders', '/orders/abnormal', '/operation-logs', '/coupons', '/coupon-issue-tasks', '/price-rules', '/promotion-activities', '/work-orders', '/statistics', '/export-tasks', '/blacklist', '/risk-hits'],
   3: ['/users', '/driver-certifications', '/drivers', '/orders', '/orders/abnormal', '/operation-logs', '/work-orders'],
 }
 
@@ -67,6 +69,7 @@ const pathIcon = {
   '/users': 'User',
   '/driver-certifications': 'Avatar',
   '/drivers': 'Avatar',
+  '/punishments': 'Warning',
   '/driver-withdrawals': 'Money',
   '/orders': 'Tickets',
   '/orders/abnormal': 'Warning',
@@ -90,6 +93,7 @@ const groupOf = (path) => ({
   '/users': '用户与司机',
   '/driver-certifications': '用户与司机',
   '/drivers': '用户与司机',
+  '/punishments': '用户与司机',
   '/driver-withdrawals': '用户与司机',
   '/orders': '订单中心',
   '/orders/abnormal': '订单中心',

@@ -1,6 +1,6 @@
 Name: dispatchsvc.rpc
 ListenOn: 0.0.0.0:50056
-timeout: 10000
+Timeout: 30000
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 myredis:

@@ -115,6 +115,28 @@ service AdminService {
   rpc PublishPromotionActivity(PromotionActivityActionRequest) returns (CommonResponse);
   // 回滚活动配置。
   rpc RollbackPromotionActivity(PromotionActivityActionRequest) returns (CommonResponse);
+  // 查询司机处罚规则。
+  rpc ListDriverPunishmentRules(DriverPunishmentRuleListRequest) returns (DriverPunishmentRuleListResponse);
+  // 创建司机处罚规则。
+  rpc CreateDriverPunishmentRule(DriverPunishmentRuleRequest) returns (DriverPunishmentRule);
+  // 更新司机处罚规则。
+  rpc UpdateDriverPunishmentRule(DriverPunishmentRuleRequest) returns (DriverPunishmentRule);
+  // 启用或停用司机处罚规则。
+  rpc SetDriverPunishmentRuleStatus(DriverPunishmentRuleStatusRequest) returns (CommonResponse);
+  // 查询司机处罚单。
+  rpc ListDriverPunishments(DriverPunishmentListRequest) returns (DriverPunishmentListResponse);
+  // 查询司机处罚单详情。
+  rpc GetDriverPunishment(DriverPunishmentDetailRequest) returns (DriverPunishment);
+  // 创建司机处罚单。
+  rpc CreateDriverPunishment(DriverPunishmentRequest) returns (DriverPunishment);
+  // 撤销尚未完成下游执行的司机处罚单。
+  rpc CancelDriverPunishment(DriverPunishmentActionRequest) returns (CommonResponse);
+  // 查询司机处罚申诉。
+  rpc ListPunishmentAppeals(PunishmentAppealListRequest) returns (PunishmentAppealListResponse);
+  // 创建司机处罚申诉。
+  rpc CreatePunishmentAppeal(PunishmentAppealRequest) returns (PunishmentAppeal);
+  // 审核司机处罚申诉。
+  rpc ReviewPunishmentAppeal(PunishmentAppealReviewRequest) returns (CommonResponse);
   // 查询运营总览统计。
   rpc GetStatisticsOverview(StatisticsRequest) returns (StatisticsOverviewResponse);
   // 查询订单统计。
@@ -1055,6 +1077,184 @@ message PromotionActivity {
 
 message PromotionActivityListResponse {
   repeated PromotionActivity list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// DriverPunishmentRuleListRequest 表示司机处罚规则分页查询条件。
+message DriverPunishmentRuleListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  string violation_type = 4;
+  int32 status = 5;
+}
+
+// DriverPunishmentRuleRequest 表示司机处罚规则新增或编辑请求。
+// actions 必须为 JSON 数组，当前仅允许 no_dispatch、freeze、deduct_score、fine、downgrade。
+message DriverPunishmentRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  string violation_type = 3;
+  string actions = 4;
+  int64 penalty_cents = 5;
+  int32 score_delta = 6;
+  int32 priority_weight_delta = 7;
+  int32 status = 8;
+  int64 admin_id = 9;
+  string ip = 10;
+}
+
+// DriverPunishmentRuleStatusRequest 表示处罚规则启停请求。
+message DriverPunishmentRuleStatusRequest {
+  int64 id = 1;
+  int32 status = 2;
+  int64 admin_id = 3;
+  string ip = 4;
+}
+
+// DriverPunishmentRule 表示后台维护的司机处罚规则。
+message DriverPunishmentRule {
+  int64 id = 1;
+  string name = 2;
+  string violation_type = 3;
+  string actions = 4;
+  int64 penalty_cents = 5;
+  int32 score_delta = 6;
+  int32 priority_weight_delta = 7;
+  int32 status = 8;
+  int32 version = 9;
+  int64 created_by = 10;
+  int64 updated_by = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+// DriverPunishmentRuleListResponse 返回处罚规则分页结果。
+message DriverPunishmentRuleListResponse {
+  repeated DriverPunishmentRule list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// DriverPunishmentListRequest 表示处罚单分页查询条件。
+message DriverPunishmentListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int64 driver_id = 3;
+  int64 order_id = 4;
+  string status = 5;
+  string request_id = 6;
+}
+
+// DriverPunishmentDetailRequest 表示处罚单详情查询条件。
+message DriverPunishmentDetailRequest {
+  int64 id = 1;
+}
+
+// DriverPunishmentRequest 表示创建处罚单请求。
+// rule_id 非零时服务端以规则快照为准；rule_id 为零时允许人工填写动作和处罚数值。
+message DriverPunishmentRequest {
+  int64 driver_id = 1;
+  int64 order_id = 2;
+  int64 rule_id = 3;
+  string actions = 4;
+  string reason = 5;
+  int64 penalty_cents = 6;
+  string request_id = 7;
+  int64 admin_id = 8;
+  string ip = 9;
+}
+
+// DriverPunishmentActionRequest 表示处罚撤销请求。
+message DriverPunishmentActionRequest {
+  int64 id = 1;
+  string reason = 2;
+  string request_id = 3;
+  int64 admin_id = 4;
+  string ip = 5;
+}
+
+// DriverPunishment 表示处罚单及其异步执行状态。
+message DriverPunishment {
+  int64 id = 1;
+  string punishment_no = 2;
+  int64 driver_id = 3;
+  int64 order_id = 4;
+  int64 rule_id = 5;
+  string actions = 6;
+  string reason = 7;
+  int64 penalty_cents = 8;
+  string status = 9;
+  string request_id = 10;
+  string failure_reason = 11;
+  int64 created_by = 12;
+  int64 cancelled_by = 13;
+  string cancelled_at = 14;
+  string effective_at = 15;
+  string created_at = 16;
+  string updated_at = 17;
+}
+
+// DriverPunishmentListResponse 返回处罚单分页结果。
+message DriverPunishmentListResponse {
+  repeated DriverPunishment list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// PunishmentAppealListRequest 表示处罚申诉分页查询条件。
+message PunishmentAppealListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int64 punishment_id = 3;
+  int64 driver_id = 4;
+  string status = 5;
+}
+
+// PunishmentAppealReviewRequest 表示处罚申诉审核请求。
+// action 仅允许 upheld、revoked、rejected；revoked 会发出对应处罚撤销领域事件。
+message PunishmentAppealReviewRequest {
+  int64 id = 1;
+  string action = 2;
+  string review_result = 3;
+  string request_id = 4;
+  int64 admin_id = 5;
+  string ip = 6;
+}
+
+// PunishmentAppealRequest 表示创建司机处罚申诉请求。
+message PunishmentAppealRequest {
+  int64 punishment_id = 1;
+  int64 driver_id = 2;
+  string content = 3;
+  string evidence_config = 4;
+  string request_id = 5;
+}
+
+// PunishmentAppeal 表示司机处罚申诉及复核结果。
+message PunishmentAppeal {
+  int64 id = 1;
+  string appeal_no = 2;
+  int64 punishment_id = 3;
+  int64 driver_id = 4;
+  string content = 5;
+  string evidence_config = 6;
+  string status = 7;
+  string review_result = 8;
+  int64 reviewed_by = 9;
+  string reviewed_at = 10;
+  string request_id = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+// PunishmentAppealListResponse 返回处罚申诉分页结果。
+message PunishmentAppealListResponse {
+  repeated PunishmentAppeal list = 1;
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;

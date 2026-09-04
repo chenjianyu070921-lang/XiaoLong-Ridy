@@ -71,12 +71,217 @@ func (r *Router) routes() {
 	r.registerAuthRoutes()
 	r.registerUserRoutes()
 	r.registerDriverRoutes()
+	r.registerPunishmentRoutes()
 	r.registerMarketingRoutes()
 	r.registerStatisticsRoutes()
 	r.registerCapacityRoutes()
 	r.registerOperationRoutes()
 	r.registerOrderRoutes()
 	r.registerAiRoutes()
+}
+
+// handlePunishmentRules 处理处罚规则列表和新增请求。
+func (r *Router) handlePunishmentRules(w http.ResponseWriter, req *http.Request) {
+	logic := logic.NewPunishmentLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		q := req.URL.Query()
+		resp, err := logic.ListRules(req.Context(), types.DriverPunishmentRuleListRequest{
+			Page: intQuery(req, "page", 1), PageSize: intQuery(req, "page_size", 20),
+			Keyword: q.Get("keyword"), ViolationType: q.Get("violation_type"), Status: int32Query(req, "status", 0),
+		})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body types.DriverPunishmentRuleSaveRequest
+		if err := decodeJSON(w, req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		item, err := logic.SaveRule(req.Context(), 0, body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, item)
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handlePunishmentRuleByID 处理处罚规则编辑与启停。
+func (r *Router) handlePunishmentRuleByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/punishment-rules/")
+	if !ok {
+		writeError(w, http.StatusBadRequest, 40001, "invalid punishment rule id")
+		return
+	}
+	logic := logic.NewPunishmentLogic(r.ctx)
+	switch action {
+	case "":
+		if req.Method != http.MethodPut {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.DriverPunishmentRuleSaveRequest
+		if err := decodeJSON(w, req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		item, err := logic.SaveRule(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, item)
+	case "status":
+		if req.Method != http.MethodPost {
+			writeMethodNotAllowed(w)
+			return
+		}
+		var body types.DriverPunishmentRuleStatusRequest
+		if err := decodeJSON(w, req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		if err := logic.SetRuleStatus(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, types.CommonResponse{Message: "ok"})
+	default:
+		http.NotFound(w, req)
+	}
+}
+
+// handlePunishments 处理处罚单列表和创建。
+func (r *Router) handlePunishments(w http.ResponseWriter, req *http.Request) {
+	logic := logic.NewPunishmentLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		q := req.URL.Query()
+		resp, err := logic.ListPunishments(req.Context(), types.DriverPunishmentListRequest{
+			Page: intQuery(req, "page", 1), PageSize: intQuery(req, "page_size", 20),
+			DriverID: int64Query(req, "driver_id", 0), OrderID: int64Query(req, "order_id", 0),
+			Status: q.Get("status"), RequestID: q.Get("request_id"),
+		})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body types.DriverPunishmentCreateRequest
+		if err := decodeJSON(w, req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		item, err := logic.CreatePunishment(req.Context(), body, sessionFromContext(req.Context()), clientIP(req))
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, item)
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handlePunishmentByID 处理处罚单详情与撤销。
+func (r *Router) handlePunishmentByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/punishments/")
+	if !ok {
+		writeError(w, http.StatusBadRequest, 40001, "invalid punishment id")
+		return
+	}
+	logic := logic.NewPunishmentLogic(r.ctx)
+	if action == "" {
+		if req.Method != http.MethodGet {
+			writeMethodNotAllowed(w)
+			return
+		}
+		item, err := logic.GetPunishment(req.Context(), id)
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, item)
+		return
+	}
+	if action != "cancel" || req.Method != http.MethodPost {
+		http.NotFound(w, req)
+		return
+	}
+	var body types.DriverPunishmentActionRequest
+	if err := decodeJSON(w, req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	if err := logic.CancelPunishment(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
+}
+
+// handlePunishmentAppeals 处理处罚申诉列表和创建入口。
+func (r *Router) handlePunishmentAppeals(w http.ResponseWriter, req *http.Request) {
+	logic := logic.NewPunishmentLogic(r.ctx)
+	switch req.Method {
+	case http.MethodGet:
+		q := req.URL.Query()
+		resp, err := logic.ListAppeals(req.Context(), types.PunishmentAppealListRequest{
+			Page: intQuery(req, "page", 1), PageSize: intQuery(req, "page_size", 20),
+			PunishmentID: int64Query(req, "punishment_id", 0), DriverID: int64Query(req, "driver_id", 0), Status: q.Get("status"),
+		})
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	case http.MethodPost:
+		var body struct {
+			PunishmentID   int64  `json:"punishment_id"`
+			DriverID       int64  `json:"driver_id"`
+			Content        string `json:"content"`
+			EvidenceConfig string `json:"evidence_config"`
+			RequestID      string `json:"request_id"`
+		}
+		if err := decodeJSON(w, req, &body); err != nil {
+			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+			return
+		}
+		item, err := logic.CreateAppeal(req.Context(), body)
+		if err != nil {
+			r.writeBizError(w, err)
+			return
+		}
+		writeSuccess(w, item)
+	default:
+		writeMethodNotAllowed(w)
+	}
+}
+
+// handlePunishmentAppealByID 处理处罚申诉复核。
+func (r *Router) handlePunishmentAppealByID(w http.ResponseWriter, req *http.Request) {
+	id, action, ok := idAndActionFromPath(req.URL.Path, "/admin/v1/punishment-appeals/")
+	if !ok || action != "review" || req.Method != http.MethodPost {
+		http.NotFound(w, req)
+		return
+	}
+	var body types.PunishmentAppealReviewRequest
+	if err := decodeJSON(w, req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	if err := logic.NewPunishmentLogic(r.ctx).ReviewAppeal(req.Context(), id, body, sessionFromContext(req.Context()), clientIP(req)); err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	writeSuccess(w, types.CommonResponse{Message: "ok"})
 }
 
 // handleNotificationOutbox 查询后台通知与审计补偿任务。

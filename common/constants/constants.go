@@ -55,6 +55,8 @@ const (
 	TopicDispatchResult     = "dispatch.result"
 	TopicOrderPaid          = "order.paid"
 	TopicOrderRefunded      = "order.refunded" // 閫€娆炬垚鍔?)
+	// TopicAdminDomain 承载管理后台领域可靠事件，消费者按事件体中的 event_type 分发具体业务动作。
+	TopicAdminDomain = "admin.domain"
 )
 
 const (

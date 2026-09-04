@@ -12,6 +12,7 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	mux := http.NewServeMux()
 	registerAuthRoutes(mux, svcCtx)
 	registerProfileRoutes(mux, svcCtx)
+	registerLocationRoutes(mux, svcCtx)
 	registerUploadRoutes(mux, svcCtx)
 	registerOrderRoutes(mux, svcCtx)
 	registerAddressRoutes(mux, svcCtx)

@@ -615,6 +615,129 @@ type PromotionActivityDTO struct {
 	RollbackAt   string `json:"rollback_at"`
 }
 
+// DriverPunishmentRuleSaveRequest 表示处罚规则新增或编辑请求体。
+type DriverPunishmentRuleSaveRequest struct {
+	Name                string `json:"name"`
+	ViolationType       string `json:"violation_type"`
+	Actions             string `json:"actions"`
+	PenaltyCents        int64  `json:"penalty_cents"`
+	ScoreDelta          int32  `json:"score_delta"`
+	PriorityWeightDelta int32  `json:"priority_weight_delta"`
+	Status              int32  `json:"status"`
+}
+
+// DriverPunishmentRuleListRequest 表示处罚规则列表筛选条件。
+type DriverPunishmentRuleListRequest struct {
+	Page          int
+	PageSize      int
+	Keyword       string
+	ViolationType string
+	Status        int32
+}
+
+// DriverPunishmentRuleStatusRequest 表示处罚规则启用或停用请求体。
+type DriverPunishmentRuleStatusRequest struct {
+	Status int32 `json:"status"`
+}
+
+// DriverPunishmentRuleDTO 表示处罚规则返回对象。
+type DriverPunishmentRuleDTO struct {
+	ID                  int64  `json:"id"`
+	Name                string `json:"name"`
+	ViolationType       string `json:"violation_type"`
+	Actions             string `json:"actions"`
+	PenaltyCents        int64  `json:"penalty_cents"`
+	ScoreDelta          int32  `json:"score_delta"`
+	PriorityWeightDelta int32  `json:"priority_weight_delta"`
+	Status              int32  `json:"status"`
+	Version             int32  `json:"version"`
+	CreatedBy           int64  `json:"created_by"`
+	UpdatedBy           int64  `json:"updated_by"`
+	CreatedAt           string `json:"created_at"`
+	UpdatedAt           string `json:"updated_at"`
+}
+
+// DriverPunishmentCreateRequest 表示后台创建司机处罚单请求体。
+type DriverPunishmentCreateRequest struct {
+	DriverID     int64  `json:"driver_id"`
+	OrderID      int64  `json:"order_id"`
+	RuleID       int64  `json:"rule_id"`
+	Actions      string `json:"actions"`
+	Reason       string `json:"reason"`
+	PenaltyCents int64  `json:"penalty_cents"`
+	RequestID    string `json:"request_id"`
+}
+
+// DriverPunishmentListRequest 表示处罚单列表筛选条件。
+type DriverPunishmentListRequest struct {
+	Page      int
+	PageSize  int
+	DriverID  int64
+	OrderID   int64
+	Status    string
+	RequestID string
+}
+
+// DriverPunishmentActionRequest 表示后台撤销处罚单请求体。
+type DriverPunishmentActionRequest struct {
+	Reason    string `json:"reason"`
+	RequestID string `json:"request_id"`
+}
+
+// DriverPunishmentDTO 表示处罚单及其异步执行状态。
+type DriverPunishmentDTO struct {
+	ID            int64  `json:"id"`
+	PunishmentNo  string `json:"punishment_no"`
+	DriverID      int64  `json:"driver_id"`
+	OrderID       int64  `json:"order_id"`
+	RuleID        int64  `json:"rule_id"`
+	Actions       string `json:"actions"`
+	Reason        string `json:"reason"`
+	PenaltyCents  int64  `json:"penalty_cents"`
+	Status        string `json:"status"`
+	RequestID     string `json:"request_id"`
+	FailureReason string `json:"failure_reason"`
+	CreatedBy     int64  `json:"created_by"`
+	CancelledBy   int64  `json:"cancelled_by"`
+	CancelledAt   string `json:"cancelled_at"`
+	EffectiveAt   string `json:"effective_at"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+}
+
+// PunishmentAppealReviewRequest 表示处罚申诉审核请求体。
+type PunishmentAppealReviewRequest struct {
+	Action       string `json:"action"`
+	ReviewResult string `json:"review_result"`
+	RequestID    string `json:"request_id"`
+}
+
+// PunishmentAppealListRequest 表示处罚申诉列表筛选条件。
+type PunishmentAppealListRequest struct {
+	Page         int
+	PageSize     int
+	PunishmentID int64
+	DriverID     int64
+	Status       string
+}
+
+// PunishmentAppealDTO 表示处罚申诉及复核结果。
+type PunishmentAppealDTO struct {
+	ID             int64  `json:"id"`
+	AppealNo       string `json:"appeal_no"`
+	PunishmentID   int64  `json:"punishment_id"`
+	DriverID       int64  `json:"driver_id"`
+	Content        string `json:"content"`
+	EvidenceConfig string `json:"evidence_config"`
+	Status         string `json:"status"`
+	ReviewResult   string `json:"review_result"`
+	ReviewedBy     int64  `json:"reviewed_by"`
+	ReviewedAt     string `json:"reviewed_at"`
+	RequestID      string `json:"request_id"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
 // StatisticsRequest 表示后台统计查询条件。
 type StatisticsRequest struct {
 	StartTime string

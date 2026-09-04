@@ -24,6 +24,13 @@ export const driversApi = {
   approveWithdraw: (id, data) => request.post(`/driver-withdrawals/${id}/approve`, data),
   rejectWithdraw: (id, data) => request.post(`/driver-withdrawals/${id}/reject`, data),
 }
+export const punishmentApi = {
+  rules: (params) => list('/punishment-rules', params),
+  punishments: (params) => list('/punishments', params),
+  appeals: (params) => list('/punishment-appeals', params),
+  createPunishment: (data) => request.post('/punishments', data),
+  cancel: (id, data) => request.post(`/punishments/${id}/cancel`, data),
+}
 export const ordersApi = {
   list: (params) => list('/orders', params),
   abnormal: (params) => list('/orders/abnormal', params),
