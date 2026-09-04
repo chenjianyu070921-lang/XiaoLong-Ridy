@@ -1,5 +1,8 @@
 Name: ordersvc.rpc
 ListenOn: 0.0.0.0:50051
+# 服务端处理超时（毫秒）。go-zero 默认 2000ms，远端 MySQL 慢查询易超 2s，
+# 与 usersvc/driversvc 一致放宽到 30s，避免服务端先于 adminsvc 客户端超时截断请求。
+Timeout: 30000
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 myredis:

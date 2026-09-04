@@ -1,6 +1,9 @@
 Name: usersvc.rpc
 ListenOn: 0.0.0.0:50052
 Mode: dev
+# 服务端处理超时（毫秒）。go-zero 默认 2000ms，远端 MySQL 单查询可达数百毫秒，
+# AdminListUsers 等聚合查询总耗时易超 2s，与 driversvc 一样放宽到 30s。
+Timeout: 30000
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
   maxOpenConn: 200
