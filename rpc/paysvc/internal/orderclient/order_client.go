@@ -13,6 +13,8 @@ import (
 type OrderClient interface {
 	// GetDriverId 查询订单的司机ID。
 	GetDriverId(ctx context.Context, orderId int64) (int64, error)
+	// GetUserId 查询订单乘客ID，用于支付成功后的乘客钱包扣款。
+	GetUserId(ctx context.Context, orderId int64) (int64, error)
 	// ConfirmPaid 通知订单服务支付成功并完成订单。
 	ConfirmPaid(ctx context.Context, in *proto.ConfirmPaidRequest) (*proto.ConfirmPaidResponse, error)
 }
@@ -34,6 +36,15 @@ func (r *RpcOrderClient) GetDriverId(ctx context.Context, orderId int64) (int64,
 		return 0, err
 	}
 	return resp.DriverId, nil
+}
+
+// GetUserId 调用 GetOrder 并返回乘客ID。
+func (r *RpcOrderClient) GetUserId(ctx context.Context, orderId int64) (int64, error) {
+	resp, err := r.client.GetOrder(ctx, &proto.GetOrderRequest{OrderId: orderId})
+	if err != nil {
+		return 0, err
+	}
+	return resp.UserId, nil
 }
 
 // ConfirmPaid 调用 ordersvc 的支付成功确认接口。

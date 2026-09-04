@@ -12,6 +12,7 @@ import (
 	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
 	"XiaoLong-Ridy/rpc/paysvc/proto"
+	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -53,8 +54,17 @@ func (l *CreatePaymentLogic) CreatePayment(in *proto.CreatePaymentRequest) (*pro
 	paymentNo := genPaymentNo()
 	chName := channelName(in.Channel)
 
-	// 2. 创建支付单（待支付）
-	// 余额支付在当前系统内无需第三方回调，扣款请求成功即可完成支付。
+	// 2. 创建支付单（待支付）。余额支付必须先完成钱包原子扣款，成功后才允许标记支付成功。
+	if chName == channel.Balance {
+		if l.svcCtx.UserClient == nil {
+			return nil, fmt.Errorf("wallet client not configured")
+		}
+		if _, err := l.svcCtx.UserClient.WithdrawWallet(l.ctx, &usersvc.ChangeWalletRequest{
+			UserId: uint64(in.UserId), Amount: priceutil.CentsToYuan(in.AmountCents), OrderId: uint64(in.OrderId), Type: "order_payment", Title: "订单支付",
+		}); err != nil {
+			return nil, fmt.Errorf("wallet payment failed: %w", err)
+		}
+	}
 	initialStatus := int8(model.PaymentStatusPending)
 	if chName == channel.Balance {
 		initialStatus = model.PaymentStatusPaid

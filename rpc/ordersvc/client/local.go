@@ -131,6 +131,17 @@ func (c *LocalClient) ConfirmPaid(_ context.Context, req *orderproto.ConfirmPaid
 	return &orderproto.ConfirmPaidResponse{OrderId: req.GetOrderId(), Status: order.Status, PaidCents: req.GetAmountCents()}, nil
 }
 
+// GetUserId 返回本地订单的乘客ID，供支付服务扣款使用。
+func (c *LocalClient) GetUserId(_ context.Context, orderID int64) (int64, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	order, ok := c.orders[uint64(orderID)]
+	if !ok {
+		return 0, fmt.Errorf("orderclient not found")
+	}
+	return int64(order.UserId), nil
+}
+
 // ListOrders 返回订单分页列表。
 func (c *LocalClient) ListOrders(_ context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
 	c.mu.RLock()

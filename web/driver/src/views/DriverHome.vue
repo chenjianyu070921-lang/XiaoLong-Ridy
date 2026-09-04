@@ -343,6 +343,16 @@ const orderStatus = ref(0)
 const orderPage = ref(1)
 const orderPageSize = ref(8)
 const orderTotal = ref(0)
+const orderStats = computed(() => {
+  const list = orders.value
+  return {
+    total: orderTotal.value,
+    pending: list.filter((item) => [1, 2].includes(Number(item.status))).length,
+    serving: list.filter((item) => [2, 3].includes(Number(item.status))).length,
+    done: list.filter((item) => Number(item.status) === 5).length,
+    cancelled: list.filter((item) => Number(item.status) === 6).length
+  }
+})
 const nearbyOrders = ref([])
 const nearbyOrderLoading = ref(false)
 const nearbyOrderPage = ref(1)
@@ -461,7 +471,7 @@ const selectedHomeOrder = computed(() => {
   return driverStore.currentOrder || previewOrder.value || null
 })
 const homePanelMode = computed(() => {
-  if (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2 || Number(selectedHomeOrder.value?.status) === 3) return 'driving'
+  if (selectedHomeOrder.value && (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2 || Number(selectedHomeOrder.value?.status) === 3)) return 'driving'
   if (selectedHomeOrder.value) return 'order'
   return 'idle'
 })
@@ -1415,12 +1425,17 @@ async function openNearbyOrderPopup() {
 
 function syncCurrentTripFromOrders(list) {
   const current = list.find((item) => String(resolveOrderId(item)) === String(driverStore.currentOrderId)) || list.find((item) => [2, 3].includes(Number(item.status)))
-  if (!current) return
+  if (!current || [4, 5, 6, 7].includes(Number(current.status))) {
+    if (driverStore.currentOrderId || driverStore.tripPhase !== 'idle') driverStore.setCurrentOrder(null, 'idle')
+    if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
+    return
+  }
   const phase = Number(current.status) === 3 ? 'trip' : Number(current.status) === 2 ? 'pickup' : 'idle'
   if (phase !== 'idle') driverStore.setCurrentOrder(current, phase)
 }
 
 function canAccept(order) {
+  if (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2) return false
   if (order.source === 'dispatch') return Number(order.dispatchStatus) === 1
   if (order.source === 'available') return Number(order.status || 1) === 1
   return Number(order.status) === 1
@@ -1428,6 +1443,10 @@ function canAccept(order) {
 
 
 async function handleOrderAction(action, order) {
+  if (action === 'accept' && (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2)) {
+    showToast('当前有进行中的订单，无法接新单')
+    return
+  }
   const orderId = resolveOrderId(order)
   if (!orderId) {
     showToast('订单ID无效')
