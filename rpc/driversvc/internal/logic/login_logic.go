@@ -8,6 +8,8 @@ import (
 	"XiaoLong-Ridy/common/jwtx"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/crypto/bcrypt"
@@ -15,13 +17,13 @@ import (
 
 // 登录相关错误，供上层（grpc 状态码映射）识别。
 var (
-	ErrLoginAccountNotFound = errors.New("账号不存在")
-	ErrLoginPasswordWrong   = errors.New("密码错误")
-	ErrLoginAccountBlocked  = errors.New("账号已被冻结或注销")
+	ErrLoginAccountNotFound = status.Error(codes.NotFound, "账号不存在")
+	ErrLoginPasswordWrong   = status.Error(codes.Unauthenticated, "密码错误")
+	ErrLoginAccountBlocked  = status.Error(codes.PermissionDenied, "账号已被冻结或注销")
 )
 
-// loginTokenTTL 司机登录令牌有效期。
-const loginTokenTTL = 2 * time.Hour
+// loginTokenTTL 司机登录令牌有效期：7 天，避免司机端登录态频繁过期导致受保护接口批量 401。
+const loginTokenTTL = 7 * 24 * time.Hour
 
 // LoginLogic 司机登录逻辑。
 type LoginLogic struct {
@@ -42,7 +44,7 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 // Login 校验手机号、账号状态与密码，成功则签发 JWT 并返回司机简要信息。
 func (l *LoginLogic) Login(in *proto.LoginRequest) (*proto.LoginResponse, error) {
 	if in == nil {
-		return nil, errors.New("请求参数不能为空")
+		return nil, status.Error(codes.InvalidArgument, "请求参数不能为空")
 	}
 	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
 		return nil, errors.New("driver repository not ready")
@@ -97,7 +99,7 @@ func (l *LoginLogic) Login(in *proto.LoginRequest) (*proto.LoginResponse, error)
 // LoginBySMS signs a driver token after the API layer has verified the SMS code.
 func (l *LoginLogic) LoginBySMS(in *proto.LoginBySMSRequest) (*proto.LoginResponse, error) {
 	if in == nil {
-		return nil, errors.New("请求参数不能为空")
+		return nil, status.Error(codes.InvalidArgument, "请求参数不能为空")
 	}
 	if l.svcCtx == nil || l.svcCtx.DriverRepository == nil {
 		return nil, errors.New("driver repository not ready")

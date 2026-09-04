@@ -52,6 +52,12 @@ const routes = [
     name: 'DriverMineOrders',
     component: () => import('@/views/mine/DriverOrderRecordsPage.vue'),
     meta: { requiresDriverAuth: true }
+  },
+  {
+    path: '/mine/settings',
+    name: 'DriverMineSettings',
+    component: () => import('@/views/mine/DriverSettingsPage.vue'),
+    meta: { requiresDriverAuth: true }
   }
 ]
 

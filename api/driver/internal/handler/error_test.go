@@ -18,8 +18,9 @@ func TestWriteParamErrorMapsDriverRPCFailures(t *testing.T) {
 		code       int
 		message    string
 	}{
-		{"validation", status.Error(codes.Unknown, "真实姓名不能为空"), http.StatusBadRequest, 50000, "真实姓名不能为空"},
-		{"duplicate", status.Error(codes.Unknown, "driver already exists"), http.StatusConflict, codeDriverAlreadyExists, "手机号或驾驶证号已存在"},
+		{"validation", status.Error(codes.InvalidArgument, "真实姓名不能为空"), http.StatusBadRequest, 50000, "真实姓名不能为空"},
+		{"duplicate", status.Error(codes.AlreadyExists, "手机号或驾驶证号已存在"), http.StatusConflict, codeDriverAlreadyExists, "手机号或驾驶证号已存在"},
+		{"unknown internal", status.Error(codes.Unknown, "driver repository not ready"), http.StatusInternalServerError, codeInternalServerError, "服务暂时不可用，请稍后重试"},
 		{"unavailable", status.Error(codes.Unavailable, "connection refused"), http.StatusBadGateway, 50001, "下游服务不可用或超时"},
 		{"deadline exceeded", status.Error(codes.DeadlineExceeded, "context deadline exceeded"), http.StatusBadGateway, 50001, "下游服务不可用或超时"},
 		{"unimplemented", status.Error(codes.Unimplemented, "unknown method ListSettlements for service paysvc.Pay"), http.StatusBadGateway, 50001, "下游服务不可用或超时"},

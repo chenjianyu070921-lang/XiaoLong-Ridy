@@ -7,13 +7,15 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // ErrDriverAlreadyExists 表示手机号或驾驶证号已存在（唯一索引冲突）。
-var ErrDriverAlreadyExists = errors.New("driver already exists")
+var ErrDriverAlreadyExists = status.Error(codes.AlreadyExists, "手机号或驾驶证号已存在")
 
 type CreateDriverLogic struct {
 	ctx    context.Context

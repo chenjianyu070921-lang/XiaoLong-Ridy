@@ -32,6 +32,24 @@ export const useDriverStore = defineStore('driver', () => {
   const driverId = computed(() => Number(driver.value?.id || driver.value?.driverId || 0))
   const displayName = computed(() => driver.value?.realName || driver.value?.nickname || '司机')
 
+  // 夜间模式：darkMode 持久化到 localStorage，并同步到 <html class="dark">，
+  // 由 App.vue 的 .dark CSS 变量与全局兜底规则生效。
+  const darkMode = ref(localStorage.getItem('driverDarkMode') === '1')
+  function applyDarkMode() {
+    const root = document.documentElement
+    if (darkMode.value) root.classList.add('dark')
+    else root.classList.remove('dark')
+  }
+  function setDarkMode(value) {
+    darkMode.value = !!value
+    localStorage.setItem('driverDarkMode', darkMode.value ? '1' : '0')
+    applyDarkMode()
+  }
+  function toggleDarkMode() {
+    setDarkMode(!darkMode.value)
+  }
+  applyDarkMode()
+
   function persistSession(data = {}) {
     token.value = data.token || token.value
     driver.value = data.driver || driver.value || {}
@@ -176,6 +194,9 @@ export const useDriverStore = defineStore('driver', () => {
     setCertification,
     setWorkState,
     setCurrentOrder,
+    darkMode,
+    setDarkMode,
+    toggleDarkMode,
     logout
   }
 })

@@ -9,12 +9,14 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/internal/onlinestore"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // errInvalidOnlineStatus 表示司机服务状态不是离线、在线或行程中。
-var errInvalidOnlineStatus = errors.New("司机在线状态不合法")
+var errInvalidOnlineStatus = status.Error(codes.InvalidArgument, "司机在线状态不合法")
 
 // SetDriverServiceStatusLogic 封装司机服务状态同步逻辑。
 // 该逻辑供司机端行程开始/结束链路调用，用于把司机状态同步到 Redis 在线存储、driver 表和 driver_location 表。

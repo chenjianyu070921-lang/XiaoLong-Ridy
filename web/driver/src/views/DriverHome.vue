@@ -136,6 +136,8 @@
         @open-reviews="openPassengerReviews"
         @open-help="openHelpCenter"
         @edit-profile="openProfileEdit"
+        @open-settings="openSettings"
+        @logout="logoutDriver"
       />
       <DriverReviewsPanel v-model:visible="reviewsPanelVisible" :mode="reviewsPanelMode" />
     </section>
@@ -362,6 +364,8 @@ const finishSubmitting = ref(false)
 const heatmapVisible = ref(false)
 const heatmapLoading = ref(false)
 const heatmapRadiusMeters = 5000
+// 可接单半径，与后端 driversvc availableOrderRadiusMeters 对齐，用于地图“检测范围”圈可视化。
+const listenRadiusMeters = 10000
 const heatmapPoints = ref([])
 const heatmapCenter = ref(null)
 const homeMapContainer = ref(null)
@@ -426,6 +430,7 @@ let homeDriverMarker = null
 let homeHeatmapLayer = null
 let homeOrderMarkers = []
 let homeRouteLine = null
+let homeRangeCircle = null
 let heatmapAMap = null
 let heatmapMapInstance = null
 let heatmapLayer = null
@@ -772,6 +777,11 @@ function startLocationReporting() {
           longitude: position.coords.longitude,
           latitude: position.coords.latitude
         })
+        // 定位刷新后同步司机图标与检测范围圈到最新位置。
+        if (homeMapReady.value) {
+          renderHomeDriverMarker()
+          renderHomeRangeCircle()
+        }
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 }
@@ -795,6 +805,10 @@ async function reportCurrentLocation() {
 
 function openProfileEdit() {
   pushFromCurrentHomeTab('/profile/edit')
+}
+
+function openSettings() {
+  pushFromCurrentHomeTab('/mine/settings')
 }
 
 function showNotifications() {
@@ -870,6 +884,7 @@ async function refreshHomeHeatmap() {
 function renderHomeMapData() {
   if (!homeMapInstance || !homeAMap) return
   renderHomeDriverMarker()
+  renderHomeRangeCircle()
   renderHomeHeatmapLayer()
   renderHomeOrderMarkers()
   renderHomeRouteLine()
@@ -889,6 +904,28 @@ function renderHomeDriverMarker() {
     homeMapInstance.add(homeDriverMarker)
   } else {
     homeDriverMarker.setPosition(position)
+  }
+}
+
+// 检测范围圈：以司机当前位置为圆心、可接单半径为半径的圆，展示司机能接单的范围。
+function renderHomeRangeCircle() {
+  const location = readRememberedWorkLocation() || workLocationDefault
+  const center = [Number(location.longitude), Number(location.latitude)]
+  if (!homeRangeCircle) {
+    homeRangeCircle = new homeAMap.Circle({
+      center,
+      radius: listenRadiusMeters,
+      strokeColor: '#5B5CFF',
+      strokeWeight: 2,
+      strokeOpacity: 0.6,
+      fillColor: '#5B5CFF',
+      fillOpacity: 0.08,
+      zIndex: 50
+    })
+    homeMapInstance.add(homeRangeCircle)
+  } else {
+    homeRangeCircle.setCenter(center)
+    homeRangeCircle.setRadius(listenRadiusMeters)
   }
 }
 
@@ -965,6 +1002,7 @@ function destroyHomeMap() {
   homeHeatmapLayer = null
   homeOrderMarkers = []
   homeRouteLine = null
+  homeRangeCircle = null
   homeMapReady.value = false
   homeMapError.value = ''
 }
@@ -1656,6 +1694,7 @@ async function refreshProfile() {
 
 function logoutDriver() {
   stopRealtimeWork()
+  previewOrder.value = null
   driverStore.logout()
   router.replace('/login')
 }

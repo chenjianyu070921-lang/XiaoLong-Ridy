@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/logic"
 
@@ -12,8 +11,9 @@ import (
 )
 
 const (
-	codeDriverAlreadyExists = 50010
-	codeDriverNotFound      = 50011
+	codeDriverAlreadyExists  = 50010
+	codeDriverNotFound       = 50011
+	codeInternalServerError  = 50006
 )
 
 func writeParamError(w http.ResponseWriter, err error) {
@@ -70,14 +70,18 @@ func writeParamError(w http.ResponseWriter, err error) {
 			writeError(w, http.StatusForbidden, 40301, "无权访问该司机资源")
 			return
 		case codes.Unknown:
-			if strings.Contains(st.Message(), "already exists") {
-				writeError(w, http.StatusConflict, codeDriverAlreadyExists, "手机号或驾驶证号已存在")
-				return
-			}
+			// 下游以裸 errors.New 返回的错误经 gRPC 包成 Unknown，其消息多为内部实现细节，
+			// 不得透传给司机端，统一返回通用错误避免信息泄漏。
+			writeError(w, http.StatusInternalServerError, codeInternalServerError, "服务暂时不可用，请稍后重试")
+			return
+		default:
+			// 其他显式 gRPC 错误码（InvalidArgument/Unauthenticated/FailedPrecondition 等）：
+			// 消息由 driversvc 显式声明为可展示给司机的业务提示，安全透传。
+			writeError(w, http.StatusBadRequest, 50000, st.Message())
+			return
 		}
-		writeError(w, http.StatusBadRequest, 50000, st.Message())
-		return
 	}
 
-	writeError(w, http.StatusBadRequest, 50000, err.Error())
+	// 既非已识别的 sentinel，也非 gRPC status 错误：按内部错误收口，不透传原始消息。
+	writeError(w, http.StatusInternalServerError, codeInternalServerError, "服务暂时不可用，请稍后重试")
 }
