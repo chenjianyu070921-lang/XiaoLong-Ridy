@@ -140,6 +140,7 @@
         @load-trajectory="loadTrajectory"
         @edit-profile="openProfileEdit"
         @open-assets="openDriverAssets"
+        @update:active-section="assetsSection = $event"
         @open-orders="activeTab = 1"
       />
     </section>
@@ -270,7 +271,8 @@ const tabItems = [
 
 const activeTab = ref(0)
 // 从个人中心快捷入口跳转到资产模块，并选中对应子分区。
-const openDriverAssets = (section) => { activeTab.value = 2; nextTick(() => { /* 资产面板保持上次选择 */ }) }
+const assetsSection = ref('wallet')
+const openDriverAssets = (section) => { activeTab.value = 2; assetsSection.value = section || 'wallet' }
 const mineSection = ref('profile')
 const tabPanelComponents = [
   null,
@@ -312,6 +314,7 @@ const activePanelProps = computed(() => {
   if (activeTab.value === 2) {
     return {
       driverStore,
+      activeSection: assetsSection.value,
       vehicleForm,
       certificationForm,
       certUploading,
@@ -332,6 +335,9 @@ const activePanelProps = computed(() => {
     driverStore,
     defaultSection: mineSection.value,
     reviews: reviews.value,
+    incomeSummary: incomeSummary.value,
+    todayIncome: todayIncome.value,
+    orderStats: orderStats.value,
     trajectoryOrderId: trajectoryOrderId.value,
     trajectoryError: trajectoryError.value,
     trajectoryPoints: trajectoryPoints.value,
@@ -347,6 +353,16 @@ const orderStatus = ref(0)
 const orderPage = ref(1)
 const orderPageSize = ref(8)
 const orderTotal = ref(0)
+const orderStats = computed(() => {
+  const list = orders.value
+  return {
+    total: orderTotal.value,
+    pending: list.filter((item) => [1, 2].includes(Number(item.status))).length,
+    serving: list.filter((item) => [2, 3].includes(Number(item.status))).length,
+    done: list.filter((item) => Number(item.status) === 5).length,
+    cancelled: list.filter((item) => Number(item.status) === 6).length
+  }
+})
 const nearbyOrders = ref([])
 const nearbyOrderLoading = ref(false)
 const nearbyOrderPage = ref(1)
@@ -398,9 +414,10 @@ const orderStatusOptions = [
   { text: '待接单', value: 1 },
   { text: '已接单', value: 2 },
   { text: '行程中', value: 3 },
-  { text: '已完成', value: 4 },
-  { text: '已取消', value: 5 },
-  { text: '已关闭', value: 6 }
+  { text: '待支付', value: 4 },
+  { text: '已完成', value: 5 },
+  { text: '已取消', value: 6 },
+  { text: '已退款', value: 7 }
 ]
 
 const vehicleForm = reactive({
@@ -473,7 +490,7 @@ const selectedHomeOrder = computed(() => {
   return driverStore.currentOrder || previewOrder.value || null
 })
 const homePanelMode = computed(() => {
-  if (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2 || Number(selectedHomeOrder.value?.status) === 3) return 'driving'
+  if (selectedHomeOrder.value && (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2 || Number(selectedHomeOrder.value?.status) === 3)) return 'driving'
   if (selectedHomeOrder.value) return 'order'
   return 'idle'
 })
@@ -550,6 +567,10 @@ async function loadDashboardData() {
     serviceScore.value = Number(score.value.aiScore || score.value.score || 0).toFixed(1)
   }
   if (profile.status === 'fulfilled' && profile.value) syncForms()
+  // 进入首页时以服务端订单列表校验是否存在未完成订单，不能只信任本地缓存阶段。
+  if (activeTab.value === 0) {
+    await safeApiCall(() => loadOrders(1, { silentError: true }), null, { silent: true })
+  }
   await loadCurrentTabData()
   if (activeTab.value === 0) {
     await refreshHomeWorkbench()
@@ -572,7 +593,14 @@ async function loadCurrentTabData() {
       safeApiCall(() => loadCertification(config), null, { silent: true })
     ])
   }
-  if (activeTab.value === 3) return safeApiCall(() => loadReviews(config), null, { silent: true })
+  if (activeTab.value === 3) {
+    return Promise.allSettled([
+      safeApiCall(() => driverStore.refreshProfile(config), null, { silent: true }),
+      safeApiCall(() => loadIncome(config), null, { silent: true }),
+      safeApiCall(() => loadVehicle(config), null, { silent: true }),
+      safeApiCall(() => loadReviews(config), null, { silent: true })
+    ])
+  }
   return null
 }
 
@@ -1228,12 +1256,17 @@ async function openNearbyOrderPopup() {
 
 function syncCurrentTripFromOrders(list) {
   const current = list.find((item) => String(resolveOrderId(item)) === String(driverStore.currentOrderId)) || list.find((item) => [2, 3].includes(Number(item.status)))
-  if (!current) return
+  if (!current || [4, 5, 6, 7].includes(Number(current.status))) {
+    if (driverStore.currentOrderId || driverStore.tripPhase !== 'idle') driverStore.setCurrentOrder(null, 'idle')
+    if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
+    return
+  }
   const phase = Number(current.status) === 3 ? 'trip' : Number(current.status) === 2 ? 'pickup' : 'idle'
   if (phase !== 'idle') driverStore.setCurrentOrder(current, phase)
 }
 
 function canAccept(order) {
+  if (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2) return false
   if (order.source === 'dispatch') return Number(order.dispatchStatus) === 1
   if (order.source === 'available') return Number(order.status || 1) === 1
   return Number(order.status) === 1
@@ -1241,6 +1274,10 @@ function canAccept(order) {
 
 
 async function handleOrderAction(action, order) {
+  if (action === 'accept' && (driverStore.tripPhase === 'pickup' || driverStore.tripPhase === 'trip' || driverStore.onlineStatus === 2)) {
+    showToast('当前有进行中的订单，无法接新单')
+    return
+  }
   const orderId = resolveOrderId(order)
   if (!orderId) {
     showToast('订单ID无效')
@@ -1411,7 +1448,14 @@ async function submitFinishTrip() {
 }
 
 async function loadVehicle(config = {}) {
-  if (!driverStore.vehicleId) return
+  if (!driverStore.vehicleId) {
+    if (driverStore.vehicle) {
+      syncForms()
+      return driverStore.vehicle
+    }
+    showToast('暂无已绑定车辆，请先提交车辆信息')
+    return null
+  }
   const res = await getVehicle(driverStore.vehicleId, config)
   driverStore.setVehicle(res.vehicle || res)
   syncForms()
@@ -1685,7 +1729,7 @@ function formatTime(timestamp) {
 }
 
 function formatOrderStatus(status) {
-  return { 1: '待接单', 2: '已接单', 3: '行程中', 4: '已完成', 5: '已取消', 6: '已关闭' }[Number(status || 0)] || '--'
+  return { 1: '待接单', 2: '已接单', 3: '行程中', 4: '待支付', 5: '已完成', 6: '已取消', 7: '已退款' }[Number(status || 0)] || '--'
 }
 
 function formatDispatchStatus(status) {

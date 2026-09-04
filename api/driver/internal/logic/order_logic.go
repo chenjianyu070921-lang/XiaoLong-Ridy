@@ -262,7 +262,7 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 }
 
 func (l *OrderLogic) ListMyOrders(driverID int64, page, pageSize, status int32) (*types.ListMyOrdersResponse, error) {
-	if driverID <= 0 || status < 0 || status > int32(orderproto.OrderStatus_ORDER_STATUS_CANCELLED) {
+	if driverID <= 0 || status < 0 || status > int32(orderproto.OrderStatus_ORDER_STATUS_REFUNDED) {
 		return nil, ErrInvalidParam
 	}
 	orderClient, err := l.orderClient()

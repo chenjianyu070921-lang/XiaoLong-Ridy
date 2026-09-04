@@ -1,9 +1,9 @@
 <template>
   <section class="group-panel">
     <div class="panel-segments">
-      <button type="button" :class="{ active: activeSection === 'wallet' }" @click="activeSection = 'wallet'">钱包</button>
-      <button type="button" :class="{ active: activeSection === 'vehicle' }" @click="activeSection = 'vehicle'">车辆</button>
-      <button type="button" :class="{ active: activeSection === 'certification' }" @click="activeSection = 'certification'">资质</button>
+      <button type="button" :class="{ active: activeSection === 'wallet' }" @click="selectSection('wallet')">钱包</button>
+      <button type="button" :class="{ active: activeSection === 'vehicle' }" @click="selectSection('vehicle')">车辆</button>
+      <button type="button" :class="{ active: activeSection === 'certification' }" @click="selectSection('certification')">资质</button>
     </div>
 
     <DriverWalletPanel
@@ -50,7 +50,8 @@ import DriverWalletPanel from './DriverWalletPanel.vue'
 import DriverVehiclePanel from './DriverVehiclePanel.vue'
 import DriverCertificationPanel from './DriverCertificationPanel.vue'
 
-defineProps({
+const props = defineProps({
+  activeSection: { type: String, default: 'wallet' },
   driverStore: { type: Object, required: true },
   vehicleForm: { type: Object, required: true },
   certificationForm: { type: Object, required: true },
@@ -58,28 +59,8 @@ defineProps({
   certItems: { type: Array, required: true },
   certSubmitting: { type: Boolean, required: true },
   certStatusIcon: { type: String, required: true },
-  incomeSummary: { type: Object, required: true },
-  todayIncome: { type: Object, required: true },
-  weekIncome: { type: Object, required: true },
-  incomeBills: { type: Array, required: true },
-  formatPrice: { type: Function, required: true },
-  formatTime: { type: Function, required: true },
-  formatVehicleStatus: { type: Function, required: true },
-  formatCertificationStatus: { type: Function, required: true }
+  incomeSummary: { type: Object, required: true }, todayIncome: { type: Object, required: true }, weekIncome: { type: Object, required: true }, incomeBills: { type: Array, required: true }, formatPrice: { type: Function, required: true }, formatTime: { type: Function, required: true }, formatVehicleStatus: { type: Function, required: true }, formatCertificationStatus: { type: Function, required: true }
 })
-
-defineEmits([
-  'load-income',
-  'open-withdraw',
-  'load-vehicle',
-  'submit-vehicle',
-  'submit-vehicle-update',
-  'remove-vehicle',
-  'load-certification',
-  'read-cert-file',
-  'remove-cert-image',
-  'submit-certification'
-])
-
-const activeSection = ref('wallet')
+const emit = defineEmits(['update:active-section', 'load-income', 'open-withdraw', 'load-vehicle', 'submit-vehicle', 'submit-vehicle-update', 'remove-vehicle', 'load-certification', 'read-cert-file', 'remove-cert-image', 'submit-certification'])
+function selectSection(section) { emit('update:active-section', section) }
 </script>

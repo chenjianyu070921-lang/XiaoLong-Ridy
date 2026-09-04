@@ -44,7 +44,7 @@
         <van-dropdown-item v-model="orderStatusModel" :options="orderStatusOptions" @change="emit('load-orders', 1)" />
       </van-dropdown-menu>
     </div>
-    <div v-if="orders.length === 0" class="empty-state">--</div>
+    <div v-if="orders.length === 0" class="empty-state">当前筛选暂无订单</div>
     <article v-for="order in orders" :key="String(order.source || 'order') + '-' + String(resolveOrderId(order))" class="order-card">
       <div class="order-heading">
         <strong>{{ order.orderNo || '订单 ' + resolveOrderId(order) }}</strong>

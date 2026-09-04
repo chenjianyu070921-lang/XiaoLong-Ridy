@@ -1,7 +1,8 @@
 # passenger API 网关本地配置。
 # 测试阶段默认通过 gRPC 调用 usersvc，验证码会由 usersvc 的本地短信日志输出。
 httpAddr: ":8091"
-tokenSigningKey: "local-development-signing-key"
+# JWT 签名密钥必须通过 PASSENGER_TOKEN_SIGNING_KEY 或 JWT_SIGNING_KEY 注入。
+tokenSigningKey: ""
 clientMode: "grpc"
 userRPCAddr: "127.0.0.1:50052"
 orderRPCAddr: "127.0.0.1:50051"
@@ -12,8 +13,9 @@ locationRPCAddr: "127.0.0.1:50057"
 priceCityCode: "110000"
 mysqlDSN: ""
 # 七牛云配置通过环境变量注入；此处保留空值，避免密钥提交到仓库。
-qiniuAccessKey: "Es2mf8cbVQlkPXFf69B2wHgZyWp51rW1veuw9-v2"
-qiniuSecretKey: "8eTHgtIMEdbKXXFVC46s4i65IShYHiRoMVjY5hJn"
+# 七牛密钥必须通过环境变量注入，禁止写入配置文件。
+qiniuAccessKey: ""
+qiniuSecretKey: ""
 qiniuBucket: "xiaolong-ride"
 qiniuDomain: "http://tkiajahyp.hd-bkt.clouddn.com"
 qiniuUploadURL: "https://upload.qiniup.com"

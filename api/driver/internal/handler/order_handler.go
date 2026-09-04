@@ -245,7 +245,7 @@ func ListMyOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		if !decodeJSON(w, r, &req) {
 			return
 		}
-		if req.Page < 0 || req.PageSize < 0 || req.Status < 0 || req.Status > 6 {
+		if req.Page < 0 || req.PageSize < 0 || req.Status < 0 || req.Status > 7 {
 			writeError(w, http.StatusBadRequest, 50000, "invalid order query parameters")
 			return
 		}

@@ -57,6 +57,16 @@ func (l *SettleOrderLogic) SettleOrder(in *proto.SettleOrderRequest) (*proto.Set
 	if err := repo.Create(l.ctx, s); err != nil {
 		return nil, err
 	}
+	// 支付成功后扣减乘客钱包并记录订单支付流水，确保司机入账与乘客侧账务对称。
+	if l.svcCtx.UserClient != nil {
+		if userID, err := l.svcCtx.OrderClient.GetUserId(l.ctx, in.OrderId); err != nil {
+			l.Logger.Errorf("get passenger id failed, order_id=%d: %v", in.OrderId, err)
+		} else if userID > 0 {
+			if _, err := l.svcCtx.UserClient.WithdrawWallet(l.ctx, &usersvc.ChangeWalletRequest{UserId: uint64(userID), Amount: priceutil.CentsToYuan(in.TotalAmountCents), OrderId: uint64(in.OrderId), Type: "order_payment", Title: "订单支付"}); err != nil {
+				l.Logger.Errorf("debit passenger wallet failed, order_id=%d user_id=%d: %v", in.OrderId, userID, err)
+			}
+		}
+	}
 	// 结算单落库成功后，将司机实收金额写入司机钱包；流水以订单号幂等关联。
 	if l.svcCtx.UserClient != nil && income > 0 {
 		if _, err := l.svcCtx.UserClient.RechargeWallet(l.ctx, &usersvc.ChangeWalletRequest{UserId: uint64(in.DriverId), Amount: priceutil.CentsToYuan(income), OrderId: uint64(in.OrderId), Type: "driver_income", Title: "行程收入"}); err != nil {

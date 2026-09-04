@@ -4,6 +4,18 @@
 
 本次联调覆盖乘客端 API 到 `usersvc`、`ordersvc`、`pricesvc` 的真实 gRPC 客户端注入。乘客端默认使用真实 gRPC 地址，不再在 RPC 地址缺省时静默回退 `LocalClient`。如需无下游依赖的本地测试，必须显式配置 `PASSENGER_CLIENT_MODE=local`。
 
+## 生产环境密钥注入
+
+生产环境不得在 `api/passenger/etc/passenger.yaml` 写入 JWT、七牛 AccessKey 或 SecretKey。请使用环境变量注入，JWT 密钥可用以下命令生成 32 字节随机值：
+
+```bash
+export PASSENGER_TOKEN_SIGNING_KEY="$(openssl rand -base64 32)"
+export PASSENGER_QINIU_ACCESS_KEY="<七牛 AccessKey>"
+export PASSENGER_QINIU_SECRET_KEY="<七牛 SecretKey>"
+```
+
+`PASSENGER_TOKEN_SIGNING_KEY` 优先于配置文件；未设置时兼容读取 `JWT_SIGNING_KEY`。密钥应由部署平台 Secret/Environment 管理，禁止提交到 Git。
+
 ## 环境变量
 
 ```powershell
