@@ -8,7 +8,7 @@ import (
 	"XiaoLong-Ridy/rpc/paysvc/internal/channel"
 	"XiaoLong-Ridy/rpc/paysvc/internal/config"
 	"XiaoLong-Ridy/rpc/paysvc/internal/orderclient"
-	usersv
+	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 	"time"
 
 	"github.com/redis/go-redis/v9"

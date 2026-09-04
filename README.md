@@ -143,3 +143,14 @@ cd scripts/e2e && .\run_pay_e2e.ps1
 5. ✅ 计价与支付：`pricesvc` + `paysvc`（支付 e2e 已通过）
 6. ✅ 管理后台：`adminsvc` + `web/admin`
 7. 🔄 当前阶段：主链路全流程联调收口（支付回调网关、定时任务接线、前端端到端验证）
+
+
+
+
+
+
+
+
+
+
+
