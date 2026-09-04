@@ -67,11 +67,18 @@ func (l *OrderLogic) StartTrip(driverID, orderID int64) (*types.StartTripRespons
 		return nil, err
 	}
 	if driverClient, err := l.driverClient(); err == nil {
+		// 订单已成功开始，司机状态同步为尽力而为（best-effort）：同步失败不应让已成功的
+		// 订单返回错误。重试一次后仍失败则记录结构化告警（含 orderId/driverId）以便对账。
 		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
 			DriverId:     driverID,
 			OnlineStatus: 2,
 		}); sErr != nil {
-			logx.WithContext(l.ctx).Errorf("set driver on-trip after start failed (order already started): %v", sErr)
+			if _, retryErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+				DriverId:     driverID,
+				OnlineStatus: 2,
+			}); retryErr != nil {
+				logx.WithContext(l.ctx).Errorf("set driver on-trip after start failed after retry (orderId=%d, driverId=%d): %v", orderID, driverID, retryErr)
+			}
 		}
 	}
 	return &types.StartTripResponse{
@@ -119,11 +126,18 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 		return nil, err
 	}
 	if driverClient, err := l.driverClient(); err == nil {
+		// 订单已成功结束，司机状态同步为尽力而为（best-effort）：同步失败不应让已成功的
+		// 订单返回错误。重试一次后仍失败则记录结构化告警（含 orderId/driverId）以便对账。
 		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
 			DriverId:     driverID,
 			OnlineStatus: 1,
 		}); sErr != nil {
-			logx.WithContext(l.ctx).Errorf("set driver online after finish failed (order already finished): %v", sErr)
+			if _, retryErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
+				DriverId:     driverID,
+				OnlineStatus: 1,
+			}); retryErr != nil {
+				logx.WithContext(l.ctx).Errorf("set driver online after finish failed after retry (orderId=%d, driverId=%d): %v", req.OrderID, driverID, retryErr)
+			}
 		}
 	}
 	return &types.FinishTripResponse{

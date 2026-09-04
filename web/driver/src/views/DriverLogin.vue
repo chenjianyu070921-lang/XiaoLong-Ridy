@@ -152,6 +152,7 @@ async function handleSMSLogin() {
 }
 
 async function submitLogin(action) {
+  if (loading.value) return
   try {
     loading.value = true
     showLoadingToast({ message: '登录中...', forbidClick: true, duration: 0 })

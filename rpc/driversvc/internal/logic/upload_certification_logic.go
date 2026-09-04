@@ -24,9 +24,9 @@ import (
 // 资质图片类型校验：仅允许常见图片扩展名。
 var (
 	// errEmptyCertification 表示未提供任何资质图片。
-	errEmptyCertification = errors.New("至少上传一张资质图片")
+	errEmptyCertification = status.Error(codes.InvalidArgument, "至少上传一张资质图片")
 	// errInvalidImage 表示图片 base64 解码失败或文件过大。
-	errInvalidImage = errors.New("资质图片数据非法")
+	errInvalidImage = status.Error(codes.InvalidArgument, "资质图片数据非法")
 )
 
 // maxCertImageBytes 单张资质图片大小上限（5MB）。

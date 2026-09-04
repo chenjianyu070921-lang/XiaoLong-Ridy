@@ -8,6 +8,8 @@ import (
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -15,7 +17,7 @@ import (
 // 心跳/互踢相关的业务错误。
 var (
 	// errInvalidDriverID 表示司机 ID 非法。
-	errInvalidDriverID = errors.New("司机ID不合法")
+	errInvalidDriverID = status.Error(codes.InvalidArgument, "司机ID不合法")
 	// errInvalidDeviceID 表示设备标识缺失。
 	errInvalidDeviceID = errors.New("设备标识缺失")
 )

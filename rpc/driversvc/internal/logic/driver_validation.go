@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"XiaoLong-Ridy/common/cryptox"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -20,22 +22,43 @@ const (
 
 var driverPhoneRegexp = regexp.MustCompile(`^(?:1[3-9]\d{9}|\d{12,15})$`)
 var driverIDCardRegexp = regexp.MustCompile(`^\d{17}[\dXx]$`)
+// idCardWeights 是 GB 11643 身份证校验位权重表，须与前端 useDriverAssets.js 的 isValidIDCard 保持一致。
+var idCardWeights = []int{7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2}
 var vehiclePlateRegexp = regexp.MustCompile("^[京津沪渝冀云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9使领挂学警港澳]?$")
 
 func validateDriverIdentity(phone, realName, idCardNo, driverLicenseNo string) error {
 	if !driverPhoneRegexp.MatchString(phone) {
-		return errors.New("invalid driver phone")
+		return status.Error(codes.InvalidArgument, "手机号格式不合法")
 	}
 	if strings.TrimSpace(realName) == "" {
-		return errors.New("driver real name is required")
+		return status.Error(codes.InvalidArgument, "真实姓名不能为空")
 	}
-	if !driverIDCardRegexp.MatchString(idCardNo) {
-		return errors.New("invalid driver id card")
+	if !isValidIDCardNo(idCardNo) {
+		return status.Error(codes.InvalidArgument, "身份证号格式不合法")
 	}
 	if strings.TrimSpace(driverLicenseNo) == "" {
-		return errors.New("driver license no is required")
+		return status.Error(codes.InvalidArgument, "驾驶证号不能为空")
 	}
 	return nil
+}
+
+// isValidIDCardNo 校验 18 位身份证号：正则格式 + GB 11643 校验位。
+// 算法须与前端 useDriverAssets.js 的 isValidIDCard 保持一致。
+func isValidIDCardNo(idCardNo string) bool {
+	if !driverIDCardRegexp.MatchString(idCardNo) {
+		return false
+	}
+	sum := 0
+	for i := 0; i < 17; i++ {
+		sum += int(idCardNo[i]-'0') * idCardWeights[i]
+	}
+	const checkCodes = "10X98765432"
+	expected := checkCodes[sum%11]
+	last := idCardNo[17]
+	if expected == 'X' {
+		return last == 'X' || last == 'x'
+	}
+	return expected == last
 }
 
 func validateDriverPasswordHash(passwordHash string) error {

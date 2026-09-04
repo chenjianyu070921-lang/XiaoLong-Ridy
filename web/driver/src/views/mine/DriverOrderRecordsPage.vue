@@ -21,14 +21,14 @@
 
       <div v-if="loading" class="empty-state">加载中...</div>
       <div v-else-if="records.length === 0" class="empty-state">暂无记录</div>
-      <article v-for="item in records" :key="item.orderId || item.id || item.dispatchId" class="record-card">
+      <article v-for="item in records" :key="item.key" class="record-card">
         <div class="record-head">
-          <strong>{{ item.orderNo || '订单 ' + resolveOrderId(item) }}</strong>
-          <span>{{ mode === 'orders' ? formatOrderStatus(item.status) : formatDispatchStatus(item.dispatchStatus) }}</span>
+          <strong>{{ item.orderNo || '订单 ' + item.orderId }}</strong>
+          <span>{{ item.kind === 'dispatches' ? formatDispatchStatus(item.status) : formatOrderStatus(item.status) }}</span>
         </div>
         <p class="route-line">{{ item.fromAddress || '--' }} -> {{ item.toAddress || '--' }}</p>
         <div class="record-meta">
-          <span>{{ formatPrice(item.estimatedPriceCents || item.incomeCents) }}</span>
+          <span>{{ formatPrice(item.estimatedPriceCents) }}</span>
           <span>{{ formatTime(item.createdAt) }}</span>
         </div>
       </article>
@@ -87,7 +87,7 @@ async function loadRecords() {
     const res = mode.value === 'dispatches'
       ? await listDriverDispatches(payload, { silentError: true })
       : await listDriverOrders(payload, { silentError: true })
-    records.value = Array.isArray(res?.list) ? res.list : []
+    records.value = (Array.isArray(res?.list) ? res.list : []).map((item) => normalizeRecord(item, mode.value))
     total.value = Number(res?.total || records.value.length || 0)
   } catch (error) {
     records.value = []
@@ -98,8 +98,39 @@ async function loadRecords() {
   }
 }
 
-function resolveOrderId(item) {
-  return Number(item?.orderId || item?.orderID || item?.id || item?.dispatch?.orderId || item?.order?.orderId || 0)
+// 把后端两种列表结构规范化为同一套前端字段：
+// - 我的订单：OrderBrief（扁平，字段直接在 item 上）
+// - 派单记录：MyDispatchItem{ dispatch, order }（嵌套，金额/路线/时间/订单号在 order 内，状态在 dispatch 内）
+// 统一后模板无需按 mode 写大量三元表达式，避免派单模式下读到 undefined。
+function normalizeRecord(item, currentMode) {
+  if (currentMode === 'dispatches') {
+    const order = item?.order || {}
+    const dispatch = item?.dispatch || {}
+    const orderId = order.orderId || dispatch.orderId || 0
+    return {
+      kind: 'dispatches',
+      key: `dispatch-${orderId}-${dispatch.status}-${order.createdAt || 0}`,
+      orderId,
+      orderNo: order.orderNo || '',
+      fromAddress: order.fromAddress || '',
+      toAddress: order.toAddress || '',
+      estimatedPriceCents: order.estimatedPriceCents || 0,
+      createdAt: order.createdAt || 0,
+      status: dispatch.status,
+    }
+  }
+  const orderId = item?.orderId || 0
+  return {
+    kind: 'orders',
+    key: `order-${orderId}-${item?.status}-${item?.createdAt || 0}`,
+    orderId,
+    orderNo: item?.orderNo || '',
+    fromAddress: item?.fromAddress || '',
+    toAddress: item?.toAddress || '',
+    estimatedPriceCents: item?.estimatedPriceCents || 0,
+    createdAt: item?.createdAt || 0,
+    status: item?.status,
+  }
 }
 
 onMounted(() => {

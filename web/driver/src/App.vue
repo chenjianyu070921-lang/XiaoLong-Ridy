@@ -34,6 +34,35 @@ onMounted(() => {
   --driver-card: #ffffff;
 }
 
+/* 夜间模式：覆盖设计变量，并给 <html class="dark"> 下的容器做全局兜底，
+   使所有页面背景转黑、文字转白（头像/图片不受影响）。 */
+html.dark {
+  --driver-primary: #8b6dff;
+  --driver-primary-dark: #6d4aff;
+  --driver-accent: #ffbe2e;
+  --driver-success: #22c55e;
+  --driver-danger: #ef4444;
+  --driver-ink: #f5f6fa;
+  --driver-muted: #9aa3b2;
+  --driver-line: #2a2e3a;
+  --driver-bg: #0b0d12;
+  --driver-card: #161a22;
+}
+html.dark body { background: var(--driver-bg); }
+html.dark .driver-phone-shell { background: var(--driver-bg); color: var(--driver-ink); }
+html.dark .driver-phone-shell * { color: var(--driver-ink); }
+html.dark .driver-phone-shell section,
+html.dark .driver-phone-shell .section-block,
+html.dark .driver-phone-shell .group-panel,
+html.dark .driver-phone-shell .mine-list,
+html.dark .driver-phone-shell .income-card,
+html.dark .driver-phone-shell [class*="card"],
+html.dark .driver-phone-shell [class$="-panel"],
+html.dark .driver-phone-shell [class$="-page"] {
+  background: var(--driver-card) !important;
+  color: var(--driver-ink) !important;
+}
+
 * { box-sizing: border-box; }
 html, body, #app { width: 100%; min-height: 100%; margin: 0; }
 body {
