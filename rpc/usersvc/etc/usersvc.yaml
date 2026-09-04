@@ -1,5 +1,28 @@
 Name: usersvc.rpc
 ListenOn: 0.0.0.0:50052
 Mode: dev
+mysql:
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  maxOpenConn: 200
+  maxIdleConn: 30
+  maxLifeTime: 3600
+cacheRedis:
+  host: 115.191.16.159:6379
+  pass: "4ay1nkal3u8ed77y"
+  db: 0
+  poolSize: 20
+sms:
+  provider: ""
+  region: "ap-guangzhou"
+  secretId: ""
+  secretKey: ""
+  smsSdkAppId: ""
+  signName: ""
+  templateId: ""
 tokenAuth:
-  signingKey: local-development-signing-key
+  signingKey: "local-development-signing-key"
+tencentCloud:
+  secretId: "PLgN8xXcqE6MeasD" # PLgN8xXcqE6MeasD 腾讯云实名认证id
+  secretKey: "eTLVnQIoSKKsC1kq0BinF5p3tB0hsRGt"  # eTLVnQIoSKKsC1kq0BinF5p3tB0hsRGt 腾讯云实名认证id
+  region: "ap-beijing"  # 地域：ap-beijing / ap-guangzhou / ap-shanghai 等
+

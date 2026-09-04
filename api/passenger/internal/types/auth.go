@@ -17,6 +17,12 @@ type LoginBySMSRequest struct {
 	Code  string `json:"code"`
 }
 
+// LoginByPasswordRequest 对应手机号密码登录请求。
+type LoginByPasswordRequest struct {
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
+}
+
 // UserInfo 是登录接口返回的用户基础信息。
 type UserInfo struct {
 	UserID         uint64 `json:"userId"`
@@ -24,6 +30,8 @@ type UserInfo struct {
 	Nickname       string `json:"nickname"`
 	AvatarURL      string `json:"avatarUrl"`
 	RealNameStatus string `json:"realNameStatus"`
+	RealName       string `json:"realName"`
+	IDCardNo       string `json:"idCardNo"`
 }
 
 // LoginBySMSResponse 对应短信验证码登录接口的响应数据。
@@ -44,6 +52,9 @@ type RefreshTokenResponse struct {
 	Token        string `json:"token"`
 	RefreshToken string `json:"refreshToken"`
 }
+
+// LogoutRequest 对应登出接口的请求参数，当前业务只依赖 Authorization 头。
+type LogoutRequest struct{}
 
 // LogoutResponse 对应登出接口的响应数据。
 type LogoutResponse struct {

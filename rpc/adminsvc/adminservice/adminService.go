@@ -27,6 +27,8 @@ type (
 	ChangeUserStatusRequest          = adminsvc.ChangeUserStatusRequest
 	CommonResponse                   = adminsvc.CommonResponse
 	Coupon                           = adminsvc.Coupon
+	CreateCouponResponse             = adminsvc.CreateCouponResponse
+	CreatePriceRuleResponse          = adminsvc.CreatePriceRuleResponse
 	CouponIssueRequest               = adminsvc.CouponIssueRequest
 	CouponIssueResponse              = adminsvc.CouponIssueResponse
 	CouponIssueTask                  = adminsvc.CouponIssueTask
@@ -36,12 +38,24 @@ type (
 	CouponListResponse               = adminsvc.CouponListResponse
 	CouponRequest                    = adminsvc.CouponRequest
 	CouponStatisticsResponse         = adminsvc.CouponStatisticsResponse
+	DriverStatisticsResponse         = adminsvc.DriverStatisticsResponse
+	FinanceStatisticsResponse        = adminsvc.FinanceStatisticsResponse
 	DispatchRecord                   = adminsvc.DispatchRecord
+	Driver                           = adminsvc.Driver
+	DriverDetailRequest              = adminsvc.DriverDetailRequest
+	FreezeDriverRequest              = adminsvc.FreezeDriverRequest
+	DriverWithdraw                   = adminsvc.DriverWithdraw
+	DriverWithdrawListRequest        = adminsvc.DriverWithdrawListRequest
+	DriverWithdrawListResponse       = adminsvc.DriverWithdrawListResponse
+	DriverWithdrawHandleRequest      = adminsvc.DriverWithdrawHandleRequest
+	DriverListRequest                = adminsvc.DriverListRequest
+	DriverListResponse               = adminsvc.DriverListResponse
 	DriverCertification              = adminsvc.DriverCertification
 	DriverCertificationDetailRequest = adminsvc.DriverCertificationDetailRequest
 	DriverCertificationListRequest   = adminsvc.DriverCertificationListRequest
 	DriverCertificationListResponse  = adminsvc.DriverCertificationListResponse
 	ExportTask                       = adminsvc.ExportTask
+	ExportTaskDetailRequest          = adminsvc.ExportTaskDetailRequest
 	ExportTaskListRequest            = adminsvc.ExportTaskListRequest
 	ExportTaskListResponse           = adminsvc.ExportTaskListResponse
 	ExportTaskRequest                = adminsvc.ExportTaskRequest
@@ -65,6 +79,12 @@ type (
 	OrderStatisticsResponse          = adminsvc.OrderStatisticsResponse
 	OrderStatusLog                   = adminsvc.OrderStatusLog
 	Payment                          = adminsvc.Payment
+	PriceRule                        = adminsvc.PriceRule
+	PriceRuleDetailRequest           = adminsvc.PriceRuleDetailRequest
+	PriceRuleListRequest             = adminsvc.PriceRuleListRequest
+	PriceRuleListResponse            = adminsvc.PriceRuleListResponse
+	PriceRuleRequest                 = adminsvc.PriceRuleRequest
+	PriceRuleStatusRequest           = adminsvc.PriceRuleStatusRequest
 	PromotionActivity                = adminsvc.PromotionActivity
 	PromotionActivityActionRequest   = adminsvc.PromotionActivityActionRequest
 	PromotionActivityListRequest     = adminsvc.PromotionActivityListRequest
@@ -72,8 +92,13 @@ type (
 	PromotionActivityRequest         = adminsvc.PromotionActivityRequest
 	RegisterRequest                  = adminsvc.RegisterRequest
 	RiskHitRecord                    = adminsvc.RiskHitRecord
+	RiskHitActionRequest             = adminsvc.RiskHitActionRequest
+	RiskHitActionResponse            = adminsvc.RiskHitActionResponse
 	RiskHitRecordListRequest         = adminsvc.RiskHitRecordListRequest
 	RiskHitRecordListResponse        = adminsvc.RiskHitRecordListResponse
+	AdminAuditOutboxListRequest      = adminsvc.AdminAuditOutboxListRequest
+	AdminAuditOutbox                 = adminsvc.AdminAuditOutbox
+	AdminAuditOutboxListResponse     = adminsvc.AdminAuditOutboxListResponse
 	Settlement                       = adminsvc.Settlement
 	StatisticsOverviewResponse       = adminsvc.StatisticsOverviewResponse
 	StatisticsRequest                = adminsvc.StatisticsRequest
@@ -81,6 +106,8 @@ type (
 	UserDetailRequest                = adminsvc.UserDetailRequest
 	UserListRequest                  = adminsvc.UserListRequest
 	UserListResponse                 = adminsvc.UserListResponse
+	ValidateSessionRequest           = adminsvc.ValidateSessionRequest
+	ValidateSessionResponse          = adminsvc.ValidateSessionResponse
 
 	AdminService interface {
 		// 管理员注册。
@@ -89,6 +116,8 @@ type (
 		Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 		// 管理员退出登录。
 		Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 校验管理员登录会话。
+		ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error)
 		// 查询当前管理员信息。
 		Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
 		// 查询角色菜单。
@@ -104,6 +133,15 @@ type (
 		// 解封用户。
 		UnfreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询司机审核列表。
+		ListDrivers(ctx context.Context, in *DriverListRequest, opts ...grpc.CallOption) (*DriverListResponse, error)
+		GetDriver(ctx context.Context, in *DriverDetailRequest, opts ...grpc.CallOption) (*Driver, error)
+		FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 解冻司机。
+		UnfreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 查询司机提现申请列表。
+		ListDriverWithdrawals(ctx context.Context, in *DriverWithdrawListRequest, opts ...grpc.CallOption) (*DriverWithdrawListResponse, error)
+		// 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+		HandleDriverWithdraw(ctx context.Context, in *DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error)
 		// 查询司机审核详情。
 		GetDriverCertification(ctx context.Context, in *DriverCertificationDetailRequest, opts ...grpc.CallOption) (*DriverCertification, error)
@@ -122,7 +160,7 @@ type (
 		// 查询优惠券模板列表。
 		ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error)
 		// 创建优惠券模板。
-		CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CreateCouponResponse, error)
 		// 更新优惠券模板。
 		UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 下架优惠券模板。
@@ -131,6 +169,18 @@ type (
 		IssueCoupon(ctx context.Context, in *CouponIssueRequest, opts ...grpc.CallOption) (*CouponIssueResponse, error)
 		// 查询优惠券发放任务列表。
 		ListCouponIssueTasks(ctx context.Context, in *CouponIssueTaskListRequest, opts ...grpc.CallOption) (*CouponIssueTaskListResponse, error)
+		// 查询计价规则列表。
+		ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error)
+		// 查询计价规则详情。
+		GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error)
+		// 创建计价规则。
+		CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error)
+		// 更新计价规则。
+		UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 启用计价规则。
+		EnablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 停用计价规则。
+		DisablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询活动配置列表。
 		ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error)
 		// 创建活动配置。
@@ -145,12 +195,18 @@ type (
 		GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error)
 		// 查询订单统计。
 		GetOrderStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*OrderStatisticsResponse, error)
+		// 查询司机统计。
+		GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error)
+		// 查询财务统计。
+		GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error)
 		// 查询优惠券统计。
 		GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
 		// 创建导出任务。
 		CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error)
 		// 查询导出任务列表。
 		ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error)
+		// 查询导出任务详情。
+		GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error)
 		// 查询风控黑名单列表。
 		ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error)
 		// 新增风控黑名单。
@@ -159,6 +215,10 @@ type (
 		ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询风控命中记录。
 		ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
+		// 处置风控命中记录。
+		HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
+		// 查询通知与审计补偿任务。
+		ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error)
 	}
 
 	defaultAdminService struct {
@@ -188,6 +248,12 @@ func (m *defaultAdminService) Login(ctx context.Context, in *LoginRequest, opts 
 func (m *defaultAdminService) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.Logout(ctx, in, opts...)
+}
+
+// 校验管理员登录会话。
+func (m *defaultAdminService) ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ValidateSession(ctx, in, opts...)
 }
 
 // 查询当前管理员信息。
@@ -230,6 +296,42 @@ func (m *defaultAdminService) FreezeUser(ctx context.Context, in *ChangeUserStat
 func (m *defaultAdminService) UnfreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.UnfreezeUser(ctx, in, opts...)
+}
+
+// 查询司机基础资料列表。
+func (m *defaultAdminService) ListDrivers(ctx context.Context, in *DriverListRequest, opts ...grpc.CallOption) (*DriverListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListDrivers(ctx, in, opts...)
+}
+
+// 查询司机基础资料详情。
+func (m *defaultAdminService) GetDriver(ctx context.Context, in *DriverDetailRequest, opts ...grpc.CallOption) (*Driver, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetDriver(ctx, in, opts...)
+}
+
+// 冻结司机。
+func (m *defaultAdminService) FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.FreezeDriver(ctx, in, opts...)
+}
+
+// 解冻司机。
+func (m *defaultAdminService) UnfreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.UnfreezeDriver(ctx, in, opts...)
+}
+
+// 查询司机提现申请列表。
+func (m *defaultAdminService) ListDriverWithdrawals(ctx context.Context, in *DriverWithdrawListRequest, opts ...grpc.CallOption) (*DriverWithdrawListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListDriverWithdrawals(ctx, in, opts...)
+}
+
+// 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+func (m *defaultAdminService) HandleDriverWithdraw(ctx context.Context, in *DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.HandleDriverWithdraw(ctx, in, opts...)
 }
 
 // 查询司机审核列表。
@@ -287,7 +389,7 @@ func (m *defaultAdminService) ListCoupons(ctx context.Context, in *CouponListReq
 }
 
 // 创建优惠券模板。
-func (m *defaultAdminService) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+func (m *defaultAdminService) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CreateCouponResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.CreateCoupon(ctx, in, opts...)
 }
@@ -314,6 +416,42 @@ func (m *defaultAdminService) IssueCoupon(ctx context.Context, in *CouponIssueRe
 func (m *defaultAdminService) ListCouponIssueTasks(ctx context.Context, in *CouponIssueTaskListRequest, opts ...grpc.CallOption) (*CouponIssueTaskListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListCouponIssueTasks(ctx, in, opts...)
+}
+
+// 查询计价规则列表。
+func (m *defaultAdminService) ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListPriceRules(ctx, in, opts...)
+}
+
+// 查询计价规则详情。
+func (m *defaultAdminService) GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetPriceRule(ctx, in, opts...)
+}
+
+// 创建计价规则。
+func (m *defaultAdminService) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.CreatePriceRule(ctx, in, opts...)
+}
+
+// 更新计价规则。
+func (m *defaultAdminService) UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.UpdatePriceRule(ctx, in, opts...)
+}
+
+// 启用计价规则。
+func (m *defaultAdminService) EnablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.EnablePriceRule(ctx, in, opts...)
+}
+
+// 停用计价规则。
+func (m *defaultAdminService) DisablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.DisablePriceRule(ctx, in, opts...)
 }
 
 // 查询活动配置列表。
@@ -358,6 +496,18 @@ func (m *defaultAdminService) GetOrderStatistics(ctx context.Context, in *Statis
 	return client.GetOrderStatistics(ctx, in, opts...)
 }
 
+// 查询司机统计。
+func (m *defaultAdminService) GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetDriverStatistics(ctx, in, opts...)
+}
+
+// 查询财务统计。
+func (m *defaultAdminService) GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetFinanceStatistics(ctx, in, opts...)
+}
+
 // 查询优惠券统计。
 func (m *defaultAdminService) GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
@@ -374,6 +524,12 @@ func (m *defaultAdminService) CreateExportTask(ctx context.Context, in *ExportTa
 func (m *defaultAdminService) ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListExportTasks(ctx, in, opts...)
+}
+
+// 查询导出任务详情。
+func (m *defaultAdminService) GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetExportTask(ctx, in, opts...)
 }
 
 // 查询风控黑名单列表。
@@ -398,4 +554,16 @@ func (m *defaultAdminService) ReleaseBlacklist(ctx context.Context, in *Blacklis
 func (m *defaultAdminService) ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListRiskHitRecords(ctx, in, opts...)
+}
+
+// 处置风控命中记录。
+func (m *defaultAdminService) HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.HandleRiskHitRecords(ctx, in, opts...)
+}
+
+// ListAdminAuditOutbox 查询通知与审计补偿任务。
+func (m *defaultAdminService) ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.ListAdminAuditOutbox(ctx, in, opts...)
 }

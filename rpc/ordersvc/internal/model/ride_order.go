@@ -9,6 +9,7 @@ type RideOrder struct {
 	UserId             uint64     `gorm:"column:user_id" json:"userId"`
 	DriverId           uint64     `gorm:"column:driver_id;default:0" json:"driverId"`
 	CarType            int8       `gorm:"column:car_type;default:1" json:"carType"`
+	CityCode           string     `gorm:"column:city_code;size:16;default:''" json:"cityCode"`
 	FromAddress        string     `gorm:"column:from_address;size:255" json:"fromAddress"`
 	FromLongitude      float64    `gorm:"column:from_longitude;type:decimal(10,6)" json:"fromLongitude"`
 	FromLatitude       float64    `gorm:"column:from_latitude;type:decimal(10,6)" json:"fromLatitude"`
@@ -18,7 +19,14 @@ type RideOrder struct {
 	EstimatedDistanceM int        `gorm:"column:estimated_distance_m;default:0" json:"estimatedDistanceM"`
 	EstimatedDurationS int        `gorm:"column:estimated_duration_s;default:0" json:"estimatedDurationS"`
 	EstimatedPrice     float64    `gorm:"column:estimated_price;type:decimal(10,2);default:0" json:"estimatedPrice"`
-	Status             int8       `gorm:"column:status;default:1" json:"status"`
+	// 优惠券与金额快照：下单时锁定优惠券后落库，支付/退款时更新实付与退款金额（P1-订单-1/2）。
+	CouponId       int64   `gorm:"column:coupon_id;default:0" json:"couponId"`             // 锁定的优惠券 ID，0 表示未用券
+	DiscountCents  int64   `gorm:"column:discount_cents;default:0" json:"discountCents"`  // 优惠金额（分）
+	PayableCents   int64   `gorm:"column:payable_cents;default:0" json:"payableCents"`     // 实付金额（分）
+	PaidCents      int64   `gorm:"column:paid_cents;default:0" json:"paidCents"`           // 已支付金额（分）
+	RefundCents    int64   `gorm:"column:refund_cents;default:0" json:"refundCents"`       // 已退款金额（分）
+	ActualPrice    float64 `gorm:"column:actual_price;type:decimal(10,2);default:0" json:"actualPrice"`
+	Status         int8    `gorm:"column:status;default:1" json:"status"`
 	CancelReason       string     `gorm:"column:cancel_reason;size:255;default:''" json:"cancelReason"`
 	CancelBy           string     `gorm:"column:cancel_by;size:20;default:''" json:"cancelBy"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"createdAt"`

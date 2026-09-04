@@ -8,11 +8,12 @@
 -- 幂等：删除本文件管理的北京默认规则，避免重复执行导致数据堆积
 DELETE FROM `price_rule`
 WHERE `city_code` = '110000'
-  AND `name` IN ('北京特惠快车', '北京快车', '北京拼车');
+  AND `name` IN ('北京特惠快车', '北京快车', '北京专车');
 
 INSERT INTO `price_rule`
   (`name`, `city_code`, `car_type`, `base_price`, `base_distance_km`, `per_km_price`, `per_minute_price`, `night_start_time`, `night_end_time`, `night_surcharge`, `dynamic_max_factor`, `status`, `effective_at`)
 VALUES
   ('北京特惠快车', '110000', 1, 8.00,  2.00, 1.80, 0.40, '23:00:00', '05:00:00', 5.00, 1.20, 1, NOW()),
   ('北京快车',     '110000', 2, 12.00, 3.00, 2.50, 0.50, '23:00:00', '05:00:00', 8.00, 1.50, 1, NOW()),
-  ('北京拼车',     '110000', 3, 6.00,  2.00, 1.20, 0.30, '23:00:00', '05:00:00', 3.00, 1.10, 1, NOW());
+  ('北京专车',     '110000', 3, 18.00, 3.00, 3.20, 0.60, '23:00:00', '05:00:00', 3.00, 1.10, 1, NOW());
+

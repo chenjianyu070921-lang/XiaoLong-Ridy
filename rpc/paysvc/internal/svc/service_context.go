@@ -8,8 +8,9 @@ import (
 	"XiaoLong-Ridy/rpc/paysvc/internal/channel"
 	"XiaoLong-Ridy/rpc/paysvc/internal/config"
 	"XiaoLong-Ridy/rpc/paysvc/internal/orderclient"
+	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 	"time"
-
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 	"gorm.io/gorm"
@@ -20,7 +21,9 @@ type ServiceContext struct {
 	DB          *gorm.DB
 	Producer    mq.Producer             // Kafka 生产者
 	OrderClient orderclient.OrderClient // 订单服务客户端
+	UserClient  usersvc.UserClient      // 用户钱包客户端
 	Verifier    channel.SignVerifier    // 回调验签器
+	Redis       *redis.Client           // 退款幂等结果缓存
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -38,15 +41,32 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	svcCtx := &ServiceContext{
 		Config: c,
 		DB:     db,
+		Redis:  datasource.NewRedisClient(c.RefundRedis),
 	}
 
 	// Kafka 生产者（容错：未启动时降级为 NoopProducer）
 	svcCtx.Producer = newProducer(c.Kafka)
 
-	// 订单服务客户端（直连，懒连接）
-	svcCtx.OrderClient = orderclient.NewRpcOrderClient(zrpc.MustNewClient(zrpc.RpcClientConf{
-		Target: c.Ordersvc.Target,
-	}))
+	// 订单服务客户端（直连，懒连接；配置缺失或下游未就绪时降级，避免进程 fatal panic）
+	orderTarget := c.Ordersvc.Target
+	if orderTarget == "" {
+		orderTarget = "127.0.0.1:50051"
+	}
+	// NonBlock：懒连接，下游（ordersvc）未就绪时不阻塞、不报错，首次调用时再建立连接
+	orderCli, err := zrpc.NewClient(zrpc.RpcClientConf{Target: orderTarget, NonBlock: true})
+	if err != nil {
+		logx.Errorf("init ordersvc client failed: %v", err)
+	}
+	svcCtx.OrderClient = orderclient.NewRpcOrderClient(orderCli)
+	userTarget := c.Usersvc.Target
+	if userTarget == "" {
+		userTarget = "127.0.0.1:50052"
+	}
+	if userCli, userErr := zrpc.NewClient(zrpc.RpcClientConf{Target: userTarget, NonBlock: true}); userErr == nil {
+		svcCtx.UserClient = usersvc.NewUserClient(userCli.Conn())
+	} else {
+		logx.Errorf("init usersvc client failed: %v", userErr)
+	}
 
 	// 回调验签器（容错：密钥为空时降级为 MockVerifier）
 	svcCtx.Verifier = newVerifier(c.Alipay)

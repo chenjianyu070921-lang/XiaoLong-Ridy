@@ -16,6 +16,10 @@ service Pay {
   rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
   // 司机结算：计算平台抽成与司机实收。
   rpc SettleOrder(SettleOrderRequest) returns (SettleOrderResponse);
+  // 结算查询：按订单ID查询司机结算单，供管理后台展示。
+  rpc GetSettlement(GetSettlementRequest) returns (GetSettlementResponse);
+  // 结算列表：按司机/状态/时间范围分页查询结算单。
+  rpc ListSettlements(ListSettlementsRequest) returns (ListSettlementsResponse);
 }
 
 // 支付渠道
@@ -76,6 +80,8 @@ message GetPaymentResponse {
   int32 status = 6;            // 1待支付 2支付成功 3支付失败 4已退款
   string transaction_id = 7;
   int64 refund_amount_cents = 8; // 已退款金额（分）
+  int64 user_id = 9;           // 支付用户ID
+  int64 paid_at = 10;          // 支付时间（Unix 秒），未支付为 0
 }
 
 // 退款请求
@@ -83,6 +89,7 @@ message RefundPaymentRequest {
   string payment_no = 1;
   int64 refund_amount_cents = 2; // 退款金额（分）
   string reason = 3;
+  string refund_no = 4; // 调用方业务退款单号，用于跨服务幂等与渠道退款标识
 }
 
 // 退款响应
@@ -106,4 +113,55 @@ message SettleOrderResponse {
   string settlement_no = 2;
   int64 platform_commission_cents = 3; // 平台抽成（分）
   int64 driver_income_cents = 4;       // 司机实收（分）
+}
+
+// 结算查询请求（HEAD：供管理后台订单结算详情）。
+message GetSettlementRequest {
+  int64 order_id = 1;
+}
+
+// 结算查询响应（HEAD）。
+message GetSettlementResponse {
+  int64 settlement_id = 1;
+  string settlement_no = 2;
+  int64 order_id = 3;
+  int64 driver_id = 4;
+  int64 total_amount_cents = 5;        // 订单总金额（分）
+  string platform_commission_rate = 6; // 平台抽成比例，如 20 表示 20%
+  int64 platform_commission_cents = 7; // 平台抽成（分）
+  int64 driver_income_cents = 8;       // 司机实收（分）
+  int32 status = 9;                    // 1待结算 2已结算
+  int64 settled_at = 10;               // 结算时间（Unix 秒），未结算为 0
+}
+
+// 结算列表请求（develop：按司机/状态/时间范围分页查询）。
+message ListSettlementsRequest {
+  int64 driver_id = 1;
+  int32 status = 2;
+  int64 start_at = 3;
+  int64 end_at = 4;
+  int32 page = 5;
+  int32 page_size = 6;
+}
+
+// 结算单（develop）。
+message SettlementBill {
+  int64 settlement_id = 1;
+  string settlement_no = 2;
+  int64 order_id = 3;
+  int64 driver_id = 4;
+  int64 total_amount_cents = 5;
+  int64 platform_commission_cents = 6;
+  int64 driver_income_cents = 7;
+  int32 status = 8;
+  int64 settled_at = 9;
+  int64 created_at = 10;
+}
+
+// 结算列表响应（develop）。
+message ListSettlementsResponse {
+  repeated SettlementBill records = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }

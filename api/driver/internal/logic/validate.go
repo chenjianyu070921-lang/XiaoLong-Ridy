@@ -1,49 +1,134 @@
-// Package logic 实现 driver API 的业务逻辑层，负责入参校验与调用下游 driversvc。
 package logic
 
 import (
-	"errors" // 用于定义业务错误变量
-	"regexp"  // 用于手机号与身份证的正则匹配
+	"errors"
+	"regexp"
+	"strings"
+
+	"XiaoLong-Ridy/api/driver/internal/types"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 )
 
-// 业务错误定义，供 handler 层映射为 HTTP 错误码。
 var (
-	// ErrDriverClientNotConfigured 表示 driversvc 客户端未配置（连接失败）。
-	ErrDriverClientNotConfigured = errors.New("driver client not configured")
-	// ErrInvalidParam 表示通用参数非法错误（当前未直接使用，保留扩展）。
-	ErrInvalidParam = errors.New("invalid param")
+	ErrDriverClientNotConfigured   = errors.New("driver client not configured")
+	ErrOrderClientNotConfigured    = errors.New("order client not configured")
+	ErrPayClientNotConfigured      = errors.New("pay client not configured")
+	ErrPriceClientNotConfigured    = errors.New("price client not configured")
+	ErrDispatchClientNotConfigured = errors.New("dispatch client not configured")
+	ErrHeatmapStorageNotConfigured = errors.New("order heatmap storage not configured")
+	ErrInvalidParam                = errors.New("invalid param")
+	ErrForbiddenDriverResource     = errors.New("forbidden driver resource")
 )
 
-// phoneRegexp 是中国大陆手机号的正则：1 开头，第二位 3-9，后接 9 位数字。
-var phoneRegexp = regexp.MustCompile(`^1[3-9]\d{9}$`)
+const (
+	maxVehicleBrandLen     = 64
+	maxVehicleModelLen     = 64
+	maxVehicleColorLen     = 32
+	maxVehicleInsuranceLen = 64
+)
 
-// validPhone 校验字符串是否符合中国大陆手机号格式。
+var phoneRegexp = regexp.MustCompile(`^(?:1[3-9]\d{9}|\d{12,15})$`)
+var vehiclePlateRegexp = regexp.MustCompile("^[京津沪渝冀云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9挂学警港澳]?$")
+
 func validPhone(phone string) bool {
-	// 使用预编译正则进行匹配。
 	return phoneRegexp.MatchString(phone)
 }
 
-// validIDCard 校验 18 位身份证号基础格式（前 17 位为数字，末位为数字或 X）。
+// validLocation 校验经纬度是否落在合法范围内。
+func validLocation(longitude, latitude float64) bool {
+	return longitude >= -180 && longitude <= 180 &&
+		latitude >= -90 && latitude <= 90 &&
+		(longitude != 0 || latitude != 0)
+}
+
 func validIDCard(no string) bool {
-	// 使用正则匹配 17 位数字 + 末位数字或 X/x。
 	matched, _ := regexp.MatchString(`^\d{17}[\dXx]$`, no)
 	return matched
 }
 
-// clampPage 将分页参数收敛到合法范围：page 至少为 1，pageSize 限制在 1~100。
+func validPassword(password string) bool {
+	n := len(password)
+	return n >= 8 && n <= 72
+}
+
+func validDriverStatus(status string) bool {
+	switch status {
+	case "DRIVER_STATUS_PENDING", "DRIVER_STATUS_NORMAL", "DRIVER_STATUS_FROZEN", "DRIVER_STATUS_CANCELLED":
+		return true
+	default:
+		return false
+	}
+}
+
+func enumVehicleStatus(status *string) *driversproto.VehicleStatus {
+	if status == nil || *status == "" {
+		return nil
+	}
+	value := strings.ToUpper(strings.TrimSpace(*status))
+	var mapped driversproto.VehicleStatus
+	switch value {
+	case "VEHICLE_STATUS_PENDING", "VEHICLE_STATUS_NORMAL", "VEHICLE_STATUS_DISABLED":
+		switch value {
+		case "VEHICLE_STATUS_PENDING":
+			mapped = driversproto.VehicleStatus_VEHICLE_STATUS_PENDING
+		case "VEHICLE_STATUS_NORMAL":
+			mapped = driversproto.VehicleStatus_VEHICLE_STATUS_NORMAL
+		case "VEHICLE_STATUS_DISABLED":
+			mapped = driversproto.VehicleStatus_VEHICLE_STATUS_DISABLED
+		}
+		return &mapped
+	default:
+		return nil
+	}
+}
+
+func validVehiclePlate(plateNo string) bool {
+	return vehiclePlateRegexp.MatchString(strings.ToUpper(strings.TrimSpace(plateNo)))
+}
+
+func validVehicleType(vehicleType int32) bool {
+	return vehicleType >= 1 && vehicleType <= 5
+}
+
+func validCreateVehicle(plateNo, brand, model, color string, vehicleType int32, insuranceNo string) bool {
+	if !validVehiclePlate(plateNo) || !validVehicleType(vehicleType) {
+		return false
+	}
+	return validRequiredLength(brand, maxVehicleBrandLen) &&
+		validRequiredLength(model, maxVehicleModelLen) &&
+		validOptionalLength(color, maxVehicleColorLen) &&
+		validOptionalLength(insuranceNo, maxVehicleInsuranceLen)
+}
+
+func validRequiredLength(value string, max int) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && len([]rune(value)) <= max
+}
+
+func validOptionalLength(value string, max int) bool {
+	return len([]rune(strings.TrimSpace(value))) <= max
+}
+
+func normalizeRegisterDriverRequest(req *types.RegisterDriverRequest) {
+	if req == nil {
+		return
+	}
+	req.Phone = strings.TrimSpace(req.Phone)
+	req.RealName = strings.TrimSpace(req.RealName)
+	req.IdCardNo = strings.ToUpper(strings.TrimSpace(req.IdCardNo))
+	req.DriverLicenseNo = strings.TrimSpace(req.DriverLicenseNo)
+	req.AvatarURL = strings.TrimSpace(req.AvatarURL)
+}
+
 func clampPage(page, pageSize int32) (int32, int32) {
-	// 页码小于 1 时归正为 1。
 	if page < 1 {
 		page = 1
 	}
-	// 每页条数小于 1 时使用默认 20。
 	if pageSize < 1 {
 		pageSize = 20
 	}
-	// 每页条数超过上限 100 时收敛为 100，防止一次拉取过多。
 	if pageSize > 100 {
 		pageSize = 100
 	}
-	// 返回修正后的页码与每页条数。
 	return page, pageSize
 }

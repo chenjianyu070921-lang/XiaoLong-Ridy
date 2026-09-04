@@ -1,80 +1,360 @@
-// Package main 是司机端 HTTP API 服务的程序入口。
 package main
 
 import (
-	"fmt"  // 用于格式化启动失败的错误信息
-	"log"  // 用于输出服务启动日志
-	"net/http" // 提供 HTTP 服务器与路由能力
-	"os"  // 用于读取环境变量配置
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime/debug"
+	"strings"
+	"syscall"
+	"time"
 
-	"XiaoLong-Ridy/api/driver/internal/handler" // 注册各业务域的 HTTP 路由处理器
-	"XiaoLong-Ridy/api/driver/internal/svc"      // 提供包含 driversvc 客户端的服务上下文
+	"XiaoLong-Ridy/api/driver/internal/handler"
+	"XiaoLong-Ridy/api/driver/internal/middleware"
+	"XiaoLong-Ridy/api/driver/internal/svc"
+	commonconfig "XiaoLong-Ridy/common/config"
+	qiniuutil "XiaoLong-Ridy/common/qiniu"
+
+	"gopkg.in/yaml.v3"
 )
 
-// defaultHTTPAddress 是 driver API 的默认 HTTP 监听地址（端口 8082）。
 const defaultHTTPAddress = ":8082"
 
-// defaultDriverGRPCAddr 是下游 driversvc gRPC 服务的默认地址（本地 8080）。
-const defaultDriverGRPCAddr = "127.0.0.1:8080"
+// Driver-side backend services use the shared development server by default.
+const defaultDriverGRPCAddr = "115.191.16.159:50055"
 
-// main 是程序入口：解析配置、构建服务上下文、启动 HTTP 服务。
+const defaultOrderGRPCAddr = "115.191.16.159:50051"
+
+const defaultPayGRPCAddr = "115.191.16.159:50054"
+
+const defaultPriceGRPCAddr = "115.191.16.159:50053"
+
+const defaultDispatchGRPCAddr = "115.191.16.159:50056"
+
+const defaultLocationGRPCAddr = "115.191.16.159:50057"
+
+const defaultRedisAddr = ""
+
+type driverConfig struct {
+	HTTPAddr           string                 `yaml:"httpAddr"`
+	DriverGRPCAddr     string                 `yaml:"driverGrpcAddr"`
+	OrderGRPCAddr      string                 `yaml:"orderGrpcAddr"`
+	PayGRPCAddr        string                 `yaml:"payGrpcAddr"`
+	PriceGRPCAddr      string                 `yaml:"priceGrpcAddr"`
+	DispatchGRPCAddr   string                 `yaml:"dispatchGrpcAddr"`
+	LocationGRPCAddr   string                 `yaml:"locationGrpcAddr"`
+	CORSAllowedOrigins []string               `yaml:"corsAllowedOrigins"`
+	RedisAddr          string                 `yaml:"redisAddr"`
+	RedisPassword      string                 `yaml:"redisPassword"`
+	Mysql              commonconfig.MysqlConf `yaml:"mysql"`
+	InternalAuth       svc.InternalAuthConfig `yaml:"internalAuth"`
+	QiniuAccessKey     string                 `yaml:"qiniuAccessKey"`
+	QiniuSecretKey     string                 `yaml:"qiniuSecretKey"`
+	QiniuBucket        string                 `yaml:"qiniuBucket"`
+	QiniuDomain        string                 `yaml:"qiniuDomain"`
+	QiniuUploadURL     string                 `yaml:"qiniuUploadURL"`
+}
+
 func main() {
-	// 从环境变量读取 HTTP 监听地址，未配置时使用默认值。
-	address := os.Getenv("DRIVER_HTTP_ADDR")
-	if address == "" {
-		// 环境变量为空，回退到默认地址。
-		address = defaultHTTPAddress
+	configPath := flag.String("f", "etc/driver.yaml", "driver api config file")
+	flag.Parse()
+
+	cfg, err := loadDriverConfig(*configPath)
+	if err != nil {
+		panic(fmt.Errorf("load driver api config: %w", err))
 	}
-	// 从环境变量读取 driversvc 的 gRPC 地址，未配置时使用默认值。
-	grpcAddr := os.Getenv("DRIVER_GRPC_ADDR")
-	if grpcAddr == "" {
-		// 环境变量为空，回退到默认 gRPC 地址。
-		grpcAddr = defaultDriverGRPCAddr
+	address := envOr("DRIVER_HTTP_ADDR", cfg.HTTPAddr)
+	driverGRPCAddr := envOr("DRIVER_GRPC_ADDR", cfg.DriverGRPCAddr)
+	orderGRPCAddr := envOr("ORDER_GRPC_ADDR", cfg.OrderGRPCAddr)
+	payGRPCAddr := envOr("PAY_GRPC_ADDR", cfg.PayGRPCAddr)
+	priceGRPCAddr := envOr("PRICE_GRPC_ADDR", cfg.PriceGRPCAddr)
+	dispatchGRPCAddr := envOr("DISPATCH_GRPC_ADDR", cfg.DispatchGRPCAddr)
+	locationGRPCAddr := envOr("LOCATION_GRPC_ADDR", cfg.LocationGRPCAddr)
+	redisAddr := envOr("DRIVER_REDIS_ADDR", cfg.RedisAddr)
+	redisPassword := envOr("DRIVER_REDIS_PASSWORD", cfg.RedisPassword)
+	if internalToken := envOr("DRIVER_INTERNAL_SERVICE_TOKEN", ""); internalToken != "" {
+		cfg.InternalAuth.ServiceToken = internalToken
+	}
+	if mysqlDSN := envOr("DRIVER_MYSQL_DSN", ""); mysqlDSN != "" {
+		cfg.Mysql.Dsn = mysqlDSN
 	}
 
-	// 构造 HTTP 服务器，将路由处理器挂载到服务上下文之上。
+	svcCtx := svc.NewServiceContextWithStorage(
+		driverGRPCAddr,
+		orderGRPCAddr,
+		dispatchGRPCAddr,
+		locationGRPCAddr,
+		commonconfig.RedisConf{Host: redisAddr, Pass: redisPassword},
+		cfg.Mysql,
+		payGRPCAddr,
+		priceGRPCAddr,
+	)
+	svcCtx.InternalAuth = cfg.InternalAuth
+	if qiniuClient, err := newDriverQiniuClient(cfg); err != nil {
+		panic(fmt.Errorf("driver qiniu config: %w", err))
+	} else {
+		svcCtx.Qiniu = qiniuClient
+	}
+	svcCtx.SigningKey = envOr("DRIVER_SIGNING_KEY", svcCtx.SigningKey)
+	if err := svcCtx.ValidateSigningKey(); err != nil {
+		panic(fmt.Errorf("driver api signing key check: %w", err))
+	}
+	if err := svcCtx.ValidateInternalAuth(); err != nil {
+		panic(fmt.Errorf("driver api internal auth check: %w", err))
+	}
+
 	server := &http.Server{
-		Addr:    address,                              // 监听地址
-		Handler: newHTTPHandler(svc.NewServiceContext(grpcAddr)), // 注入持有 driversvc 客户端的上下文
+		Addr:         address,
+		Handler:      recoverMiddleware(withCORS(newHTTPHandler(svcCtx), driverCORSAllowedOrigins(cfg))),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
-	// 输出启动日志，便于本地联调确认监听信息。
-	log.Printf("driver api started at http://127.0.0.1%s  (driversvc gRPC: %s)", address, grpcAddr)
-	// 启动 HTTP 服务并阻塞监听；仅在发生非预期错误时返回。
+	log.Printf("driver api started at http://%s  (driversvc gRPC: %s, ordersvc gRPC: %s, paysvc gRPC: %s, pricesvc gRPC: %s, dispatchsvc gRPC: %s, locationsvc gRPC: %s, redis: %s)", address, driverGRPCAddr, orderGRPCAddr, payGRPCAddr, priceGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr)
+	stopCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		<-stopCtx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
+	}()
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		// 启动失败直接 panic，由上层或进程管理器捕获。
-		panic(fmt.Errorf("启动 driver api 失败: %w", err))
+		panic(fmt.Errorf("start driver api: %w", err))
+	}
+	if svcCtx.RedisClient != nil {
+		_ = svcCtx.RedisClient.Close()
 	}
 }
 
-// newHTTPHandler 构建并返回司机端全部 HTTP 路由的复用多路复用器（ServeMux）。
-func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
-	// 创建标准库的多路复用器，按路径分发请求到对应处理器。
-	mux := http.NewServeMux()
-	// 司机（仅保留增删改查四个核心接口，为后续对接留出清晰空间）
-	// 创建司机：仅允许 POST 方法。
-	mux.HandleFunc("/api/driver/v1/drivers", methodSwitch("POST", handler.CreateDriverHandler(svcCtx)))
-	// 更新司机信息。
-	mux.HandleFunc("/api/driver/v1/drivers/update", handler.UpdateDriverHandler(svcCtx))
-	// 查询司机详情（通过 ?id= 传参）。
-	mux.HandleFunc("/api/driver/v1/drivers/get", handler.GetDriverHandler(svcCtx))
-	// 删除（软删）司机（通过 ?id= 传参）。
-	mux.HandleFunc("/api/driver/v1/drivers/delete", handler.DeleteDriverHandler(svcCtx))
-	// 将构建好的多路复用器返回给 HTTP 服务器使用。
-	return mux
+// recoverMiddleware 捕获 handler panic，返回 500 而非让连接异常断开。
+func recoverMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("panic recovered: %v\n%s", rec, debug.Stack())
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"code":50000,"message":"internal server error","data":null,"timestamp":0,"traceId":""}`))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
-// methodSwitch 返回一个仅允许指定 HTTP 方法的包装处理器；方法不匹配时返回 405。
+func newDriverQiniuClient(cfg driverConfig) (*qiniuutil.Client, error) {
+	qiniuCfg := qiniuutil.Config{
+		AccessKey: envOr("DRIVER_QINIU_ACCESS_KEY", envOr("PASSENGER_QINIU_ACCESS_KEY", cfg.QiniuAccessKey)),
+		SecretKey: envOr("DRIVER_QINIU_SECRET_KEY", envOr("PASSENGER_QINIU_SECRET_KEY", cfg.QiniuSecretKey)),
+		Bucket:    envOr("DRIVER_QINIU_BUCKET", envOr("PASSENGER_QINIU_BUCKET", cfg.QiniuBucket)),
+		Domain:    envOr("DRIVER_QINIU_DOMAIN", envOr("PASSENGER_QINIU_DOMAIN", cfg.QiniuDomain)),
+		UploadURL: envOr("DRIVER_QINIU_UPLOAD_URL", envOr("PASSENGER_QINIU_UPLOAD_URL", cfg.QiniuUploadURL)),
+	}
+	if qiniuCfg.AccessKey == "" && qiniuCfg.SecretKey == "" && qiniuCfg.Bucket == "" && qiniuCfg.Domain == "" {
+		return nil, nil
+	}
+	return qiniuutil.NewClient(qiniuCfg)
+}
+
+func loadDriverConfig(path string) (driverConfig, error) {
+	cfg := driverConfig{
+		HTTPAddr:         defaultHTTPAddress,
+		DriverGRPCAddr:   defaultDriverGRPCAddr,
+		OrderGRPCAddr:    defaultOrderGRPCAddr,
+		PayGRPCAddr:      defaultPayGRPCAddr,
+		PriceGRPCAddr:    defaultPriceGRPCAddr,
+		DispatchGRPCAddr: defaultDispatchGRPCAddr,
+		LocationGRPCAddr: defaultLocationGRPCAddr,
+		RedisAddr:        defaultRedisAddr,
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return cfg, nil
+		}
+		return cfg, err
+	}
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	if cfg.HTTPAddr == "" {
+		cfg.HTTPAddr = defaultHTTPAddress
+	}
+	if cfg.DriverGRPCAddr == "" {
+		cfg.DriverGRPCAddr = defaultDriverGRPCAddr
+	}
+	if cfg.OrderGRPCAddr == "" {
+		cfg.OrderGRPCAddr = defaultOrderGRPCAddr
+	}
+	if cfg.PayGRPCAddr == "" {
+		cfg.PayGRPCAddr = defaultPayGRPCAddr
+	}
+	if cfg.PriceGRPCAddr == "" {
+		cfg.PriceGRPCAddr = defaultPriceGRPCAddr
+	}
+	if cfg.DispatchGRPCAddr == "" {
+		cfg.DispatchGRPCAddr = defaultDispatchGRPCAddr
+	}
+	if cfg.LocationGRPCAddr == "" {
+		cfg.LocationGRPCAddr = defaultLocationGRPCAddr
+	}
+	return cfg, nil
+}
+
+func envOr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func driverCORSAllowedOrigins(cfg driverConfig) []string {
+	if origins := splitCSVEnv("DRIVER_CORS_ALLOWED_ORIGINS"); len(origins) > 0 {
+		return origins
+	}
+	return compactStrings(cfg.CORSAllowedOrigins)
+}
+
+func splitCSVEnv(key string) []string {
+	return compactStrings(strings.Split(os.Getenv(key), ","))
+}
+
+func compactStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+func localCertificationDir() string {
+	if dir := strings.TrimSpace(os.Getenv("DRIVER_CERT_LOCAL_DIR")); dir != "" {
+		return dir
+	}
+	return filepath.Join(".run", "certifications")
+}
+
+func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
+	mux := http.NewServeMux()
+
+	// 登录/注册/发码公开接口：接入 IP 级限流，防止验证码刷发与密码/验证码爆破。
+	// send-sms-code 限流更严（5 次/分钟/IP）；登录与注册 10 次/分钟/IP。
+	smsLimit := middleware.LoginRateLimit(5, time.Minute)
+	authLimit := middleware.LoginRateLimit(10, time.Minute)
+	mux.Handle("/api/driver/v1/auth/send-sms-code", smsLimit(methodSwitch("POST", handler.SendSMSCodeHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/auth/login-by-password", authLimit(methodSwitch("POST", handler.LoginByPasswordHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/auth/login-by-sms", authLimit(methodSwitch("POST", handler.LoginBySMSHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/register", authLimit(methodSwitch("POST", handler.RegisterDriverHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/certification-files/", http.StripPrefix(
+		"/api/driver/v1/certification-files/",
+		http.FileServer(http.Dir(localCertificationDir())),
+	))
+	protected := middleware.RequireAuth(svcCtx)
+	mux.Handle("/api/driver/v1/upload/avatar-token", protected(methodSwitch("POST", handler.AvatarUploadTokenHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/update", protected(methodSwitch("POST", handler.UpdateDriverHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/get", protected(methodSwitch("GET", handler.GetDriverHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/heartbeat", protected(methodSwitch("POST", handler.HeartbeatHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/location/report", protected(methodSwitch("POST", handler.ReportLocationHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/ai-score", protected(methodSwitch("GET", handler.GetDriverAiScoreHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/certification/upload", protected(methodSwitch("POST", handler.UploadCertificationHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/drivers/certification", protected(methodSwitch("GET", handler.GetCertificationHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles", protected(methodSwitch("POST", handler.CreateVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles/get", protected(methodSwitch("GET", handler.GetVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles/update", protected(methodSwitch("POST", handler.UpdateVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles/delete", protected(methodSwitch("POST", handler.DeleteVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/withdraws", protected(methodSwitch("POST", handler.CreateWithdrawHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/withdraws/list", protected(methodSwitch("POST", handler.ListWithdrawsHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/income/summary", protected(methodSwitch("GET", handler.GetIncomeSummaryHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/income/today", protected(methodSwitch("GET", handler.GetTodayIncomeHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/income/week", protected(methodSwitch("GET", handler.GetWeekIncomeHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/income/bills", protected(methodSwitch("POST", handler.ListIncomeBillsHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/accept", protected(methodSwitch("POST", handler.AcceptOrderHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/reject", protected(methodSwitch("POST", handler.RejectOrderHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/dispatches", protected(methodSwitch("POST", handler.ListMyDispatchesHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/available", protected(methodSwitch("POST", handler.ListAvailableOrdersHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/grab-list", protected(methodSwitch("POST", handler.ListAvailableOrdersHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/heatmap", protected(methodSwitch("POST", handler.GetOrderHeatmapHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/list", protected(methodSwitch("POST", handler.ListMyOrdersHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/detail", protected(methodSwitch("POST", handler.GetMyOrderDetailHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/start-trip", protected(methodSwitch("POST", handler.StartTripHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/confirm-arrive", protected(methodSwitch("POST", handler.ConfirmArriveHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/realtime-fare", protected(methodSwitch("POST", handler.GetRealtimeFareHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", handler.FinishTripHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/ws", handler.DriverPushWSHandler(svcCtx))
+	mux.Handle("/api/driver/v1/reviews/received", protected(methodSwitch("GET", handler.ListReceivedReviewsHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/reviews/submit", protected(methodSwitch("POST", handler.SubmitDriverReviewHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/reviews/given", protected(methodSwitch("POST", handler.ListGivenReviewsHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", handler.AgentChatHandler())))
+
+	return middleware.InternalServiceAuth(svcCtx)(mux)
+}
+
+func withCORS(next http.Handler, allowedOrigins []string) http.Handler {
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, origin := range compactStrings(allowedOrigins) {
+		allowed[origin] = struct{}{}
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		if origin == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if _, ok := allowed[origin]; !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		header := w.Header()
+		header.Set("Access-Control-Allow-Origin", origin)
+		header.Add("Vary", "Origin")
+		header.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		header.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Internal-Service-Token, X-Trace-Id")
+		header.Set("Access-Control-Max-Age", "600")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func internalOrDriverAuth(svcCtx *svc.ServiceContext, h http.HandlerFunc) http.Handler {
+	protected := middleware.RequireAuth(svcCtx)(h)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serviceToken := os.Getenv("DRIVER_AGENT_SERVICE_TOKEN")
+		if serviceToken != "" && r.Header.Get("X-Internal-Service-Token") == serviceToken {
+			h(w, r)
+			return
+		}
+		protected.ServeHTTP(w, r)
+	})
+}
+
 func methodSwitch(method string, h http.HandlerFunc) http.HandlerFunc {
-	// 返回闭包处理器，在真正处理前先做方法校验。
 	return func(w http.ResponseWriter, r *http.Request) {
-		// 校验请求方法是否为期望的方法。
 		if r.Method != method {
-			// 方法不匹配，返回 405 Method Not Allowed。
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		// 方法匹配，交给真实处理器处理。
 		h(w, r)
 	}
 }

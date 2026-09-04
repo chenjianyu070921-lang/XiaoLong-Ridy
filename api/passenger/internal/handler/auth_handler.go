@@ -44,6 +44,22 @@ func LoginBySMSHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// LoginByPasswordHandler 处理手机号密码登录请求。
+func LoginByPasswordHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.LoginByPasswordRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		resp, err := logic.NewAuthLogic(r.Context(), svcCtx).LoginByPassword(&req)
+		if err != nil {
+			writeAuthError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
 // RefreshTokenHandler 处理 POST /api/passenger/v1/auth/refresh-token。
 func RefreshTokenHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

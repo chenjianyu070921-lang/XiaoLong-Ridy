@@ -96,7 +96,7 @@ func (l *OrderLogic) Detail(ctx context.Context, id int64) (*types.OrderDetailDT
 	if err != nil {
 		return nil, err
 	}
-	detail := &types.OrderDetailDTO{Order: orderPBToDTO(resp.Order)}
+	detail := &types.OrderDetailDTO{Order: orderPBToDTO(resp.Order), Degraded: resp.GetDegraded()}
 	for _, item := range resp.StatusLogs {
 		detail.StatusLogs = append(detail.StatusLogs, types.OrderStatusLog{
 			ID: item.Id, OrderID: item.OrderId, FromStatus: item.FromStatus, ToStatus: item.ToStatus,
@@ -136,6 +136,34 @@ func (l *OrderLogic) Detail(ctx context.Context, id int64) (*types.OrderDetailDT
 	return detail, nil
 }
 
+// Track 查询订单轨迹点。
+// HTTP 层只接收查询参数，轨迹数据由 adminsvc 继续转发到 locationsvc，避免后台直接读取位置服务表。
+func (l *OrderLogic) Track(ctx context.Context, req types.OrderTrackRequest) (*types.OrderTrackDTO, error) {
+	resp, err := l.ctx.AdminSvc.GetOrderTrack(ctx, &adminclient.OrderTrackRequest{
+		OrderId:   req.OrderID,
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
+		Limit:     req.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	points := make([]types.OrderTrackPointDTO, 0, len(resp.GetPoints()))
+	for _, item := range resp.GetPoints() {
+		points = append(points, types.OrderTrackPointDTO{
+			ID:         item.GetId(),
+			OrderID:    item.GetOrderId(),
+			DriverID:   item.GetDriverId(),
+			Longitude:  item.GetLongitude(),
+			Latitude:   item.GetLatitude(),
+			SpeedKmh:   item.GetSpeedKmh(),
+			Direction:  item.GetDirection(),
+			RecordedAt: item.GetRecordedAt(),
+		})
+	}
+	return &types.OrderTrackDTO{Points: points}, nil
+}
+
 // Cancel 调用 adminsvc 取消订单，HTTP 层只负责传递管理员、订单和取消原因。
 func (l *OrderLogic) Cancel(ctx context.Context, id int64, req types.OrderCancelRequest, session *model.AdminSession, ip string) error {
 	reason := strings.TrimSpace(req.Reason)
@@ -143,12 +171,58 @@ func (l *OrderLogic) Cancel(ctx context.Context, id int64, req types.OrderCancel
 		reason = "后台取消订单"
 	}
 	_, err := l.ctx.AdminSvc.CancelOrder(ctx, &adminclient.AdminCancelOrderRequest{
-		OrderId: id,
-		Reason:  reason,
-		AdminId: session.AdminID,
-		Ip:      ip,
+		OrderId:   id,
+		Reason:    reason,
+		AdminId:   session.AdminID,
+		Ip:        ip,
+		RequestId: strings.TrimSpace(req.RequestID),
 	})
 	return err
+}
+
+// Redispatch 调用 adminsvc 执行后台人工改派。
+// HTTP 网关只透传管理员会话、目标司机和幂等号，订单状态校验及派单触发由下游 ordersvc 完成。
+func (l *OrderLogic) Redispatch(ctx context.Context, id int64, req types.OrderRedispatchRequest, session *model.AdminSession, ip string) (*types.OrderRedispatchResponse, error) {
+	resp, err := l.ctx.AdminSvc.RedispatchOrder(ctx, &adminclient.AdminRedispatchOrderRequest{
+		OrderId:     id,
+		NewDriverId: req.NewDriverID,
+		Reason:      strings.TrimSpace(req.Reason),
+		AdminId:     session.AdminID,
+		Ip:          ip,
+		RequestId:   strings.TrimSpace(req.RequestID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.OrderRedispatchResponse{
+		OrderID:  resp.GetOrderId(),
+		Status:   resp.GetStatus(),
+		DriverID: resp.GetDriverId(),
+		Message:  resp.GetMessage(),
+	}, nil
+}
+
+// Refund 调用 adminsvc 执行后台订单退款。
+// request_id 会在 adminsvc 层作为 refund_no 传入 ordersvc，确保资金类操作具备可追踪幂等号。
+func (l *OrderLogic) Refund(ctx context.Context, id int64, req types.OrderRefundRequest, session *model.AdminSession, ip string) (*types.OrderRefundResponse, error) {
+	resp, err := l.ctx.AdminSvc.RefundOrder(ctx, &adminclient.AdminRefundOrderRequest{
+		OrderId:           id,
+		RefundAmountCents: req.RefundAmountCents,
+		Reason:            strings.TrimSpace(req.Reason),
+		AdminId:           session.AdminID,
+		Ip:                ip,
+		RequestId:         strings.TrimSpace(req.RequestID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.OrderRefundResponse{
+		OrderID:     resp.GetOrderId(),
+		Status:      resp.GetStatus(),
+		RefundCents: resp.GetRefundCents(),
+		RefundNo:    resp.GetRefundNo(),
+		Message:     resp.GetMessage(),
+	}, nil
 }
 
 // orderPBToDTO 将订单 protobuf 对象转换为 HTTP DTO。

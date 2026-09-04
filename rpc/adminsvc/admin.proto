@@ -13,20 +13,44 @@ service AdminService {
   rpc Login(LoginRequest) returns (AuthResponse);
   // 管理员退出登录。
   rpc Logout(LogoutRequest) returns (CommonResponse);
+  // 校验管理员登录会话。
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
   // 查询当前管理员信息。
   rpc Me(MeRequest) returns (MeResponse);
   // 查询角色菜单。
   rpc Menus(MenusRequest) returns (MenusResponse);
+  // 查询管理员列表，仅超级管理员可访问。
+  rpc ListAdmins(AdminListRequest) returns (AdminListResponse);
+  // 新增管理员，仅超级管理员可访问。
+  rpc CreateAdmin(AdminSaveRequest) returns (Admin);
+  // 编辑管理员资料和角色，仅超级管理员可访问。
+  rpc UpdateAdmin(AdminSaveRequest) returns (Admin);
+  // 启用或停用管理员，仅超级管理员可访问。
+  rpc SetAdminStatus(AdminStatusRequest) returns (CommonResponse);
+  // 重置管理员密码，仅超级管理员可访问。
+  rpc ResetAdminPassword(AdminPasswordResetRequest) returns (CommonResponse);
   // 查询操作日志。
   rpc ListOperationLogs(OperationLogListRequest) returns (OperationLogListResponse);
   // 查询用户列表。
   rpc ListUsers(UserListRequest) returns (UserListResponse);
   // 查询用户详情。
   rpc GetUser(UserDetailRequest) returns (User);
+  // 查询指定用户的订单历史。
+  rpc ListUserOrders(UserHistoryRequest) returns (OrderListResponse);
+  // 查询指定用户的优惠券历史。
+  rpc ListUserCoupons(UserCouponHistoryRequest) returns (UserCouponHistoryResponse);
   // 冻结用户。
   rpc FreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
   // 解封用户。
   rpc UnfreezeUser(ChangeUserStatusRequest) returns (CommonResponse);
+  // 查询司机基础资料列表。
+  rpc ListDrivers(DriverListRequest) returns (DriverListResponse);
+  // 查询司机基础资料详情。
+  rpc GetDriver(DriverDetailRequest) returns (Driver);
+  // 冻结司机。
+  rpc FreezeDriver(FreezeDriverRequest) returns (CommonResponse);
+  // 解冻司机。
+  rpc UnfreezeDriver(FreezeDriverRequest) returns (CommonResponse);
   // 查询司机审核列表。
   rpc ListDriverCertifications(DriverCertificationListRequest) returns (DriverCertificationListResponse);
   // 查询司机审核详情。
@@ -35,18 +59,32 @@ service AdminService {
   rpc ApproveDriverCertification(AuditDriverCertificationRequest) returns (CommonResponse);
   // 驳回司机认证。
   rpc RejectDriverCertification(AuditDriverCertificationRequest) returns (CommonResponse);
+  // 查询司机提现申请列表。
+  rpc ListDriverWithdrawals(DriverWithdrawListRequest) returns (DriverWithdrawListResponse);
+  // 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+  rpc HandleDriverWithdraw(DriverWithdrawHandleRequest) returns (CommonResponse);
   // 查询订单列表。
   rpc ListOrders(OrderListRequest) returns (OrderListResponse);
   // 查询订单详情。
   rpc GetOrder(OrderDetailRequest) returns (OrderDetail);
+  // 查询订单轨迹。
+  rpc GetOrderTrack(OrderTrackRequest) returns (OrderTrackResponse);
   // 后台取消订单。
   rpc CancelOrder(AdminCancelOrderRequest) returns (CommonResponse);
+  // 后台人工改派订单。
+  rpc RedispatchOrder(AdminRedispatchOrderRequest) returns (AdminRedispatchOrderResponse);
+  // 后台发起订单退款。
+  rpc RefundOrder(AdminRefundOrderRequest) returns (AdminRefundOrderResponse);
+  // 查询退款事件补偿队列。
+  rpc ListRefundRetryTasks(RefundRetryTaskListRequest) returns (RefundRetryTaskListResponse);
+  // 立即触发指定退款事件补偿任务。
+  rpc RetryRefundTask(RefundRetryTaskRequest) returns (CommonResponse);
   // 查询异常订单列表。
   rpc ListAbnormalOrders(AbnormalOrderListRequest) returns (AbnormalOrderListResponse);
   // 查询优惠券模板列表。
   rpc ListCoupons(CouponListRequest) returns (CouponListResponse);
   // 创建优惠券模板。
-  rpc CreateCoupon(CouponRequest) returns (CommonResponse);
+  rpc CreateCoupon(CouponRequest) returns (CreateCouponResponse);
   // 更新优惠券模板。
   rpc UpdateCoupon(CouponRequest) returns (CommonResponse);
   // 下架优惠券模板。
@@ -55,6 +93,18 @@ service AdminService {
   rpc IssueCoupon(CouponIssueRequest) returns (CouponIssueResponse);
   // 查询优惠券发放任务列表。
   rpc ListCouponIssueTasks(CouponIssueTaskListRequest) returns (CouponIssueTaskListResponse);
+  // 查询计价规则列表。
+  rpc ListPriceRules(PriceRuleListRequest) returns (PriceRuleListResponse);
+  // 查询计价规则详情。
+  rpc GetPriceRule(PriceRuleDetailRequest) returns (PriceRule);
+  // 创建计价规则。
+  rpc CreatePriceRule(PriceRuleRequest) returns (CreatePriceRuleResponse);
+  // 更新计价规则。
+  rpc UpdatePriceRule(PriceRuleRequest) returns (CommonResponse);
+  // 启用计价规则。
+  rpc EnablePriceRule(PriceRuleStatusRequest) returns (CommonResponse);
+  // 停用计价规则。
+  rpc DisablePriceRule(PriceRuleStatusRequest) returns (CommonResponse);
   // 查询活动配置列表。
   rpc ListPromotionActivities(PromotionActivityListRequest) returns (PromotionActivityListResponse);
   // 创建活动配置。
@@ -69,12 +119,40 @@ service AdminService {
   rpc GetStatisticsOverview(StatisticsRequest) returns (StatisticsOverviewResponse);
   // 查询订单统计。
   rpc GetOrderStatistics(StatisticsRequest) returns (OrderStatisticsResponse);
+  // 查询司机统计。
+  rpc GetDriverStatistics(StatisticsRequest) returns (DriverStatisticsResponse);
+  // 查询财务统计。
+  rpc GetFinanceStatistics(StatisticsRequest) returns (FinanceStatisticsResponse);
   // 查询优惠券统计。
   rpc GetCouponStatistics(StatisticsRequest) returns (CouponStatisticsResponse);
+  // 查询用户统计。
+  rpc GetUserStatistics(StatisticsRequest) returns (UserStatisticsResponse);
+  // 查询实时运力地图快照。
+  rpc GetCapacityMap(CapacityMapRequest) returns (CapacityMapResponse);
   // 创建导出任务。
   rpc CreateExportTask(ExportTaskRequest) returns (ExportTaskResponse);
   // 查询导出任务列表。
   rpc ListExportTasks(ExportTaskListRequest) returns (ExportTaskListResponse);
+  // 查询导出任务详情。
+  rpc GetExportTask(ExportTaskDetailRequest) returns (ExportTask);
+  // 查询已授权下载的导出任务文件元数据。
+  rpc GetExportDownload(ExportDownloadRequest) returns (ExportDownloadResponse);
+  // 流式下载已授权的导出文件内容。
+  rpc DownloadExport(ExportDownloadRequest) returns (stream ExportDownloadChunk);
+  // 创建后台投诉或申诉工单。
+  rpc CreateWorkOrder(WorkOrderRequest) returns (WorkOrder);
+  // 查询后台工单列表。
+  rpc ListWorkOrders(WorkOrderListRequest) returns (WorkOrderListResponse);
+  // 查询后台工单详情。
+  rpc GetWorkOrder(WorkOrderDetailRequest) returns (WorkOrder);
+  // 执行后台工单流转动作。
+  rpc ActWorkOrder(WorkOrderActionRequest) returns (WorkOrder);
+  // 批量执行后台工单流转动作。
+  rpc BatchActWorkOrders(WorkOrderBatchActionRequest) returns (WorkOrderBatchActionResponse);
+  // 新增工单证据索引。
+  rpc AddWorkOrderEvidence(WorkOrderEvidenceRequest) returns (WorkOrderEvidence);
+  // 查询工单证据列表。
+  rpc ListWorkOrderEvidence(WorkOrderEvidenceListRequest) returns (WorkOrderEvidenceListResponse);
   // 查询风控黑名单列表。
   rpc ListBlacklists(BlacklistListRequest) returns (BlacklistListResponse);
   // 新增风控黑名单。
@@ -83,6 +161,20 @@ service AdminService {
   rpc ReleaseBlacklist(BlacklistRequest) returns (CommonResponse);
   // 查询风控命中记录。
   rpc ListRiskHitRecords(RiskHitRecordListRequest) returns (RiskHitRecordListResponse);
+  // 处置风控命中记录，action 支持 review_pass/add_blacklist/create_work_order/freeze。
+  rpc HandleRiskHitRecords(RiskHitActionRequest) returns (RiskHitActionResponse);
+  // 查询管理后台通知与审计补偿任务。
+  rpc ListAdminAuditOutbox(AdminAuditOutboxListRequest) returns (AdminAuditOutboxListResponse);
+  // 提交受限运营问答并返回结构化回答（AI 运营助手）。
+  rpc AskAiAgent(AiAskRequest) returns (AiAnswerResponse);
+  // 读取当前管理员可见的三个快捷问题。
+  rpc GetAiSuggestions(AiSuggestionsRequest) returns (AiSuggestionsResponse);
+  // 查询当前管理员自己的 AI 问答会话摘要。
+  rpc GetAiHistory(AiHistoryRequest) returns (AiHistoryResponse);
+  // 记录 AI 回答是否有帮助。
+  rpc AiFeedback(AiFeedbackRequest) returns (CommonResponse);
+  // 结束并清空指定 AI 会话。
+  rpc DeleteAiConversation(AiConversationRequest) returns (CommonResponse);
 }
 
 message Admin {
@@ -117,8 +209,17 @@ message LogoutRequest {
   string token = 1;
 }
 
+message ValidateSessionRequest {
+  string token = 1;
+}
+
+message ValidateSessionResponse {
+  Admin admin = 1;
+}
+
 message MeRequest {
   int64 admin_id = 1;
+  string token = 2;
 }
 
 message MeResponse {
@@ -128,6 +229,7 @@ message MeResponse {
 message MenusRequest {
   int64 admin_id = 1;
   int32 role = 2;
+  string token = 3;
 }
 
 message MenuItem {
@@ -144,6 +246,18 @@ message MenusResponse {
 
 message CommonResponse {
   string message = 1;
+}
+
+// 创建优惠券响应，返回事务提交后的优惠券 ID。
+message CreateCouponResponse {
+  int64 id = 1;
+  string message = 2;
+}
+
+// 创建计价规则响应，返回 pricesvc 创建成功后的规则 ID。
+message CreatePriceRuleResponse {
+  int64 id = 1;
+  string message = 2;
 }
 
 message OperationLogListRequest {
@@ -188,6 +302,92 @@ message UserListRequest {
 
 message UserDetailRequest {
   int64 id = 1;
+  bool sensitive = 2;
+}
+
+// AdminListRequest 表示管理员列表查询条件。
+message AdminListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 role = 4;
+  int32 status = 5;
+}
+
+// AdminListResponse 表示管理员列表分页结果。
+message AdminListResponse {
+  repeated Admin list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// AdminSaveRequest 表示新增或编辑管理员资料。
+message AdminSaveRequest {
+  int64 id = 1;
+  string username = 2;
+  string password = 3;
+  string real_name = 4;
+  int32 role = 5;
+  int64 operator_admin_id = 6;
+  string ip = 7;
+}
+
+// AdminStatusRequest 表示管理员启停操作。
+message AdminStatusRequest {
+  int64 id = 1;
+  int32 status = 2;
+  int64 operator_admin_id = 3;
+  string reason = 4;
+  string ip = 5;
+}
+
+// AdminPasswordResetRequest 表示管理员密码重置操作。
+message AdminPasswordResetRequest {
+  int64 id = 1;
+  string password = 2;
+  int64 operator_admin_id = 3;
+  string ip = 4;
+}
+
+// UserHistoryRequest 表示指定用户的只读历史查询条件。
+message UserHistoryRequest {
+  int64 user_id = 1;
+  int32 status = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// UserCouponHistoryRequest 表示指定用户的优惠券历史查询条件。
+message UserCouponHistoryRequest {
+  int64 user_id = 1;
+  int32 status = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// UserCouponHistory 表示管理后台展示的用户优惠券实例。
+message UserCouponHistory {
+  int64 user_coupon_id = 1;
+  int64 coupon_id = 2;
+  string name = 3;
+  int32 type = 4;
+  int64 face_value_cents = 5;
+  int32 discount = 6;
+  int64 threshold_cents = 7;
+  int32 car_type = 8;
+  string city_code = 9;
+  int32 status = 10;
+  int64 received_at = 11;
+  int64 expire_at = 12;
+}
+
+// UserCouponHistoryResponse 返回用户优惠券历史分页结果。
+message UserCouponHistoryResponse {
+  repeated UserCouponHistory list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }
 
 message ChangeUserStatusRequest {
@@ -220,6 +420,118 @@ message UserListResponse {
   int32 page_size = 4;
 }
 
+message DriverListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  int32 status = 4;
+}
+
+message DriverDetailRequest {
+  int64 id = 1;
+  bool sensitive = 2;
+}
+
+message FreezeDriverRequest {
+  int64 id = 1;
+  string reason = 2;
+  string remark = 3;
+  int64 admin_id = 4;
+  string ip = 5;
+}
+
+message DriverWithdrawListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 status = 3;
+  int64 driver_id = 4;
+  string keyword = 5;
+}
+
+message DriverWithdraw {
+  int64 id = 1;
+  int64 driver_id = 2;
+  string withdraw_no = 3;
+  string amount = 4;
+  string payee_name = 5;
+  string pay_account = 6;
+  int32 status = 7;
+  string remark = 8;
+  string applied_at = 9;
+  string paid_at = 10;
+  string created_at = 11;
+}
+
+message DriverWithdrawListResponse {
+  repeated DriverWithdraw list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message DriverWithdrawHandleRequest {
+  int64 id = 1;
+  int64 admin_id = 2;
+  bool approve = 3;
+  string remark = 4;
+  string ip = 5;
+}
+
+message Driver {
+  int64 id = 1;
+  string phone = 2;
+  string real_name = 3;
+  string id_card_no = 4;
+  string driver_license_no = 5;
+  string avatar_url = 6;
+  int32 status = 7;
+  int32 online_status = 8;
+  int64 vehicle_id = 9;
+  string plate_no = 10;
+  int32 vehicle_status = 11;
+  int64 certification_id = 12;
+  int32 audit_status = 13;
+  string audit_remark = 14;
+  string created_at = 15;
+  string updated_at = 16;
+}
+
+message DriverListResponse {
+  repeated Driver list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// CapacityMapRequest 是后台运力地图快照查询参数。
+message CapacityMapRequest {
+  int32 status = 1;         // 司机业务状态，0 表示全部
+  int32 online_status = 2;  // 听单状态，0 表示全部，1 在线，2 行程中
+  int32 limit = 3;          // 返回数量，默认100，最大200
+}
+
+// CapacityDriver 表示一个带最新位置的司机地图点。
+message CapacityDriver {
+  int64 driver_id = 1;
+  int32 driver_status = 2;
+  int32 online_status = 3;
+  string lng = 4;
+  string lat = 5;
+  string heading = 6;
+  string speed_kmh = 7;
+  string report_time = 8;
+}
+
+// CapacityMapResponse 是实时运力地图的只读聚合结果。
+message CapacityMapResponse {
+  string generated_at = 1;
+  repeated CapacityDriver drivers = 2;
+  int32 total = 3;
+  int32 available_count = 4;
+  int32 in_trip_count = 5;
+  int32 offline_count = 6;
+  int32 position_failure_count = 7;
+}
 message DriverCertificationListRequest {
   int32 page = 1;
   int32 page_size = 2;
@@ -268,6 +580,7 @@ message DriverCertificationListResponse {
   int32 page_size = 4;
 }
 
+
 message OrderListRequest {
   int32 page = 1;
   int32 page_size = 2;
@@ -283,11 +596,96 @@ message OrderDetailRequest {
   int64 id = 1;
 }
 
+message OrderTrackRequest {
+  int64 order_id = 1;
+  int64 start_time = 2;
+  int64 end_time = 3;
+  int32 limit = 4;
+}
+
+message OrderTrackPoint {
+  int64 id = 1;
+  int64 order_id = 2;
+  int64 driver_id = 3;
+  string longitude = 4;
+  string latitude = 5;
+  string speed_kmh = 6;
+  int32 direction = 7;
+  string recorded_at = 8;
+}
+
+message OrderTrackResponse {
+  repeated OrderTrackPoint points = 1;
+}
+
 message AdminCancelOrderRequest {
   int64 order_id = 1;
   string reason = 2;
   int64 admin_id = 3;
   string ip = 4;
+  string request_id = 5;
+}
+
+message AdminRedispatchOrderRequest {
+  int64 order_id = 1;
+  int64 new_driver_id = 2;
+  string reason = 3;
+  int64 admin_id = 4;
+  string ip = 5;
+  string request_id = 6;
+}
+
+message AdminRedispatchOrderResponse {
+  int64 order_id = 1;
+  int32 status = 2;
+  int64 driver_id = 3;
+  string message = 4;
+}
+
+message AdminRefundOrderRequest {
+  int64 order_id = 1;
+  int64 refund_amount_cents = 2;
+  string reason = 3;
+  int64 admin_id = 4;
+  string ip = 5;
+  string request_id = 6;
+}
+
+message AdminRefundOrderResponse {
+  int64 order_id = 1;
+  int32 status = 2;
+  int64 refund_cents = 3;
+  string refund_no = 4;
+  string message = 5;
+}
+
+message RefundRetryTaskListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message RefundRetryTaskRequest {
+  string refund_no = 1;
+  int64 admin_id = 2;
+  string ip = 3;
+}
+
+message RefundRetryTask {
+  int64 order_id = 1;
+  string order_no = 2;
+  string refund_no = 3;
+  int64 refund_cents = 4;
+  string operator_type = 5;
+  int64 operator_id = 6;
+  int32 attempt = 7;
+  int64 next_retry_at = 8;
+}
+
+message RefundRetryTaskListResponse {
+  repeated RefundRetryTask list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }
 
 message Order {
@@ -385,6 +783,7 @@ message OrderDetail {
   OrderPrice price = 4;
   Payment payment = 5;
   Settlement settlement = 6;
+  repeated string degraded = 7;
 }
 
 message OrderListResponse {
@@ -504,6 +903,73 @@ message CouponIssueResponse {
   string status = 5;
 }
 
+message PriceRule {
+  int64 id = 1;
+  string name = 2;
+  string city_code = 3;
+  int32 car_type = 4;
+  string base_price = 5;
+  string base_distance_km = 6;
+  string per_km_price = 7;
+  string per_minute_price = 8;
+  string night_start_time = 9;
+  string night_end_time = 10;
+  string night_surcharge = 11;
+  string dynamic_max_factor = 12;
+  int32 status = 13;
+  string effective_at = 14;
+  string expire_at = 15;
+  string created_at = 16;
+  string updated_at = 17;
+}
+
+message PriceRuleListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  string city_code = 4;
+  int32 car_type = 5;
+  int32 status = 6;
+}
+
+message PriceRuleListResponse {
+  repeated PriceRule list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message PriceRuleDetailRequest {
+  int64 id = 1;
+}
+
+message PriceRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  string city_code = 3;
+  int32 car_type = 4;
+  string base_price = 5;
+  string base_distance_km = 6;
+  string per_km_price = 7;
+  string per_minute_price = 8;
+  string night_start_time = 9;
+  string night_end_time = 10;
+  string night_surcharge = 11;
+  string dynamic_max_factor = 12;
+  int32 status = 13;
+  string effective_at = 14;
+  string expire_at = 15;
+  int64 admin_id = 16;
+  string ip = 17;
+}
+
+message PriceRuleStatusRequest {
+  int64 id = 1;
+  int32 status = 2;
+  int64 admin_id = 3;
+  string ip = 4;
+}
+
 message CouponIssueTaskListRequest {
   int32 page = 1;
   int32 page_size = 2;
@@ -577,6 +1043,14 @@ message PromotionActivity {
   int64 created_by = 8;
   string created_at = 9;
   string updated_at = 10;
+  // 最近一次发布范围：all/gray；未发布时为空。
+  string publish_scope = 11;
+  // 最近一次发布目标配置 JSON；未发布时为空。
+  string target_config = 12;
+  // 最近一次发布时间。
+  string published_at = 13;
+  // 最近一次回滚时间。
+  string rollback_at = 14;
 }
 
 message PromotionActivityListResponse {
@@ -601,6 +1075,8 @@ message StatisticsOverviewResponse {
   string gmv = 6;
   int64 coupon_issue_count = 7;
   int64 blacklist_count = 8;
+  string generated_at = 9;
+  string data_as_of = 10;
 }
 
 message OrderStatisticsResponse {
@@ -611,6 +1087,8 @@ message OrderStatisticsResponse {
   int64 payment_abnormal_count = 5;
   string completion_rate = 6;
   string cancel_rate = 7;
+  string generated_at = 8;
+  string data_as_of = 9;
 }
 
 message CouponStatisticsResponse {
@@ -620,6 +1098,83 @@ message CouponStatisticsResponse {
   int64 used_coupon_count = 4;
   int64 expired_coupon_count = 5;
   string use_rate = 6;
+  string generated_at = 7;
+  string data_as_of = 8;
+}
+
+message UserStatisticsResponse {
+  // 当前未删除用户总数。
+  int64 user_total = 1;
+  // 统计时间范围内新增用户数。
+  int64 new_user_count = 2;
+  // 统计时间范围内有订单行为的活跃用户数。
+  int64 active_user_count = 3;
+  // 统计时间范围内下单用户数。
+  int64 order_user_count = 4;
+  // 统计时间范围内下单超过 1 单的复购用户数。
+  int64 repeat_order_user_count = 5;
+  // 统计时间范围内投诉或申诉相关用户数。
+  int64 complaint_user_count = 6;
+  // 当前处于有效黑名单的用户数。
+  int64 risk_user_count = 7;
+  // 复购率：repeat_order_user_count / order_user_count。
+  string reorder_rate = 8;
+  // 投诉率：complaint_user_count / active_user_count。
+  string complaint_rate = 9;
+  string generated_at = 10;
+  string data_as_of = 11;
+}
+
+message DriverStatisticsResponse {
+  // 当前未删除司机总数。
+  int64 driver_total = 1;
+  // 统计时间范围内新增司机数。
+  int64 new_driver_count = 2;
+  // 统计时间范围内待审核认证数。
+  int64 pending_audit_count = 3;
+  // 统计时间范围内审核通过认证数。
+  int64 approved_driver_count = 4;
+  // 统计时间范围内司机完单数。
+  int64 completed_order_count = 5;
+  // 统计时间范围内已结算司机收入。
+  string driver_income = 6;
+  // 统计时间范围内申请中提现金额。
+  string withdraw_pending_amount = 7;
+  // 统计时间范围内打款成功提现金额。
+  string withdraw_success_amount = 8;
+  // 统计时间范围内打款失败提现单数。
+  int64 withdraw_failed_count = 9;
+  // 统计时间范围内更新的平均服务分。
+  string average_score = 10;
+  // 统计时间范围内评分记录中的月投诉数合计。
+  int64 total_complaint_count = 11;
+  string generated_at = 12;
+  string data_as_of = 13;
+}
+
+message FinanceStatisticsResponse {
+  // 统计时间范围内支付成功订单数。
+  int64 payment_order_count = 1;
+  // 统计时间范围内支付成功金额。
+  string paid_amount = 2;
+  // 统计时间范围内发生退款的订单数。
+  int64 refund_order_count = 3;
+  // 统计时间范围内退款金额。
+  string refund_amount = 4;
+  // 统计时间范围内支付失败订单数。
+  int64 payment_failed_count = 5;
+  // 统计时间范围内已结算订单数。
+  int64 settlement_order_count = 6;
+  // 统计时间范围内已结算订单总金额。
+  string settlement_total_amount = 7;
+  // 统计时间范围内平台抽佣金额。
+  string platform_commission = 8;
+  // 统计时间范围内司机收入金额。
+  string driver_income = 9;
+  // 统计时间范围内平台补贴金额。
+  string platform_subsidy = 10;
+  string generated_at = 11;
+  string data_as_of = 12;
 }
 
 message ExportTaskRequest {
@@ -641,6 +1196,10 @@ message ExportTaskListRequest {
   string export_type = 3;
 }
 
+message ExportTaskDetailRequest {
+  string task_no = 1;
+}
+
 message ExportTask {
   string task_no = 1;
   string export_type = 2;
@@ -648,10 +1207,154 @@ message ExportTask {
   string status = 4;
   int64 admin_id = 5;
   string created_at = 6;
+  string file_path = 7;
+  string failure_reason = 8;
+  string updated_at = 9;
 }
 
 message ExportTaskListResponse {
   repeated ExportTask list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ExportDownloadRequest {
+  string task_no = 1;
+  int64 admin_id = 2;
+  int32 admin_role = 3;
+}
+
+message ExportDownloadResponse {
+  string task_no = 1;
+  string file_name = 2;
+  string expires_at = 3;
+}
+
+message ExportDownloadChunk {
+  bytes content = 1;
+}
+
+message WorkOrderRequest {
+  int32 work_order_type = 1;
+  string source_type = 2;
+  int64 source_id = 3;
+  int64 order_id = 4;
+  int64 user_id = 5;
+  int64 driver_id = 6;
+  string title = 7;
+  string content = 8;
+  int32 priority = 9;
+  int64 admin_id = 10;
+  string ip = 11;
+}
+
+message WorkOrderListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 status = 3;
+  int64 assignee_id = 4;
+  int32 work_order_type = 5;
+}
+
+message WorkOrderDetailRequest {
+  int64 id = 1;
+}
+
+message WorkOrderActionRequest {
+  int64 id = 1;
+  string action = 2;
+  int64 assignee_id = 3;
+  string content = 4;
+  string arbitration_result = 5;
+  int32 version = 6;
+  int64 admin_id = 7;
+  string ip = 8;
+}
+
+message WorkOrderBatchActionRequest {
+  // 待批量流转的工单 ID 列表。
+  repeated int64 ids = 1;
+  // 流转动作：assign/follow/arbitrate/close/reopen。
+  string action = 2;
+  // 分配目标管理员 ID，仅 assign 时必填。
+  int64 assignee_id = 3;
+  // 处理内容或批量备注。
+  string content = 4;
+  // 仲裁结论，仅 arbitrate 时必填。
+  string arbitration_result = 5;
+  // 当前操作管理员 ID。
+  int64 admin_id = 6;
+  // 操作来源 IP。
+  string ip = 7;
+}
+
+message WorkOrderBatchActionResponse {
+  // 本次批量请求中成功处理的工单数量。
+  int64 success_count = 1;
+  // 本次批量请求中未处理的工单数量。
+  int64 fail_count = 2;
+  // 未处理原因，按工单 ID 汇总，便于前端提示运营人员。
+  repeated string failure_reasons = 3;
+}
+
+message WorkOrderEvidenceRequest {
+  int64 work_order_id = 1;
+  string evidence_type = 2;
+  string evidence_url = 3;
+  string content = 4;
+  int64 admin_id = 5;
+  string ip = 6;
+}
+
+message WorkOrderEvidenceListRequest {
+  int64 work_order_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message WorkOrder {
+  int64 id = 1;
+  string work_order_no = 2;
+  int32 work_order_type = 3;
+  string source_type = 4;
+  int64 source_id = 5;
+  int64 order_id = 6;
+  int64 user_id = 7;
+  int64 driver_id = 8;
+  string title = 9;
+  string content = 10;
+  int32 priority = 11;
+  int32 status = 12;
+  int64 assignee_id = 13;
+  string arbitration_result = 14;
+  string remark = 15;
+  int32 version = 16;
+  int64 created_by = 17;
+  string created_at = 18;
+  string updated_at = 19;
+  string closed_at = 20;
+}
+
+message WorkOrderListResponse {
+  repeated WorkOrder list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message WorkOrderEvidence {
+  int64 id = 1;
+  int64 work_order_id = 2;
+  string evidence_type = 3;
+  string evidence_url = 4;
+  string content = 5;
+  int64 uploaded_by = 6;
+  string created_at = 7;
+}
+
+message WorkOrderEvidenceListResponse {
+  repeated WorkOrderEvidence list = 1;
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;
@@ -711,6 +1414,16 @@ message RiskHitRecord {
   string hit_reason = 7;
   string request_id = 8;
   string created_at = 9;
+  // 处置状态：pending/review_pass/blacklisted/work_order，基于现有审计、黑名单和工单表推导。
+  string handle_status = 10;
+  // 最近一次处置动作：review_pass/hit_add_blacklist/hit_create_work_order。
+  string handle_action = 11;
+  // 最近一次处置管理员 ID。
+  int64 handled_by = 12;
+  // 最近一次处置时间。
+  string handled_at = 13;
+  // 转工单动作创建的工单 ID；未转工单时为 0。
+  int64 work_order_id = 14;
 }
 
 message RiskHitRecordListResponse {
@@ -718,4 +1431,156 @@ message RiskHitRecordListResponse {
   int64 total = 2;
   int32 page = 3;
   int32 page_size = 4;
+}
+
+message RiskHitActionRequest {
+  // 待处置的风控命中记录 ID，支持单条和批量。
+  repeated int64 ids = 1;
+  // 处置动作：review_pass/add_blacklist/create_work_order/freeze。
+  string action = 2;
+  // 处置原因、拉黑原因或转工单说明。
+  string reason = 3;
+  // 转工单标题；为空时由服务端根据命中记录生成。
+  string work_order_title = 4;
+  // 转工单优先级，1低 2中 3高 4紧急；为空或 0 时由风险等级映射。
+  int32 priority = 5;
+  // 当前操作管理员 ID。
+  int64 admin_id = 6;
+  // 操作来源 IP。
+  string ip = 7;
+}
+
+message RiskHitActionResponse {
+  // 本次处置成功的命中记录数量。
+  int64 success_count = 1;
+  // 本次处置失败的命中记录数量。
+  int64 fail_count = 2;
+  // 转工单动作创建出的工单 ID 列表。
+  repeated int64 work_order_ids = 3;
+  // 未处理原因，按命中记录 ID 汇总。
+  repeated string failure_reasons = 4;
+}
+
+message AdminAuditOutboxListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string status = 3;
+  string module = 4;
+  string action = 5;
+  int64 target_id = 6;
+}
+
+message AdminAuditOutbox {
+  int64 id = 1;
+  string event_no = 2;
+  string module = 3;
+  string action = 4;
+  string target_type = 5;
+  int64 target_id = 6;
+  int64 admin_id = 7;
+  string detail = 8;
+  string status = 9;
+  int32 retry_count = 10;
+  string failure_reason = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+message AdminAuditOutboxListResponse {
+  repeated AdminAuditOutbox list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// ---- AI 运营助手相关消息 ----
+
+// AiAskRequest 是受限运营问答请求。scene 仅限 overview / abnormal_order / risk_review。
+message AiAskRequest {
+  string scene = 1;
+  string question = 2;
+  // conversation_id 可选，携带时延续多轮；场景必须与会话一致。
+  string conversation_id = 3;
+  string start_time = 4;
+  string end_time = 5;
+  // demo_mode 仅本地/答辩环境允许，生产配置必须拒绝。
+  bool demo_mode = 6;
+  int64 admin_id = 7;
+}
+
+// AiEvidence 是回答中的一条数据证据。
+message AiEvidence {
+  string label = 1;
+  string value = 2;
+  string comparison = 3;
+}
+
+// AiPriority 是需要优先处理的订单或风控记录。
+message AiPriority {
+  string type = 1;   // order / risk
+  string id = 2;
+  string level = 3;  // high / medium / low
+  repeated string reasons = 4;
+  string route = 5;
+}
+
+// AiAction 是建议动作，仅支持页面跳转。
+message AiAction {
+  string type = 1;   // navigate
+  string label = 2;
+  string route = 3;
+}
+
+// AiAnswerResponse 是服务端校验后的标准化回答。
+message AiAnswerResponse {
+  string summary = 1;
+  repeated AiEvidence evidence = 2;
+  repeated AiPriority priorities = 3;
+  repeated AiAction actions = 4;
+  // source_mode：realtime / demo_snapshot / template_fallback
+  string source_mode = 5;
+  repeated string citations = 6;
+  string conversation_id = 7;
+  string trace_id = 8;
+}
+
+message AiSuggestionsRequest {
+  int64 admin_id = 1;
+}
+
+message AiSuggestion {
+  string scene = 1;
+  string quick_prompt = 2;
+}
+
+message AiSuggestionsResponse {
+  repeated AiSuggestion items = 1;
+}
+
+message AiHistoryRequest {
+  int64 admin_id = 1;
+}
+
+message AiConversationSummary {
+  string conversation_id = 1;
+  string scene = 2;
+  string source_mode = 3;
+  string summary = 4;
+  string updated_at = 5;
+}
+
+message AiHistoryResponse {
+  repeated AiConversationSummary items = 1;
+}
+
+message AiFeedbackRequest {
+  string conversation_id = 1;
+  string trace_id = 2;
+  bool helpful = 3;
+  int64 admin_id = 4;
+}
+
+message AiConversationRequest {
+  string conversation_id = 1;
+  int64 admin_id = 2;
 }

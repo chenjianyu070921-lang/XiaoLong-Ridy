@@ -44,7 +44,6 @@ func (l *AddressLogic) CreateAddress(req *types.CreateAddressRequest) (*types.Ad
 		Longitude:    req.Longitude,
 		Latitude:     req.Latitude,
 		IsDefault:    req.IsDefault,
-		Sort:         int32(req.Sort),
 	})
 	if err != nil {
 		return nil, err
@@ -68,7 +67,10 @@ func (l *AddressLogic) ListAddresses(_ *types.ListAddressesRequest) (*types.List
 	}
 	list := make([]types.AddressInfo, 0, len(resp.GetList()))
 	for _, item := range resp.GetList() {
-		list = append(list, *toAPIAddress(item))
+		// 下游异常返回空地址时跳过该条，避免 API 层因为解引用 nil 崩溃。
+		if apiAddress := toAPIAddress(item); apiAddress != nil {
+			list = append(list, *apiAddress)
+		}
 	}
 	return &types.ListAddressesResponse{List: list}, nil
 }
@@ -99,7 +101,6 @@ func (l *AddressLogic) UpdateAddress(req *types.UpdateAddressRequest) (*types.Ad
 		Longitude:    req.Longitude,
 		Latitude:     req.Latitude,
 		IsDefault:    req.IsDefault,
-		Sort:         int32(req.Sort),
 	})
 	if err != nil {
 		return nil, err
@@ -151,6 +152,9 @@ func (l *AddressLogic) userClient() (svc.UserClient, error) {
 
 // toAPIAddress 将 usersvc 地址 proto 响应转换为乘客端 API 响应结构。
 func toAPIAddress(address *userproto.AddressInfo) *types.AddressInfo {
+	if address == nil {
+		return nil
+	}
 	return &types.AddressInfo{
 		ID:           address.GetId(),
 		ContactName:  address.GetContactName(),
@@ -160,6 +164,5 @@ func toAPIAddress(address *userproto.AddressInfo) *types.AddressInfo {
 		Longitude:    address.GetLongitude(),
 		Latitude:     address.GetLatitude(),
 		IsDefault:    address.GetIsDefault(),
-		Sort:         int(address.GetSort()),
 	}
 }

@@ -12,6 +12,14 @@ service LocationService {
   rpc POISearch(POISearchReq) returns (POISearchResp);
   // 路径规划（计算距离和预计时间）
   rpc RoutePlan(RoutePlanReq) returns (RoutePlanResp);
+  // 司机位置上报
+  rpc ReportLocation(ReportLocationReq) returns (ReportLocationResp);
+  // 订单轨迹查询
+  rpc GetOrderTrack(GetOrderTrackReq) returns (GetOrderTrackResp);
+  // 附近司机查询
+  rpc NearbyDrivers(NearbyDriversReq) returns (NearbyDriversResp);
+  // 查询司机最新位置，供乘客行程实时追踪使用
+  rpc GetDriverLocation(GetDriverLocationReq) returns (GetDriverLocationResp);
 }
 
 // ========== 逆地址解析 ==========
@@ -36,6 +44,7 @@ message POISearchReq {
   int32  radius  = 4;   // 搜索半径（米）
   int32  page    = 5;   // 页码
   int32  size    = 6;   // 每页条数
+  string city    = 7;   // 城市编码，优先使用 adcode，也支持 citycode
 }
 
 message POIItem {
@@ -68,4 +77,72 @@ message RoutePlanResp {
   double origin_lng   = 5;
   double dest_lat     = 6;
   double dest_lng     = 7;
+}
+
+// ========== 司机位置上报 ==========
+message ReportLocationReq {
+  int64  driver_id     = 1;  // 司机ID
+  double lng           = 2;  // 经度
+  double lat           = 3;  // 纬度
+  int32  heading       = 4;  // 行驶方向（0-359度）
+  double speed_kmh     = 5;  // 当前速度（km/h）
+  int32  online_status = 6;  // 听单状态：0离线 1在线 2行程中
+  int64  order_id      = 7;  // 关联订单ID，无则0
+}
+
+message ReportLocationResp {
+  bool success = 1;
+}
+
+// ========== 订单轨迹查询 ==========
+message GetOrderTrackReq {
+  int64 order_id = 1;    // 订单ID
+  int64 start_time = 2;  // 查询开始 Unix 秒，0 表示不限
+  int64 end_time = 3;    // 查询结束 Unix 秒，0 表示不限
+  int32 limit = 4;       // 最大点数，默认 1000，上限 5000
+}
+
+message TrackPoint {
+  int64 id = 1;          // 轨迹点ID
+  int64 order_id = 2;    // 订单ID
+  int64 driver_id = 3;   // 司机ID
+  double lng = 4;        // 经度
+  double lat = 5;        // 纬度
+  double speed_kmh = 6;  // 速度
+  int32 direction = 7;   // 方向
+  int64 recorded_at = 8; // 轨迹时间 Unix 秒
+}
+
+message GetOrderTrackResp {
+  repeated TrackPoint points = 1;
+}
+
+// ========== 附近司机查询 ==========
+message NearbyDriversReq {
+  double lng    = 1;  // 中心经度
+  double lat    = 2;  // 中心纬度
+  double radius = 3;  // 搜索半径（米）
+  int32  limit  = 4;  // 返回条数上限
+}
+
+message NearbyDriver {
+  int64  driver_id = 1;
+  double lng       = 2;
+  double lat       = 3;
+  double distance  = 4;  // 距离（米）
+}
+
+message NearbyDriversResp {
+  repeated NearbyDriver drivers = 1;
+}
+
+message GetDriverLocationReq { int64 driver_id = 1; }
+message GetDriverLocationResp {
+  int64 driver_id = 1;
+  double lng = 2;
+  double lat = 3;
+  int32 heading = 4;
+  double speed_kmh = 5;
+  int32 online_status = 6;
+  int64 report_time = 7;
 }

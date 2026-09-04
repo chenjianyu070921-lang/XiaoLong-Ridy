@@ -27,9 +27,13 @@ const (
 	Order_ConfirmArrive_FullMethodName       = "/ordersvc.Order/ConfirmArrive"
 	Order_StartTrip_FullMethodName           = "/ordersvc.Order/StartTrip"
 	Order_FinishTrip_FullMethodName          = "/ordersvc.Order/FinishTrip"
+	Order_ConfirmPaid_FullMethodName         = "/ordersvc.Order/ConfirmPaid"
+	Order_RefundOrder_FullMethodName         = "/ordersvc.Order/RefundOrder"
 	Order_TimeoutCancel_FullMethodName       = "/ordersvc.Order/TimeoutCancel"
 	Order_ListTimeoutOrders_FullMethodName   = "/ordersvc.Order/ListTimeoutOrders"
 	Order_ListOrderStatusLogs_FullMethodName = "/ordersvc.Order/ListOrderStatusLogs"
+	Order_RedispatchOrder_FullMethodName     = "/ordersvc.Order/RedispatchOrder"
+	Order_ForceRefundOrder_FullMethodName    = "/ordersvc.Order/ForceRefundOrder"
 )
 
 // OrderClient is the client API for Order service.
@@ -44,9 +48,13 @@ type OrderClient interface {
 	ConfirmArrive(ctx context.Context, in *ConfirmArriveRequest, opts ...grpc.CallOption) (*ConfirmArriveResponse, error)
 	StartTrip(ctx context.Context, in *StartTripRequest, opts ...grpc.CallOption) (*StartTripResponse, error)
 	FinishTrip(ctx context.Context, in *FinishTripRequest, opts ...grpc.CallOption) (*FinishTripResponse, error)
+	ConfirmPaid(ctx context.Context, in *ConfirmPaidRequest, opts ...grpc.CallOption) (*ConfirmPaidResponse, error)
+	RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error)
 	TimeoutCancel(ctx context.Context, in *TimeoutCancelRequest, opts ...grpc.CallOption) (*TimeoutCancelResponse, error)
 	ListTimeoutOrders(ctx context.Context, in *ListTimeoutOrdersRequest, opts ...grpc.CallOption) (*ListTimeoutOrdersResponse, error)
 	ListOrderStatusLogs(ctx context.Context, in *ListOrderStatusLogsRequest, opts ...grpc.CallOption) (*ListOrderStatusLogsResponse, error)
+	RedispatchOrder(ctx context.Context, in *RedispatchOrderRequest, opts ...grpc.CallOption) (*RedispatchOrderResponse, error)
+	ForceRefundOrder(ctx context.Context, in *ForceRefundOrderRequest, opts ...grpc.CallOption) (*ForceRefundOrderResponse, error)
 }
 
 type orderClient struct {
@@ -137,6 +145,26 @@ func (c *orderClient) FinishTrip(ctx context.Context, in *FinishTripRequest, opt
 	return out, nil
 }
 
+func (c *orderClient) ConfirmPaid(ctx context.Context, in *ConfirmPaidRequest, opts ...grpc.CallOption) (*ConfirmPaidResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfirmPaidResponse)
+	err := c.cc.Invoke(ctx, Order_ConfirmPaid_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *orderClient) RefundOrder(ctx context.Context, in *RefundOrderRequest, opts ...grpc.CallOption) (*RefundOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefundOrderResponse)
+	err := c.cc.Invoke(ctx, Order_RefundOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *orderClient) TimeoutCancel(ctx context.Context, in *TimeoutCancelRequest, opts ...grpc.CallOption) (*TimeoutCancelResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(TimeoutCancelResponse)
@@ -167,6 +195,26 @@ func (c *orderClient) ListOrderStatusLogs(ctx context.Context, in *ListOrderStat
 	return out, nil
 }
 
+func (c *orderClient) RedispatchOrder(ctx context.Context, in *RedispatchOrderRequest, opts ...grpc.CallOption) (*RedispatchOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RedispatchOrderResponse)
+	err := c.cc.Invoke(ctx, Order_RedispatchOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *orderClient) ForceRefundOrder(ctx context.Context, in *ForceRefundOrderRequest, opts ...grpc.CallOption) (*ForceRefundOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ForceRefundOrderResponse)
+	err := c.cc.Invoke(ctx, Order_ForceRefundOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OrderServer is the server API for Order service.
 // All implementations must embed UnimplementedOrderServer
 // for forward compatibility
@@ -179,9 +227,13 @@ type OrderServer interface {
 	ConfirmArrive(context.Context, *ConfirmArriveRequest) (*ConfirmArriveResponse, error)
 	StartTrip(context.Context, *StartTripRequest) (*StartTripResponse, error)
 	FinishTrip(context.Context, *FinishTripRequest) (*FinishTripResponse, error)
+	ConfirmPaid(context.Context, *ConfirmPaidRequest) (*ConfirmPaidResponse, error)
+	RefundOrder(context.Context, *RefundOrderRequest) (*RefundOrderResponse, error)
 	TimeoutCancel(context.Context, *TimeoutCancelRequest) (*TimeoutCancelResponse, error)
 	ListTimeoutOrders(context.Context, *ListTimeoutOrdersRequest) (*ListTimeoutOrdersResponse, error)
 	ListOrderStatusLogs(context.Context, *ListOrderStatusLogsRequest) (*ListOrderStatusLogsResponse, error)
+	RedispatchOrder(context.Context, *RedispatchOrderRequest) (*RedispatchOrderResponse, error)
+	ForceRefundOrder(context.Context, *ForceRefundOrderRequest) (*ForceRefundOrderResponse, error)
 	mustEmbedUnimplementedOrderServer()
 }
 
@@ -213,6 +265,12 @@ func (UnimplementedOrderServer) StartTrip(context.Context, *StartTripRequest) (*
 func (UnimplementedOrderServer) FinishTrip(context.Context, *FinishTripRequest) (*FinishTripResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FinishTrip not implemented")
 }
+func (UnimplementedOrderServer) ConfirmPaid(context.Context, *ConfirmPaidRequest) (*ConfirmPaidResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConfirmPaid not implemented")
+}
+func (UnimplementedOrderServer) RefundOrder(context.Context, *RefundOrderRequest) (*RefundOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RefundOrder not implemented")
+}
 func (UnimplementedOrderServer) TimeoutCancel(context.Context, *TimeoutCancelRequest) (*TimeoutCancelResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TimeoutCancel not implemented")
 }
@@ -221,6 +279,12 @@ func (UnimplementedOrderServer) ListTimeoutOrders(context.Context, *ListTimeoutO
 }
 func (UnimplementedOrderServer) ListOrderStatusLogs(context.Context, *ListOrderStatusLogsRequest) (*ListOrderStatusLogsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListOrderStatusLogs not implemented")
+}
+func (UnimplementedOrderServer) RedispatchOrder(context.Context, *RedispatchOrderRequest) (*RedispatchOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RedispatchOrder not implemented")
+}
+func (UnimplementedOrderServer) ForceRefundOrder(context.Context, *ForceRefundOrderRequest) (*ForceRefundOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ForceRefundOrder not implemented")
 }
 func (UnimplementedOrderServer) mustEmbedUnimplementedOrderServer() {}
 
@@ -379,6 +443,42 @@ func _Order_FinishTrip_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Order_ConfirmPaid_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmPaidRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServer).ConfirmPaid(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Order_ConfirmPaid_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServer).ConfirmPaid(ctx, req.(*ConfirmPaidRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Order_RefundOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServer).RefundOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Order_RefundOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServer).RefundOrder(ctx, req.(*RefundOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Order_TimeoutCancel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TimeoutCancelRequest)
 	if err := dec(in); err != nil {
@@ -433,6 +533,42 @@ func _Order_ListOrderStatusLogs_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Order_RedispatchOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RedispatchOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServer).RedispatchOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Order_RedispatchOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServer).RedispatchOrder(ctx, req.(*RedispatchOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Order_ForceRefundOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForceRefundOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServer).ForceRefundOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Order_ForceRefundOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServer).ForceRefundOrder(ctx, req.(*ForceRefundOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Order_ServiceDesc is the grpc.ServiceDesc for Order service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -473,6 +609,14 @@ var Order_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Order_FinishTrip_Handler,
 		},
 		{
+			MethodName: "ConfirmPaid",
+			Handler:    _Order_ConfirmPaid_Handler,
+		},
+		{
+			MethodName: "RefundOrder",
+			Handler:    _Order_RefundOrder_Handler,
+		},
+		{
 			MethodName: "TimeoutCancel",
 			Handler:    _Order_TimeoutCancel_Handler,
 		},
@@ -483,6 +627,14 @@ var Order_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListOrderStatusLogs",
 			Handler:    _Order_ListOrderStatusLogs_Handler,
+		},
+		{
+			MethodName: "RedispatchOrder",
+			Handler:    _Order_RedispatchOrder_Handler,
+		},
+		{
+			MethodName: "ForceRefundOrder",
+			Handler:    _Order_ForceRefundOrder_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

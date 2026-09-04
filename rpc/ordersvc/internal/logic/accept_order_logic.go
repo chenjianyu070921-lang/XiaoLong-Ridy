@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
@@ -26,17 +27,23 @@ func NewAcceptOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Accep
 	}
 }
 
-// AcceptOrder 将待接单订单改为已接单并绑定司机，写入接单日志。
+// AcceptOrder 加 Redis 分布式锁保证同一订单只有一个司机接单成功。
 func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.AcceptOrderResponse, error) {
 	if in.OrderId <= 0 || in.DriverId <= 0 {
 		return nil, ErrInvalidOrderParams
 	}
 
+	release, err := acquireOrderLock(l.ctx, l.svcCtx.Redis, uint64(in.OrderId))
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
 	if err != nil {
 		return nil, err
 	}
-	if order.Status != constants.OrderStatusWaitAccept {
+	if !CanTransit(order.Status, constants.OrderStatusAccepted) {
 		return nil, ErrOrderStatusNotAllowed
 	}
 
@@ -53,6 +60,24 @@ func (l *AcceptOrderLogic) AcceptOrder(in *proto.AcceptOrderRequest) (*proto.Acc
 	}
 	if !ok {
 		return nil, ErrOrderStatusNotAllowed
+	}
+
+	// 派单记录已由 OrderRepository.Accept 在同一事务内置为 Accepted（含失败即回滚），
+	// 此处无需再调 MarkDispatchAccepted：此时记录已非 Pending，重复调用必然 0 行并刷错误日志。
+
+	// 司机进入忙碌态：派单引擎据此过滤，避免司机同时接多单（P1-M4-8）。
+	markDriverBusy(l.ctx, l.svcCtx, uint64(in.DriverId))
+
+	if l.svcCtx.EventBus != nil {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"order_id":    in.OrderId,
+			"driver_id":   in.DriverId,
+			"from_status": constants.OrderStatusWaitAccept,
+			"to_status":   constants.OrderStatusAccepted,
+		})
+		if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderStatusChanged, payload); err != nil {
+			l.Logger.Errorf("publish orderclient.status.changed failed: %v", err)
+		}
 	}
 
 	return &proto.AcceptOrderResponse{

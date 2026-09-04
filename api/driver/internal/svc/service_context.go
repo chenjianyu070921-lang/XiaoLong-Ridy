@@ -1,67 +1,494 @@
-// Package svc 定义 driver API 的服务上下文，持有对下游 driversvc 的调用客户端。
 package svc
 
 import (
-	"context" // 用于在各层之间传递请求上下文与取消信号
+	"context"
+	"errors"
+	"os"
+	"strings"
+	"time"
 
-	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"        // driversvc 的 proto 定义（请求/响应类型）
-	"google.golang.org/grpc"                                // gRPC 核心库，用于建立连接
-	"google.golang.org/grpc/credentials/insecure"           // 提供非加密（明文）连接凭据，本地联调使用
+	commonconfig "XiaoLong-Ridy/common/config"
+	"XiaoLong-Ridy/common/datasource"
+	qiniuutil "XiaoLong-Ridy/common/qiniu"
+	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
+	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
+	priceproto "XiaoLong-Ridy/rpc/pricesvc/proto"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-// DriverClient 定义 driver API 调用 driversvc 的公开契约（接口）。
-// 当前仅暴露司机「增删改查」四个核心接口，为后续对接留出清晰边界。
+// defaultRPCTimeout 是 gRPC 调用的默认超时，下游不可用时快速失败而非 hang。
+const defaultRPCTimeout = 3 * time.Second
+
+func rpcContext(parent context.Context) (context.Context, context.CancelFunc) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	return context.WithTimeout(context.WithoutCancel(parent), defaultRPCTimeout)
+}
+
+func RPCContext(parent context.Context) (context.Context, context.CancelFunc) {
+	return rpcContext(parent)
+}
+
+// timeoutInterceptor 为未设置 deadline 的 gRPC 调用统一加超时。
+func timeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if _, ok := ctx.Deadline(); !ok {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// grpcDialOpts 是所有 gRPC 客户端共用的拨号选项：不安全凭证 + 统一超时拦截器。
+var grpcDialOpts = []grpc.DialOption{
+	grpc.WithTransportCredentials(insecure.NewCredentials()),
+	grpc.WithChainUnaryInterceptor(timeoutInterceptor(defaultRPCTimeout)),
+}
+
 type DriverClient interface {
-	// CreateDriver 调用创建司机接口。
 	CreateDriver(ctx context.Context, req *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error)
-	// UpdateDriver 调用更新司机接口。
+	RegisterDriver(ctx context.Context, req *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error)
 	UpdateDriver(ctx context.Context, req *driversproto.UpdateDriverRequest) (*driversproto.UpdateDriverResponse, error)
-	// GetDriver 调用查询司机详情接口。
 	GetDriver(ctx context.Context, req *driversproto.GetDriverRequest) (*driversproto.GetDriverResponse, error)
-	// DeleteDriver 调用删除（软删）司机接口。
+	GetDriverByPhone(ctx context.Context, req *driversproto.GetDriverByPhoneRequest) (*driversproto.GetDriverByPhoneResponse, error)
+	SetDriverOnline(ctx context.Context, req *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error)
+	SetDriverOffline(ctx context.Context, req *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error)
+	ReportLocation(ctx context.Context, req *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error)
+	SetDriverServiceStatus(ctx context.Context, req *driversproto.SetDriverServiceStatusRequest) (*driversproto.SetDriverServiceStatusResponse, error)
+	Heartbeat(ctx context.Context, req *driversproto.HeartbeatRequest) (*driversproto.HeartbeatResponse, error)
 	DeleteDriver(ctx context.Context, req *driversproto.DeleteDriverRequest) (*driversproto.DeleteDriverResponse, error)
+	Login(ctx context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error)
+	LoginBySMS(ctx context.Context, req *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error)
+	CreateVehicle(ctx context.Context, req *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error)
+	UpdateVehicle(ctx context.Context, req *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error)
+	DeleteVehicle(ctx context.Context, req *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error)
+	GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error)
+	GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
+	UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error)
+	GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error)
+	CreateWithdraw(ctx context.Context, req *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error)
+	ListWithdraws(ctx context.Context, req *driversproto.ListWithdrawsRequest) (*driversproto.ListWithdrawsResponse, error)
 }
 
-// grpcClient 是 DriverClient 接口的 gRPC 直连实现，内部持有 driversvc 的 gRPC 客户端。
 type grpcClient struct {
-	// cli 为 driversvc 生成的 gRPC 客户端实例。
-	cli driversproto.DriversvcClient
+	cli driversproto.DriverServiceClient
 }
 
-// CreateDriver 转发创建司机请求到 driversvc。
 func (g *grpcClient) CreateDriver(ctx context.Context, req *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
 	return g.cli.CreateDriver(ctx, req)
 }
 
-// UpdateDriver 转发更新司机请求到 driversvc。
+func (g *grpcClient) RegisterDriver(ctx context.Context, req *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.RegisterDriver(ctx, req)
+}
+
 func (g *grpcClient) UpdateDriver(ctx context.Context, req *driversproto.UpdateDriverRequest) (*driversproto.UpdateDriverResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
 	return g.cli.UpdateDriver(ctx, req)
 }
 
-// GetDriver 转发查询司机请求到 driversvc。
 func (g *grpcClient) GetDriver(ctx context.Context, req *driversproto.GetDriverRequest) (*driversproto.GetDriverResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
 	return g.cli.GetDriver(ctx, req)
 }
 
-// DeleteDriver 转发删除司机请求到 driversvc。
+func (g *grpcClient) GetDriverByPhone(ctx context.Context, req *driversproto.GetDriverByPhoneRequest) (*driversproto.GetDriverByPhoneResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.GetDriverByPhone(ctx, req)
+}
+
+func (g *grpcClient) SetDriverOnline(ctx context.Context, req *driversproto.SetDriverOnlineRequest) (*driversproto.SetDriverOnlineResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.SetDriverOnline(ctx, req)
+}
+
+func (g *grpcClient) SetDriverOffline(ctx context.Context, req *driversproto.SetDriverOfflineRequest) (*driversproto.SetDriverOfflineResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.SetDriverOffline(ctx, req)
+}
+
+func (g *grpcClient) ReportLocation(ctx context.Context, req *driversproto.ReportLocationRequest) (*driversproto.ReportLocationResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ReportLocation(ctx, req)
+}
+
+func (g *grpcClient) SetDriverServiceStatus(ctx context.Context, req *driversproto.SetDriverServiceStatusRequest) (*driversproto.SetDriverServiceStatusResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.SetDriverServiceStatus(ctx, req)
+}
+
+func (g *grpcClient) Heartbeat(ctx context.Context, req *driversproto.HeartbeatRequest) (*driversproto.HeartbeatResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.Heartbeat(ctx, req)
+}
+
 func (g *grpcClient) DeleteDriver(ctx context.Context, req *driversproto.DeleteDriverRequest) (*driversproto.DeleteDriverResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
 	return g.cli.DeleteDriver(ctx, req)
 }
 
-// ServiceContext 持有 driver API 运行所需的依赖（当前为 driversvc 客户端）。
-type ServiceContext struct {
-	// DriverClient 是与 driversvc 通信的客户端实例，可能为 nil（连接失败时）。
-	DriverClient DriverClient
+func (g *grpcClient) Login(ctx context.Context, req *driversproto.LoginRequest) (*driversproto.LoginResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.Login(ctx, req)
 }
 
-// NewServiceContext 构造服务上下文；grpcAddr 为 driversvc 的 gRPC 监听地址。
-func NewServiceContext(grpcAddr string) *ServiceContext {
-	// 建立到 driversvc 的 gRPC 连接（明文 insecure 凭据，仅本地/内网联调使用）。
-	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		// 连接失败由调用方在首次请求时感知，这里不阻塞启动，仅保留为 nil。
-		return &ServiceContext{DriverClient: nil}
+func (g *grpcClient) LoginBySMS(ctx context.Context, req *driversproto.LoginBySMSRequest) (*driversproto.LoginResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.LoginBySms(ctx, req)
+}
+
+func (g *grpcClient) CreateVehicle(ctx context.Context, req *driversproto.CreateVehicleRequest) (*driversproto.CreateVehicleResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.CreateVehicle(ctx, req)
+}
+
+func (g *grpcClient) UpdateVehicle(ctx context.Context, req *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.UpdateVehicle(ctx, req)
+}
+
+func (g *grpcClient) DeleteVehicle(ctx context.Context, req *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.DeleteVehicle(ctx, req)
+}
+
+func (g *grpcClient) GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.GetVehicle(ctx, req)
+}
+
+func (g *grpcClient) GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.GetDriverAiScore(ctx, req)
+}
+
+func (g *grpcClient) UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.UploadCertification(ctx, req)
+}
+
+func (g *grpcClient) GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.GetCertification(ctx, req)
+}
+
+func (g *grpcClient) CreateWithdraw(ctx context.Context, req *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.CreateWithdraw(ctx, req)
+}
+
+func (g *grpcClient) ListWithdraws(ctx context.Context, req *driversproto.ListWithdrawsRequest) (*driversproto.ListWithdrawsResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ListWithdraws(ctx, req)
+}
+
+type OrderClient interface {
+	GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error)
+	ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error)
+	AcceptOrder(ctx context.Context, req *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error)
+	StartTrip(ctx context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error)
+	ConfirmArrive(ctx context.Context, req *orderproto.ConfirmArriveRequest) (*orderproto.ConfirmArriveResponse, error)
+	FinishTrip(ctx context.Context, req *orderproto.FinishTripRequest) (*orderproto.FinishTripResponse, error)
+}
+
+type PayClient interface {
+	ListSettlements(ctx context.Context, req *payproto.ListSettlementsRequest) (*payproto.ListSettlementsResponse, error)
+}
+
+type PriceClient interface {
+	EstimatePrice(ctx context.Context, req *priceproto.EstimatePriceRequest) (*priceproto.EstimatePriceResponse, error)
+}
+
+type payGRPCClient struct {
+	cli payproto.PayClient
+}
+
+func (g *payGRPCClient) ListSettlements(ctx context.Context, req *payproto.ListSettlementsRequest) (*payproto.ListSettlementsResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ListSettlements(ctx, req)
+}
+
+type priceGRPCClient struct {
+	cli priceproto.PriceClient
+}
+
+func (g *priceGRPCClient) EstimatePrice(ctx context.Context, req *priceproto.EstimatePriceRequest) (*priceproto.EstimatePriceResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.EstimatePrice(ctx, req)
+}
+
+type orderGRPCClient struct {
+	cli orderproto.OrderClient
+}
+
+func (g *orderGRPCClient) GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.GetOrder(ctx, req)
+}
+
+func (g *orderGRPCClient) ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ListOrders(ctx, req)
+}
+
+func (g *orderGRPCClient) AcceptOrder(ctx context.Context, req *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.AcceptOrder(ctx, req)
+}
+
+func (g *orderGRPCClient) StartTrip(ctx context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.StartTrip(ctx, req)
+}
+
+func (g *orderGRPCClient) ConfirmArrive(ctx context.Context, req *orderproto.ConfirmArriveRequest) (*orderproto.ConfirmArriveResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ConfirmArrive(ctx, req)
+}
+
+func (g *orderGRPCClient) FinishTrip(ctx context.Context, req *orderproto.FinishTripRequest) (*orderproto.FinishTripResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.FinishTrip(ctx, req)
+}
+
+type DispatchClient interface {
+	RejectDispatch(ctx context.Context, req *dispatchproto.RejectDispatchRequest) (*dispatchproto.RejectDispatchResponse, error)
+	ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error)
+}
+
+type dispatchGRPCClient struct {
+	cli dispatchproto.DispatchClient
+}
+
+func (g *dispatchGRPCClient) RejectDispatch(ctx context.Context, req *dispatchproto.RejectDispatchRequest) (*dispatchproto.RejectDispatchResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.RejectDispatch(ctx, req)
+}
+
+func (g *dispatchGRPCClient) ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ListDispatchRecords(ctx, req)
+}
+
+type LocationClient interface {
+	ReportLocation(ctx context.Context, req *locationproto.ReportLocationReq) (*locationproto.ReportLocationResp, error)
+}
+
+type locationGRPCClient struct {
+	cli locationproto.LocationServiceClient
+}
+
+func (g *locationGRPCClient) ReportLocation(ctx context.Context, req *locationproto.ReportLocationReq) (*locationproto.ReportLocationResp, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ReportLocation(ctx, req)
+}
+
+type ServiceContext struct {
+	DriverClient         DriverClient
+	OrderClient          OrderClient
+	PayClient            PayClient
+	PriceClient          PriceClient
+	DispatchClient       DispatchClient
+	LocationClient       LocationClient
+	TrajectoryRepository TrajectoryRepository
+	HeatmapRepository    HeatmapRepository
+	ReviewRepository     ReviewRepository
+	SigningKey           string
+	InternalAuth         InternalAuthConfig
+	CodeCache            CodeCache
+	RedisClient          *redis.Client
+	Qiniu                *qiniuutil.Client
+	PushPollInterval     time.Duration
+	PushPollPageSize     int32
+}
+
+type InternalAuthConfig struct {
+	ServiceToken  string                  `yaml:"serviceToken"`
+	AllowedRoutes []InternalRouteConfig   `yaml:"allowedRoutes"`
+	RateLimit     InternalRateLimitConfig `yaml:"rateLimit"`
+}
+
+type InternalRouteConfig struct {
+	Method string `yaml:"method"`
+	Path   string `yaml:"path"`
+}
+
+type InternalRateLimitConfig struct {
+	Limit         int `yaml:"limit"`
+	WindowSeconds int `yaml:"windowSeconds"`
+}
+
+const defaultSigningKey = "local-development-signing-key"
+
+const defaultCodeTTL = 5 * time.Minute
+
+func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr string) *ServiceContext {
+	return NewServiceContextWithStorage(
+		driverGRPCAddr,
+		orderGRPCAddr,
+		dispatchGRPCAddr,
+		locationGRPCAddr,
+		commonconfig.RedisConf{Host: redisAddr},
+		commonconfig.MysqlConf{},
+	)
+}
+
+func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr string, redisConf commonconfig.RedisConf, mysqlConf commonconfig.MysqlConf, rpcGRPCAddrs ...string) *ServiceContext {
+	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpcDialOpts...)
+	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpcDialOpts...)
+	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpcDialOpts...)
+	locationConn, locationErr := grpc.NewClient(locationGRPCAddr, grpcDialOpts...)
+	var payConn *grpc.ClientConn
+	var payErr error
+	payTarget := ""
+	if len(rpcGRPCAddrs) > 0 {
+		payTarget = strings.TrimSpace(rpcGRPCAddrs[0])
 	}
-	// 连接成功，构造持有 gRPC 客户端的 ServiceContext。
-	return &ServiceContext{DriverClient: &grpcClient{cli: driversproto.NewDriversvcClient(conn)}}
+	if payTarget != "" {
+		payConn, payErr = grpc.NewClient(payTarget, grpcDialOpts...)
+	}
+	var priceConn *grpc.ClientConn
+	var priceErr error
+	priceTarget := ""
+	if len(rpcGRPCAddrs) > 1 {
+		priceTarget = strings.TrimSpace(rpcGRPCAddrs[1])
+	}
+	if priceTarget != "" {
+		priceConn, priceErr = grpc.NewClient(priceTarget, grpcDialOpts...)
+	}
+
+	// Code cache: use Redis when configured, otherwise fall back to local memory.
+	var codeCache CodeCache
+	var rdb *redis.Client
+	if strings.TrimSpace(redisConf.Host) != "" {
+		rdb = datasource.NewRedisClient(redisConf)
+		codeCache = NewRedisCodeCache(rdb, defaultCodeTTL)
+	} else {
+		codeCache = NewLocalCodeCache(defaultCodeTTL)
+	}
+
+	svcCtx := &ServiceContext{
+		SigningKey:  resolveSigningKey(),
+		CodeCache:   codeCache,
+		RedisClient: rdb,
+	}
+	if driverErr == nil {
+		svcCtx.DriverClient = &grpcClient{cli: driversproto.NewDriverServiceClient(driverConn)}
+	}
+	if orderErr == nil {
+		svcCtx.OrderClient = &orderGRPCClient{cli: orderproto.NewOrderClient(orderConn)}
+	}
+	if payTarget != "" && payErr == nil {
+		svcCtx.PayClient = &payGRPCClient{cli: payproto.NewPayClient(payConn)}
+	}
+	if priceTarget != "" && priceErr == nil {
+		svcCtx.PriceClient = &priceGRPCClient{cli: priceproto.NewPriceClient(priceConn)}
+	}
+	if dispatchErr == nil {
+		svcCtx.DispatchClient = &dispatchGRPCClient{cli: dispatchproto.NewDispatchClient(dispatchConn)}
+	}
+	if locationErr == nil {
+		svcCtx.LocationClient = &locationGRPCClient{cli: locationproto.NewLocationServiceClient(locationConn)}
+	}
+	if strings.TrimSpace(mysqlConf.Dsn) != "" {
+		db, err := datasource.NewMysqlClient(mysqlConf)
+		if err != nil {
+			// 妥协：MySQL 初始化失败不 panic，打日志后继续启动，Review/Trajectory 接口返回 501 降级。
+			logx.Errorf("driver api mysql init failed, trajectory/heatmap storage will be unavailable: %v", err)
+		} else {
+			svcCtx.TrajectoryRepository = NewGormTrajectoryRepository(db)
+			svcCtx.HeatmapRepository = NewGormHeatmapRepository(db)
+			svcCtx.ReviewRepository = NewGormDriverReviewRepository(db)
+			if err := db.AutoMigrate(&DriverOrderReview{}); err != nil {
+				// driver_review 表结构缺失只影响评价接口，不阻塞其他能力启动。
+				logx.Errorf("driver api driver_review table migrate failed: %v", err)
+			}
+		}
+	}
+	return svcCtx
+}
+
+func resolveSigningKey() string {
+	if key := strings.TrimSpace(os.Getenv("DRIVER_SIGNING_KEY")); key != "" {
+		return key
+	}
+	return ""
+}
+
+func (s *ServiceContext) ValidateSigningKey() error {
+	if s == nil {
+		return errors.New("driver signing key is empty")
+	}
+	key := strings.TrimSpace(s.SigningKey)
+	if key == "" {
+		return errors.New("driver signing key is empty")
+	}
+	if key == defaultSigningKey {
+		return errors.New("driver signing key must not use default development value")
+	}
+	if expected := strings.TrimSpace(os.Getenv("DRIVERSVC_SIGNING_KEY")); expected != "" && expected != key {
+		return errors.New("DRIVER_SIGNING_KEY and DRIVERSVC_SIGNING_KEY mismatch")
+	}
+	return nil
+}
+
+func (s *ServiceContext) ValidateInternalAuth() error {
+	if s == nil {
+		return nil
+	}
+	cfg := s.InternalAuth
+	if len(cfg.AllowedRoutes) > 0 && strings.TrimSpace(cfg.ServiceToken) == "" {
+		return errors.New("driver internal service token is empty")
+	}
+	for _, route := range cfg.AllowedRoutes {
+		if strings.TrimSpace(route.Method) == "" || strings.TrimSpace(route.Path) == "" {
+			return errors.New("driver internal auth route must include method and path")
+		}
+	}
+	return nil
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,6 +16,10 @@ import (
 )
 
 const couponTimeLayout = "2006-01-02 15:04:05"
+
+// couponDecimalPattern 校验优惠券金额和折扣字段的非负十进制格式。
+// 统一使用字符串校验，避免 float64 精度丢失以及 NaN、Inf 等非法值进入业务层。
+var couponDecimalPattern = regexp.MustCompile(`^(0|[1-9]\d*)(\.\d{1,2})?$`)
 
 // ListCouponsLogic 处理优惠券模板列表查询。
 type ListCouponsLogic struct {
@@ -73,7 +77,7 @@ func NewCreateCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Crea
 }
 
 // CreateCoupon 新增优惠券模板。
-func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.CreateCouponResponse, error) {
 	if err := validateCouponRequest(in); err != nil {
 		return nil, err
 	}
@@ -97,13 +101,13 @@ func (l *CreateCouponLogic) CreateCoupon(in *adminsvc.CouponRequest) (*adminsvc.
 	if err != nil {
 		return nil, err
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "create", "coupon", id, fmt.Sprintf("创建优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
+	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "create", "coupon", id, fmt.Sprintf("创建优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return &adminsvc.CommonResponse{Message: "ok"}, nil
+	return &adminsvc.CreateCouponResponse{Id: id, Message: "ok"}, nil
 }
 
 // UpdateCouponLogic 处理优惠券模板编辑。
@@ -148,7 +152,7 @@ func (l *UpdateCouponLogic) UpdateCoupon(in *adminsvc.CouponRequest) (*adminsvc.
 	if affected == 0 {
 		return nil, status.Error(codes.NotFound, "优惠券不存在")
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "update", "coupon", in.GetId(), fmt.Sprintf("编辑优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
+	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "update", "coupon", in.GetId(), fmt.Sprintf("编辑优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -194,7 +198,7 @@ func (l *DisableCouponLogic) DisableCoupon(in *adminsvc.CouponRequest) (*adminsv
 	if affected == 0 {
 		return nil, status.Error(codes.NotFound, "优惠券不存在或已停用")
 	}
-	if err := createOperationLog(l.ctx, l.svcCtx, in.GetAdminId(), "coupon", "disable", "coupon", in.GetId(), fmt.Sprintf("下架优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
+	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "disable", "coupon", in.GetId(), fmt.Sprintf("下架优惠券模板：%s", in.GetName()), in.GetIp()); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -217,13 +221,13 @@ func validateCouponRequest(in *adminsvc.CouponRequest) error {
 	if in.GetPerUserLimit() <= 0 || in.GetTotalCount() < 0 {
 		return status.Error(codes.InvalidArgument, "优惠券数量参数不合法")
 	}
-	if _, err := strconv.ParseFloat(strings.TrimSpace(in.GetFaceValue()), 64); err != nil {
+	if !isValidCouponDecimal(in.GetFaceValue()) {
 		return status.Error(codes.InvalidArgument, "面值格式不合法")
 	}
-	if _, err := strconv.ParseFloat(strings.TrimSpace(in.GetDiscount()), 64); err != nil {
+	if !isValidCouponDecimal(in.GetDiscount()) {
 		return status.Error(codes.InvalidArgument, "折扣格式不合法")
 	}
-	if _, err := strconv.ParseFloat(strings.TrimSpace(in.GetThresholdAmount()), 64); err != nil {
+	if !isValidCouponDecimal(in.GetThresholdAmount()) {
 		return status.Error(codes.InvalidArgument, "门槛金额格式不合法")
 	}
 	start, err := time.ParseInLocation(couponTimeLayout, in.GetValidStartAt(), time.Local)
@@ -238,6 +242,12 @@ func validateCouponRequest(in *adminsvc.CouponRequest) error {
 		return status.Error(codes.InvalidArgument, "有效期结束时间必须晚于开始时间")
 	}
 	return nil
+}
+
+// isValidCouponDecimal 校验优惠券金额字段。
+// 允许整数或最多两位小数，禁止负数、空值、科学计数法、NaN 和 Inf。
+func isValidCouponDecimal(value string) bool {
+	return couponDecimalPattern.MatchString(strings.TrimSpace(value))
 }
 
 // buildCouponWhere 组装优惠券查询条件。

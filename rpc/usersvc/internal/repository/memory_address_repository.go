@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"sort"
 	"sync"
 	"time"
 
@@ -54,21 +53,12 @@ func (r *MemoryAddressRepository) ListByUser(_ context.Context, userID uint64) (
 
 	list := make([]*model.UserAddress, 0)
 	for _, address := range r.addresses {
-		if address.UserID != userID || address.DeletedAt != nil {
+		if address.UserID != userID || address.DeletedAt.Valid {
 			continue
 		}
 		copied := *address
 		list = append(list, &copied)
 	}
-	sort.Slice(list, func(i, j int) bool {
-		if list[i].IsDefault != list[j].IsDefault {
-			return list[i].IsDefault > list[j].IsDefault
-		}
-		if list[i].Sort != list[j].Sort {
-			return list[i].Sort > list[j].Sort
-		}
-		return list[i].ID < list[j].ID
-	})
 	return list, nil
 }
 
@@ -78,7 +68,7 @@ func (r *MemoryAddressRepository) FindByID(_ context.Context, userID, addressID 
 	defer r.mu.RUnlock()
 
 	address, ok := r.addresses[addressID]
-	if !ok || address.UserID != userID || address.DeletedAt != nil {
+	if !ok || address.UserID != userID || address.DeletedAt.Valid {
 		return nil, ErrAddressNotFound
 	}
 	copied := *address
@@ -91,7 +81,7 @@ func (r *MemoryAddressRepository) Update(_ context.Context, address *model.UserA
 	defer r.mu.Unlock()
 
 	current, ok := r.addresses[address.ID]
-	if !ok || current.UserID != address.UserID || current.DeletedAt != nil {
+	if !ok || current.UserID != address.UserID || current.DeletedAt.Valid {
 		return ErrAddressNotFound
 	}
 	if address.IsDefault == model.UserAddressIsDefault {
@@ -105,7 +95,6 @@ func (r *MemoryAddressRepository) Update(_ context.Context, address *model.UserA
 	current.Longitude = address.Longitude
 	current.Latitude = address.Latitude
 	current.IsDefault = address.IsDefault
-	current.Sort = address.Sort
 	current.UpdatedAt = time.Now()
 
 	copied := *current
@@ -119,18 +108,19 @@ func (r *MemoryAddressRepository) Delete(_ context.Context, userID, addressID ui
 	defer r.mu.Unlock()
 
 	address, ok := r.addresses[addressID]
-	if !ok || address.UserID != userID || address.DeletedAt != nil {
+	if !ok || address.UserID != userID || address.DeletedAt.Valid {
 		return ErrAddressNotFound
 	}
 	now := time.Now()
-	address.DeletedAt = &now
+	address.DeletedAt.Time = now
+	address.DeletedAt.Valid = true
 	address.UpdatedAt = now
 	return nil
 }
 
 func (r *MemoryAddressRepository) clearDefaultLocked(userID, keepID uint64) {
 	for _, address := range r.addresses {
-		if address.UserID == userID && address.ID != keepID && address.DeletedAt == nil {
+		if address.UserID == userID && address.ID != keepID && !address.DeletedAt.Valid {
 			address.IsDefault = model.UserAddressNotDefault
 		}
 	}

@@ -54,7 +54,6 @@ func (l *CreateAddressLogic) CreateAddress(in *userproto.CreateAddressRequest) (
 		Longitude:    in.GetLongitude(),
 		Latitude:     in.GetLatitude(),
 		IsDefault:    boolToDefaultFlag(in.GetIsDefault()),
-		Sort:         int(in.GetSort()),
 	}
 	if err := addresses.Create(l.ctx, address); err != nil {
 		return nil, err
@@ -129,7 +128,6 @@ func (l *UpdateAddressLogic) UpdateAddress(in *userproto.UpdateAddressRequest) (
 	current.Longitude = in.GetLongitude()
 	current.Latitude = in.GetLatitude()
 	current.IsDefault = boolToDefaultFlag(in.GetIsDefault())
-	current.Sort = int(in.GetSort())
 	if err := addresses.Update(l.ctx, current); err != nil {
 		return nil, mapAddressRepositoryError(err)
 	}
@@ -225,6 +223,5 @@ func toAddressInfo(address *model.UserAddress) *userproto.AddressInfo {
 		Longitude:    address.Longitude,
 		Latitude:     address.Latitude,
 		IsDefault:    address.IsDefault == model.UserAddressIsDefault,
-		Sort:         int32(address.Sort),
 	}
 }

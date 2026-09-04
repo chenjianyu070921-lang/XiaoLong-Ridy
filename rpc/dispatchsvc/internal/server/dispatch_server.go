@@ -33,3 +33,21 @@ func (s *DispatchServer) ListDispatchRecords(ctx context.Context, in *proto.List
 	l := logic.NewListDispatchRecordsLogic(ctx, s.svcCtx)
 	return l.ListDispatchRecords(in)
 }
+
+// 司机拒单：将指定司机的待派单记录置为已拒绝。
+func (s *DispatchServer) RejectDispatch(ctx context.Context, in *proto.RejectDispatchRequest) (*proto.RejectDispatchResponse, error) {
+	l := logic.NewRejectDispatchLogic(ctx, s.svcCtx)
+	return l.RejectDispatch(in)
+}
+
+// 订单取消/超时取消：将该订单全部待派单记录置为已取消（Pending -> Cancelled）。
+func (s *DispatchServer) CancelDispatch(ctx context.Context, in *proto.CancelDispatchRequest) (*proto.CancelDispatchResponse, error) {
+	l := logic.NewCancelDispatchLogic(ctx, s.svcCtx)
+	return l.CancelDispatch(in)
+}
+
+// 分页查询存在超时待派单记录的订单 ID（去重），供 job 超时重派任务使用。
+func (s *DispatchServer) ListTimeoutPendingOrders(ctx context.Context, in *proto.ListTimeoutPendingOrdersRequest) (*proto.ListTimeoutPendingOrdersResponse, error) {
+	l := logic.NewListTimeoutPendingOrdersLogic(ctx, s.svcCtx)
+	return l.ListTimeoutPendingOrders(in)
+}

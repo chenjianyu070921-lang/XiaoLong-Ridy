@@ -63,6 +63,54 @@ func (l *ProfileLogic) SubmitRealName(req *types.SubmitRealNameRequest) (*types.
 	return &types.SubmitRealNameResponse{User: toAPIUserInfo(resp.GetUser())}, nil
 }
 
+// UpdateProfile 调用 usersvc.UpdateProfile 更新当前乘客昵称与头像。
+func (l *ProfileLogic) UpdateProfile(req *types.UpdateProfileRequest) (*types.UpdateProfileResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || (strings.TrimSpace(req.Nickname) == "" && strings.TrimSpace(req.AvatarURL) == "") {
+		return nil, ErrInvalidRequest
+	}
+	client, err := l.userClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.UpdateProfile(l.ctx, &userproto.UpdateProfileRequest{
+		UserId:    userID,
+		Nickname:  strings.TrimSpace(req.Nickname),
+		AvatarUrl: strings.TrimSpace(req.AvatarURL),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.UpdateProfileResponse{User: toAPIUserInfo(resp.GetUser())}, nil
+}
+
+// SetPassword 调用 usersvc 为当前已登录乘客设置或修改密码。
+func (l *ProfileLogic) SetPassword(req *types.SetPasswordRequest) (*types.SetPasswordResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || strings.TrimSpace(req.NewPassword) == "" {
+		return nil, ErrInvalidRequest
+	}
+	client, err := l.userClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.SetPassword(l.ctx, &userproto.SetPasswordRequest{
+		UserId:          userID,
+		CurrentPassword: req.CurrentPassword,
+		NewPassword:     req.NewPassword,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.SetPasswordResponse{Success: resp.GetSuccess()}, nil
+}
+
 // userClient 获取 usersvc RPC 客户端。
 func (l *ProfileLogic) userClient() (svc.UserClient, error) {
 	if l.svcCtx == nil || l.svcCtx.UserClient == nil {

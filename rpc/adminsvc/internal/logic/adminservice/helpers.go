@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
+	adminconfig "XiaoLong-Ridy/rpc/adminsvc/internal/config"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
 
 	"google.golang.org/grpc/codes"
@@ -109,10 +110,47 @@ func saveSession(ctx context.Context, svcCtx *svc.ServiceContext, sess adminSess
 	return svcCtx.Redis.Set(ctx, sessionKey(svcCtx, sess.Token), b, time.Duration(ttlHours)*time.Hour).Err()
 }
 
+// readSession 从 Redis 中读取并解析管理员会话。
+// 该函数是 adminsvc 对外承担会话边界的统一入口，HTTP 层不再直接访问 Redis。
+func readSession(ctx context.Context, svcCtx *svc.ServiceContext, token string) (*adminSession, error) {
+	if strings.TrimSpace(token) == "" {
+		return nil, status.Error(codes.Unauthenticated, "token不能为空")
+	}
+	raw, err := svcCtx.Redis.Get(ctx, sessionKey(svcCtx, token)).Result()
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, "登录会话无效或已过期")
+	}
+	var sess adminSession
+	if err := json.Unmarshal([]byte(raw), &sess); err != nil {
+		return nil, status.Error(codes.Unauthenticated, "登录会话格式异常")
+	}
+	if sess.AdminID <= 0 {
+		return nil, status.Error(codes.Unauthenticated, "登录会话缺少管理员信息")
+	}
+	return &sess, nil
+}
+
+// validateSession 读取 Redis 会话后回查 admin_user，确保账号仍存在且未停用。
+// 这样管理员被停用后，旧 token 在下一次请求时会立即失效。
+func validateSession(ctx context.Context, svcCtx *svc.ServiceContext, token string) (*adminRow, error) {
+	sess, err := readSession(ctx, svcCtx, token)
+	if err != nil {
+		return nil, err
+	}
+	admin, err := getAdminByID(ctx, svcCtx, sess.AdminID)
+	if err != nil {
+		return nil, err
+	}
+	if admin.Status != 1 {
+		return nil, status.Error(codes.PermissionDenied, "管理员账号已停用")
+	}
+	return admin, nil
+}
+
 // deleteSession 删除 Redis 中的管理员会话。
 func deleteSession(ctx context.Context, svcCtx *svc.ServiceContext, token string) error {
 	if strings.TrimSpace(token) == "" {
-		return status.Error(codes.InvalidArgument, "token不能为空")
+		return status.Error(codes.Unauthenticated, "token不能为空")
 	}
 	return svcCtx.Redis.Del(ctx, sessionKey(svcCtx, token)).Err()
 }
@@ -179,16 +217,60 @@ func createOperationLog(ctx context.Context, svcCtx *svc.ServiceContext, adminID
 	return err
 }
 
-// mapMenus 返回 P0 阶段固定的后台菜单。
-func mapMenus(role int32) []*adminsvc.MenuItem {
-	items := []*adminsvc.MenuItem{
-		{Name: "用户管理", Path: "/users", Icon: "User", Perm: "user:list"},
-		{Name: "司机审核", Path: "/driver-certifications", Icon: "BadgeCheck", Perm: "driver:audit"},
-		{Name: "订单监控", Path: "/orders", Icon: "ClipboardList", Perm: "order:list"},
-		{Name: "操作日志", Path: "/operation-logs", Icon: "ScrollText", Perm: "log:list"},
+// createOperationLogTx 在业务事务内写入后台操作日志，保证同库业务变更与审计记录原子提交。
+func createOperationLogTx(ctx context.Context, tx *sql.Tx, adminID int64, module, action, targetType string, targetID int64, detail, ip string) error {
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO admin_operation_log (admin_id, module, action, target_type, target_id, detail, ip)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, adminID, module, action, targetType, targetID, detail, ip)
+	return err
+}
+
+// writeAuditAfterCommitted 为已提交或跨服务业务操作补写审计日志。
+// 审计失败但补偿任务创建成功时仍返回 nil，避免调用方把已成功的业务动作误判为失败。
+func writeAuditAfterCommitted(ctx context.Context, svcCtx *svc.ServiceContext, adminID int64, module, action, targetType string, targetID int64, detail, ip string) error {
+	if err := createOperationLog(ctx, svcCtx, adminID, module, action, targetType, targetID, detail, ip); err != nil {
+		if outboxErr := recordAuditOutbox(ctx, svcCtx, adminID, module, action, targetType, targetID, detail, ip, err); outboxErr != nil {
+			return fmt.Errorf("业务操作已成功，但审计日志和补偿任务均写入失败: audit=%w; outbox=%v", err, outboxErr)
+		}
 	}
-	if role == 1 {
-		items = append([]*adminsvc.MenuItem{{Name: "管理员", Path: "/admins", Icon: "Shield", Perm: "admin:manage"}}, items...)
+	return nil
+}
+
+// recordAuditOutbox 写入审计补偿任务。
+// 跨服务操作已经提交但本地审计日志写入失败时，adminsvc 用该表记录待补偿事件，
+// 后续可由 job 或 MQ 消费者重放到 admin_operation_log 或独立 auditsvc。
+func recordAuditOutbox(ctx context.Context, svcCtx *svc.ServiceContext, adminID int64, module, action, targetType string, targetID int64, detail, ip string, cause error) error {
+	eventNo := newAdminTaskNo("AO")
+	failureReason := ""
+	if cause != nil {
+		failureReason = cause.Error()
+	}
+	_, err := svcCtx.MySQL.ExecContext(ctx, `
+		INSERT INTO admin_audit_outbox
+			(event_no, module, action, target_type, target_id, admin_id, detail, ip, status, failure_reason)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+	`, eventNo, module, action, targetType, targetID, adminID, detail, ip, failureReason)
+	return err
+}
+
+// mapMenus 将服务配置中声明的角色菜单转换为 RPC 返回结构。
+// 未配置角色不返回菜单，避免因默认菜单导致前端暴露未授权入口。
+func mapMenus(role int32, menuRoles map[int32][]adminconfig.MenuItemConfig) []*adminsvc.MenuItem {
+	return mapMenuItems(menuRoles[role])
+}
+
+// mapMenuItems 递归转换菜单配置，并构造新的返回对象，防止调用方修改影响服务配置。
+func mapMenuItems(configs []adminconfig.MenuItemConfig) []*adminsvc.MenuItem {
+	items := make([]*adminsvc.MenuItem, 0, len(configs))
+	for _, item := range configs {
+		items = append(items, &adminsvc.MenuItem{
+			Name:     item.Name,
+			Path:     item.Path,
+			Icon:     item.Icon,
+			Perm:     item.Perm,
+			Children: mapMenuItems(item.Children),
+		})
 	}
 	return items
 }

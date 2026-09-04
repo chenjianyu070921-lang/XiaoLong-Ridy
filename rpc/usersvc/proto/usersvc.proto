@@ -9,6 +9,10 @@ service User {
   rpc SendSMSCode(SendSMSCodeRequest) returns (SendSMSCodeResponse);
   // LoginBySMS 通过短信验证码登录；首次登录自动创建乘客账号。
   rpc LoginBySMS(LoginBySMSRequest) returns (LoginBySMSResponse);
+  // LoginByPassword 通过手机号和已设置密码登录。
+  rpc LoginByPassword(LoginByPasswordRequest) returns (LoginBySMSResponse);
+  // SetPassword 为已登录乘客设置或修改登录密码。
+  rpc SetPassword(SetPasswordRequest) returns (SetPasswordResponse);
   // RefreshToken 刷新访问令牌。
   rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
   // Logout 注销当前登录态。
@@ -17,6 +21,8 @@ service User {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   // SubmitRealName 提交乘客实名信息。
   rpc SubmitRealName(SubmitRealNameRequest) returns (SubmitRealNameResponse);
+  // UpdateProfile 更新乘客昵称与头像，空字段表示不修改。
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // CreateAddress 新增乘客常用地址。
   rpc CreateAddress(CreateAddressRequest) returns (AddressInfo);
   // ListAddresses 查询乘客常用地址列表。
@@ -25,6 +31,32 @@ service User {
   rpc UpdateAddress(UpdateAddressRequest) returns (AddressInfo);
   // DeleteAddress 删除乘客常用地址。
   rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressResponse);
+  // ClaimCoupon 领取优惠券。
+  rpc ClaimCoupon(ClaimCouponRequest) returns (ClaimCouponResponse);
+  // ListMyCoupons 查询我的优惠券。
+  rpc ListMyCoupons(ListMyCouponsRequest) returns (ListMyCouponsResponse);
+  // AdminListUserCoupons 为管理后台提供用户券查询能力。
+  rpc AdminListUserCoupons(AdminListUserCouponsRequest) returns (AdminListUserCouponsResponse);
+  // LockUserCoupon 下单前锁定用户券，防止重复使用。
+  rpc LockUserCoupon(LockUserCouponRequest) returns (LockUserCouponResponse);
+  // ReleaseUserCoupon 下单失败时释放用户券锁定。
+  rpc ReleaseUserCoupon(ReleaseUserCouponRequest) returns (ReleaseUserCouponResponse);
+  // AdminListUsers 为管理后台提供分页用户查询能力。
+  rpc AdminListUsers(AdminUserListRequest) returns (AdminUserListResponse);
+  // AdminGetUser 为管理后台提供指定用户详情查询能力。
+  rpc AdminGetUser(AdminUserDetailRequest) returns (AdminUser);
+  // AdminFreezeUser 为管理后台提供用户冻结能力，状态变更由 usersvc 负责。
+  rpc AdminFreezeUser(AdminFreezeUserRequest) returns (AdminFreezeUserResponse);
+  // AdminUnfreezeUser 为管理后台提供用户解冻能力，状态变更由 usersvc 负责。
+  rpc AdminUnfreezeUser(AdminFreezeUserRequest) returns (AdminFreezeUserResponse);
+  // AdminIssueCoupon 为管理后台提供批量发券能力，券库存与领取上限由 usersvc 校验。
+  rpc AdminIssueCoupon(AdminIssueCouponRequest) returns (AdminIssueCouponResponse);
+  // GetWallet 查询当前用户钱包余额和流水。
+  rpc GetWallet(GetWalletRequest) returns (GetWalletResponse);
+  // RechargeWallet 充值并写入钱包流水。
+  rpc RechargeWallet(ChangeWalletRequest) returns (ChangeWalletResponse);
+  // WithdrawWallet 提现并写入钱包流水。
+  rpc WithdrawWallet(ChangeWalletRequest) returns (ChangeWalletResponse);
 }
 
 // SendSMSCodeRequest 发送短信验证码请求。
@@ -51,6 +83,8 @@ message UserInfo {
   string nickname = 3; // 昵称
   string avatar_url = 4; // 头像地址
   string real_name_status = 5; // 实名认证状态：UNVERIFIED/VERIFIED
+  string real_name = 6; // 脱敏后的实名姓名
+  string id_card_no = 7; // 脱敏后的身份证号
 }
 
 // LoginBySMSResponse 短信验证码登录响应。
@@ -59,6 +93,24 @@ message LoginBySMSResponse {
   string refresh_token = 2; // Refresh Token
   bool is_new_user = 3; // 是否为首次创建的用户
   UserInfo user = 4; // 用户基础信息
+}
+
+// LoginByPasswordRequest 描述手机号密码登录请求。
+message LoginByPasswordRequest {
+  string phone = 1;
+  string password = 2;
+}
+
+// SetPasswordRequest 设置密码；已设置密码时必须提供 current_password。
+message SetPasswordRequest {
+  uint64 user_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+// SetPasswordResponse 返回密码设置结果，不返回任何敏感信息。
+message SetPasswordResponse {
+  bool success = 1;
 }
 
 // RefreshTokenRequest 刷新令牌请求。
@@ -104,6 +156,18 @@ message SubmitRealNameResponse {
   UserInfo user = 1; // 更新后的用户基础信息
 }
 
+// UpdateProfileRequest 更新个人资料请求。
+message UpdateProfileRequest {
+  uint64 user_id = 1; // 用户 ID
+  string nickname = 2; // 昵称，<=20字，允许特殊符号；为空表示不修改
+  string avatar_url = 3; // 头像地址；为空表示不修改
+}
+
+// UpdateProfileResponse 更新个人资料响应。
+message UpdateProfileResponse {
+  UserInfo user = 1; // 更新后的用户基础信息
+}
+
 // AddressInfo 表示乘客常用地址信息。
 message AddressInfo {
   uint64 id = 1; // 地址 ID
@@ -115,7 +179,6 @@ message AddressInfo {
   double longitude = 7; // 经度
   double latitude = 8; // 纬度
   bool is_default = 9; // 是否默认地址
-  int32 sort = 10; // 排序值
 }
 
 // CreateAddressRequest 新增常用地址请求。
@@ -128,7 +191,6 @@ message CreateAddressRequest {
   double longitude = 6; // 经度
   double latitude = 7; // 纬度
   bool is_default = 8; // 是否默认地址
-  int32 sort = 9; // 排序值
 }
 
 // ListAddressesRequest 查询常用地址列表请求。
@@ -152,7 +214,6 @@ message UpdateAddressRequest {
   double longitude = 7; // 经度
   double latitude = 8; // 纬度
   bool is_default = 9; // 是否默认地址
-  int32 sort = 10; // 排序值
 }
 
 // DeleteAddressRequest 删除常用地址请求。
@@ -166,3 +227,191 @@ message DeleteAddressResponse {
   bool success = 1; // 是否删除成功
 }
 
+// CouponInfo 表示乘客端展示的优惠券信息。
+message CouponInfo {
+  uint64 user_coupon_id = 1; // 用户优惠券实例 ID
+  uint64 coupon_id = 2; // 优惠券模板 ID
+  string name = 3; // 优惠券名称
+  int32 type = 4; // 类型：1满减 2折扣 3立减
+  int64 face_value_cents = 5; // 面值，单位：分
+  int32 discount = 6; // 折扣率百分比，如 85 表示 8.5 折
+  int64 threshold_cents = 7; // 使用门槛，单位：分
+  int32 car_type = 8; // 适用车型，0 表示全部
+  string city_code = 9; // 适用城市，空表示不限
+  int32 status = 10; // 用户券状态：1未用 2已用 3过期 4锁定
+  int64 received_at = 11; // 领取时间 Unix 秒
+  int64 expire_at = 12; // 过期时间 Unix 秒
+}
+
+// ClaimCouponRequest 领取优惠券请求。
+message ClaimCouponRequest {
+  uint64 user_id = 1; // 用户 ID
+  uint64 coupon_id = 2; // 优惠券模板 ID
+}
+
+// ClaimCouponResponse 领取优惠券响应。
+message ClaimCouponResponse {
+  CouponInfo user_coupon = 1; // 已领取的用户券
+}
+
+// ListMyCouponsRequest 查询我的优惠券请求。
+message ListMyCouponsRequest {
+  uint64 user_id = 1; // 用户 ID
+  int32 status = 2; // 0 表示全部；1未用 2已用 3过期 4锁定
+  int32 page = 3; // 页码，从 1 开始；未传时默认第 1 页
+  int32 page_size = 4; // 每页数量；未传时使用服务端默认值
+}
+
+// ListMyCouponsResponse 查询我的优惠券响应。
+message ListMyCouponsResponse {
+  repeated CouponInfo list = 1; // 优惠券列表
+  int64 total = 2; // 符合条件的优惠券总数
+  int32 page = 3; // 当前页码
+  int32 page_size = 4; // 当前页大小
+}
+
+// AdminListUserCouponsRequest 表示管理后台用户券查询请求。
+message AdminListUserCouponsRequest {
+  uint64 user_id = 1; // 用户 ID；为 0 时表示全库查询
+  uint64 coupon_id = 2; // 优惠券模板 ID
+  int32 status = 3; // 0 表示全部；1未用 2已用 3过期 4锁定
+  string start_time = 4; // 领取开始时间，格式 2006-01-02 15:04:05
+  string end_time = 5; // 领取结束时间，格式 2006-01-02 15:04:05
+  int32 page = 6; // 页码，从 1 开始
+  int32 page_size = 7; // 每页数量
+}
+
+// AdminListUserCouponsResponse 表示管理后台用户券分页结果。
+message AdminListUserCouponsResponse {
+  repeated CouponInfo list = 1; // 优惠券列表
+  int64 total = 2; // 符合条件的优惠券总数
+  int32 page = 3; // 当前页码
+  int32 page_size = 4; // 当前页大小
+}
+
+// LockUserCouponRequest 下单锁券请求。
+message LockUserCouponRequest {
+  uint64 user_id = 1; // 用户 ID
+  uint64 user_coupon_id = 2; // 用户优惠券实例 ID
+  uint64 order_id = 3; // 预占订单 ID，下单前未知时可传请求链路 ID 转换值
+  int32 car_type = 4; // 本次下单车型
+  string city_code = 5; // 本次下单城市
+}
+
+// LockUserCouponResponse 下单锁券响应。
+message LockUserCouponResponse {
+  CouponInfo coupon = 1; // 已锁定的优惠券信息
+}
+
+// ReleaseUserCouponRequest 释放锁券请求。
+message ReleaseUserCouponRequest {
+  uint64 user_id = 1; // 用户 ID
+  uint64 user_coupon_id = 2; // 用户优惠券实例 ID
+  uint64 order_id = 3; // 锁定时写入的订单 ID
+}
+
+// ReleaseUserCouponResponse 释放锁券响应。
+message ReleaseUserCouponResponse {
+  bool success = 1; // 是否释放成功
+}
+
+// AdminUserListRequest 表示管理后台用户列表筛选条件。
+message AdminUserListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 status = 3;
+}
+
+// AdminUserDetailRequest 表示管理后台用户详情查询条件。
+message AdminUserDetailRequest {
+  uint64 id = 1;
+}
+
+// AdminFreezeUserRequest 表示管理后台冻结用户请求。
+message AdminFreezeUserRequest {
+  uint64 user_id = 1;
+  string reason = 2;
+  int64 operator_id = 3;
+  string ip = 4;
+}
+
+// AdminFreezeUserResponse 表示用户冻结或解冻结果。
+message AdminFreezeUserResponse {
+  bool success = 1;
+}
+
+// AdminIssueCouponRequest 表示管理后台批量发券请求。
+message AdminIssueCouponRequest {
+  uint64 coupon_id = 1;      // 优惠券模板 ID
+  repeated uint64 user_ids = 2; // 目标用户 ID 列表
+  int64 operator_id = 3;     // 操作管理员 ID
+  string ip = 4;             // 操作来源 IP
+}
+
+// AdminIssueCouponResponse 表示批量发券结果。
+message AdminIssueCouponResponse {
+  int64 success_count = 1;          // 发放成功的用户数
+  int64 fail_count = 2;             // 发放失败的用户数
+  repeated string failure_reasons = 3; // 失败原因，按 user_id 汇总
+}
+
+// AdminUser 表示管理后台展示的用户资料。
+message AdminUser {
+  uint64 id = 1;
+  string phone = 2;
+  string nickname = 3;
+  string avatar_url = 4;
+  int32 gender = 5;
+  string real_name = 6;
+  string id_card_no = 7;
+  string register_source = 8;
+  int32 status = 9;
+  int64 created_at = 10;
+  int64 updated_at = 11;
+}
+
+// AdminUserListResponse 返回管理后台用户分页结果。
+message AdminUserListResponse {
+  repeated AdminUser list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// GetWalletRequest 查询钱包请求。
+message GetWalletRequest { uint64 user_id = 1; }
+
+// WalletTransaction 钱包流水明细，金额单位为元，收入为正、支出为负。
+message WalletTransaction {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  string type = 3;
+  double amount = 4;
+  uint64 order_id = 5;
+  string title = 6;
+  int64 created_at = 7;
+}
+
+// GetWalletResponse 钱包余额和流水列表。
+message GetWalletResponse {
+  uint64 user_id = 1;
+  double balance = 2;
+  repeated WalletTransaction transactions = 3;
+  int64 total = 4;
+}
+
+// ChangeWalletRequest 钱包充值或提现请求，amount 单位为元且必须大于 0。
+message ChangeWalletRequest {
+  uint64 user_id = 1;
+  double amount = 2;
+  uint64 order_id = 3; // 订单支付/退款关联的订单 ID
+  string type = 4; // 业务流水类型
+  string title = 5; // 流水标题
+}
+
+// ChangeWalletResponse 钱包变更后的余额和新增流水。
+message ChangeWalletResponse {
+  bool success = 1;
+  double balance = 2;
+  WalletTransaction transaction = 3;
+}

@@ -1,75 +1,593 @@
-// Package types 定义司机端 API 的请求与响应数据结构。
 package types
 
-// ============ 通用响应 ============
+import "encoding/json"
 
-// Response 是接口文档约定的统一响应格式（与 passenger 端保持一致）。
 type Response struct {
-	Code      int    `json:"code"`      // 业务码，0 表示成功
-	Message   string `json:"message"`   // 提示信息
-	Data      any    `json:"data"`      // 业务数据，可为任意结构
-	Timestamp int64  `json:"timestamp"` // 响应生成时的秒级时间戳
-	TraceID   string `json:"traceId"`   // 请求链路追踪 ID
+	Code      int         `json:"code"`
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data"`
+	Timestamp int64       `json:"timestamp"`
+	TraceID   string      `json:"traceId"`
 }
 
-// ============ 司机（增删改查四个核心接口） ============
-
-// CreateDriverRequest 创建司机请求。
-type CreateDriverRequest struct {
-	Phone           string `json:"phone"`           // 手机号（登录账号）
-	PasswordHash    string `json:"passwordHash"`    // 密码哈希
-	RealName        string `json:"realName"`        // 真实姓名
-	IdCardNo        string `json:"idCardNo"`        // 身份证号
-	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号
-	AvatarURL       string `json:"avatarUrl"`       // 头像地址
+type RegisterDriverRequest struct {
+	Phone           string `json:"phone"`
+	Password        string `json:"password"`
+	RealName        string `json:"realName"`
+	IdCardNo        string `json:"idCardNo"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
+	AvatarURL       string `json:"avatarUrl"`
 }
 
-// CreateDriverResponse 创建司机响应。
-type CreateDriverResponse struct {
-	ID        int64  `json:"id"`        // 新建司机 ID
-	Status    string `json:"status"`    // 初始状态（待审核）
-	CreatedAt int64  `json:"createdAt"` // 创建时间（Unix 秒）
+func (r *RegisterDriverRequest) UnmarshalJSON(data []byte) error {
+	type alias RegisterDriverRequest
+	var raw struct {
+		alias
+		PasswordHash          string `json:"password_hash"`
+		RealNameLegacy        string `json:"real_name"`
+		IdCardNoLegacy        string `json:"id_card_no"`
+		DriverLicenseNoLegacy string `json:"driver_license_no"`
+		AvatarURLLegacy       string `json:"avatar_url"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*r = RegisterDriverRequest(raw.alias)
+	if r.Password == "" {
+		r.Password = raw.PasswordHash
+	}
+	if r.RealName == "" {
+		r.RealName = raw.RealNameLegacy
+	}
+	if r.IdCardNo == "" {
+		r.IdCardNo = raw.IdCardNoLegacy
+	}
+	if r.DriverLicenseNo == "" {
+		r.DriverLicenseNo = raw.DriverLicenseNoLegacy
+	}
+	if r.AvatarURL == "" {
+		r.AvatarURL = raw.AvatarURLLegacy
+	}
+	return nil
 }
 
-// UpdateDriverRequest 更新司机请求，除 id 外字段均为可选（指针表示可缺省）。
+type RegisterDriverResponse struct {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
 type UpdateDriverRequest struct {
-	ID              int64   `json:"id"`              // 待更新司机 ID
-	Phone           *string `json:"phone,omitempty"` // 可选手机号
-	PasswordHash    *string `json:"passwordHash,omitempty"`    // 可选密码哈希
-	RealName        *string `json:"realName,omitempty"`        // 可选真实姓名
-	IdCardNo        *string `json:"idCardNo,omitempty"`        // 可选身份证号
-	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"` // 可选驾驶证号
-	AvatarURL       *string `json:"avatarUrl,omitempty"`       // 可选头像地址
-	Status          *string `json:"status,omitempty"`          // 可选账号状态
+	ID              int64   `json:"id"`
+	Phone           *string `json:"phone,omitempty"`
+	Password        *string `json:"password,omitempty"`
+	RealName        *string `json:"realName,omitempty"`
+	IdCardNo        *string `json:"idCardNo,omitempty"`
+	DriverLicenseNo *string `json:"driverLicenseNo,omitempty"`
+	AvatarURL       *string `json:"avatarUrl,omitempty"`
+	Status          *string `json:"status,omitempty"`
 }
 
-// UpdateDriverResponse 更新司机响应。
 type UpdateDriverResponse struct {
-	ID        int64  `json:"id"`        // 司机 ID
-	Status    string `json:"status"`    // 更新后的状态
-	UpdatedAt int64  `json:"updatedAt"` // 更新时间（Unix 秒）
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	UpdatedAt int64  `json:"updatedAt"`
 }
 
-// DriverDetail 司机完整信息。
+type AvatarUploadTokenRequest struct {
+	Extension string `json:"extension"`
+}
+
+type AvatarUploadTokenResponse struct {
+	UploadToken string `json:"uploadToken"`
+	Key         string `json:"key"`
+	Domain      string `json:"domain"`
+	UploadURL   string `json:"uploadUrl"`
+	ExpireSec   int64  `json:"expireSec"`
+}
+
+type GetDriverRequest struct {
+	ID int64 `form:"id"`
+}
+
 type DriverDetail struct {
-	ID              int64  `json:"id"`              // 司机 ID
-	Phone           string `json:"phone"`           // 手机号
-	RealName        string `json:"realName"`        // 真实姓名
-	IdCardNo        string `json:"idCardNo"`        // 身份证号
-	DriverLicenseNo string `json:"driverLicenseNo"` // 驾驶证号
-	AvatarURL       string `json:"avatarUrl"`       // 头像地址
-	Status          string `json:"status"`          // 账号状态
-	CreatedAt       int64  `json:"createdAt"`       // 创建时间（Unix 秒）
-	UpdatedAt       int64  `json:"updatedAt"`       // 更新时间（Unix 秒）
+	ID              int64  `json:"id"`
+	Phone           string `json:"phone"`
+	RealName        string `json:"realName"`
+	IdCardNo        string `json:"idCardNo"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
+	AvatarURL       string `json:"avatarUrl"`
+	Status          string `json:"status"`
+	OnlineStatus    int    `json:"onlineStatus"`
+	VehicleID       int64  `json:"vehicleId"`
+	CreatedAt       int64  `json:"createdAt"`
+	UpdatedAt       int64  `json:"updatedAt"`
 }
 
-// GetDriverResponse 查询司机详情响应。
 type GetDriverResponse struct {
-	Driver DriverDetail `json:"driver"` // 司机完整信息
+	Driver DriverDetail `json:"driver"`
 }
 
-// DeleteResponse 删除操作通用响应。
-type DeleteResponse struct {
-	ID      int64 `json:"id"`      // 资源 ID
-	Success bool  `json:"success"` // 是否删除成功
+type SendSMSCodeRequest struct {
+	Phone string `json:"phone"`
+}
+
+// SendSMSCodeResponse 发码结果。联调阶段验证码仅打印到服务端日志，不随响应返回给客户端，
+// 避免验证码明文泄露。
+type SendSMSCodeResponse struct {
+	Success  bool `json:"success"`
+	ExpireIn int  `json:"expireIn"`
+}
+
+type LoginByPasswordRequest struct {
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
+}
+
+type LoginBySMSRequest struct {
+	Phone string `json:"phone"`
+	Code  string `json:"code"`
+}
+
+type DriverBrief struct {
+	ID        int64  `json:"id"`
+	Phone     string `json:"phone"`
+	Status    string `json:"status"`
+	VehicleID int64  `json:"vehicleId"`
+}
+
+type LoginResponse struct {
+	Token    string      `json:"token"`
+	ExpireIn int64       `json:"expireIn"`
+	Driver   DriverBrief `json:"driver"`
+}
+
+type SetOnlineRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type SetOfflineRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type SetOnlineResponse struct {
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+}
+
+type SetOfflineResponse struct {
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+}
+
+type HeartbeatRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
+type HeartbeatResponse struct {
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+	ServerTime   int64 `json:"serverTime"`
+}
+
+type ReportLocationRequest struct {
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Heading   int32   `json:"heading"`
+	SpeedKmh  float64 `json:"speedKmh"`
+	OrderID   int64   `json:"orderId"`
+}
+
+type ReportLocationResponse struct {
+	DriverID     int64 `json:"driverId"`
+	OnlineStatus int   `json:"onlineStatus"`
+	Kicked       bool  `json:"kicked"`
+	ReportTime   int64 `json:"reportTime"`
+}
+
+type AiScoreFactor struct {
+	Key    string  `json:"key"`
+	Label  string  `json:"label"`
+	Value  float64 `json:"value"`
+	Impact string  `json:"impact"`
+	Hint   string  `json:"hint"`
+}
+
+type GetDriverAiScoreRequest struct {
+	DriverID int64 `form:"id"`
+}
+
+type GetDriverAiScoreResponse struct {
+	DriverID      int64           `json:"driverId"`
+	AiScore       float64         `json:"aiScore"`
+	Level         int32           `json:"level"`
+	Factors       []AiScoreFactor `json:"factors"`
+	Degraded      bool            `json:"degraded"`
+	DegradeReason string          `json:"degradeReason"`
+}
+
+type UploadCertificationRequest struct {
+	VehicleID      int64  `json:"vehicleId"`
+	IdCardFront    string `json:"idCardFront"`
+	IdCardBack     string `json:"idCardBack"`
+	DriverLicense  string `json:"driverLicense"`
+	VehicleLicense string `json:"vehicleLicense"`
+}
+
+type CertificationInfo struct {
+	ID                int64  `json:"id"`
+	DriverID          int64  `json:"driverId"`
+	VehicleID         int64  `json:"vehicleId"`
+	IdCardFrontURL    string `json:"idCardFrontUrl"`
+	IdCardBackURL     string `json:"idCardBackUrl"`
+	DriverLicenseURL  string `json:"driverLicenseUrl"`
+	VehicleLicenseURL string `json:"vehicleLicenseUrl"`
+	AuditStatus       int    `json:"auditStatus"`
+	AuditRemark       string `json:"auditRemark"`
+}
+
+type UploadCertificationResponse struct {
+	ID            int64              `json:"id"`
+	Certification *CertificationInfo `json:"certification"`
+}
+
+type GetCertificationResponse struct {
+	Certification *CertificationInfo `json:"certification"`
+	Found         bool               `json:"found"`
+}
+
+type CreateVehicleRequest struct {
+	PlateNo           string `json:"plateNo"`
+	Brand             string `json:"brand"`
+	Model             string `json:"model"`
+	Color             string `json:"color"`
+	VehicleType       int32  `json:"vehicleType"`
+	RegistrationDate  int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       string `json:"insuranceNo"`
+	InsuranceExpireAt int64  `json:"insuranceExpireAt,omitempty"`
+}
+
+type CreateVehicleResponse struct {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type GetVehicleRequest struct {
+	ID int64 `form:"id"`
+}
+
+type VehicleInfo struct {
+	ID                int64  `json:"id"`
+	DriverID          int64  `json:"driverId"`
+	PlateNo           string `json:"plateNo"`
+	Brand             string `json:"brand"`
+	Model             string `json:"model"`
+	Color             string `json:"color"`
+	VehicleType       int32  `json:"vehicleType"`
+	RegistrationDate  int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       string `json:"insuranceNo"`
+	InsuranceExpireAt int64  `json:"insuranceExpireAt,omitempty"`
+	Status            string `json:"status"`
+	CreatedAt         int64  `json:"createdAt"`
+	UpdatedAt         int64  `json:"updatedAt"`
+}
+
+type GetVehicleResponse struct {
+	Vehicle VehicleInfo `json:"vehicle"`
+}
+
+type UpdateVehicleRequest struct {
+	ID                int64   `json:"id"`
+	DriverID          *int64  `json:"driverId,omitempty"`
+	PlateNo           *string `json:"plateNo,omitempty"`
+	Brand             *string `json:"brand,omitempty"`
+	Model             *string `json:"model,omitempty"`
+	Color             *string `json:"color,omitempty"`
+	VehicleType       *int32  `json:"vehicleType,omitempty"`
+	RegistrationDate  *int64  `json:"registrationDate,omitempty"`
+	InsuranceNo       *string `json:"insuranceNo,omitempty"`
+	InsuranceExpireAt *int64  `json:"insuranceExpireAt,omitempty"`
+	Status            *string `json:"status,omitempty"`
+}
+
+type UpdateVehicleResponse struct {
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
+type DeleteVehicleRequest struct {
+	ID int64 `json:"id" form:"id"`
+}
+
+type DeleteVehicleResponse struct {
+	ID      int64 `json:"id"`
+	Success bool  `json:"success"`
+}
+
+type CommonResponse struct {
+	Message string `json:"message"`
+}
+
+// ---- Withdraw and income ----
+
+type CreateWithdrawRequest struct {
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+}
+
+type CreateWithdrawResponse struct {
+	ID         int64  `json:"id"`
+	WithdrawNo string `json:"withdrawNo"`
+	Status     int32  `json:"status"`
+	CreatedAt  int64  `json:"createdAt"`
+}
+
+type ListWithdrawsRequest struct {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type WithdrawRecord struct {
+	ID         int64   `json:"id"`
+	WithdrawNo string  `json:"withdrawNo"`
+	Amount     float64 `json:"amount"`
+	PayeeName  string  `json:"payeeName"`
+	PayAccount string  `json:"payAccount"`
+	Status     int32   `json:"status"`
+	Remark     string  `json:"remark"`
+	AppliedAt  int64   `json:"appliedAt"`
+	PaidAt     int64   `json:"paidAt"`
+	CreatedAt  int64   `json:"createdAt"`
+}
+
+type ListWithdrawsResponse struct {
+	List  []WithdrawRecord `json:"list"`
+	Total int64            `json:"total"`
+}
+
+type GetIncomeSummaryResponse struct {
+	DriverID          int64  `json:"driverId"`
+	CompletedOrders   int64  `json:"completedOrders"`
+	TotalIncomeCents  int64  `json:"totalIncomeCents"`
+	WithdrawableCents int64  `json:"withdrawableCents"`
+	Source            string `json:"source"`
+}
+
+type PeriodIncomeResponse struct {
+	DriverID         int64  `json:"driverId"`
+	Period           string `json:"period"`
+	CompletedOrders  int64  `json:"completedOrders"`
+	TotalIncomeCents int64  `json:"totalIncomeCents"`
+	StartAt          int64  `json:"startAt"`
+	EndAt            int64  `json:"endAt"`
+	Source           string `json:"source"`
+}
+type ListIncomeBillsRequest struct {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+}
+
+type IncomeBill struct {
+	OrderID     int64  `json:"orderId"`
+	OrderNo     string `json:"orderNo"`
+	IncomeCents int64  `json:"incomeCents"`
+	Status      int32  `json:"status"`
+	CreatedAt   int64  `json:"createdAt"`
+}
+
+type ListIncomeBillsResponse struct {
+	List     []IncomeBill `json:"list"`
+	Total    int64        `json:"total"`
+	Page     int32        `json:"page"`
+	PageSize int32        `json:"pageSize"`
+	Source   string       `json:"source"`
+}
+
+type AcceptOrderRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type AcceptOrderResponse struct {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type ConfirmArriveRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type ConfirmArriveResponse struct {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type StartTripRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type StartTripResponse struct {
+	OrderID int64 `json:"orderId"`
+	Status  int32 `json:"status"`
+}
+
+type FinishTripRequest struct {
+	OrderID         int64 `json:"orderId"`
+	ActualDistanceM int64 `json:"actualDistanceM"`
+	ActualDurationS int64 `json:"actualDurationS"`
+}
+
+type FinishTripResponse struct {
+	OrderID            int64 `json:"orderId"`
+	Status             int32 `json:"status"`
+	PayableAmountCents int64 `json:"payableAmountCents"`
+}
+
+type RealtimeFareRequest struct {
+	OrderID         int64 `json:"orderId"`
+	ActualDistanceM int64 `json:"actualDistanceM"`
+	ActualDurationS int64 `json:"actualDurationS"`
+}
+
+type RealtimeFareDetail struct {
+	BaseFeeCents     int64 `json:"baseFeeCents"`
+	DistanceFeeCents int64 `json:"distanceFeeCents"`
+	TimeFeeCents     int64 `json:"timeFeeCents"`
+	NightFeeCents    int64 `json:"nightFeeCents"`
+	DynamicFeeCents  int64 `json:"dynamicFeeCents"`
+	TotalCents       int64 `json:"totalCents"`
+}
+
+type RealtimeFareResponse struct {
+	OrderID     int64              `json:"orderId"`
+	PriceRuleID int64              `json:"priceRuleId"`
+	TotalCents  int64              `json:"totalCents"`
+	Source      string             `json:"source"`
+	Detail      RealtimeFareDetail `json:"detail"`
+}
+
+type RejectOrderRequest struct {
+	OrderID int64  `json:"orderId"`
+	Reason  string `json:"reason"`
+}
+
+type RejectOrderResponse struct {
+	OrderID  int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	Status   int32 `json:"status"`
+}
+
+type ListMyDispatchesRequest struct {
+	DriverID int64 `json:"driverId,omitempty"`
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+	Status   int32 `json:"status"`
+}
+
+type DispatchRecord struct {
+	ID           int64   `json:"id"`
+	OrderID      int64   `json:"orderId"`
+	DriverID     int64   `json:"driverId"`
+	DispatchType int32   `json:"dispatchType"`
+	Status       int32   `json:"status"`
+	MatchScore   float64 `json:"matchScore"`
+	Remark       string  `json:"remark"`
+	RejectReason string  `json:"rejectReason"`
+	CreatedAt    int64   `json:"createdAt"`
+	UpdatedAt    int64   `json:"updatedAt"`
+}
+
+type OrderBrief struct {
+	OrderID             int64   `json:"orderId"`
+	OrderNo             string  `json:"orderNo"`
+	FromAddress         string  `json:"fromAddress"`
+	FromLongitude       float64 `json:"fromLongitude"`
+	FromLatitude        float64 `json:"fromLatitude"`
+	ToAddress           string  `json:"toAddress"`
+	ToLongitude         float64 `json:"toLongitude"`
+	ToLatitude          float64 `json:"toLatitude"`
+	Status              int32   `json:"status"`
+	EstimatedPriceCents int64   `json:"estimatedPriceCents"`
+	DistanceMeters      int64   `json:"distanceMeters"`
+	CreatedAt           int64   `json:"createdAt"`
+}
+type MyDispatchItem struct {
+	Dispatch DispatchRecord `json:"dispatch"`
+	Order    OrderBrief     `json:"order"`
+}
+
+type ListMyDispatchesResponse struct {
+	List         []MyDispatchItem `json:"list"`
+	Total        int64            `json:"total"`
+	Page         int32            `json:"page"`
+	PageSize     int32            `json:"pageSize"`
+	OrderQueryOk bool             `json:"orderQueryOk"`
+}
+
+type ListMyOrdersRequest struct {
+	Page     int32 `json:"page"`
+	PageSize int32 `json:"pageSize"`
+	Status   int32 `json:"status"`
+}
+
+type ListMyOrdersResponse struct {
+	List     []OrderBrief `json:"list"`
+	Total    int64        `json:"total"`
+	Page     int32        `json:"page"`
+	PageSize int32        `json:"pageSize"`
+}
+
+type HeatmapRequest struct {
+	Longitude    float64 `json:"longitude"`
+	Latitude     float64 `json:"latitude"`
+	RadiusMeters float64 `json:"radiusMeters"`
+}
+
+type HeatmapPoint struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Weight    int64   `json:"weight"`
+}
+
+type HeatmapResponse struct {
+	Points         []HeatmapPoint `json:"points"`
+	RadiusMeters   float64        `json:"radiusMeters"`
+	GridSizeMeters int64          `json:"gridSizeMeters"`
+}
+
+type GetMyOrderDetailRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderDetail struct {
+	OrderID             int64   `json:"orderId"`
+	OrderNo             string  `json:"orderNo"`
+	UserID              int64   `json:"userId"`
+	DriverID            int64   `json:"driverId"`
+	CarType             int32   `json:"carType"`
+	FromAddress         string  `json:"fromAddress"`
+	FromLongitude       float64 `json:"fromLongitude"`
+	FromLatitude        float64 `json:"fromLatitude"`
+	ToAddress           string  `json:"toAddress"`
+	ToLongitude         float64 `json:"toLongitude"`
+	ToLatitude          float64 `json:"toLatitude"`
+	EstimatedDistanceM  int64   `json:"estimatedDistanceM"`
+	EstimatedDurationS  int64   `json:"estimatedDurationS"`
+	EstimatedPriceCents int64   `json:"estimatedPriceCents"`
+	Status              int32   `json:"status"`
+	CancelReason        string  `json:"cancelReason"`
+	CancelBy            string  `json:"cancelBy"`
+	CreatedAt           int64   `json:"createdAt"`
+	UpdatedAt           int64   `json:"updatedAt"`
+}
+
+type GetMyOrderDetailResponse struct {
+	Order OrderDetail `json:"order"`
+}
+
+type AgentChatRequest struct {
+	Question string `json:"question"`
+}
+
+type AgentObservation struct {
+	ToolName string `json:"toolName"`
+	Result   string `json:"result"`
+}
+
+type AgentChatResponse struct {
+	Answer       string             `json:"answer"`
+	LoopCount    int                `json:"loopCount"`
+	Observations []AgentObservation `json:"observations"`
+	Mode         string             `json:"mode"`
 }

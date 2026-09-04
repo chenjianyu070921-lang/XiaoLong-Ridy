@@ -5,10 +5,14 @@ package server
 
 import (
 	"context"
+	"io"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/logic/adminservice"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type AdminServiceServer struct {
@@ -40,6 +44,12 @@ func (s *AdminServiceServer) Logout(ctx context.Context, in *adminsvc.LogoutRequ
 	return l.Logout(in)
 }
 
+// 校验管理员登录会话。
+func (s *AdminServiceServer) ValidateSession(ctx context.Context, in *adminsvc.ValidateSessionRequest) (*adminsvc.ValidateSessionResponse, error) {
+	l := adminservicelogic.NewValidateSessionLogic(ctx, s.svcCtx)
+	return l.ValidateSession(in)
+}
+
 // 查询当前管理员信息。
 func (s *AdminServiceServer) Me(ctx context.Context, in *adminsvc.MeRequest) (*adminsvc.MeResponse, error) {
 	l := adminservicelogic.NewMeLogic(ctx, s.svcCtx)
@@ -50,6 +60,31 @@ func (s *AdminServiceServer) Me(ctx context.Context, in *adminsvc.MeRequest) (*a
 func (s *AdminServiceServer) Menus(ctx context.Context, in *adminsvc.MenusRequest) (*adminsvc.MenusResponse, error) {
 	l := adminservicelogic.NewMenusLogic(ctx, s.svcCtx)
 	return l.Menus(in)
+}
+
+// ListAdmins 查询管理员列表。
+func (s *AdminServiceServer) ListAdmins(ctx context.Context, in *adminsvc.AdminListRequest) (*adminsvc.AdminListResponse, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).ListAdmins(in)
+}
+
+// CreateAdmin 新增管理员。
+func (s *AdminServiceServer) CreateAdmin(ctx context.Context, in *adminsvc.AdminSaveRequest) (*adminsvc.Admin, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).CreateAdmin(in)
+}
+
+// UpdateAdmin 编辑管理员资料。
+func (s *AdminServiceServer) UpdateAdmin(ctx context.Context, in *adminsvc.AdminSaveRequest) (*adminsvc.Admin, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).UpdateAdmin(in)
+}
+
+// SetAdminStatus 启用或停用管理员。
+func (s *AdminServiceServer) SetAdminStatus(ctx context.Context, in *adminsvc.AdminStatusRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).SetAdminStatus(in)
+}
+
+// ResetAdminPassword 重置管理员密码。
+func (s *AdminServiceServer) ResetAdminPassword(ctx context.Context, in *adminsvc.AdminPasswordResetRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewAdminManagementLogic(ctx, s.svcCtx).ResetAdminPassword(in)
 }
 
 // 查询操作日志。
@@ -70,6 +105,16 @@ func (s *AdminServiceServer) GetUser(ctx context.Context, in *adminsvc.UserDetai
 	return l.GetUser(in)
 }
 
+// ListUserOrders 查询指定用户的订单历史。
+func (s *AdminServiceServer) ListUserOrders(ctx context.Context, in *adminsvc.UserHistoryRequest) (*adminsvc.OrderListResponse, error) {
+	return adminservicelogic.NewUserHistoryLogic(ctx, s.svcCtx).ListUserOrders(in)
+}
+
+// ListUserCoupons 查询指定用户的优惠券历史。
+func (s *AdminServiceServer) ListUserCoupons(ctx context.Context, in *adminsvc.UserCouponHistoryRequest) (*adminsvc.UserCouponHistoryResponse, error) {
+	return adminservicelogic.NewUserHistoryLogic(ctx, s.svcCtx).ListUserCoupons(in)
+}
+
 // 冻结用户。
 func (s *AdminServiceServer) FreezeUser(ctx context.Context, in *adminsvc.ChangeUserStatusRequest) (*adminsvc.CommonResponse, error) {
 	l := adminservicelogic.NewFreezeUserLogic(ctx, s.svcCtx)
@@ -83,6 +128,38 @@ func (s *AdminServiceServer) UnfreezeUser(ctx context.Context, in *adminsvc.Chan
 }
 
 // 查询司机审核列表。
+func (s *AdminServiceServer) ListDrivers(ctx context.Context, in *adminsvc.DriverListRequest) (*adminsvc.DriverListResponse, error) {
+	l := adminservicelogic.NewListDriversLogic(ctx, s.svcCtx)
+	return l.ListDrivers(in)
+}
+
+func (s *AdminServiceServer) GetDriver(ctx context.Context, in *adminsvc.DriverDetailRequest) (*adminsvc.Driver, error) {
+	l := adminservicelogic.NewGetDriverLogic(ctx, s.svcCtx)
+	return l.GetDriver(in)
+}
+
+// FreezeDriver 冻结司机账号，并联动司机端通知。
+func (s *AdminServiceServer) FreezeDriver(ctx context.Context, in *adminsvc.FreezeDriverRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewFreezeDriverLogic(ctx, s.svcCtx)
+	return l.FreezeDriver(in)
+}
+
+// UnfreezeDriver 解冻司机账号，并联动司机端通知。
+func (s *AdminServiceServer) UnfreezeDriver(ctx context.Context, in *adminsvc.FreezeDriverRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewUnfreezeDriverLogic(ctx, s.svcCtx)
+	return l.UnfreezeDriver(in)
+}
+
+// ListDriverWithdrawals 查询司机提现申请列表。
+func (s *AdminServiceServer) ListDriverWithdrawals(ctx context.Context, in *adminsvc.DriverWithdrawListRequest) (*adminsvc.DriverWithdrawListResponse, error) {
+	return adminservicelogic.NewListDriverWithdrawalsLogic(ctx, s.svcCtx).ListDriverWithdrawals(in)
+}
+
+// HandleDriverWithdraw 审核司机提现申请。
+func (s *AdminServiceServer) HandleDriverWithdraw(ctx context.Context, in *adminsvc.DriverWithdrawHandleRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewHandleDriverWithdrawLogic(ctx, s.svcCtx).HandleDriverWithdraw(in)
+}
+
 func (s *AdminServiceServer) ListDriverCertifications(ctx context.Context, in *adminsvc.DriverCertificationListRequest) (*adminsvc.DriverCertificationListResponse, error) {
 	l := adminservicelogic.NewListDriverCertificationsLogic(ctx, s.svcCtx)
 	return l.ListDriverCertifications(in)
@@ -118,10 +195,43 @@ func (s *AdminServiceServer) GetOrder(ctx context.Context, in *adminsvc.OrderDet
 	return l.GetOrder(in)
 }
 
+// GetOrderTrack 查询订单轨迹点。
+func (s *AdminServiceServer) GetOrderTrack(ctx context.Context, in *adminsvc.OrderTrackRequest) (*adminsvc.OrderTrackResponse, error) {
+	l := adminservicelogic.NewGetOrderTrackLogic(ctx, s.svcCtx)
+	return l.GetOrderTrack(in)
+}
+
+// GetCapacityMap 查询实时运力地图快照。
+func (s *AdminServiceServer) GetCapacityMap(ctx context.Context, in *adminsvc.CapacityMapRequest) (*adminsvc.CapacityMapResponse, error) {
+	return adminservicelogic.NewGetCapacityMapLogic(ctx, s.svcCtx).GetCapacityMap(in)
+}
+
 // 后台取消订单。
 func (s *AdminServiceServer) CancelOrder(ctx context.Context, in *adminsvc.AdminCancelOrderRequest) (*adminsvc.CommonResponse, error) {
 	l := adminservicelogic.NewCancelOrderLogic(ctx, s.svcCtx)
 	return l.CancelOrder(in)
+}
+
+// RedispatchOrder 后台人工改派订单。
+func (s *AdminServiceServer) RedispatchOrder(ctx context.Context, in *adminsvc.AdminRedispatchOrderRequest) (*adminsvc.AdminRedispatchOrderResponse, error) {
+	l := adminservicelogic.NewRedispatchOrderLogic(ctx, s.svcCtx)
+	return l.RedispatchOrder(in)
+}
+
+// RefundOrder 后台发起订单退款。
+func (s *AdminServiceServer) RefundOrder(ctx context.Context, in *adminsvc.AdminRefundOrderRequest) (*adminsvc.AdminRefundOrderResponse, error) {
+	l := adminservicelogic.NewRefundOrderLogic(ctx, s.svcCtx)
+	return l.RefundOrder(in)
+}
+
+// ListRefundRetryTasks 查询退款事件补偿队列。
+func (s *AdminServiceServer) ListRefundRetryTasks(ctx context.Context, in *adminsvc.RefundRetryTaskListRequest) (*adminsvc.RefundRetryTaskListResponse, error) {
+	return adminservicelogic.NewRefundRetryLogic(ctx, s.svcCtx).ListRefundRetryTasks(in)
+}
+
+// RetryRefundTask 立即触发指定退款事件补偿任务。
+func (s *AdminServiceServer) RetryRefundTask(ctx context.Context, in *adminsvc.RefundRetryTaskRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewRefundRetryLogic(ctx, s.svcCtx).RetryRefundTask(in)
 }
 
 // 查询异常订单列表。
@@ -137,7 +247,7 @@ func (s *AdminServiceServer) ListCoupons(ctx context.Context, in *adminsvc.Coupo
 }
 
 // 创建优惠券。
-func (s *AdminServiceServer) CreateCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CommonResponse, error) {
+func (s *AdminServiceServer) CreateCoupon(ctx context.Context, in *adminsvc.CouponRequest) (*adminsvc.CreateCouponResponse, error) {
 	l := adminservicelogic.NewCreateCouponLogic(ctx, s.svcCtx)
 	return l.CreateCoupon(in)
 }
@@ -162,6 +272,42 @@ func (s *AdminServiceServer) IssueCoupon(ctx context.Context, in *adminsvc.Coupo
 func (s *AdminServiceServer) ListCouponIssueTasks(ctx context.Context, in *adminsvc.CouponIssueTaskListRequest) (*adminsvc.CouponIssueTaskListResponse, error) {
 	l := adminservicelogic.NewListCouponIssueTasksLogic(ctx, s.svcCtx)
 	return l.ListCouponIssueTasks(in)
+}
+
+// 查询计价规则列表。
+func (s *AdminServiceServer) ListPriceRules(ctx context.Context, in *adminsvc.PriceRuleListRequest) (*adminsvc.PriceRuleListResponse, error) {
+	l := adminservicelogic.NewListPriceRulesLogic(ctx, s.svcCtx)
+	return l.ListPriceRules(in)
+}
+
+// 查询计价规则详情。
+func (s *AdminServiceServer) GetPriceRule(ctx context.Context, in *adminsvc.PriceRuleDetailRequest) (*adminsvc.PriceRule, error) {
+	l := adminservicelogic.NewGetPriceRuleLogic(ctx, s.svcCtx)
+	return l.GetPriceRule(in)
+}
+
+// 创建计价规则。
+func (s *AdminServiceServer) CreatePriceRule(ctx context.Context, in *adminsvc.PriceRuleRequest) (*adminsvc.CreatePriceRuleResponse, error) {
+	l := adminservicelogic.NewCreatePriceRuleLogic(ctx, s.svcCtx)
+	return l.CreatePriceRule(in)
+}
+
+// 更新计价规则。
+func (s *AdminServiceServer) UpdatePriceRule(ctx context.Context, in *adminsvc.PriceRuleRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewUpdatePriceRuleLogic(ctx, s.svcCtx)
+	return l.UpdatePriceRule(in)
+}
+
+// 启用计价规则。
+func (s *AdminServiceServer) EnablePriceRule(ctx context.Context, in *adminsvc.PriceRuleStatusRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewEnablePriceRuleLogic(ctx, s.svcCtx)
+	return l.EnablePriceRule(in)
+}
+
+// 停用计价规则。
+func (s *AdminServiceServer) DisablePriceRule(ctx context.Context, in *adminsvc.PriceRuleStatusRequest) (*adminsvc.CommonResponse, error) {
+	l := adminservicelogic.NewDisablePriceRuleLogic(ctx, s.svcCtx)
+	return l.DisablePriceRule(in)
 }
 
 func (s *AdminServiceServer) ListPromotionActivities(ctx context.Context, in *adminsvc.PromotionActivityListRequest) (*adminsvc.PromotionActivityListResponse, error) {
@@ -199,9 +345,27 @@ func (s *AdminServiceServer) GetOrderStatistics(ctx context.Context, in *adminsv
 	return l.GetOrderStatistics(in)
 }
 
+// GetDriverStatistics 查询司机入驻、审核、完单、收入、提现和服务质量统计。
+func (s *AdminServiceServer) GetDriverStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.DriverStatisticsResponse, error) {
+	l := adminservicelogic.NewGetDriverStatisticsLogic(ctx, s.svcCtx)
+	return l.GetDriverStatistics(in)
+}
+
+// GetFinanceStatistics 查询支付、退款、结算、抽佣、司机收入和平台补贴统计。
+func (s *AdminServiceServer) GetFinanceStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.FinanceStatisticsResponse, error) {
+	l := adminservicelogic.NewGetFinanceStatisticsLogic(ctx, s.svcCtx)
+	return l.GetFinanceStatistics(in)
+}
+
 func (s *AdminServiceServer) GetCouponStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.CouponStatisticsResponse, error) {
 	l := adminservicelogic.NewGetCouponStatisticsLogic(ctx, s.svcCtx)
 	return l.GetCouponStatistics(in)
+}
+
+// GetUserStatistics 查询用户增长、活跃、下单、复购、投诉和风险统计。
+func (s *AdminServiceServer) GetUserStatistics(ctx context.Context, in *adminsvc.StatisticsRequest) (*adminsvc.UserStatisticsResponse, error) {
+	l := adminservicelogic.NewGetUserStatisticsLogic(ctx, s.svcCtx)
+	return l.GetUserStatistics(in)
 }
 
 func (s *AdminServiceServer) CreateExportTask(ctx context.Context, in *adminsvc.ExportTaskRequest) (*adminsvc.ExportTaskResponse, error) {
@@ -212,6 +376,82 @@ func (s *AdminServiceServer) CreateExportTask(ctx context.Context, in *adminsvc.
 func (s *AdminServiceServer) ListExportTasks(ctx context.Context, in *adminsvc.ExportTaskListRequest) (*adminsvc.ExportTaskListResponse, error) {
 	l := adminservicelogic.NewListExportTasksLogic(ctx, s.svcCtx)
 	return l.ListExportTasks(in)
+}
+
+func (s *AdminServiceServer) GetExportTask(ctx context.Context, in *adminsvc.ExportTaskDetailRequest) (*adminsvc.ExportTask, error) {
+	l := adminservicelogic.NewGetExportTaskLogic(ctx, s.svcCtx)
+	return l.GetExportTask(in)
+}
+
+// GetExportDownload 校验管理员对已生成导出文件的下载权限。
+func (s *AdminServiceServer) GetExportDownload(ctx context.Context, in *adminsvc.ExportDownloadRequest) (*adminsvc.ExportDownloadResponse, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).GetExportDownload(in)
+}
+
+// DownloadExport 在 adminsvc 进程内校验授权并以 gRPC 服务端流传输 CSV 文件内容。
+func (s *AdminServiceServer) DownloadExport(in *adminsvc.ExportDownloadRequest, stream adminsvc.AdminService_DownloadExportServer) error {
+	admin, err := adminservicelogic.ValidateAdminTokenFromContext(stream.Context(), s.svcCtx)
+	if err != nil {
+		return err
+	}
+	if admin.ID != in.GetAdminId() {
+		return status.Error(codes.PermissionDenied, "请求操作者与管理员会话不一致")
+	}
+	file, _, err := adminservicelogic.NewWorkOrderLogic(stream.Context(), s.svcCtx).OpenAuthorizedExportFile(&adminsvc.ExportDownloadRequest{TaskNo: in.GetTaskNo(), AdminId: admin.ID, AdminRole: admin.Role})
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	buf := make([]byte, 32*1024)
+	for {
+		n, readErr := file.Read(buf)
+		if n > 0 {
+			if err := stream.Send(&adminsvc.ExportDownloadChunk{Content: append([]byte(nil), buf[:n]...)}); err != nil {
+				return err
+			}
+		}
+		if readErr == io.EOF {
+			return nil
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
+}
+
+// CreateWorkOrder 创建后台人工处理工单。
+func (s *AdminServiceServer) CreateWorkOrder(ctx context.Context, in *adminsvc.WorkOrderRequest) (*adminsvc.WorkOrder, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).CreateWorkOrder(in)
+}
+
+// ListWorkOrders 查询后台工单列表。
+func (s *AdminServiceServer) ListWorkOrders(ctx context.Context, in *adminsvc.WorkOrderListRequest) (*adminsvc.WorkOrderListResponse, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).ListWorkOrders(in)
+}
+
+// GetWorkOrder 查询后台工单详情。
+func (s *AdminServiceServer) GetWorkOrder(ctx context.Context, in *adminsvc.WorkOrderDetailRequest) (*adminsvc.WorkOrder, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).GetWorkOrder(in)
+}
+
+// ActWorkOrder 执行后台工单状态流转。
+func (s *AdminServiceServer) ActWorkOrder(ctx context.Context, in *adminsvc.WorkOrderActionRequest) (*adminsvc.WorkOrder, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).ActWorkOrder(in)
+}
+
+// BatchActWorkOrders 批量执行后台工单状态流转。
+func (s *AdminServiceServer) BatchActWorkOrders(ctx context.Context, in *adminsvc.WorkOrderBatchActionRequest) (*adminsvc.WorkOrderBatchActionResponse, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).BatchActWorkOrders(in)
+}
+
+// AddWorkOrderEvidence 保存后台工单证据索引。
+func (s *AdminServiceServer) AddWorkOrderEvidence(ctx context.Context, in *adminsvc.WorkOrderEvidenceRequest) (*adminsvc.WorkOrderEvidence, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).AddWorkOrderEvidence(in)
+}
+
+// ListWorkOrderEvidence 查询后台工单证据索引。
+func (s *AdminServiceServer) ListWorkOrderEvidence(ctx context.Context, in *adminsvc.WorkOrderEvidenceListRequest) (*adminsvc.WorkOrderEvidenceListResponse, error) {
+	return adminservicelogic.NewWorkOrderLogic(ctx, s.svcCtx).ListWorkOrderEvidence(in)
 }
 
 func (s *AdminServiceServer) ListBlacklists(ctx context.Context, in *adminsvc.BlacklistListRequest) (*adminsvc.BlacklistListResponse, error) {
@@ -232,4 +472,39 @@ func (s *AdminServiceServer) ReleaseBlacklist(ctx context.Context, in *adminsvc.
 func (s *AdminServiceServer) ListRiskHitRecords(ctx context.Context, in *adminsvc.RiskHitRecordListRequest) (*adminsvc.RiskHitRecordListResponse, error) {
 	l := adminservicelogic.NewListRiskHitRecordsLogic(ctx, s.svcCtx)
 	return l.ListRiskHitRecords(in)
+}
+
+func (s *AdminServiceServer) HandleRiskHitRecords(ctx context.Context, in *adminsvc.RiskHitActionRequest) (*adminsvc.RiskHitActionResponse, error) {
+	l := adminservicelogic.NewHandleRiskHitRecordsLogic(ctx, s.svcCtx)
+	return l.HandleRiskHitRecords(in)
+}
+
+// ListAdminAuditOutbox 查询后台通知与审计补偿任务。
+func (s *AdminServiceServer) ListAdminAuditOutbox(ctx context.Context, in *adminsvc.AdminAuditOutboxListRequest) (*adminsvc.AdminAuditOutboxListResponse, error) {
+	return adminservicelogic.NewListAdminAuditOutboxLogic(ctx, s.svcCtx).ListAdminAuditOutbox(in)
+}
+
+// AskAiAgent 提交受限运营问答。
+func (s *AdminServiceServer) AskAiAgent(ctx context.Context, in *adminsvc.AiAskRequest) (*adminsvc.AiAnswerResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).Ask(in)
+}
+
+// GetAiSuggestions 读取三个快捷问题。
+func (s *AdminServiceServer) GetAiSuggestions(ctx context.Context, in *adminsvc.AiSuggestionsRequest) (*adminsvc.AiSuggestionsResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).Suggestions(in)
+}
+
+// GetAiHistory 查询当前管理员的会话摘要。
+func (s *AdminServiceServer) GetAiHistory(ctx context.Context, in *adminsvc.AiHistoryRequest) (*adminsvc.AiHistoryResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).History(in)
+}
+
+// AiFeedback 记录回答是否有帮助。
+func (s *AdminServiceServer) AiFeedback(ctx context.Context, in *adminsvc.AiFeedbackRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).Feedback(in)
+}
+
+// DeleteAiConversation 结束并清空指定会话。
+func (s *AdminServiceServer) DeleteAiConversation(ctx context.Context, in *adminsvc.AiConversationRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).DeleteConversation(in)
 }

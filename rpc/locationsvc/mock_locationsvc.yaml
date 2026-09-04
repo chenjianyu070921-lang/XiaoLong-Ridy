@@ -1,0 +1,31 @@
+Name: locationsvc.rpc
+ListenOn: 0.0.0.0:50057
+
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: locationsvc.rpc
+
+Mysql:
+  Dsn: "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
+  MaxOpenConn: 100
+  MaxIdleConn: 10
+  MaxLifeTime: 3600
+
+RedisConf:
+  Host: "115.191.16.159:6379"
+  Pass: "4ay1nkal3u8ed77y"
+  Db: 0
+  PoolSize: 10
+
+# 压测模式:BaseUrl 指向本地假高德服务器(mock_amap.py, 127.0.0.1:18080),不消耗真实高德配额。
+# ApiKey 仅占位（指向本地 mock 时不校验 key），写法与正式配置保持一致便于区分。
+MapService:
+  ApiKey: "f94510299d67fe4e4a904a726936795a"
+  Provider: "amap"
+  BaseUrl: "http://127.0.0.1:18080/v3"
+
+Log:
+  ServiceName: locationsvc
+  Mode: console
+  Level: info

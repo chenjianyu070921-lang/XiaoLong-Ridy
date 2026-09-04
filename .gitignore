@@ -49,3 +49,19 @@ logs/
 Thumbs.db
 desktop.ini
 .tmp-gocache/
+.gotmp/
+gocache/
+gocache/gotmp/
+
+# Admin 前端与后台本地运行生成物
+web/admin/node_modules/
+web/admin/.vite/
+web/admin/dist-admin-preview/
+.pnpm-store/
+rpc/adminsvc/.tmp-admin-exports/
+.gotmp-restore.zip
+.tmp-gocache-review/
+.gocache/
+.gocache-stat/
+.run/
+.aider*

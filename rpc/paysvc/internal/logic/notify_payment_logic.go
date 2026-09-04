@@ -9,6 +9,7 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/mq"
 	"XiaoLong-Ridy/common/priceutil"
+	order "XiaoLong-Ridy/rpc/ordersvc/proto"
 	"XiaoLong-Ridy/rpc/paysvc/internal/model"
 	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
@@ -83,8 +84,11 @@ func (l *NotifyPaymentLogic) NotifyPayment(in *proto.NotifyPaymentRequest) (*pro
 
 	// 6. 发 Kafka「支付成功」事件（失败不阻断主流程）
 	if err := l.publishPaidEvent(p, in.PaidAt); err != nil {
-		l.Errorf("publish order.paid event failed: %v", err)
+		l.Errorf("publish orderclient.paid event failed: %v", err)
 	}
+
+	// 6.5 通知订单服务完成订单，闭环主链路（失败不阻断回调，后续可重试）
+	l.confirmOrderAfterPaid(p, in.PaidAt)
 
 	// 7. 触发司机结算（失败不阻断主流程）
 	l.settleAfterPaid(p)
@@ -107,16 +111,31 @@ func (l *NotifyPaymentLogic) publishPaidEvent(p *model.Payment, paidAt int64) er
 	return l.svcCtx.Producer.Send(constants.TopicOrderPaid, p.PaymentNo, data)
 }
 
+// confirmOrderAfterPaid 支付成功后通知订单服务确认完成订单。
+func (l *NotifyPaymentLogic) confirmOrderAfterPaid(p *model.Payment, paidAt int64) {
+	if paidAt <= 0 && p.PaidAt != nil {
+		paidAt = p.PaidAt.Unix()
+	}
+	if _, err := l.svcCtx.OrderClient.ConfirmPaid(l.ctx, &order.ConfirmPaidRequest{
+		OrderId:     int64(p.OrderId),
+		PaymentNo:   p.PaymentNo,
+		AmountCents: priceutil.YuanToCents(p.Amount),
+		PaidAt:      paidAt,
+	}); err != nil {
+		l.Errorf("confirm order paid failed, orderId=%d paymentNo=%s: %v", p.OrderId, p.PaymentNo, err)
+	}
+}
+
 // settleAfterPaid 支付成功后触发司机结算。
 func (l *NotifyPaymentLogic) settleAfterPaid(p *model.Payment) {
 	// 调 ordersvc 拿司机ID
 	driverId, err := l.svcCtx.OrderClient.GetDriverId(l.ctx, int64(p.OrderId))
 	if err != nil {
-		l.Errorf("get driver_id for order %d failed: %v, skip settle", p.OrderId, err)
+		l.Errorf("get driver_id for orderclient %d failed: %v, skip settle", p.OrderId, err)
 		return
 	}
 	if driverId == 0 {
-		l.Infof("order %d has no driver, skip settle", p.OrderId)
+		l.Infof("orderclient %d has no driver, skip settle", p.OrderId)
 		return
 	}
 
@@ -128,6 +147,6 @@ func (l *NotifyPaymentLogic) settleAfterPaid(p *model.Payment) {
 		TotalAmountCents: priceutil.YuanToCents(p.Amount),
 		CommissionRate:   defaultCommissionRate,
 	}); err != nil {
-		l.Errorf("settle order %d failed: %v", p.OrderId, err)
+		l.Errorf("settle orderclient %d failed: %v", p.OrderId, err)
 	}
 }

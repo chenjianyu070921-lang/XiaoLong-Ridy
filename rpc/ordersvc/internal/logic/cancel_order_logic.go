@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -15,11 +16,13 @@ import (
 
 // 订单业务错误定义。
 var (
-	ErrInvalidOrderParams       = errors.New("invalid order params")
+	ErrInvalidOrderParams       = errors.New("invalid orderclient params")
 	ErrCancelReasonRequired     = errors.New("cancel reason required")
-	ErrOrderStatusNotCancelable = errors.New("order status not cancelable")
-	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this order")
-	ErrOrderStatusNotAllowed    = errors.New("order status not allowed")
+	ErrOrderStatusNotCancelable = errors.New("orderclient status not cancelable")
+	ErrInvalidOrderStatus       = errors.New("orderclient status transition not allowed")
+	ErrRefundDuplicate          = errors.New("refund request duplicated")
+	ErrCancelNotAllowed         = errors.New("operator not allowed to cancel this orderclient")
+	ErrOrderStatusNotAllowed    = errors.New("orderclient status not allowed")
 	ErrDriverNotMatched         = errors.New("driver not matched")
 )
 
@@ -55,6 +58,13 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		return nil, ErrCancelReasonRequired
 	}
 
+	// 订单级分布式锁：避免取消与接单/超时取消并发竞态。
+	release, err := acquireOrderLock(l.ctx, l.svcCtx.Redis, uint64(in.OrderId))
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	order, err := l.svcCtx.OrderRepository.GetByID(l.ctx, uint64(in.OrderId))
 	if err != nil {
 		return nil, err
@@ -73,7 +83,7 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		OperatorId:   uint64(in.OperatorId),
 		Remark:       reason,
 	}
-	ok, err := l.svcCtx.OrderRepository.Cancel(l.ctx, order.Id, []int8{
+	ok, err := l.svcCtx.OrderRepository.CancelWithCoupon(l.ctx, order.Id, order.UserId, []int8{
 		constants.OrderStatusWaitAccept,
 		constants.OrderStatusAccepted,
 	}, operatorType, reason, statusLog)
@@ -82,6 +92,34 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 	}
 	if !ok {
 		return nil, ErrOrderStatusNotCancelable
+	}
+
+	// 已接单订单取消时，司机恢复可接单状态（P1-M4-8）。
+	if order.DriverId > 0 {
+		unmarkDriverBusy(l.ctx, l.svcCtx, order.DriverId)
+	}
+
+	// 取消订单时释放锁定的优惠券，避免用户券被永久占用（P0-M4-4：取消不释放券）。
+	if order.CouponId > 0 {
+		if rerr := l.svcCtx.OrderRepository.ReleaseCoupon(l.ctx, order.UserId, order.Id); rerr != nil {
+			l.Logger.Errorf("cancel order %d release coupon %d failed: %v", order.Id, order.CouponId, rerr)
+		}
+	}
+
+	// 取消成功后同步失效该订单的待派单记录，避免残留 Pending 被重派任务重复处理。
+	syncCancelDispatch(l.ctx, l.svcCtx.DispatchClient, order.Id, reason)
+
+	// 发布 order.canceled 事件，供乘客端/统计等下游感知（P2-M4-23：TopicOrderCancelled 已定义但从不发布）。
+	if l.svcCtx.EventBus != nil {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"order_id":    in.OrderId,
+			"operator":    operatorType,
+			"from_status": order.Status,
+			"to_status":   constants.OrderStatusCancelled,
+		})
+		if err := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderCancelled, payload); err != nil {
+			l.Logger.Errorf("publish order.canceled failed: %v", err)
+		}
 	}
 
 	return &proto.CancelOrderResponse{
@@ -102,14 +140,15 @@ func validOperatorType(operatorType string) bool {
 
 // canCancelStatus 判断订单状态是否允许取消。
 func canCancelStatus(status int8) bool {
-	return status == constants.OrderStatusWaitAccept || status == constants.OrderStatusAccepted
+	return CanTransit(status, constants.OrderStatusCancelled)
 }
 
 // canCancelByOperator 校验取消方是否有权取消该订单。
+// 未进入行程前允许乘客取消；进入行程后需由客服或系统处理。
 func canCancelByOperator(order *model.RideOrder, operatorType string, operatorID int64) bool {
 	switch operatorType {
 	case constants.OperatorUser:
-		return order.UserId == uint64(operatorID)
+		return order.UserId == uint64(operatorID) && (order.Status == constants.OrderStatusWaitAccept || order.Status == constants.OrderStatusAccepted)
 	case constants.OperatorDriver:
 		return order.Status == constants.OrderStatusAccepted && order.DriverId == uint64(operatorID)
 	case constants.OperatorSystem, constants.OperatorAdmin:

@@ -28,10 +28,11 @@ func NewReverseGeocodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Re
 func (l *ReverseGeocodeLogic) ReverseGeocode(in *locationsvc.ReverseGeocodeReq) (*locationsvc.ReverseGeocodeResp, error) {
 	l.Infof("ReverseGeocode: lat=%f, lng=%f", in.Lat, in.Lng)
 
-	regeo, err := l.svcCtx.Geo.ReverseGeocode(in.Lat, in.Lng)
+	regeo, err := l.svcCtx.GetGeo().ReverseGeocode(in.Lat, in.Lng)
 	if err != nil {
 		l.Errorf("调用高德逆地理编码失败: %v", err)
-		return nil, err
+		// 地图服务属于外部依赖，失败时返回坐标本身，避免乘客定位流程整体中断。
+		return &locationsvc.ReverseGeocodeResp{Address: fmt.Sprintf("%.6f,%.6f", in.Lng, in.Lat)}, nil
 	}
 
 	comp := regeo.Regeocode.AddressComponent
@@ -39,7 +40,8 @@ func (l *ReverseGeocodeLogic) ReverseGeocode(in *locationsvc.ReverseGeocodeReq) 
 
 	// 高德只支持中国境内坐标；境外坐标 formatted_address 会是空数组
 	if address == "" {
-		return nil, fmt.Errorf("无法解析该坐标对应的地址（可能不在高德服务范围内）")
+		// 地址为空属于可预期情况（境外坐标、服务降级或数据缺失），返回坐标兜底。
+		return &locationsvc.ReverseGeocodeResp{Address: fmt.Sprintf("%.6f,%.6f", in.Lng, in.Lat)}, nil
 	}
 
 	// 兜底：直辖市的高德 city 字段是空数组，用省代替（如"北京市"）

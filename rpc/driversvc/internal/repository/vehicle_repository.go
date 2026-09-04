@@ -16,6 +16,8 @@ type DriverVehicleRepository interface {
 	Create(ctx context.Context, vehicle *model.DriverVehicle) error
 	// GetByID 按主键查询车辆（软删记录不可见）。
 	GetByID(ctx context.Context, id uint64) (*model.DriverVehicle, error)
+	// GetByDriverID 按司机 ID 查询车辆，用于后台司机详情聚合展示。
+	GetByDriverID(ctx context.Context, driverID uint64) (*model.DriverVehicle, error)
 	// Update 按 ID 增量更新车辆字段。
 	Update(ctx context.Context, id uint64, updates map[string]interface{}) error
 	// Delete 软删除指定车辆（设置 deleted_at）。

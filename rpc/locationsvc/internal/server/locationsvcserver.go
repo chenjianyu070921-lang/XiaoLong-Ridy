@@ -33,3 +33,23 @@ func (s *LocationServiceServer) RoutePlan(ctx context.Context, in *locationsvc.R
 	l := logic.NewRoutePlanLogic(ctx, s.svcCtx)
 	return l.RoutePlan(in)
 }
+
+func (s *LocationServiceServer) ReportLocation(ctx context.Context, in *locationsvc.ReportLocationReq) (*locationsvc.ReportLocationResp, error) {
+	l := logic.NewReportLocationLogic(ctx, s.svcCtx)
+	return l.ReportLocation(in)
+}
+
+func (s *LocationServiceServer) GetOrderTrack(ctx context.Context, in *locationsvc.GetOrderTrackReq) (*locationsvc.GetOrderTrackResp, error) {
+	l := logic.NewGetOrderTrackLogic(ctx, s.svcCtx)
+	return l.GetOrderTrack(in)
+}
+
+func (s *LocationServiceServer) NearbyDrivers(ctx context.Context, in *locationsvc.NearbyDriversReq) (*locationsvc.NearbyDriversResp, error) {
+	l := logic.NewNearbyDriversLogic(ctx, s.svcCtx)
+	return l.NearbyDrivers(in)
+}
+
+// GetDriverLocation 返回司机最新位置，供乘客端轮询追踪。
+func (s *LocationServiceServer) GetDriverLocation(ctx context.Context, in *locationsvc.GetDriverLocationReq) (*locationsvc.GetDriverLocationResp, error) {
+	return logic.NewGetDriverLocationLogic(ctx, s.svcCtx).GetDriverLocation(in)
+}

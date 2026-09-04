@@ -1,12 +1,22 @@
 Name: driversvc.rpc
-ListenOn: 0.0.0.0:8080
+ListenOn: 0.0.0.0:50055
+# RPC 服务端 handler 超时（毫秒）。司机列表/详情需对远端 MySQL 做车辆+认证+在线的逐行聚合，
+# 默认 2000ms 会在聚合完成前掐断请求导致列表接口 DeadlineExceeded；放大到 30s。
+Timeout: 30000
 mysql:
-  dsn: root:root123456@tcp(127.0.0.1:3306)/driver?charset=utf8mb4&parseTime=True&loc=Local
-redis:
-  host: 127.0.0.1:6379
-  key: ordersvc
-kafka:
-  brokers:
-    - 127.0.0.1:9092
-  topic: order.created
-  group: order-event-consumer
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+# JWT signing key must be injected at runtime with DRIVERSVC_SIGNING_KEY.
+# Keep this empty so the service fails closed when deployment injection is missing.
+signingKey: ""
+# Redis：维护司机在线状态与多端互踢（deviceID 绑定）。
+driverRedis:
+  host: 115.191.16.159:6379
+  password: "4ay1nkal3u8ed77y"
+  db: 0
+# MinIO：司机资质图片（身份证、驾驶证、行驶证）对象存储。
+minio:
+  endpoint: 115.191.16.159:9000
+  accessKey: minioadmin
+  secretKey: minioadmin
+  bucket: driver-cert
+  useSSL: false

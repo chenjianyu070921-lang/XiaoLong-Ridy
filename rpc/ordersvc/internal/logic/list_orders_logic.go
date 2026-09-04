@@ -26,7 +26,8 @@ func NewListOrdersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListOr
 
 // ListOrders 按用户/司机/状态分页查询订单摘要。
 func (l *ListOrdersLogic) ListOrders(in *proto.ListOrdersRequest) (*proto.ListOrdersResponse, error) {
-	if in.Status < 0 || in.Status > proto.OrderStatus_ORDER_STATUS_CANCELLED {
+	// 上界取 REFUNDED(7) 而非 CANCELLED(6)，否则已退款订单无法被筛选（对账/后台查不到）。
+	if in.Status < 0 || in.Status > proto.OrderStatus_ORDER_STATUS_REFUNDED {
 		return nil, ErrInvalidOrderParams
 	}
 	page := normalizePage(in.Page)
@@ -42,11 +43,23 @@ func (l *ListOrdersLogic) ListOrders(in *proto.ListOrdersRequest) (*proto.ListOr
 		items = append(items, &proto.OrderSummary{
 			OrderId:             int64(order.Id),
 			OrderNo:             order.OrderNo,
+			UserId:              int64(order.UserId),
+			DriverId:            int64(order.DriverId),
+			CarType:             int32(order.CarType),
 			FromAddress:         order.FromAddress,
+			FromLongitude:       order.FromLongitude,
+			FromLatitude:        order.FromLatitude,
 			ToAddress:           order.ToAddress,
+			ToLongitude:         order.ToLongitude,
+			ToLatitude:          order.ToLatitude,
+			EstimatedDistanceM:  int64(order.EstimatedDistanceM),
+			EstimatedDurationS:  int64(order.EstimatedDurationS),
 			Status:              proto.OrderStatus(order.Status),
 			EstimatedPriceCents: yuanToCents(order.EstimatedPrice),
+			CancelReason:        order.CancelReason,
+			CancelBy:            order.CancelBy,
 			CreatedAt:           order.CreatedAt.Unix(),
+			UpdatedAt:           order.UpdatedAt.Unix(),
 		})
 	}
 

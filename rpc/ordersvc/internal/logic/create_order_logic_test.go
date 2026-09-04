@@ -9,6 +9,7 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
+	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
 	"google.golang.org/grpc"
 )
@@ -28,6 +29,18 @@ func (f *fakeDispatchClient) DispatchOrder(_ context.Context, in *dispatch.Dispa
 
 func (f *fakeDispatchClient) ListDispatchRecords(_ context.Context, _ *dispatch.ListDispatchRecordsRequest, _ ...grpc.CallOption) (*dispatch.ListDispatchRecordsResponse, error) {
 	return &dispatch.ListDispatchRecordsResponse{}, nil
+}
+
+func (f *fakeDispatchClient) RejectDispatch(_ context.Context, _ *dispatch.RejectDispatchRequest, _ ...grpc.CallOption) (*dispatch.RejectDispatchResponse, error) {
+	return &dispatch.RejectDispatchResponse{}, nil
+}
+
+func (f *fakeDispatchClient) CancelDispatch(_ context.Context, _ *dispatch.CancelDispatchRequest, _ ...grpc.CallOption) (*dispatch.CancelDispatchResponse, error) {
+	return &dispatch.CancelDispatchResponse{}, nil
+}
+
+func (f *fakeDispatchClient) ListTimeoutPendingOrders(_ context.Context, _ *dispatch.ListTimeoutPendingOrdersRequest, _ ...grpc.CallOption) (*dispatch.ListTimeoutPendingOrdersResponse, error) {
+	return &dispatch.ListTimeoutPendingOrdersResponse{}, nil
 }
 
 func validCreateOrderRequest() *proto.CreateOrderRequest {
@@ -55,10 +68,10 @@ func TestCreateOrderSuccess(t *testing.T) {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
 	if resp.OrderId <= 0 {
-		t.Fatal("CreateOrder() returned empty order id")
+		t.Fatal("CreateOrder() returned empty orderclient id")
 	}
 	if resp.OrderNo == "" {
-		t.Fatal("CreateOrder() returned empty order no")
+		t.Fatal("CreateOrder() returned empty orderclient no")
 	}
 	if resp.Status != proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
 		t.Fatalf("CreateOrder() status = %v, want WAIT_ACCEPT", resp.Status)
@@ -75,7 +88,7 @@ func TestCreateOrderSuccess(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if order.UserId != 1001 || order.Status != 1 {
-		t.Fatalf("stored order = %+v", order)
+		t.Fatalf("stored orderclient = %+v", order)
 	}
 	if order.EstimatedPrice != 36 {
 		t.Fatalf("stored estimated price = %v, want 36", order.EstimatedPrice)
@@ -131,9 +144,118 @@ func TestCreateOrderTriggersDispatchAndIgnoresDispatchError(t *testing.T) {
 		t.Fatalf("CreateOrder() error = %v", err)
 	}
 	if resp.OrderId <= 0 {
-		t.Fatal("CreateOrder() returned empty order id")
+		t.Fatal("CreateOrder() returned empty orderclient id")
 	}
 	if !dispatchClient.called {
 		t.Fatal("CreateOrder() did not trigger dispatch")
+	}
+}
+
+type fakePriceClient struct {
+	price.Price
+	estimatePrice func(ctx context.Context, in *price.EstimatePriceRequest) (*price.EstimatePriceResponse, error)
+	gotCityCode   string
+}
+
+// TestCreateOrder_RecordsUserBlacklistHit 验证下单用户命中黑名单时会写入下单场景审计记录。
+func TestCreateOrder_RecordsUserBlacklistHit(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	risk := repository.NewMemoryRiskBlacklistRepository()
+	risk.SetActive("user", 1001, repository.BlacklistEntry{ID: 88, Reason: "历史风险命中"})
+	l := NewCreateOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository:         repo,
+		RiskBlacklistRepository: risk,
+	})
+
+	if _, err := l.CreateOrder(validCreateOrderRequest()); err != nil {
+		t.Fatalf("CreateOrder() error = %v", err)
+	}
+	if len(risk.Hits) != 1 || risk.Hits[0].Scene != "order" || risk.Hits[0].BlacklistID != 88 || risk.Hits[0].TargetID != 1001 {
+		t.Fatalf("risk hit records = %+v, want one order record", risk.Hits)
+	}
+}
+
+func (f *fakePriceClient) EstimatePrice(_ context.Context, in *price.EstimatePriceRequest, _ ...grpc.CallOption) (*price.EstimatePriceResponse, error) {
+	f.gotCityCode = in.CityCode
+	if f.estimatePrice != nil {
+		return f.estimatePrice(nil, in)
+	}
+	return &price.EstimatePriceResponse{TotalCents: 4500}, nil
+}
+
+func (f *fakePriceClient) CalculateDiscount(_ context.Context, _ *price.CalculateDiscountRequest, _ ...grpc.CallOption) (*price.CalculateDiscountResponse, error) {
+	return nil, nil
+}
+
+func (f *fakePriceClient) SaveActualOrderPrice(_ context.Context, _ *price.SaveActualOrderPriceRequest, _ ...grpc.CallOption) (*price.SaveActualOrderPriceResponse, error) {
+	return &price.SaveActualOrderPriceResponse{}, nil
+}
+
+func TestCreateOrderUsesPriceSnapshot(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	pc := &fakePriceClient{}
+	l := NewCreateOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository: repo,
+		PriceClient:     pc,
+	})
+
+	req := validCreateOrderRequest()
+	req.CityCode = "310000"
+	// 价格快照为空时，订单服务调用 pricesvc 生成服务端价格快照。
+	req.EstimatedPriceCents = 0
+	resp, err := l.CreateOrder(req)
+	if err != nil {
+		t.Fatalf("CreateOrder() error = %v", err)
+	}
+	if resp.EstimatedPriceCents != 4500 {
+		t.Fatalf("EstimatedPriceCents = %d, want pricesvc snapshot 4500", resp.EstimatedPriceCents)
+	}
+	if pc.gotCityCode != "310000" {
+		t.Fatalf("price client city code = %q, want 310000", pc.gotCityCode)
+	}
+	order, err := repo.GetByID(context.Background(), uint64(resp.OrderId))
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if order.EstimatedPrice != 45 {
+		t.Fatalf("stored estimated price = %v, want pricesvc snapshot 45", order.EstimatedPrice)
+	}
+}
+
+func TestCreateOrderFallbackOnPriceError(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	pc := &fakePriceClient{estimatePrice: func(_ context.Context, _ *price.EstimatePriceRequest) (*price.EstimatePriceResponse, error) {
+		return nil, errors.New("pricesvc down")
+	}}
+	l := NewCreateOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository: repo,
+		PriceClient:     pc,
+	})
+
+	resp, err := l.CreateOrder(validCreateOrderRequest())
+	if err != nil {
+		t.Fatalf("CreateOrder() error = %v", err)
+	}
+	if resp.EstimatedPriceCents != 3600 {
+		t.Fatalf("EstimatedPriceCents = %d, want fallback 3600", resp.EstimatedPriceCents)
+	}
+}
+
+func TestCreateOrderPriceSnapshotDefaultCity(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	pc := &fakePriceClient{}
+	l := NewCreateOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderRepository: repo,
+		PriceClient:     pc,
+	})
+
+	// 不传 city_code 且不传价格快照时，才调用 pricesvc 并使用默认城市 110000。
+	req := validCreateOrderRequest()
+	req.EstimatedPriceCents = 0
+	if _, err := l.CreateOrder(req); err != nil {
+		t.Fatalf("CreateOrder() error = %v", err)
+	}
+	if pc.gotCityCode != "110000" {
+		t.Fatalf("price client city code = %q, want default 110000", pc.gotCityCode)
 	}
 }

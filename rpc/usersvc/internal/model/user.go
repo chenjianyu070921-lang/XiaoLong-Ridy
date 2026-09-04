@@ -3,6 +3,8 @@ package model
 import (
 	"errors"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -38,23 +40,25 @@ var (
 	ErrTokenExpired = errors.New("token expired")
 	// ErrInvalidRealNameInfo 表示实名资料缺少姓名或证件号。
 	ErrInvalidRealNameInfo = errors.New("invalid real name info")
+	// ErrRealNameVerifyFailed 表示腾讯云实名认证校验未通过或调用失败。
+	ErrRealNameVerifyFailed = errors.New("real name verification failed")
 )
 
 // User 对应 user 表：保存乘客账号、认证状态和基础资料。
 type User struct {
-	ID             uint64     `gorm:"primaryKey;column:id" json:"id"`
-	Phone          string     `gorm:"column:phone;size:20" json:"phone"`
-	PasswordHash   string     `gorm:"column:password_hash;size:255" json:"passwordHash"`
-	Nickname       string     `gorm:"column:nickname;size:50" json:"nickname"`
-	AvatarURL      string     `gorm:"column:avatar_url;size:255" json:"avatarUrl"`
-	Gender         int        `gorm:"column:gender;default:0" json:"gender"`
-	RealName       string     `gorm:"column:real_name;size:50" json:"realName"`
-	IDCardNo       string     `gorm:"column:id_card_no;size:32" json:"idCardNo"`
-	RegisterSource string     `gorm:"column:register_source;size:20" json:"registerSource"`
-	Status         int        `gorm:"column:status;default:1" json:"status"`
-	CreatedAt      time.Time  `gorm:"column:created_at" json:"createdAt"`
-	UpdatedAt      time.Time  `gorm:"column:updated_at" json:"updatedAt"`
-	DeletedAt      *time.Time `gorm:"column:deleted_at" json:"deletedAt"`
+	ID             uint64         `gorm:"primaryKey;column:id" json:"id"`
+	Phone          string         `gorm:"column:phone;size:20" json:"phone"`
+	PasswordHash   string         `gorm:"column:password_hash;size:255" json:"passwordHash"`
+	Nickname       string         `gorm:"column:nickname;size:50" json:"nickname"`
+	AvatarURL      string         `gorm:"column:avatar_url;size:255" json:"avatarUrl"`
+	Gender         int            `gorm:"column:gender;default:0" json:"gender"`
+	RealName       string         `gorm:"column:real_name;size:50" json:"realName"`
+	IDCardNo       string         `gorm:"column:id_card_no;size:32" json:"idCardNo"`
+	RegisterSource string         `gorm:"column:register_source;size:20" json:"registerSource"`
+	Status         int            `gorm:"column:status;default:1" json:"status"`
+	CreatedAt      time.Time      `gorm:"column:created_at" json:"createdAt"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at" json:"updatedAt"`
+	DeletedAt      gorm.DeletedAt `gorm:"column:deleted_at;index" json:"deletedAt"`
 }
 
 // TableName 返回用户模型对应的数据表名称，供 GORM 映射 user 表。

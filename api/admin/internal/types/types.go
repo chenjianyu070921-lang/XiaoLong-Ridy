@@ -34,13 +34,41 @@ type AdminDTO struct {
 	Status   int32  `json:"status"`
 }
 
+// AdminListRequest 表示管理员列表筛选条件。
+type AdminListRequest struct {
+	Page     int
+	PageSize int
+	Keyword  string
+	Role     int32
+	Status   int32
+}
+
+// AdminSaveRequest 表示管理员新增或编辑请求。
+type AdminSaveRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	RealName string `json:"real_name"`
+	Role     int32  `json:"role"`
+}
+
+// AdminStatusRequest 表示管理员启用或停用请求。
+type AdminStatusRequest struct {
+	Status int32  `json:"status"`
+	Reason string `json:"reason"`
+}
+
+// AdminPasswordResetRequest 表示管理员密码重置请求。
+type AdminPasswordResetRequest struct {
+	Password string `json:"password"`
+}
+
 // MeResponse 表示当前登录管理员信息。
 type MeResponse struct {
 	Admin AdminDTO `json:"admin"`
 }
 
 // MenuItem 表示后台菜单和按钮权限节点。
-// P0 阶段先返回固定菜单，后续可演进为角色权限表驱动。
+// 菜单由 adminsvc 的角色配置生成，HTTP 层只负责返回 RPC 结果。
 type MenuItem struct {
 	Name     string     `json:"name"`
 	Path     string     `json:"path"`
@@ -93,6 +121,61 @@ type UserDTO struct {
 	UpdatedAt      string `json:"updated_at"`
 }
 
+// DriverListRequest 表示司机基础资料列表查询条件。
+type DriverListRequest struct {
+	Page     int
+	PageSize int
+	Keyword  string
+	Status   int32
+}
+
+// DriverDTO 表示管理后台司机基础资料。
+type DriverDTO struct {
+	ID              int64  `json:"id"`
+	Phone           string `json:"phone"`
+	RealName        string `json:"real_name"`
+	IDCardNo        string `json:"id_card_no"`
+	DriverLicenseNo string `json:"driver_license_no"`
+	AvatarURL       string `json:"avatar_url"`
+	Status          int32  `json:"status"`
+	OnlineStatus    int32  `json:"online_status"`
+	VehicleID       int64  `json:"vehicle_id"`
+	PlateNo         string `json:"plate_no"`
+	VehicleStatus   int32  `json:"vehicle_status"`
+	CertificationID int64  `json:"certification_id"`
+	AuditStatus     int32  `json:"audit_status"`
+	AuditRemark     string `json:"audit_remark"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
+}
+
+// DriverFreezeRequest 表示后台冻结司机请求体。
+type DriverFreezeRequest struct {
+	Reason string `json:"reason"` // 冻结原因，必填
+	Remark string `json:"remark"` // 运营备注，可选
+}
+
+// DriverWithdrawalDTO 表示后台司机提现申请记录。
+type DriverWithdrawalDTO struct {
+	ID         int64  `json:"id"`
+	DriverID   int64  `json:"driver_id"`
+	WithdrawNo string `json:"withdraw_no"`
+	Amount     string `json:"amount"`
+	PayeeName  string `json:"payee_name"`
+	PayAccount string `json:"pay_account"`
+	Status     int32  `json:"status"`
+	Remark     string `json:"remark"`
+	AppliedAt  string `json:"applied_at"`
+	PaidAt     string `json:"paid_at"`
+	CreatedAt  string `json:"created_at"`
+}
+
+// DriverWithdrawHandleRequest 表示后台审核提现申请请求体。
+// approve=true 打款成功，approve=false 打款失败；打款失败时 remark 必填。
+type DriverWithdrawHandleRequest struct {
+	Remark string `json:"remark"`
+}
+
 // DriverCertificationListRequest 表示司机审核列表查询条件。
 type DriverCertificationListRequest struct {
 	Page        int
@@ -132,7 +215,8 @@ type AuditRequest struct {
 
 // OrderCancelRequest 表示后台人工取消订单的请求体。
 type OrderCancelRequest struct {
-	Reason string `json:"reason"`
+	Reason    string `json:"reason"`
+	RequestID string `json:"request_id"`
 }
 
 // OrderListRequest 表示订单列表查询条件。
@@ -145,6 +229,15 @@ type OrderListRequest struct {
 	DriverID  int64
 	StartTime string
 	EndTime   string
+}
+
+// OrderTrackRequest 表示后台订单轨迹查询条件。
+// start_time/end_time 使用 Unix 秒，方便地图组件按时间轴请求轨迹切片。
+type OrderTrackRequest struct {
+	OrderID   int64
+	StartTime int64
+	EndTime   int64
+	Limit     int32
 }
 
 // AbnormalOrderListRequest 表示异常订单列表查询条件。
@@ -201,6 +294,24 @@ type OrderDetailDTO struct {
 	Price           *OrderPrice      `json:"price,omitempty"`
 	Payment         *Payment         `json:"payment,omitempty"`
 	Settlement      *Settlement      `json:"settlement,omitempty"`
+	Degraded        []string         `json:"degraded,omitempty"`
+}
+
+// OrderTrackPointDTO 表示后台地图回放使用的单个轨迹点。
+type OrderTrackPointDTO struct {
+	ID         int64  `json:"id"`
+	OrderID    int64  `json:"order_id"`
+	DriverID   int64  `json:"driver_id"`
+	Longitude  string `json:"longitude"`
+	Latitude   string `json:"latitude"`
+	SpeedKmh   string `json:"speed_kmh"`
+	Direction  int32  `json:"direction"`
+	RecordedAt string `json:"recorded_at"`
+}
+
+// OrderTrackDTO 表示订单轨迹查询结果。
+type OrderTrackDTO struct {
+	Points []OrderTrackPointDTO `json:"points"`
 }
 
 // OrderStatusLog 表示订单状态流转日志。
@@ -258,6 +369,51 @@ type Payment struct {
 	TransactionID string `json:"transaction_id"`
 	RefundAmount  string `json:"refund_amount"`
 	PaidAt        string `json:"paid_at"`
+}
+
+// OrderRedispatchRequest 表示后台人工改派订单请求体。
+// request_id 为后台幂等号，new_driver_id 为 0 时表示释放回自动派单池。
+type OrderRedispatchRequest struct {
+	NewDriverID int64  `json:"new_driver_id"`
+	Reason      string `json:"reason"`
+	RequestID   string `json:"request_id"`
+}
+
+// OrderRedispatchResponse 表示后台人工改派后的订单状态。
+type OrderRedispatchResponse struct {
+	OrderID  int64  `json:"order_id"`
+	Status   int32  `json:"status"`
+	DriverID int64  `json:"driver_id"`
+	Message  string `json:"message"`
+}
+
+// OrderRefundRequest 表示后台订单退款请求体。
+// refund_amount_cents 为退款金额，0 表示由 ordersvc 按订单已支付金额全额退款。
+type OrderRefundRequest struct {
+	RefundAmountCents int64  `json:"refund_amount_cents"`
+	Reason            string `json:"reason"`
+	RequestID         string `json:"request_id"`
+}
+
+// OrderRefundResponse 表示后台退款处理结果。
+type OrderRefundResponse struct {
+	OrderID     int64  `json:"order_id"`
+	Status      int32  `json:"status"`
+	RefundCents int64  `json:"refund_cents"`
+	RefundNo    string `json:"refund_no"`
+	Message     string `json:"message"`
+}
+
+// RefundRetryTask 表示退款事件补偿任务。
+type RefundRetryTask struct {
+	OrderID      int64  `json:"order_id"`
+	OrderNo      string `json:"order_no"`
+	RefundNo     string `json:"refund_no"`
+	RefundCents  int64  `json:"refund_cents"`
+	OperatorType string `json:"operator_type"`
+	OperatorID   int64  `json:"operator_id"`
+	Attempt      int32  `json:"attempt"`
+	NextRetryAt  int64  `json:"next_retry_at"`
 }
 
 // Settlement 表示结算单信息。
@@ -359,6 +515,61 @@ type CouponIssueResponse struct {
 	Status       string `json:"status"`
 }
 
+// PriceRuleListRequest 表示计价规则列表查询条件。
+type PriceRuleListRequest struct {
+	Page     int
+	PageSize int
+	Keyword  string
+	CityCode string
+	CarType  int32
+	Status   int32
+}
+
+// PriceRuleSaveRequest 表示计价规则新增和编辑请求体。
+type PriceRuleSaveRequest struct {
+	Name             string `json:"name"`
+	CityCode         string `json:"city_code"`
+	CarType          int32  `json:"car_type"`
+	BasePrice        string `json:"base_price"`
+	BaseDistanceKm   string `json:"base_distance_km"`
+	PerKmPrice       string `json:"per_km_price"`
+	PerMinutePrice   string `json:"per_minute_price"`
+	NightStartTime   string `json:"night_start_time"`
+	NightEndTime     string `json:"night_end_time"`
+	NightSurcharge   string `json:"night_surcharge"`
+	DynamicMaxFactor string `json:"dynamic_max_factor"`
+	Status           int32  `json:"status"`
+	EffectiveAt      string `json:"effective_at"`
+	ExpireAt         string `json:"expire_at"`
+}
+
+// PriceRuleSaveResponse 表示计价规则创建成功后的返回数据。
+// 返回真实规则 ID，便于后台页面定位新建记录。
+type PriceRuleSaveResponse struct {
+	ID int64 `json:"id"`
+}
+
+// PriceRuleDTO 表示计价规则接口返回对象。
+type PriceRuleDTO struct {
+	ID               int64  `json:"id"`
+	Name             string `json:"name"`
+	CityCode         string `json:"city_code"`
+	CarType          int32  `json:"car_type"`
+	BasePrice        string `json:"base_price"`
+	BaseDistanceKm   string `json:"base_distance_km"`
+	PerKmPrice       string `json:"per_km_price"`
+	PerMinutePrice   string `json:"per_minute_price"`
+	NightStartTime   string `json:"night_start_time"`
+	NightEndTime     string `json:"night_end_time"`
+	NightSurcharge   string `json:"night_surcharge"`
+	DynamicMaxFactor string `json:"dynamic_max_factor"`
+	Status           int32  `json:"status"`
+	EffectiveAt      string `json:"effective_at"`
+	ExpireAt         string `json:"expire_at"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
+}
+
 // PromotionActivityListRequest 表示活动配置列表查询条件。
 type PromotionActivityListRequest struct {
 	Page      int
@@ -388,16 +599,20 @@ type PromotionActivityActionRequest struct {
 
 // PromotionActivityDTO 表示活动配置返回对象。
 type PromotionActivityDTO struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Type      int32  `json:"type"`
-	Config    string `json:"config"`
-	StartAt   string `json:"start_at"`
-	EndAt     string `json:"end_at"`
-	Status    int32  `json:"status"`
-	CreatedBy int64  `json:"created_by"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	Type         int32  `json:"type"`
+	Config       string `json:"config"`
+	StartAt      string `json:"start_at"`
+	EndAt        string `json:"end_at"`
+	Status       int32  `json:"status"`
+	CreatedBy    int64  `json:"created_by"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	PublishScope string `json:"publish_scope"`
+	TargetConfig string `json:"target_config"`
+	PublishedAt  string `json:"published_at"`
+	RollbackAt   string `json:"rollback_at"`
 }
 
 // StatisticsRequest 表示后台统计查询条件。
@@ -411,6 +626,44 @@ type StatisticsRequest struct {
 type ExportTaskRequest struct {
 	ExportType string `json:"export_type"`
 	Filters    string `json:"filters"`
+}
+
+// WorkOrderRequest 表示后台创建投诉或申诉工单的请求体。
+type WorkOrderRequest struct {
+	WorkOrderType int32  `json:"work_order_type"`
+	SourceType    string `json:"source_type"`
+	SourceID      int64  `json:"source_id"`
+	OrderID       int64  `json:"order_id"`
+	UserID        int64  `json:"user_id"`
+	DriverID      int64  `json:"driver_id"`
+	Title         string `json:"title"`
+	Content       string `json:"content"`
+	Priority      int32  `json:"priority"`
+}
+
+// WorkOrderActionRequest 表示后台工单状态流转请求体。
+type WorkOrderActionRequest struct {
+	Action            string `json:"action"`
+	AssigneeID        int64  `json:"assignee_id"`
+	Content           string `json:"content"`
+	ArbitrationResult string `json:"arbitration_result"`
+	Version           int32  `json:"version"`
+}
+
+// WorkOrderBatchActionRequest 表示后台工单批量流转请求体。
+type WorkOrderBatchActionRequest struct {
+	IDs               []int64 `json:"ids"`
+	Action            string  `json:"action"`
+	AssigneeID        int64   `json:"assignee_id"`
+	Content           string  `json:"content"`
+	ArbitrationResult string  `json:"arbitration_result"`
+}
+
+// WorkOrderEvidenceRequest 表示后台工单证据索引请求体。
+type WorkOrderEvidenceRequest struct {
+	EvidenceType string `json:"evidence_type"`
+	EvidenceURL  string `json:"evidence_url"`
+	Content      string `json:"content"`
 }
 
 // BlacklistRequest 表示风控黑名单新增和解除请求体。
@@ -434,15 +687,46 @@ type BlacklistDTO struct {
 
 // RiskHitRecordDTO 表示风控命中记录列表项。
 type RiskHitRecordDTO struct {
-	ID          int64  `json:"id"`
-	BlacklistID int64  `json:"blacklist_id"`
-	TargetType  string `json:"target_type"`
-	TargetID    int64  `json:"target_id"`
-	Scene       string `json:"scene"`
-	RiskLevel   int32  `json:"risk_level"`
-	HitReason   string `json:"hit_reason"`
-	RequestID   string `json:"request_id"`
-	CreatedAt   string `json:"created_at"`
+	ID           int64  `json:"id"`
+	BlacklistID  int64  `json:"blacklist_id"`
+	TargetType   string `json:"target_type"`
+	TargetID     int64  `json:"target_id"`
+	Scene        string `json:"scene"`
+	RiskLevel    int32  `json:"risk_level"`
+	HitReason    string `json:"hit_reason"`
+	RequestID    string `json:"request_id"`
+	CreatedAt    string `json:"created_at"`
+	HandleStatus string `json:"handle_status"`
+	HandleAction string `json:"handle_action"`
+	HandledBy    int64  `json:"handled_by"`
+	HandledAt    string `json:"handled_at"`
+	WorkOrderID  int64  `json:"work_order_id"`
+}
+
+// RiskHitActionRequest 表示风控命中记录人工处置请求体。
+type RiskHitActionRequest struct {
+	IDs            []int64 `json:"ids"`
+	Action         string  `json:"action"`
+	Reason         string  `json:"reason"`
+	WorkOrderTitle string  `json:"work_order_title"`
+	Priority       int32   `json:"priority"`
+}
+
+// AdminAuditOutboxDTO 表示通知与审计补偿任务列表项。
+type AdminAuditOutboxDTO struct {
+	ID            int64  `json:"id"`
+	EventNo       string `json:"event_no"`
+	Module        string `json:"module"`
+	Action        string `json:"action"`
+	TargetType    string `json:"target_type"`
+	TargetID      int64  `json:"target_id"`
+	AdminID       int64  `json:"admin_id"`
+	Detail        string `json:"detail"`
+	Status        string `json:"status"`
+	RetryCount    int32  `json:"retry_count"`
+	FailureReason string `json:"failure_reason"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 // OperationLogListRequest 表示操作日志列表查询条件。
@@ -469,4 +753,73 @@ type OperationLogDTO struct {
 	Detail     string `json:"detail"`
 	IP         string `json:"ip"`
 	CreatedAt  string `json:"created_at"`
+}
+
+// ---- AI 运营助手相关类型 ----
+
+// AiAskRequest 表示受限运营问答请求体。
+type AiAskRequest struct {
+	Scene          string `json:"scene"`
+	Question       string `json:"question"`
+	ConversationID string `json:"conversation_id"`
+	StartTime      string `json:"start_time"`
+	EndTime        string `json:"end_time"`
+	DemoMode       bool   `json:"demo_mode"`
+}
+
+// AiEvidenceDTO 表示回答中的一条数据证据。
+type AiEvidenceDTO struct {
+	Label      string `json:"label"`
+	Value      string `json:"value"`
+	Comparison string `json:"comparison,omitempty"`
+}
+
+// AiPriorityDTO 表示需要优先处理的订单或风控记录。
+type AiPriorityDTO struct {
+	Type    string   `json:"type"`
+	ID      string   `json:"id"`
+	Level   string   `json:"level"`
+	Reasons []string `json:"reasons"`
+	Route   string   `json:"route"`
+}
+
+// AiActionDTO 表示建议动作（仅页面跳转）。
+type AiActionDTO struct {
+	Type  string `json:"type"`
+	Label string `json:"label"`
+	Route string `json:"route"`
+}
+
+// AiAnswerDTO 表示服务端校验后的标准化回答。
+type AiAnswerDTO struct {
+	Summary        string          `json:"summary"`
+	Evidence       []AiEvidenceDTO `json:"evidence"`
+	Priorities     []AiPriorityDTO `json:"priorities"`
+	Actions        []AiActionDTO   `json:"actions"`
+	SourceMode     string          `json:"source_mode"`
+	Citations      []string        `json:"citations"`
+	ConversationID string          `json:"conversation_id"`
+	TraceID        string          `json:"trace_id"`
+}
+
+// AiSuggestionDTO 表示场景快捷问题。
+type AiSuggestionDTO struct {
+	Scene       string `json:"scene"`
+	QuickPrompt string `json:"quick_prompt"`
+}
+
+// AiConversationSummaryDTO 表示 AI 会话摘要。
+type AiConversationSummaryDTO struct {
+	ConversationID string `json:"conversation_id"`
+	Scene          string `json:"scene"`
+	SourceMode     string `json:"source_mode"`
+	Summary        string `json:"summary"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
+// AiFeedbackRequest 表示回答反馈请求体。
+type AiFeedbackRequest struct {
+	ConversationID string `json:"conversation_id"`
+	TraceID        string `json:"trace_id"`
+	Helpful        bool   `json:"helpful"`
 }

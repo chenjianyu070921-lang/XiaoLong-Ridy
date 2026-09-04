@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"XiaoLong-Ridy/common/mq"
+	order "XiaoLong-Ridy/rpc/ordersvc/proto"
 	"XiaoLong-Ridy/rpc/paysvc/internal/channel"
 	"XiaoLong-Ridy/rpc/paysvc/internal/orderclient"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
@@ -48,10 +49,20 @@ func newTestSvcCtx(db *gorm.DB, oc orderclient.OrderClient, verifier channel.Sig
 
 // mockOrderClient 测试用订单客户端。
 type mockOrderClient struct {
-	driverId int64
-	err      error
+	driverId   int64
+	err        error
+	confirmed  []*order.ConfirmPaidRequest
+	confirmErr error
 }
 
 func (m *mockOrderClient) GetDriverId(ctx context.Context, orderId int64) (int64, error) {
 	return m.driverId, m.err
+}
+
+func (m *mockOrderClient) ConfirmPaid(ctx context.Context, in *order.ConfirmPaidRequest) (*order.ConfirmPaidResponse, error) {
+	m.confirmed = append(m.confirmed, in)
+	if m.confirmErr != nil {
+		return nil, m.confirmErr
+	}
+	return &order.ConfirmPaidResponse{OrderId: in.OrderId, Status: order.OrderStatus_ORDER_STATUS_COMPLETED}, nil
 }

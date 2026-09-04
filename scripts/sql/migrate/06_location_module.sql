@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `geofence` (
 -- 必须有这张表：订单状态、验证码、活动通知都要统一记录发送状态，失败时支持重试和排查。
 CREATE TABLE IF NOT EXISTS `push_message` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '消息ID',
-  `biz_type` VARCHAR(30) NOT NULL COMMENT '业务类型：order/activity/system/verify_code',
+  `biz_type` VARCHAR(30) NOT NULL COMMENT '业务类型：orderclient/activity/system/verify_code',
   `target_type` VARCHAR(20) NOT NULL DEFAULT 'user' COMMENT '接收方类型：user/driver',
   `target_id` BIGINT UNSIGNED NOT NULL COMMENT '接收方ID',
   `order_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '关联订单ID，无则0',

@@ -26,6 +26,8 @@ type UserInfo {
 	Nickname string `json:"nickname"`
 	AvatarURL string `json:"avatarUrl"`
 	RealNameStatus string `json:"realNameStatus"`
+	RealName string `json:"realName"`
+	IDCardNo string `json:"idCardNo"`
 }
 
 type LoginBySMSResponse {
@@ -43,6 +45,8 @@ type RefreshTokenResponse {
 	Token string `json:"token"`
 	RefreshToken string `json:"refreshToken"`
 }
+
+type LogoutRequest {}
 
 type LogoutResponse {
 	Success bool `json:"success"`
@@ -63,6 +67,15 @@ type SubmitRealNameResponse {
 	User UserInfo `json:"user"`
 }
 
+type UpdateProfileRequest {
+	Nickname string `json:"nickname,optional"`
+	AvatarURL string `json:"avatarUrl,optional"`
+}
+
+type UpdateProfileResponse {
+	User UserInfo `json:"user"`
+}
+
 type CreateOrderRequest {
 	CarType int32 `json:"carType"`
 	FromAddress string `json:"fromAddress"`
@@ -71,6 +84,10 @@ type CreateOrderRequest {
 	ToAddress string `json:"toAddress"`
 	ToLongitude float64 `json:"toLongitude"`
 	ToLatitude float64 `json:"toLatitude"`
+EstimatedDistanceM int64 `json:"estimatedDistanceM"`
+EstimatedDurationS int64 `json:"estimatedDurationS"`
+	CityCode string `json:"cityCode"`
+	UserCouponID uint64 `json:"userCouponId"`
 	CouponID int64 `json:"couponId"`
 	CouponType int32 `json:"couponType"`
 	CouponFaceValueCents int64 `json:"couponFaceValueCents"`
@@ -79,6 +96,28 @@ type CreateOrderRequest {
 	CouponMaxDiscountCents int64 `json:"couponMaxDiscountCents"`
 }
 
+type EstimateOrderRequest {
+	CarType int32 `json:"carType"`
+	FromAddress string `json:"fromAddress"`
+	FromLongitude float64 `json:"fromLongitude"`
+	FromLatitude float64 `json:"fromLatitude"`
+	ToAddress string `json:"toAddress"`
+	ToLongitude float64 `json:"toLongitude"`
+	ToLatitude float64 `json:"toLatitude"`
+EstimatedDistanceM int64 `json:"estimatedDistanceM,optional"`
+EstimatedDurationS int64 `json:"estimatedDurationS,optional"`
+	CityCode string `json:"cityCode,optional"`
+	UserCouponID uint64 `json:"userCouponId,optional"`
+}
+
+type EstimateOrderResponse {
+	CarType int32 `json:"carType"`
+	EstimatedDistanceM int64 `json:"estimatedDistanceM"`
+	EstimatedDurationS int64 `json:"estimatedDurationS"`
+	OriginalPriceCents int64 `json:"originalPriceCents"`
+	DiscountAmountCents int64 `json:"discountAmountCents"`
+	PayableAmountCents int64 `json:"payableAmountCents"`
+}
 type CreateOrderResponse {
 	OrderID int64 `json:"orderId"`
 	OrderNo string `json:"orderNo"`
@@ -86,6 +125,7 @@ type CreateOrderResponse {
 	OriginalPriceCents int64 `json:"originalPriceCents"`
 	DiscountAmountCents int64 `json:"discountAmountCents"`
 	PayableAmountCents int64 `json:"payableAmountCents"`
+	UserCouponID uint64 `json:"userCouponId"`
 	Status int32 `json:"status"`
 	CreatedAt int64 `json:"createdAt"`
 }
@@ -104,6 +144,7 @@ type OrderSummary {
 	Status int32 `json:"status"`
 	EstimatedPriceCents int64 `json:"estimatedPriceCents"`
 	CreatedAt int64 `json:"createdAt"`
+	Rated bool `json:"rated"`
 }
 
 type ListOrdersResponse {
@@ -137,6 +178,7 @@ type OrderDetail {
 	CancelBy string `json:"cancelBy"`
 	CreatedAt int64 `json:"createdAt"`
 	UpdatedAt int64 `json:"updatedAt"`
+	Rated bool `json:"rated"`
 }
 
 type CancelOrderRequest {
@@ -149,6 +191,163 @@ type CancelOrderResponse {
 	Status int32 `json:"status"`
 }
 
+type PayOrderRequest {
+	OrderID int64 `json:"orderId"`
+	Channel int32 `json:"channel"`
+}
+
+type PayOrderResponse {
+	PaymentID int64 `json:"paymentId"`
+	PaymentNo string `json:"paymentNo"`
+	TransactionID string `json:"transactionId"`
+	PayParams string `json:"payParams"`
+	Status int32 `json:"status"`
+}
+
+type PaymentStatusRequest {
+	PaymentNo string `json:"paymentNo"`
+	OrderID int64 `json:"orderId"`
+}
+
+type PaymentStatusResponse {
+	PaymentID int64 `json:"paymentId"`
+	PaymentNo string `json:"paymentNo"`
+	OrderID int64 `json:"orderId"`
+	AmountCents int64 `json:"amountCents"`
+	Channel string `json:"channel"`
+	Status int32 `json:"status"`
+	TransactionID string `json:"transactionId"`
+	RefundAmountCents int64 `json:"refundAmountCents"`
+}
+
+type DispatchStatusRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type DispatchRecord {
+	ID int64 `json:"id"`
+	OrderID int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	DispatchType int32 `json:"dispatchType"`
+	Status int32 `json:"status"`
+	MatchScore float64 `json:"matchScore"`
+	Remark string `json:"remark"`
+	CreatedAt int64 `json:"createdAt"`
+	UpdatedAt int64 `json:"updatedAt"`
+}
+
+type DispatchStatusResponse {
+	OrderID int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	DispatchStatus int32 `json:"dispatchStatus"`
+	Records []DispatchRecord `json:"records"`
+	Total int64 `json:"total"`
+}
+
+type OrderStatusPollRequest {
+	OrderID int64 `json:"orderId"`
+	KnownStatus int32 `json:"knownStatus"`
+}
+
+type OrderStatusPollResponse {
+	OrderID int64 `json:"orderId"`
+	Status int32 `json:"status"`
+	Changed bool `json:"changed"`
+	UpdatedAt int64 `json:"updatedAt"`
+	DriverID int64 `json:"driverId"`
+	Payment PaymentStatusResponse `json:"payment,optional"`
+	Dispatch DispatchStatusResponse `json:"dispatch,optional"`
+}
+
+type LoginByPasswordRequest {
+  Phone string `json:"phone"`
+  Password string `json:"password"`
+}
+
+type LoginByPasswordResponse = LoginBySMSResponse
+
+type AvatarUploadTokenRequest {
+	Extension string `json:"extension"`
+}
+
+type AvatarUploadTokenResponse {
+	UploadToken string `json:"uploadToken"`
+	Key string `json:"key"`
+	Domain string `json:"domain"`
+	UploadURL string `json:"uploadUrl"`
+	ExpireSec int64 `json:"expireSec"`
+}
+
+type ReverseGeocodeRequest {
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+}
+
+type ReverseGeocodeResponse {
+	Address string `json:"address"`
+	Province string `json:"province"`
+	CityName string `json:"cityName"`
+	District string `json:"district"`
+	PoiName string `json:"poiName"`
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+}
+
+type GeocodeRequest {
+	Address string `json:"address"`
+	CityCode string `json:"cityCode,optional"`
+	Longitude float64 `json:"longitude,optional"`
+	Latitude float64 `json:"latitude,optional"`
+	Radius int32 `json:"radius,optional"`
+}
+
+type GeocodeResponse {
+	Name string `json:"name"`
+	Address string `json:"address"`
+	Longitude float64 `json:"longitude"`
+	Latitude float64 `json:"latitude"`
+	Category string `json:"category"`
+	Distance int32 `json:"distance"`
+	CityCode string `json:"cityCode"`
+}
+
+type OrderTrackingRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderTrackingResponse {
+	OrderID int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	Status int32 `json:"status"`
+	DriverLongitude float64 `json:"driverLongitude"`
+	DriverLatitude float64 `json:"driverLatitude"`
+	Heading int32 `json:"heading"`
+	SpeedKmh float64 `json:"speedKmh"`
+	ReportTime int64 `json:"reportTime"`
+	Stale bool `json:"stale"`
+	TravelledDistanceM int64 `json:"travelledDistanceM"`
+	ElapsedDurationS int64 `json:"elapsedDurationS"`
+	RemainingDistanceM int64 `json:"remainingDistanceM"`
+	RemainingDurationS int64 `json:"remainingDurationS"`
+	EstimatedPriceCents int64 `json:"estimatedPriceCents"`
+	Polyline string `json:"polyline"`
+}
+
+type SubmitReviewRequest {
+	OrderID int64 `json:"orderId"`
+	Rating int32 `json:"rating"`
+	Comment string `json:"comment"`
+	Tags string `json:"tags"`
+}
+
+type SubmitReviewResponse {
+	ReviewID int64 `json:"reviewId"`
+	OrderID int64 `json:"orderId"`
+	DriverID int64 `json:"driverId"`
+	Rating int32 `json:"rating"`
+	CreatedAt int64 `json:"createdAt"`
+}
+
 type AddressInfo {
 	ID uint64 `json:"id"`
 	ContactName string `json:"contactName"`
@@ -158,7 +357,6 @@ type AddressInfo {
 	Longitude float64 `json:"longitude"`
 	Latitude float64 `json:"latitude"`
 	IsDefault bool `json:"isDefault"`
-	Sort int `json:"sort"`
 }
 
 type CreateAddressRequest {
@@ -169,7 +367,6 @@ type CreateAddressRequest {
 	Longitude float64 `json:"longitude"`
 	Latitude float64 `json:"latitude"`
 	IsDefault bool `json:"isDefault"`
-	Sort int `json:"sort"`
 }
 
 type ListAddressesRequest {}
@@ -187,7 +384,6 @@ type UpdateAddressRequest {
 	Longitude float64 `json:"longitude"`
 	Latitude float64 `json:"latitude"`
 	IsDefault bool `json:"isDefault"`
-	Sort int `json:"sort"`
 }
 
 type DeleteAddressRequest {
@@ -198,18 +394,75 @@ type DeleteAddressResponse {
 	Success bool `json:"success"`
 }
 
+type ClaimCouponRequest {
+	CouponID uint64 `json:"couponId"`
+}
+
+type ClaimCouponResponse {
+	UserCoupon CouponInfo `json:"userCoupon"`
+}
+
+type ListMyCouponsRequest {
+	Status int32 `json:"status"`
+}
+
+type ListMyCouponsResponse {
+	List []CouponInfo `json:"list"`
+}
+
+type CouponInfo {
+	UserCouponID uint64 `json:"userCouponId"`
+	CouponID uint64 `json:"couponId"`
+	Name string `json:"name"`
+	Type int32 `json:"type"`
+	FaceValueCents int64 `json:"faceValueCents"`
+	Discount int32 `json:"discount"`
+	ThresholdCents int64 `json:"thresholdCents"`
+	CarType int32 `json:"carType"`
+	CityCode string `json:"cityCode"`
+	Status int32 `json:"status"`
+	ReceivedAt int64 `json:"receivedAt"`
+	ExpireAt int64 `json:"expireAt"`
+}
+
+type WalletTransaction {
+	ID uint64 `json:"id"`
+	Type string `json:"type"`
+	Amount float64 `json:"amount"`
+	OrderID uint64 `json:"orderId"`
+	Title string `json:"title"`
+	CreatedAt int64 `json:"createdAt"`
+}
+
+type WalletResponse {
+	UserID uint64 `json:"userId"`
+	Balance float64 `json:"balance"`
+	Transactions []WalletTransaction `json:"transactions"`
+	Total int64 `json:"total"`
+}
+
+type GetWalletRequest {}
+type WalletChangeRequest { Amount float64 `json:"amount"` }
+type WalletChangeResponse {
+	Success bool `json:"success"`
+	Balance float64 `json:"balance"`
+	Transaction WalletTransaction `json:"transaction"`
+}
+
 service passenger-api {
 	@handler SendSMSCodeHandler
 	post /api/passenger/v1/auth/send-sms-code (SendSMSCodeRequest) returns (SendSMSCodeResponse)
 
 	@handler LoginBySMSHandler
 	post /api/passenger/v1/auth/login-by-sms (LoginBySMSRequest) returns (LoginBySMSResponse)
+	@handler LoginByPasswordHandler
+	post /api/passenger/v1/auth/login-by-password (LoginByPasswordRequest) returns (LoginByPasswordResponse)
 
 	@handler RefreshTokenHandler
 	post /api/passenger/v1/auth/refresh-token (RefreshTokenRequest) returns (RefreshTokenResponse)
 
 	@handler LogoutHandler
-	post /api/passenger/v1/auth/logout returns (LogoutResponse)
+	post /api/passenger/v1/auth/logout (LogoutRequest) returns (LogoutResponse)
 
 	@handler GetProfileHandler
 	post /api/passenger/v1/profile/me (GetProfileRequest) returns (GetProfileResponse)
@@ -217,8 +470,23 @@ service passenger-api {
 	@handler SubmitRealNameHandler
 	post /api/passenger/v1/profile/real-name (SubmitRealNameRequest) returns (SubmitRealNameResponse)
 
+	@handler UpdateProfileHandler
+	post /api/passenger/v1/profile/update (UpdateProfileRequest) returns (UpdateProfileResponse)
+
+	@handler AvatarUploadTokenHandler
+	post /api/passenger/v1/upload/avatar-token (AvatarUploadTokenRequest) returns (AvatarUploadTokenResponse)
+
+	@handler ReverseGeocodeHandler
+	post /api/passenger/v1/location/reverse-geocode (ReverseGeocodeRequest) returns (ReverseGeocodeResponse)
+
+	@handler GeocodeHandler
+	post /api/passenger/v1/location/geocode (GeocodeRequest) returns (GeocodeResponse)
+
 	@handler CreateOrderHandler
 	post /api/passenger/v1/orders/create (CreateOrderRequest) returns (CreateOrderResponse)
+
+	@handler EstimateOrderHandler
+	post /api/passenger/v1/orders/estimate (EstimateOrderRequest) returns (EstimateOrderResponse)
 
 	@handler ListOrdersHandler
 	post /api/passenger/v1/orders/list (ListOrdersRequest) returns (ListOrdersResponse)
@@ -226,8 +494,23 @@ service passenger-api {
 	@handler GetOrderHandler
 	post /api/passenger/v1/orders/detail (GetOrderRequest) returns (OrderDetail)
 
+	@handler PollOrderStatusHandler
+	post /api/passenger/v1/orders/status (OrderStatusPollRequest) returns (OrderStatusPollResponse)
+
+	@handler GetOrderTrackingHandler
+	post /api/passenger/v1/orders/tracking (OrderTrackingRequest) returns (OrderTrackingResponse)
+
 	@handler CancelOrderHandler
 	post /api/passenger/v1/orders/cancel (CancelOrderRequest) returns (CancelOrderResponse)
+
+	@handler PayOrderHandler
+	post /api/passenger/v1/orders/pay (PayOrderRequest) returns (PayOrderResponse)
+
+	@handler GetPaymentStatusHandler
+	post /api/passenger/v1/orders/payment-status (PaymentStatusRequest) returns (PaymentStatusResponse)
+
+	@handler GetDispatchStatusHandler
+	post /api/passenger/v1/orders/dispatch-status (DispatchStatusRequest) returns (DispatchStatusResponse)
 
 	@handler CreateAddressHandler
 	post /api/passenger/v1/addresses/create (CreateAddressRequest) returns (AddressInfo)
@@ -240,5 +523,21 @@ service passenger-api {
 
 	@handler DeleteAddressHandler
 	post /api/passenger/v1/addresses/delete (DeleteAddressRequest) returns (DeleteAddressResponse)
+
+	@handler ClaimCouponHandler
+	post /api/passenger/v1/coupons/claim (ClaimCouponRequest) returns (ClaimCouponResponse)
+
+	@handler ListMyCouponsHandler
+	post /api/passenger/v1/coupons/my (ListMyCouponsRequest) returns (ListMyCouponsResponse)
+
+	@handler SubmitReviewHandler
+	post /api/passenger/v1/reviews/submit (SubmitReviewRequest) returns (SubmitReviewResponse)
+
+	@handler GetWalletHandler
+	post /api/passenger/v1/wallet (GetWalletRequest) returns (WalletResponse)
+	@handler RechargeWalletHandler
+	post /api/passenger/v1/wallet/recharge (WalletChangeRequest) returns (WalletChangeResponse)
+	@handler WithdrawWalletHandler
+	post /api/passenger/v1/wallet/withdraw (WalletChangeRequest) returns (WalletChangeResponse)
 }
 

@@ -2,11 +2,14 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type DeleteVehicleLogic struct {
@@ -25,9 +28,24 @@ func NewDeleteVehicleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Del
 
 // DeleteVehicle 根据车辆 ID 删除车辆（driver_vehicle 表无软删字段，按物理删除处理）。
 func (l *DeleteVehicleLogic) DeleteVehicle(in *proto.DeleteVehicleRequest) (*proto.DeleteVehicleResponse, error) {
+	if in == nil || in.Id <= 0 {
+		return nil, errors.New("车辆ID不合法")
+	}
+	if in.GetDriverId() <= 0 {
+		return nil, errors.New("driver id is invalid")
+	}
+	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
+		return nil, errors.New("driver vehicle repository not ready")
+	}
 	v, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, uint64(in.Id))
 	if err != nil {
 		return nil, err
+	}
+	if v == nil {
+		return nil, errors.New("vehicle not found")
+	}
+	if v.DriverId != uint64(in.GetDriverId()) {
+		return nil, status.Error(codes.PermissionDenied, "vehicle does not belong to driver")
 	}
 	if err := l.svcCtx.DriverVehicleRepository.Delete(l.ctx, v); err != nil {
 		return nil, err

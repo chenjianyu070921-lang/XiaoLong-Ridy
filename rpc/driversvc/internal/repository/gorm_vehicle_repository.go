@@ -35,6 +35,22 @@ func (r *gormVehicleRepository) GetByID(ctx context.Context, id uint64) (*model.
 	return &vehicle, nil
 }
 
+// GetByDriverID 按司机 ID 查询车辆；当前司机只展示一辆主车辆，按最新车辆记录优先。
+func (r *gormVehicleRepository) GetByDriverID(ctx context.Context, driverID uint64) (*model.DriverVehicle, error) {
+	var vehicle model.DriverVehicle
+	err := r.db.WithContext(ctx).
+		Where("driver_id = ?", driverID).
+		Order("id DESC").
+		First(&vehicle).Error
+	if err != nil {
+		if errorsIsNotFound(err) {
+			return nil, ErrVehicleNotFound
+		}
+		return nil, err
+	}
+	return &vehicle, nil
+}
+
 // Update 按 ID 增量更新车辆字段。
 func (r *gormVehicleRepository) Update(ctx context.Context, id uint64, updates map[string]interface{}) error {
 	return r.db.WithContext(ctx).
