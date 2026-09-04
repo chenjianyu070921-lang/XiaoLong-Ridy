@@ -32,27 +32,22 @@ export const useDriverStore = defineStore('driver', () => {
   const driverId = computed(() => Number(driver.value?.id || driver.value?.driverId || 0))
   const displayName = computed(() => driver.value?.realName || driver.value?.nickname || '司机')
 
-  // 夜间模式：darkMode 持久化到 localStorage，并同步到 <html class="dark">，
-  // 由 App.vue 的 .dark CSS 变量与全局兜底规则生效。
-  const darkMode = ref(localStorage.getItem('driverDarkMode') === '1')
-  function applyDarkMode() {
-    const root = document.documentElement
-    if (darkMode.value) root.classList.add('dark')
-    else root.classList.remove('dark')
+  // 清理当前司机的订单会话，避免不同司机共用浏览器时串用旧司机的行程状态。
+  function clearCurrentOrderState() {
+    currentOrder.value = null
+    currentOrderId.value = ''
+    tripPhase.value = 'idle'
+    localStorage.removeItem('driverCurrentOrderId')
+    localStorage.removeItem('driverCurrentOrder')
+    localStorage.removeItem('driverTripPhase')
   }
-  function setDarkMode(value) {
-    darkMode.value = !!value
-    localStorage.setItem('driverDarkMode', darkMode.value ? '1' : '0')
-    applyDarkMode()
-  }
-  function toggleDarkMode() {
-    setDarkMode(!darkMode.value)
-  }
-  applyDarkMode()
 
   function persistSession(data = {}) {
+    const nextDriver = data.driver || driver.value || {}
+    // 登录建立新会话，旧会话的订单和阶段不能作为当前司机的事实来源。
+    clearCurrentOrderState()
     token.value = data.token || token.value
-    driver.value = data.driver || driver.value || {}
+    driver.value = nextDriver
     onlineStatus.value = Number(driver.value?.onlineStatus ?? onlineStatus.value ?? 0)
     vehicleId.value = resolveDriverVehicleId(driver.value, vehicle.value)
     if (token.value) localStorage.setItem('driverToken', token.value)
@@ -154,9 +149,7 @@ export const useDriverStore = defineStore('driver', () => {
     vehicleId.value = 0
     certification.value = null
     onlineStatus.value = 0
-    currentOrder.value = null
-    currentOrderId.value = ''
-    tripPhase.value = 'idle'
+    clearCurrentOrderState()
     for (const key of [
       'driverToken',
       'driverProfile',
@@ -194,9 +187,6 @@ export const useDriverStore = defineStore('driver', () => {
     setCertification,
     setWorkState,
     setCurrentOrder,
-    darkMode,
-    setDarkMode,
-    toggleDarkMode,
     logout
   }
 })
