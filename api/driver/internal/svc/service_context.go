@@ -9,10 +9,13 @@ import (
 
 	commonconfig "XiaoLong-Ridy/common/config"
 	"XiaoLong-Ridy/common/datasource"
+	qiniuutil "XiaoLong-Ridy/common/qiniu"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
+	priceproto "XiaoLong-Ridy/rpc/pricesvc/proto"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -70,7 +73,6 @@ type DriverClient interface {
 	UpdateVehicle(ctx context.Context, req *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error)
 	DeleteVehicle(ctx context.Context, req *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error)
 	GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error)
-	ListNearbyDrivers(ctx context.Context, req *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error)
 	GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
 	UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error)
 	GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error)
@@ -184,12 +186,6 @@ func (g *grpcClient) GetVehicle(ctx context.Context, req *driversproto.GetVehicl
 	return g.cli.GetVehicle(ctx, req)
 }
 
-func (g *grpcClient) ListNearbyDrivers(ctx context.Context, req *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error) {
-	ctx, cancel := RPCContext(ctx)
-	defer cancel()
-	return g.cli.ListNearbyDrivers(ctx, req)
-}
-
 func (g *grpcClient) GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
 	ctx, cancel := RPCContext(ctx)
 	defer cancel()
@@ -224,10 +220,37 @@ type OrderClient interface {
 	GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error)
 	ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error)
 	AcceptOrder(ctx context.Context, req *orderproto.AcceptOrderRequest) (*orderproto.AcceptOrderResponse, error)
-	CancelOrder(ctx context.Context, req *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error)
 	StartTrip(ctx context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error)
 	ConfirmArrive(ctx context.Context, req *orderproto.ConfirmArriveRequest) (*orderproto.ConfirmArriveResponse, error)
 	FinishTrip(ctx context.Context, req *orderproto.FinishTripRequest) (*orderproto.FinishTripResponse, error)
+}
+
+type PayClient interface {
+	ListSettlements(ctx context.Context, req *payproto.ListSettlementsRequest) (*payproto.ListSettlementsResponse, error)
+}
+
+type PriceClient interface {
+	EstimatePrice(ctx context.Context, req *priceproto.EstimatePriceRequest) (*priceproto.EstimatePriceResponse, error)
+}
+
+type payGRPCClient struct {
+	cli payproto.PayClient
+}
+
+func (g *payGRPCClient) ListSettlements(ctx context.Context, req *payproto.ListSettlementsRequest) (*payproto.ListSettlementsResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ListSettlements(ctx, req)
+}
+
+type priceGRPCClient struct {
+	cli priceproto.PriceClient
+}
+
+func (g *priceGRPCClient) EstimatePrice(ctx context.Context, req *priceproto.EstimatePriceRequest) (*priceproto.EstimatePriceResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.EstimatePrice(ctx, req)
 }
 
 type orderGRPCClient struct {
@@ -250,12 +273,6 @@ func (g *orderGRPCClient) AcceptOrder(ctx context.Context, req *orderproto.Accep
 	ctx, cancel := RPCContext(ctx)
 	defer cancel()
 	return g.cli.AcceptOrder(ctx, req)
-}
-
-func (g *orderGRPCClient) CancelOrder(ctx context.Context, req *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error) {
-	ctx, cancel := RPCContext(ctx)
-	defer cancel()
-	return g.cli.CancelOrder(ctx, req)
 }
 
 func (g *orderGRPCClient) StartTrip(ctx context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error) {
@@ -314,15 +331,18 @@ func (g *locationGRPCClient) ReportLocation(ctx context.Context, req *locationpr
 type ServiceContext struct {
 	DriverClient         DriverClient
 	OrderClient          OrderClient
+	PayClient            PayClient
+	PriceClient          PriceClient
 	DispatchClient       DispatchClient
 	LocationClient       LocationClient
-	ReviewRepository     ReviewRepository
 	TrajectoryRepository TrajectoryRepository
 	HeatmapRepository    HeatmapRepository
+	ReviewRepository     ReviewRepository
 	SigningKey           string
 	InternalAuth         InternalAuthConfig
 	CodeCache            CodeCache
 	RedisClient          *redis.Client
+	Qiniu                *qiniuutil.Client
 	PushPollInterval     time.Duration
 	PushPollPageSize     int32
 }
@@ -348,20 +368,45 @@ const defaultSigningKey = "local-development-signing-key"
 const defaultCodeTTL = 5 * time.Minute
 
 func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr string) *ServiceContext {
-	return NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, "", commonconfig.MysqlConf{})
+	return NewServiceContextWithStorage(
+		driverGRPCAddr,
+		orderGRPCAddr,
+		dispatchGRPCAddr,
+		locationGRPCAddr,
+		commonconfig.RedisConf{Host: redisAddr},
+		commonconfig.MysqlConf{},
+	)
 }
 
-func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr, redisPassword string, mysqlConf commonconfig.MysqlConf) *ServiceContext {
+func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr string, redisConf commonconfig.RedisConf, mysqlConf commonconfig.MysqlConf, rpcGRPCAddrs ...string) *ServiceContext {
 	driverConn, driverErr := grpc.NewClient(driverGRPCAddr, grpcDialOpts...)
 	orderConn, orderErr := grpc.NewClient(orderGRPCAddr, grpcDialOpts...)
 	dispatchConn, dispatchErr := grpc.NewClient(dispatchGRPCAddr, grpcDialOpts...)
 	locationConn, locationErr := grpc.NewClient(locationGRPCAddr, grpcDialOpts...)
+	var payConn *grpc.ClientConn
+	var payErr error
+	payTarget := ""
+	if len(rpcGRPCAddrs) > 0 {
+		payTarget = strings.TrimSpace(rpcGRPCAddrs[0])
+	}
+	if payTarget != "" {
+		payConn, payErr = grpc.NewClient(payTarget, grpcDialOpts...)
+	}
+	var priceConn *grpc.ClientConn
+	var priceErr error
+	priceTarget := ""
+	if len(rpcGRPCAddrs) > 1 {
+		priceTarget = strings.TrimSpace(rpcGRPCAddrs[1])
+	}
+	if priceTarget != "" {
+		priceConn, priceErr = grpc.NewClient(priceTarget, grpcDialOpts...)
+	}
 
 	// Code cache: use Redis when configured, otherwise fall back to local memory.
 	var codeCache CodeCache
 	var rdb *redis.Client
-	if redisAddr != "" {
-		rdb = redis.NewClient(&redis.Options{Addr: redisAddr, Password: redisPassword})
+	if strings.TrimSpace(redisConf.Host) != "" {
+		rdb = datasource.NewRedisClient(redisConf)
 		codeCache = NewRedisCodeCache(rdb, defaultCodeTTL)
 	} else {
 		codeCache = NewLocalCodeCache(defaultCodeTTL)
@@ -378,6 +423,12 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 	if orderErr == nil {
 		svcCtx.OrderClient = &orderGRPCClient{cli: orderproto.NewOrderClient(orderConn)}
 	}
+	if payTarget != "" && payErr == nil {
+		svcCtx.PayClient = &payGRPCClient{cli: payproto.NewPayClient(payConn)}
+	}
+	if priceTarget != "" && priceErr == nil {
+		svcCtx.PriceClient = &priceGRPCClient{cli: priceproto.NewPriceClient(priceConn)}
+	}
 	if dispatchErr == nil {
 		svcCtx.DispatchClient = &dispatchGRPCClient{cli: dispatchproto.NewDispatchClient(dispatchConn)}
 	}
@@ -388,11 +439,15 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 		db, err := datasource.NewMysqlClient(mysqlConf)
 		if err != nil {
 			// 妥协：MySQL 初始化失败不 panic，打日志后继续启动，Review/Trajectory 接口返回 501 降级。
-			logx.Errorf("driver api mysql init failed, review/trajectory endpoints will be unavailable: %v", err)
+			logx.Errorf("driver api mysql init failed, trajectory/heatmap storage will be unavailable: %v", err)
 		} else {
-			svcCtx.ReviewRepository = NewGormReviewRepository(db)
 			svcCtx.TrajectoryRepository = NewGormTrajectoryRepository(db)
 			svcCtx.HeatmapRepository = NewGormHeatmapRepository(db)
+			svcCtx.ReviewRepository = NewGormDriverReviewRepository(db)
+			if err := db.AutoMigrate(&DriverOrderReview{}); err != nil {
+				// driver_review 表结构缺失只影响评价接口，不阻塞其他能力启动。
+				logx.Errorf("driver api driver_review table migrate failed: %v", err)
+			}
 		}
 	}
 	return svcCtx
@@ -402,14 +457,21 @@ func resolveSigningKey() string {
 	if key := strings.TrimSpace(os.Getenv("DRIVER_SIGNING_KEY")); key != "" {
 		return key
 	}
-	return defaultSigningKey
+	return ""
 }
 
 func (s *ServiceContext) ValidateSigningKey() error {
-	if s == nil || strings.TrimSpace(s.SigningKey) == "" {
+	if s == nil {
 		return errors.New("driver signing key is empty")
 	}
-	if expected := strings.TrimSpace(os.Getenv("DRIVERSVC_SIGNING_KEY")); expected != "" && expected != s.SigningKey {
+	key := strings.TrimSpace(s.SigningKey)
+	if key == "" {
+		return errors.New("driver signing key is empty")
+	}
+	if key == defaultSigningKey {
+		return errors.New("driver signing key must not use default development value")
+	}
+	if expected := strings.TrimSpace(os.Getenv("DRIVERSVC_SIGNING_KEY")); expected != "" && expected != key {
 		return errors.New("DRIVER_SIGNING_KEY and DRIVERSVC_SIGNING_KEY mismatch")
 	}
 	return nil

@@ -103,3 +103,11 @@ export const adminsApi = {
   setStatus: (id, data) => request.post(`/admins/${id}/status`, data),
   resetPassword: (id, data) => request.post(`/admins/${id}/reset-password`, data),
 }
+// AI 运营助手接口。
+export const aiApi = {
+  ask: (data) => request.post('/ai-agent/ask', data),
+  suggestions: () => request.get('/ai-agent/suggestions'),
+  history: () => request.get('/ai-agent/history'),
+  feedback: (data) => request.post('/ai-agent/feedback', data),
+  deleteConversation: (id) => request.delete(`/ai-agent/conversations/${id}`),
+}

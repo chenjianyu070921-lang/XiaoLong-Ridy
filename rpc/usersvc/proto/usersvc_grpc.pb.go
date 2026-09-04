@@ -40,6 +40,8 @@ const (
 	User_AdminListUsers_FullMethodName       = "/usersvc.User/AdminListUsers"
 	User_AdminGetUser_FullMethodName         = "/usersvc.User/AdminGetUser"
 	User_AdminFreezeUser_FullMethodName      = "/usersvc.User/AdminFreezeUser"
+	User_AdminUnfreezeUser_FullMethodName    = "/usersvc.User/AdminUnfreezeUser"
+	User_AdminIssueCoupon_FullMethodName     = "/usersvc.User/AdminIssueCoupon"
 	User_GetWallet_FullMethodName            = "/usersvc.User/GetWallet"
 	User_RechargeWallet_FullMethodName       = "/usersvc.User/RechargeWallet"
 	User_WithdrawWallet_FullMethodName       = "/usersvc.User/WithdrawWallet"
@@ -91,6 +93,10 @@ type UserClient interface {
 	AdminGetUser(ctx context.Context, in *AdminUserDetailRequest, opts ...grpc.CallOption) (*AdminUser, error)
 	// AdminFreezeUser 为管理后台提供用户冻结能力，状态变更由 usersvc 负责。
 	AdminFreezeUser(ctx context.Context, in *AdminFreezeUserRequest, opts ...grpc.CallOption) (*AdminFreezeUserResponse, error)
+	// AdminUnfreezeUser 为管理后台提供用户解冻能力，状态变更由 usersvc 负责。
+	AdminUnfreezeUser(ctx context.Context, in *AdminFreezeUserRequest, opts ...grpc.CallOption) (*AdminFreezeUserResponse, error)
+	// AdminIssueCoupon 为管理后台提供批量发券能力，券库存与领取上限由 usersvc 校验。
+	AdminIssueCoupon(ctx context.Context, in *AdminIssueCouponRequest, opts ...grpc.CallOption) (*AdminIssueCouponResponse, error)
 	// GetWallet 查询当前用户钱包余额和流水。
 	GetWallet(ctx context.Context, in *GetWalletRequest, opts ...grpc.CallOption) (*GetWalletResponse, error)
 	// RechargeWallet 充值并写入钱包流水。
@@ -317,6 +323,26 @@ func (c *userClient) AdminFreezeUser(ctx context.Context, in *AdminFreezeUserReq
 	return out, nil
 }
 
+func (c *userClient) AdminUnfreezeUser(ctx context.Context, in *AdminFreezeUserRequest, opts ...grpc.CallOption) (*AdminFreezeUserResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminFreezeUserResponse)
+	err := c.cc.Invoke(ctx, User_AdminUnfreezeUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userClient) AdminIssueCoupon(ctx context.Context, in *AdminIssueCouponRequest, opts ...grpc.CallOption) (*AdminIssueCouponResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminIssueCouponResponse)
+	err := c.cc.Invoke(ctx, User_AdminIssueCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *userClient) GetWallet(ctx context.Context, in *GetWalletRequest, opts ...grpc.CallOption) (*GetWalletResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetWalletResponse)
@@ -393,6 +419,10 @@ type UserServer interface {
 	AdminGetUser(context.Context, *AdminUserDetailRequest) (*AdminUser, error)
 	// AdminFreezeUser 为管理后台提供用户冻结能力，状态变更由 usersvc 负责。
 	AdminFreezeUser(context.Context, *AdminFreezeUserRequest) (*AdminFreezeUserResponse, error)
+	// AdminUnfreezeUser 为管理后台提供用户解冻能力，状态变更由 usersvc 负责。
+	AdminUnfreezeUser(context.Context, *AdminFreezeUserRequest) (*AdminFreezeUserResponse, error)
+	// AdminIssueCoupon 为管理后台提供批量发券能力，券库存与领取上限由 usersvc 校验。
+	AdminIssueCoupon(context.Context, *AdminIssueCouponRequest) (*AdminIssueCouponResponse, error)
 	// GetWallet 查询当前用户钱包余额和流水。
 	GetWallet(context.Context, *GetWalletRequest) (*GetWalletResponse, error)
 	// RechargeWallet 充值并写入钱包流水。
@@ -468,6 +498,12 @@ func (UnimplementedUserServer) AdminGetUser(context.Context, *AdminUserDetailReq
 }
 func (UnimplementedUserServer) AdminFreezeUser(context.Context, *AdminFreezeUserRequest) (*AdminFreezeUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AdminFreezeUser not implemented")
+}
+func (UnimplementedUserServer) AdminUnfreezeUser(context.Context, *AdminFreezeUserRequest) (*AdminFreezeUserResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AdminUnfreezeUser not implemented")
+}
+func (UnimplementedUserServer) AdminIssueCoupon(context.Context, *AdminIssueCouponRequest) (*AdminIssueCouponResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AdminIssueCoupon not implemented")
 }
 func (UnimplementedUserServer) GetWallet(context.Context, *GetWalletRequest) (*GetWalletResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetWallet not implemented")
@@ -869,6 +905,42 @@ func _User_AdminFreezeUser_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _User_AdminUnfreezeUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminFreezeUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).AdminUnfreezeUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_AdminUnfreezeUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).AdminUnfreezeUser(ctx, req.(*AdminFreezeUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _User_AdminIssueCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminIssueCouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).AdminIssueCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_AdminIssueCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).AdminIssueCoupon(ctx, req.(*AdminIssueCouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _User_GetWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetWalletRequest)
 	if err := dec(in); err != nil {
@@ -1013,6 +1085,14 @@ var User_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AdminFreezeUser",
 			Handler:    _User_AdminFreezeUser_Handler,
+		},
+		{
+			MethodName: "AdminUnfreezeUser",
+			Handler:    _User_AdminUnfreezeUser_Handler,
+		},
+		{
+			MethodName: "AdminIssueCoupon",
+			Handler:    _User_AdminIssueCoupon_Handler,
 		},
 		{
 			MethodName: "GetWallet",

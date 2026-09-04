@@ -4,7 +4,6 @@ package logic
 import (
 	"context" // 用于在不同层之间传递请求上下文
 	"errors"  // 用于返回业务校验错误
-	"strings"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"          // 服务上下文，提供 driversvc 客户端
 	"XiaoLong-Ridy/api/driver/internal/types"        // API 层使用的请求/响应类型
@@ -49,58 +48,6 @@ func enumDriverStatus(s *string) *driversproto.DriverStatus {
 	}
 	// 返回枚举值的指针，以匹配 proto 的 optional 字段语义。
 	return &v
-}
-
-// CreateDriver 创建司机：校验手机号、姓名、身份证、驾驶证号等必填项与格式，校验通过后调用 driversvc 创建，
-// 并将 proto 响应转换为 API 响应返回（初始状态由 driversvc 决定，通常为待审核）。
-func (l *DriverLogic) CreateDriver(req *types.CreateDriverRequest) (*types.CreateDriverResponse, error) {
-	if req == nil {
-		return nil, errors.New("请求参数不能为空")
-	}
-	normalizeCreateDriverRequest(req)
-	// 校验手机号格式，不合法直接返回错误。
-	if !validPhone(req.Phone) {
-		return nil, errors.New("手机号格式不合法")
-	}
-	if !validPassword(req.Password) {
-		return nil, errors.New("密码长度必须为8到72字节")
-	}
-	// 校验真实姓名非空。
-	if req.RealName == "" {
-		return nil, errors.New("真实姓名不能为空")
-	}
-	// 校验身份证号格式。
-	if !validIDCard(req.IdCardNo) {
-		return nil, errors.New("身份证号格式不合法")
-	}
-	// 校验驾驶证号非空。
-	if req.DriverLicenseNo == "" {
-		return nil, errors.New("驾驶证号不能为空")
-	}
-	// 获取 driversvc 客户端（可能为配置错误）。
-	client, err := l.driverClient()
-	if err != nil {
-		return nil, err
-	}
-	passwordHash, err := cryptox.BcryptHash(req.Password)
-	if err != nil {
-		return nil, err
-	}
-	// 调用下游创建司机接口，并将 API 入参映射为 proto 请求。
-	resp, err := client.CreateDriver(l.ctx, &driversproto.CreateDriverRequest{
-		Phone:           req.Phone,           // 手机号
-		PasswordHash:    passwordHash,        // 司机端负责将明文密码转换为哈希
-		RealName:        req.RealName,        // 真实姓名
-		IdCardNo:        req.IdCardNo,        // 身份证号
-		DriverLicenseNo: req.DriverLicenseNo, // 驾驶证号
-		AvatarUrl:       req.AvatarURL,       // 头像地址
-	})
-	if err != nil {
-		// 下游调用失败，向上透传错误。
-		return nil, err
-	}
-	// 将 proto 响应转换为 API 响应并返回。
-	return &types.CreateDriverResponse{ID: resp.GetId(), Status: resp.GetStatus().String(), CreatedAt: resp.GetCreatedAt()}, nil
 }
 
 // RegisterDriver 司机自注册：在 API 层校验手机号/姓名/身份证/驾驶证，
@@ -244,76 +191,6 @@ func (l *DriverLogic) GetDriver(id int64) (*types.GetDriverResponse, error) {
 
 // maskIDCard 对身份证号做脱敏：保留前 4 位与后 2 位，中间以 * 代替。
 // 长度不足时直接返回原值，避免产生误导性的脱敏结果。
-func (l *DriverLogic) GetDriverByPhone(phone string) (*types.GetDriverByPhoneResponse, error) {
-	phone = strings.TrimSpace(phone)
-	if !validPhone(phone) {
-		return nil, errors.New("手机号码格式不合法")
-	}
-	client, err := l.driverClient()
-	if err != nil {
-		return nil, err
-	}
-	resp, err := client.GetDriverByPhone(l.ctx, &driversproto.GetDriverByPhoneRequest{Phone: phone})
-	if err != nil {
-		return nil, err
-	}
-	d := resp.GetDriver()
-	if d == nil {
-		return nil, errors.New("司机不存在")
-	}
-	return &types.GetDriverByPhoneResponse{Driver: types.DriverDetail{
-		ID:              d.GetId(),
-		Phone:           jwtx.MaskPhone(d.GetPhone()),
-		RealName:        d.GetRealName(),
-		IdCardNo:        maskIDCard(d.GetIdCardNo()),
-		DriverLicenseNo: d.GetDriverLicenseNo(),
-		AvatarURL:       d.GetAvatarUrl(),
-		Status:          d.GetStatus().String(),
-		OnlineStatus:    int(d.GetOnlineStatus()),
-		VehicleID:       d.GetVehicleId(),
-		CreatedAt:       d.GetCreatedAt(),
-		UpdatedAt:       d.GetUpdatedAt(),
-	}}, nil
-}
-
-func (l *DriverLogic) ListNearbyDrivers(req *types.ListNearbyDriversRequest) (*types.ListNearbyDriversResponse, error) {
-	if req == nil {
-		return nil, errors.New("请求参数不能为空")
-	}
-	if req.Limit <= 0 {
-		req.Limit = 20
-	}
-	if req.Limit > 100 {
-		req.Limit = 100
-	}
-	if !validNearbyDriversQuery(req.Longitude, req.Latitude, req.RadiusMeters, req.Limit) {
-		return nil, errors.New("附近司机查询参数不合法")
-	}
-	client, err := l.driverClient()
-	if err != nil {
-		return nil, err
-	}
-	resp, err := client.ListNearbyDrivers(l.ctx, &driversproto.ListNearbyDriversRequest{
-		Longitude:    req.Longitude,
-		Latitude:     req.Latitude,
-		RadiusMeters: req.RadiusMeters,
-		Limit:        req.Limit,
-	})
-	if err != nil {
-		return nil, err
-	}
-	items := make([]types.NearbyDriver, 0, len(resp.GetDrivers()))
-	for _, driver := range resp.GetDrivers() {
-		items = append(items, types.NearbyDriver{
-			DriverID:       driver.GetDriverId(),
-			Longitude:      driver.GetLongitude(),
-			Latitude:       driver.GetLatitude(),
-			DistanceMeters: driver.GetDistanceMeters(),
-		})
-	}
-	return &types.ListNearbyDriversResponse{List: items, Drivers: items}, nil
-}
-
 func maskIDCard(id string) string {
 	const keepHead, keepTail = 4, 2
 	if len(id) <= keepHead+keepTail {
@@ -326,26 +203,6 @@ func maskIDCard(id string) string {
 	}
 	masked = append(masked, id[len(id)-keepTail:]...)
 	return string(masked)
-}
-
-// DeleteDriver 删除（软删）司机：校验 ID 合法性后调用 driversvc 软删，返回删除结果与是否成功。
-func (l *DriverLogic) DeleteDriver(id int64) (*types.DeleteResponse, error) {
-	// 校验司机 ID 合法性。
-	if id <= 0 {
-		return nil, errors.New("司机ID不合法")
-	}
-	// 获取 driversvc 客户端。
-	client, err := l.driverClient()
-	if err != nil {
-		return nil, err
-	}
-	// 调用下游删除接口。
-	resp, err := client.DeleteDriver(l.ctx, &driversproto.DeleteDriverRequest{Id: id})
-	if err != nil {
-		return nil, err
-	}
-	// 返回删除结果（ID + 是否成功）。
-	return &types.DeleteResponse{ID: resp.GetId(), Success: resp.GetSuccess()}, nil
 }
 
 // driverClient 从服务上下文中安全取出 driversvc 客户端。

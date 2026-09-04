@@ -102,7 +102,8 @@ func NewIssueCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Issue
 	return &IssueCouponLogic{ctx: ctx, svcCtx: svcCtx}
 }
 
-// IssueCoupon 创建发券任务，并在当前请求内完成 user_coupon 写入。
+// IssueCoupon 创建发券任务并调用 usersvc 完成用户券发放。
+// 用户券写入与券库存、领取上限、有效期校验统一由 usersvc 负责，adminsvc 不再直写 user_coupon/coupon 表。
 func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*adminsvc.CouponIssueResponse, error) {
 	if in.GetCouponId() <= 0 || in.GetAdminId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "优惠券ID和管理员ID不能为空")
@@ -111,62 +112,27 @@ func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*admins
 	if err != nil {
 		return nil, err
 	}
+	if l.svcCtx == nil || l.svcCtx.UsersSvc == nil {
+		return nil, status.Error(codes.FailedPrecondition, "user service is not running or downstream RPC is disabled")
+	}
+	userIDs := make([]uint64, 0, len(cfg.UserIDs))
+	for _, uid := range cfg.UserIDs {
+		if uid > 0 {
+			userIDs = append(userIDs, uint64(uid))
+		}
+	}
+	resp, err := l.svcCtx.UsersSvc.AdminIssueCoupon(l.ctx, &usersvcproto.AdminIssueCouponRequest{
+		CouponId:   uint64(in.GetCouponId()),
+		UserIds:    userIDs,
+		OperatorId: in.GetAdminId(),
+		Ip:         in.GetIp(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	successCount := resp.GetSuccessCount()
+	failCount := resp.GetFailCount()
 	taskNo := newAdminTaskNo("CI")
-	tx, err := l.svcCtx.MySQL.BeginTx(l.ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	var validEndAt time.Time
-	var couponStatus int32
-	var totalCount, receivedCount, perUserLimit int64
-	err = tx.QueryRowContext(l.ctx, `
-		SELECT valid_end_at, status, total_count, received_count, per_user_limit
-		FROM coupon
-		WHERE id = ?
-		FOR UPDATE
-	`, in.GetCouponId()).Scan(&validEndAt, &couponStatus, &totalCount, &receivedCount, &perUserLimit)
-	if err == sql.ErrNoRows {
-		return nil, status.Error(codes.NotFound, "优惠券不存在")
-	}
-	if err != nil {
-		return nil, err
-	}
-	// 优惠券状态约定：1 草稿、2 启用、3 停用；只有启用模板允许真正发券。
-	if couponStatus != 2 {
-		return nil, status.Error(codes.FailedPrecondition, "优惠券未启用，不能发放")
-	}
-	if time.Now().After(validEndAt) {
-		return nil, status.Error(codes.FailedPrecondition, "优惠券已过期，不能发放")
-	}
-
-	successCount, failCount := int64(0), int64(0)
-	for _, userID := range cfg.UserIDs {
-		if userID <= 0 {
-			failCount++
-			continue
-		}
-		if totalCount > 0 && receivedCount+successCount >= totalCount {
-			failCount++
-			continue
-		}
-		var userCouponCount int64
-		if err := tx.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM user_coupon WHERE user_id = ? AND coupon_id = ?`, userID, in.GetCouponId()).Scan(&userCouponCount); err != nil {
-			return nil, err
-		}
-		if perUserLimit > 0 && userCouponCount >= perUserLimit {
-			failCount++
-			continue
-		}
-		if _, err := tx.ExecContext(l.ctx, `
-			INSERT INTO user_coupon (user_id, coupon_id, order_id, status, received_at, expire_at)
-			VALUES (?, ?, 0, 1, ?, ?)
-		`, userID, in.GetCouponId(), time.Now(), validEndAt); err != nil {
-			return nil, err
-		}
-		successCount++
-	}
 	taskStatus := int32(3)
 	failureReason := ""
 	if successCount == 0 {
@@ -176,14 +142,17 @@ func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*admins
 		taskStatus = 4
 		failureReason = "部分用户因参数、库存或领取上限发放失败"
 	}
+	// 发券任务、发布记录与审计日志是 adminsvc 自己的运营数据，在本地事务内落库。
+	tx, err := l.svcCtx.MySQL.BeginTx(l.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(l.ctx, `
 		INSERT INTO admin_coupon_issue_task
 			(task_no, coupon_id, target_type, target_config, total_count, success_count, fail_count, status, failure_reason, operator_id)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, taskNo, in.GetCouponId(), in.GetTargetType(), in.GetTargetConfig(), len(cfg.UserIDs), successCount, failCount, taskStatus, failureReason, in.GetAdminId()); err != nil {
-		return nil, err
-	}
-	if _, err := tx.ExecContext(l.ctx, `UPDATE coupon SET received_count = received_count + ? WHERE id = ?`, successCount, in.GetCouponId()); err != nil {
 		return nil, err
 	}
 	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "issue", "coupon", in.GetCouponId(), fmt.Sprintf("创建发券任务：%s，成功%d，失败%d", taskNo, successCount, failCount), in.GetIp()); err != nil {

@@ -20,6 +20,8 @@ type (
 	CreatePriceRuleResponse      = __proto.CreatePriceRuleResponse
 	EstimatePriceRequest         = __proto.EstimatePriceRequest
 	EstimatePriceResponse        = __proto.EstimatePriceResponse
+	GetOrderPriceRequest         = __proto.GetOrderPriceRequest
+	OrderPriceInfo               = __proto.OrderPriceInfo
 	PriceDetail                  = __proto.PriceDetail
 	PriceRule                    = __proto.PriceRule
 	PriceRuleDetailRequest       = __proto.PriceRuleDetailRequest
@@ -37,6 +39,8 @@ type (
 		CalculateDiscount(ctx context.Context, in *CalculateDiscountRequest, opts ...grpc.CallOption) (*CalculateDiscountResponse, error)
 		// 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
 		SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error)
+		// 订单价格明细查询：供管理后台按订单ID查询 order_price 快照。
+		GetOrderPrice(ctx context.Context, in *GetOrderPriceRequest, opts ...grpc.CallOption) (*OrderPriceInfo, error)
 		// 计价规则列表查询。
 		ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error)
 		// 计价规则详情查询。
@@ -76,6 +80,12 @@ func (m *defaultPrice) CalculateDiscount(ctx context.Context, in *CalculateDisco
 func (m *defaultPrice) SaveActualOrderPrice(ctx context.Context, in *SaveActualOrderPriceRequest, opts ...grpc.CallOption) (*SaveActualOrderPriceResponse, error) {
 	client := __proto.NewPriceClient(m.cli.Conn())
 	return client.SaveActualOrderPrice(ctx, in, opts...)
+}
+
+// 订单价格明细查询：供管理后台按订单ID查询 order_price 快照。
+func (m *defaultPrice) GetOrderPrice(ctx context.Context, in *GetOrderPriceRequest, opts ...grpc.CallOption) (*OrderPriceInfo, error) {
+	client := __proto.NewPriceClient(m.cli.Conn())
+	return client.GetOrderPrice(ctx, in, opts...)
 }
 
 // 计价规则列表查询。

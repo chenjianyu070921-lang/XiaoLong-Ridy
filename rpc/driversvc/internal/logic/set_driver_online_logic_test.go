@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
@@ -220,6 +221,10 @@ func (r *setDriverOnlineRepository) GetDriverScore(context.Context, uint64) (*mo
 	return nil, errors.New("not implemented")
 }
 
+func (r *setDriverOnlineRepository) RefreshDriverScoreMetrics(context.Context, uint64, time.Time, time.Time) (*model.DriverScore, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (r *setDriverOnlineRepository) Update(_ context.Context, _ uint64, updates map[string]interface{}) error {
 	if v, ok := updates["online_status"].(int8); ok {
 		r.updatedStatus = v
@@ -244,4 +249,12 @@ func (r *setDriverOnlineCertificationRepository) GetByDriverID(_ context.Context
 
 func (r *setDriverOnlineCertificationRepository) UpdateAudit(context.Context, int64, int64, string, int8) error {
 	return nil
+}
+
+func (r *setDriverOnlineCertificationRepository) AdminList(context.Context, repository.AdminCertificationFilter) ([]*repository.AdminCertificationRow, int64, error) {
+	return nil, 0, nil
+}
+
+func (r *setDriverOnlineCertificationRepository) AdminGetByID(context.Context, uint64) (*repository.AdminCertificationRow, error) {
+	return nil, repository.ErrCertificationNotFound
 }

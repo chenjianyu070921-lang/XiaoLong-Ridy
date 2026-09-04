@@ -12,16 +12,31 @@
       <div v-if="nearbyOrderLoading" class="home-order-loading"><van-loading size="20px" /></div>
       <div v-else-if="nearbyOrders.length === 0" class="home-order-empty">暂无附近可接订单</div>
       <article v-for="order in nearbyOrders" :key="'nearby-' + resolveOrderId(order)" class="order-card nearby-order-card">
-        <div class="order-heading">
-          <strong>{{ order.orderNo || '订单 ' + resolveOrderId(order) }}</strong>
-          <span class="order-distance">距您 {{ formatDistance(order.distanceMeters) }} 公里</span>
+        <div class="card-header">
+          <span class="status-tag ongoing">{{ formatOrderStatus(order.status || 1) }}</span>
+          <span class="time">{{ formatTime(order.createdAt) }}</span>
         </div>
-        <p class="route-line">{{ order.fromAddress || '--' }} -> {{ order.toAddress || '--' }}</p>
-        <div class="meta-row">
-          <span>{{ formatPrice(order.estimatedPriceCents) }}</span>
-          <span>{{ formatTime(order.createdAt) }}</span>
+        <div class="route-info">
+          <div class="route-item">
+            <div class="dot from"></div>
+            <span>{{ order.fromAddress || '--' }}</span>
+          </div>
+          <div class="route-line"></div>
+          <div class="route-item">
+            <div class="dot to"></div>
+            <span>{{ order.toAddress || '--' }}</span>
+          </div>
         </div>
-        <div class="order-actions">
+        <div class="card-footer">
+          <div class="car-type">{{ order.orderNo || '订单 ' + resolveOrderId(order) }}</div>
+          <div class="price">{{ formatPrice(order.estimatedPriceCents) }}</div>
+        </div>
+        <div class="trip-stats">
+          <div class="stat-item"><span class="value">{{ formatDistance(order.distanceMeters) }}</span><span class="label">距您</span></div>
+          <div class="stat-divider"></div>
+          <div class="stat-item"><span class="value">{{ formatTime(order.createdAt) }}</span><span class="label">发单时间</span></div>
+        </div>
+        <div class="actions">
           <button type="button" @click="emit('order-detail', resolveOrderId(order))">详情</button>
           <button v-if="canAccept(order)" type="button" class="primary" @click="emit('order-action', 'accept', order)">接单</button>
           <button v-if="canAccept(order)" type="button" @click="emit('order-action', 'reject', order)">拒单</button>
@@ -46,19 +61,32 @@
     </div>
     <div v-if="orders.length === 0" class="empty-state">--</div>
     <article v-for="order in orders" :key="String(order.source || 'order') + '-' + String(resolveOrderId(order))" class="order-card">
-      <div class="order-heading">
-        <strong>{{ order.orderNo || '订单 ' + resolveOrderId(order) }}</strong>
-        <van-tag>{{ order.source === 'dispatch' ? formatDispatchStatus(order.dispatchStatus) : formatOrderStatus(order.status) }}</van-tag>
+      <div class="card-header">
+        <span class="status-tag" :class="orderStatusClass(order)">{{ order.source === 'dispatch' ? formatDispatchStatus(order.dispatchStatus) : formatOrderStatus(order.status) }}</span>
+        <span class="time">{{ formatTime(order.createdAt) }}</span>
       </div>
-      <p class="route-line">{{ order.fromAddress || '--' }} -> {{ order.toAddress || '--' }}</p>
-      <div class="meta-row">
-        <span>{{ formatPrice(order.estimatedPriceCents) }}</span>
-        <span v-if="order.source === 'available'">距您 {{ formatDistance(order.distanceMeters) }} 公里</span>
-        <span>{{ formatTime(order.createdAt) }}</span>
+      <div class="route-info">
+        <div class="route-item">
+          <div class="dot from"></div>
+          <span>{{ order.fromAddress || '--' }}</span>
+        </div>
+        <div class="route-line"></div>
+        <div class="route-item">
+          <div class="dot to"></div>
+          <span>{{ order.toAddress || '--' }}</span>
+        </div>
       </div>
-      <div class="order-actions">
+      <div class="card-footer">
+        <div class="car-type">{{ order.orderNo || '订单 ' + resolveOrderId(order) }}</div>
+        <div class="price">{{ formatPrice(order.estimatedPriceCents) }}</div>
+      </div>
+      <div class="trip-stats">
+        <div class="stat-item"><span class="value">{{ order.source === 'available' ? formatDistance(order.distanceMeters) : '--' }}</span><span class="label">距离</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat-item"><span class="value">{{ formatTime(order.createdAt) }}</span><span class="label">时间</span></div>
+      </div>
+      <div class="actions">
         <button type="button" @click="emit('order-detail', resolveOrderId(order))">详情</button>
-        <button type="button" @click="emit('select-trajectory', resolveOrderId(order))">轨迹</button>
         <button v-if="canAccept(order)" type="button" class="primary" @click="emit('order-action', 'accept', order)">接单</button>
         <button v-if="canAccept(order)" type="button" @click="emit('order-action', 'reject', order)">拒单</button>
         <button v-if="Number(order.status) === 2" type="button" @click="emit('order-action', 'confirm-arrive', order)">到达</button>
@@ -83,16 +111,31 @@
         <div v-else-if="nearbyOrderExpandedOrders.length === 0" class="home-order-empty">暂无附近可接订单</div>
         <div v-else class="nearby-order-popup-list">
           <article v-for="order in nearbyOrderExpandedOrders" :key="'nearby-expanded-' + resolveOrderId(order)" class="order-card nearby-order-card">
-            <div class="order-heading">
-              <strong>{{ order.orderNo || '订单 ' + resolveOrderId(order) }}</strong>
-              <span class="order-distance">距您 {{ formatDistance(order.distanceMeters) }} 公里</span>
+            <div class="card-header">
+              <span class="status-tag ongoing">{{ formatOrderStatus(order.status || 1) }}</span>
+              <span class="time">{{ formatTime(order.createdAt) }}</span>
             </div>
-            <p class="route-line">{{ order.fromAddress || '--' }} -> {{ order.toAddress || '--' }}</p>
-            <div class="meta-row">
-              <span>{{ formatPrice(order.estimatedPriceCents) }}</span>
-              <span>{{ formatTime(order.createdAt) }}</span>
+            <div class="route-info">
+              <div class="route-item">
+                <div class="dot from"></div>
+                <span>{{ order.fromAddress || '--' }}</span>
+              </div>
+              <div class="route-line"></div>
+              <div class="route-item">
+                <div class="dot to"></div>
+                <span>{{ order.toAddress || '--' }}</span>
+              </div>
             </div>
-            <div class="order-actions">
+            <div class="card-footer">
+              <div class="car-type">{{ order.orderNo || '订单 ' + resolveOrderId(order) }}</div>
+              <div class="price">{{ formatPrice(order.estimatedPriceCents) }}</div>
+            </div>
+            <div class="trip-stats">
+              <div class="stat-item"><span class="value">{{ formatDistance(order.distanceMeters) }}</span><span class="label">距您</span></div>
+              <div class="stat-divider"></div>
+              <div class="stat-item"><span class="value">{{ formatTime(order.createdAt) }}</span><span class="label">发单时间</span></div>
+            </div>
+            <div class="actions">
               <button type="button" @click="emit('order-detail', resolveOrderId(order))">详情</button>
               <button v-if="canAccept(order)" type="button" class="primary" @click="emit('order-action', 'accept', order)">接单</button>
               <button v-if="canAccept(order)" type="button" @click="emit('order-action', 'reject', order)">拒单</button>
@@ -149,7 +192,6 @@ const emit = defineEmits([
   'load-nearby-expanded-orders',
   'open-nearby-popup',
   'order-detail',
-  'select-trajectory',
   'order-action',
   'open-finish'
 ])
@@ -178,6 +220,15 @@ const nearbyOrderPopupStyle = {
 
 function resolveOrderId(order) {
   return Number(order?.orderId || order?.orderID || order?.id || order?.dispatch?.orderId || order?.order?.orderId || 0)
+}
+
+function orderStatusClass(order) {
+  const status = Number(order?.status || order?.dispatchStatus || 0)
+  if ([1, 2, 3].includes(status)) return 'ongoing'
+  if (status === 5) return 'completed'
+  if (status === 6 || status === 7) return 'cancelled'
+  if (Number(order?.dispatchStatus || 0) === 1) return 'pending'
+  return 'pending'
 }
 </script>
 
@@ -210,15 +261,208 @@ function resolveOrderId(order) {
   gap: 8px;
 }
 
-.nearby-order-card {
-  border-left: 3px solid #5B5CFF;
+.order-card {
+  gap: 0;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
 }
 
-.order-distance {
+.order-card:active {
+  transform: scale(.98);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.status-tag {
   flex: 0 0 auto;
-  color: #5B5CFF;
+  padding: 4px 10px;
+  border-radius: 12px;
   font-size: 12px;
+  font-weight: 600;
+}
+
+.status-tag.ongoing {
+  background: #EFF6FF;
+  color: #3B82F6;
+}
+
+.status-tag.completed {
+  background: #ECFDF5;
+  color: #059669;
+}
+
+.status-tag.pending {
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.status-tag.cancelled {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.time {
+  min-width: 0;
+  overflow: hidden;
+  color: #9CA3AF;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-info {
+  position: relative;
+  display: grid;
+  gap: 0;
+  margin-bottom: 14px;
+  padding-left: 18px;
+}
+
+.route-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 6px 0;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.route-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  position: absolute;
+  left: -12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot.from {
+  background: #10B981;
+}
+
+.dot.to {
+  background: #EF4444;
+}
+
+.route-info .route-line {
+  position: absolute;
+  left: -8px;
+  top: 24px;
+  bottom: 24px;
+  width: 2px;
+  background: #D1D5DB;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #F3F4F6;
+}
+
+.car-type {
+  min-width: 0;
+  overflow: hidden;
+  color: #6B7280;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.price {
+  flex: 0 0 auto;
+  color: #EF4444;
+  font-size: 18px;
   font-weight: 800;
+}
+
+.trip-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 10px;
+  border-radius: 10px;
+  background: #F9FAFB;
+}
+
+.stat-item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.stat-item .value {
+  overflow: hidden;
+  color: #172033;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-item .label {
+  color: #6B7280;
+  font-size: 11px;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 30px;
+  background: #E5E7EB;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #F3F4F6;
+}
+
+.actions button {
+  min-width: 74px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 18px;
+  background: #EFF6FF;
+  color: #3B82F6;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.actions .primary {
+  background: linear-gradient(135deg, #7C3AED 0%, #9333EA 100%);
+  color: #fff;
+}
+
+.actions button:not(.primary):nth-child(3) {
+  background: #FEF3C7;
+  color: #D97706;
 }
 
 .nearby-order-popup {

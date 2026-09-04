@@ -3,10 +3,11 @@ package adminservicelogic
 import (
 	"context"
 	"fmt"
-	"time"
+	"strings"
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
+	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -25,7 +26,7 @@ func NewFreezeUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Freeze
 
 // FreezeUser 将用户状态更新为冻结，并记录操作日志。
 func (l *FreezeUserLogic) FreezeUser(in *adminsvc.ChangeUserStatusRequest) (*adminsvc.CommonResponse, error) {
-	return changeUserStatus(l.ctx, l.svcCtx, in, 2, "freeze", "冻结用户")
+	return changeUserStatus(l.ctx, l.svcCtx, in, "freeze", "冻结用户")
 }
 
 // UnfreezeUserLogic 处理用户解封 RPC。
@@ -41,50 +42,47 @@ func NewUnfreezeUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Unfr
 
 // UnfreezeUser 将用户状态恢复为正常，并记录操作日志。
 func (l *UnfreezeUserLogic) UnfreezeUser(in *adminsvc.ChangeUserStatusRequest) (*adminsvc.CommonResponse, error) {
-	return changeUserStatus(l.ctx, l.svcCtx, in, 1, "unfreeze", "解封用户")
+	return changeUserStatus(l.ctx, l.svcCtx, in, "unfreeze", "解封用户")
 }
 
-// changeUserStatus 执行用户状态变更的事务性更新。
-func changeUserStatus(ctx context.Context, svcCtx *svc.ServiceContext, in *adminsvc.ChangeUserStatusRequest, statusValue int32, action, detailPrefix string) (*adminsvc.CommonResponse, error) {
+// changeUserStatus 通过 usersvc 执行用户冻结/解冻，并写入后台审计日志。
+// 用户状态变更以 usersvc 为权威，adminsvc 不直接更新 user 表；与司机侧对齐，仅超级管理员可执行。
+func changeUserStatus(ctx context.Context, svcCtx *svc.ServiceContext, in *adminsvc.ChangeUserStatusRequest, action, detailPrefix string) (*adminsvc.CommonResponse, error) {
 	if in.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "用户ID不能为空")
 	}
 	if in.GetAdminId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "管理员ID不能为空")
 	}
-	tx, err := svcCtx.MySQL.BeginTx(ctx, nil)
-	if err != nil {
+	// 用户冻结/解冻与司机冻结/解冻策略对齐，统一收归超级管理员，避免运营角色越权处置乘客账号。
+	if err := requireAdminRoles(ctx, svcCtx, 1); err != nil {
 		return nil, err
 	}
-	defer func() { _ = tx.Rollback() }()
+	if svcCtx == nil || svcCtx.UsersSvc == nil {
+		return nil, status.Error(codes.FailedPrecondition, "user service is not running or downstream RPC is disabled")
+	}
 
-	now := time.Now()
-	res, err := tx.ExecContext(ctx, `
-		UPDATE user
-		SET status = ?, updated_at = ?
-		WHERE id = ? AND deleted_at IS NULL
-	`, statusValue, now, in.GetId())
+	req := &usersvc.AdminFreezeUserRequest{
+		UserId:     uint64(in.GetId()),
+		Reason:     strings.TrimSpace(in.GetReason()),
+		OperatorId: in.GetAdminId(),
+		Ip:         in.GetIp(),
+	}
+	var err error
+	if action == "unfreeze" {
+		_, err = svcCtx.UsersSvc.AdminUnfreezeUser(ctx, req)
+	} else {
+		_, err = svcCtx.UsersSvc.AdminFreezeUser(ctx, req)
+	}
 	if err != nil {
 		return nil, err
 	}
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return nil, err
-	}
-	if affected == 0 {
-		return nil, status.Error(codes.NotFound, "用户不存在")
-	}
+
 	detail := fmt.Sprintf("%s：%s", detailPrefix, in.GetRemark())
 	if in.GetReason() != "" {
 		detail = fmt.Sprintf("%s，原因：%s", detail, in.GetReason())
 	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO admin_operation_log (admin_id, module, action, target_type, target_id, detail, ip)
-		VALUES (?, 'user', ?, 'user', ?, ?, ?)
-	`, in.GetAdminId(), action, in.GetId(), detail, in.GetIp()); err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
+	if err := writeAuditAfterCommitted(ctx, svcCtx, in.GetAdminId(), "user", action, "user", in.GetId(), detail, in.GetIp()); err != nil {
 		return nil, err
 	}
 	return &adminsvc.CommonResponse{Message: "ok"}, nil

@@ -1,5 +1,6 @@
 <template>
   <div class="driver-phone-shell">
+    <div id="driver-home-popups"></div>
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
         <component :is="Component" />

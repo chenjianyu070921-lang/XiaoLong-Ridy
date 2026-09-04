@@ -1,8 +1,8 @@
 <template>
   <section class="h5-panel">
-    <div class="section-title"><h2>轨迹</h2></div>
+    <div class="section-title"><h2>检测范围</h2></div>
     <div class="trajectory-map-surface">
-      <div ref="mapContainer" class="driver-live-map" aria-label="订单实时轨迹地图"></div>
+      <div ref="mapContainer" class="driver-live-map" aria-label="订单轨迹地图"></div>
       <div v-if="mapStatusText" class="map-state" :class="{ error: mapError || trajectoryError }">{{ mapStatusText }}</div>
     </div>
     <div class="trajectory-form">
@@ -22,8 +22,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import AMapLoader from '@amap/amap-jsapi-loader'
-import { getAmapConfig } from '@/config/amap'
+import { loadDriverAmap } from '@/config/amap'
 
 const props = defineProps({
   trajectoryOrderId: { type: [String, Number], required: true },
@@ -78,15 +77,8 @@ watch(() => props.trajectoryPoints, () => renderTrajectory(), { deep: true })
 watch(() => props.trajectoryOrderId, () => startAutoRefresh())
 
 async function initMap() {
-  const { key, securityCode } = getAmapConfig()
-  if (!key) {
-    mapError.value = '未配置高德地图 Key'
-    return
-  }
   try {
-    if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode }
-    AMapSDK = await AMapLoader.load({ key, version: '2.0' })
-    window.AMap = AMapSDK
+    AMapSDK = await loadDriverAmap()
     mapInstance = new AMapSDK.Map(mapContainer.value, {
       zoom: 15,
       viewMode: '2D',
@@ -94,7 +86,7 @@ async function initMap() {
     })
     mapReady.value = true
   } catch (error) {
-    mapError.value = '高德地图加载失败'
+    mapError.value = '高德地图加载失败：' + (error?.message || String(error || ''))
     console.error('driver trajectory AMap error:', error)
   }
 }

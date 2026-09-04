@@ -192,6 +192,10 @@ MenuRoles:
 OrdersRPC:
   Target: 127.0.0.1:50051
   NonBlock: true
+UsersRPC:
+  Target: 127.0.0.1:50052
+  NonBlock: true
+  Timeout: 30000
 DispatchRPC:
   Target: 127.0.0.1:50056
   NonBlock: true
@@ -205,3 +209,24 @@ LocationsRPC:
 PricesRPC:
   Target: 127.0.0.1:50053
   NonBlock: true
+PaysRPC:
+  Target: 127.0.0.1:50054
+  NonBlock: true
+  Timeout: 30000
+PushRPC:
+  Target: 127.0.0.1:9002
+  NonBlock: true
+  Timeout: 30000
+# AI 运营助手配置。
+# DemoEnabled 生产环境必须保持 false；仅本地/答辩环境可临时开启以使用演示快照。
+# Model.Endpoint 留空时，AI 助手走本地模板报告降级（无需外部模型与密钥）。
+AiAgent:
+  DemoEnabled: false
+  Model:
+    Endpoint: ""
+    Name: ""
+    TimeoutSeconds: 30
+  Conversation:
+    TTLSeconds: 86400
+    MaxRounds: 6
+    KeyPrefix: "admin:ai:conv:"

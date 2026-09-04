@@ -71,9 +71,18 @@ export const useDriverStore = defineStore('driver', () => {
   }
 
   async function saveProfile(payload) {
+    if (!driverId.value) {
+      throw new Error('请先重新登录后再保存资料')
+    }
     const body = { ...payload, id: driverId.value }
     const res = await updateDriver(body)
-    await refreshProfile()
+    driver.value = { ...(driver.value || {}), ...payload }
+    localStorage.setItem('driverProfile', JSON.stringify(driver.value))
+    try {
+      await refreshProfile()
+    } catch {
+      // keep locally updated profile when refresh is unavailable
+    }
     return res
   }
 

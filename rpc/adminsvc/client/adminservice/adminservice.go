@@ -146,6 +146,19 @@ type (
 	UserListResponse                 = adminsvc.UserListResponse
 	ValidateSessionRequest           = adminsvc.ValidateSessionRequest
 	ValidateSessionResponse          = adminsvc.ValidateSessionResponse
+	AiAskRequest                     = adminsvc.AiAskRequest
+	AiAnswerResponse                 = adminsvc.AiAnswerResponse
+	AiEvidence                       = adminsvc.AiEvidence
+	AiPriority                       = adminsvc.AiPriority
+	AiAction                         = adminsvc.AiAction
+	AiSuggestionsRequest             = adminsvc.AiSuggestionsRequest
+	AiSuggestion                     = adminsvc.AiSuggestion
+	AiSuggestionsResponse            = adminsvc.AiSuggestionsResponse
+	AiHistoryRequest                 = adminsvc.AiHistoryRequest
+	AiConversationSummary            = adminsvc.AiConversationSummary
+	AiHistoryResponse                = adminsvc.AiHistoryResponse
+	AiFeedbackRequest                = adminsvc.AiFeedbackRequest
+	AiConversationRequest            = adminsvc.AiConversationRequest
 
 	AdminService interface {
 		// 管理员注册。
@@ -285,6 +298,16 @@ type (
 		HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
 		// 查询通知与审计补偿任务。
 		ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error)
+		// 提交受限运营问答（AI 运营助手）。
+		AskAiAgent(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (*AiAnswerResponse, error)
+		// 读取三个快捷问题。
+		GetAiSuggestions(ctx context.Context, in *AiSuggestionsRequest, opts ...grpc.CallOption) (*AiSuggestionsResponse, error)
+		// 查询当前管理员的 AI 会话摘要。
+		GetAiHistory(ctx context.Context, in *AiHistoryRequest, opts ...grpc.CallOption) (*AiHistoryResponse, error)
+		// 记录 AI 回答是否有帮助。
+		AiFeedback(ctx context.Context, in *AiFeedbackRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 结束并清空指定 AI 会话。
+		DeleteAiConversation(ctx context.Context, in *AiConversationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	}
 
 	defaultAdminService struct {
@@ -736,4 +759,29 @@ func (m *defaultAdminService) HandleRiskHitRecords(ctx context.Context, in *Risk
 func (m *defaultAdminService) ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.ListAdminAuditOutbox(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) AskAiAgent(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (*AiAnswerResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.AskAiAgent(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) GetAiSuggestions(ctx context.Context, in *AiSuggestionsRequest, opts ...grpc.CallOption) (*AiSuggestionsResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetAiSuggestions(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) GetAiHistory(ctx context.Context, in *AiHistoryRequest, opts ...grpc.CallOption) (*AiHistoryResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.GetAiHistory(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) AiFeedback(ctx context.Context, in *AiFeedbackRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.AiFeedback(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) DeleteAiConversation(ctx context.Context, in *AiConversationRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.DeleteAiConversation(ctx, in, opts...)
 }

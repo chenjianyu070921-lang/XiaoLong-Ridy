@@ -2,6 +2,7 @@ package logic
 
 import (
 	"errors"
+	"math"
 	"regexp"
 	"strings"
 
@@ -123,11 +124,22 @@ func validateOptionalLength(name, value string, max int) error {
 }
 
 func validateWithdrawAmount(amount float64) error {
+	if math.IsNaN(amount) || math.IsInf(amount, 0) {
+		return errors.New("withdraw amount must be a finite number")
+	}
 	if amount <= 0 {
 		return errors.New("withdraw amount must be greater than 0")
 	}
 	if amount > 100000 {
 		return errors.New("withdraw amount exceeds limit")
 	}
+	cents := amount * 100
+	if math.Abs(cents-math.Round(cents)) > 1e-6 {
+		return errors.New("withdraw amount must not exceed 2 decimal places")
+	}
 	return nil
+}
+
+func normalizeWithdrawAmount(amount float64) float64 {
+	return math.Round(amount*100) / 100
 }

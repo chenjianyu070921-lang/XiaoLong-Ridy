@@ -144,6 +144,16 @@ func (s *UserServer) AdminFreezeUser(ctx context.Context, req *userproto.AdminFr
 	return logic.NewAdminUserLogic(ctx, s.svcCtx).FreezeUser(req)
 }
 
+// AdminUnfreezeUser 转发管理后台用户解冻请求到用户域逻辑。
+func (s *UserServer) AdminUnfreezeUser(ctx context.Context, req *userproto.AdminFreezeUserRequest) (*userproto.AdminFreezeUserResponse, error) {
+	return logic.NewAdminUserLogic(ctx, s.svcCtx).UnfreezeUser(req)
+}
+
+// AdminIssueCoupon 转发管理后台批量发券请求到用户域逻辑。
+func (s *UserServer) AdminIssueCoupon(ctx context.Context, req *userproto.AdminIssueCouponRequest) (*userproto.AdminIssueCouponResponse, error) {
+	return logic.NewAdminIssueCouponLogic(ctx, s.svcCtx).AdminIssueCoupon(req)
+}
+
 // GetWallet 查询当前用户钱包余额与流水。
 func (s *UserServer) GetWallet(ctx context.Context, req *userproto.GetWalletRequest) (*userproto.GetWalletResponse, error) {
 	return logic.NewWalletLogic(ctx, s.svcCtx).GetWallet(req)
