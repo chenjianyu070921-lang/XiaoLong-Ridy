@@ -186,11 +186,10 @@ type GetDriverAiScoreResponse {
 }
 
 type UploadCertificationRequest {
-	VehicleID      int64  `json:"vehicleId"`
-	IdCardFront    string `json:"idCardFront"`
-	IdCardBack     string `json:"idCardBack"`
-	DriverLicense  string `json:"driverLicense"`
-	VehicleLicense string `json:"vehicleLicense"`
+	VehicleID       int64  `json:"vehicleId"`
+	IdCardNo        string `json:"idCardNo"`
+	RealName        string `json:"realName"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
 }
 
 type CertificationInfo {
@@ -536,6 +535,26 @@ type GetMyOrderDetailResponse {
 	Order OrderDetail `json:"order"`
 }
 
+type GetOrderTrajectoryRequest {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderTrajectoryPoint {
+	OrderID    int64   `json:"orderId"`
+	DriverID   int64   `json:"driverId"`
+	Longitude  float64 `json:"longitude"`
+	Latitude   float64 `json:"latitude"`
+	SpeedKmh   float64 `json:"speedKmh"`
+	Heading    int32   `json:"heading"`
+	ReportTime int64   `json:"reportTime"`
+}
+
+type GetOrderTrajectoryResponse {
+	OrderID int64                  `json:"orderId"`
+	Points  []OrderTrajectoryPoint `json:"points"`
+	Total   int64                  `json:"total"`
+}
+
 type ListReviewsRequest {
 	Page     int32 `form:"page"`
 	PageSize int32 `form:"pageSize"`
@@ -702,6 +721,9 @@ service driver-api {
 
 	@handler GetMyOrderDetailHandler
 	post /api/driver/v1/orders/detail (GetMyOrderDetailRequest) returns (GetMyOrderDetailResponse)
+
+	@handler GetOrderTrajectoryHandler
+	post /api/driver/v1/orders/trajectory (GetOrderTrajectoryRequest) returns (GetOrderTrajectoryResponse)
 
 	@handler StartTripHandler
 	post /api/driver/v1/orders/start-trip (StartTripRequest) returns (StartTripResponse)

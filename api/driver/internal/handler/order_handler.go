@@ -282,3 +282,29 @@ func GetMyOrderDetailHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+// GetOrderTrajectoryHandler POST /api/driver/v1/orders/trajectory
+// Current driver queries trajectory points for one of their own orders.
+func GetOrderTrajectoryHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		var req types.GetOrderTrajectoryRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		if req.OrderID <= 0 {
+			writeError(w, http.StatusBadRequest, 50000, "invalid orderId")
+			return
+		}
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).GetOrderTrajectory(int64(claims.AccountID), req.OrderID)
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

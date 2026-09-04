@@ -216,11 +216,10 @@ type GetDriverAiScoreResponse struct {
 }
 
 type UploadCertificationRequest struct {
-	VehicleID      int64  `json:"vehicleId"`
-	IdCardFront    string `json:"idCardFront"`
-	IdCardBack     string `json:"idCardBack"`
-	DriverLicense  string `json:"driverLicense"`
-	VehicleLicense string `json:"vehicleLicense"`
+	VehicleID       int64  `json:"vehicleId"`
+	IdCardNo        string `json:"idCardNo"`
+	RealName        string `json:"realName"`
+	DriverLicenseNo string `json:"driverLicenseNo"`
 }
 
 type CertificationInfo struct {
@@ -574,6 +573,26 @@ type OrderDetail struct {
 
 type GetMyOrderDetailResponse struct {
 	Order OrderDetail `json:"order"`
+}
+
+type GetOrderTrajectoryRequest struct {
+	OrderID int64 `json:"orderId"`
+}
+
+type OrderTrajectoryPoint struct {
+	OrderID    int64   `json:"orderId"`
+	DriverID   int64   `json:"driverId"`
+	Longitude  float64 `json:"longitude"`
+	Latitude   float64 `json:"latitude"`
+	SpeedKmh   float64 `json:"speedKmh"`
+	Heading    int32   `json:"heading"`
+	ReportTime int64   `json:"reportTime"`
+}
+
+type GetOrderTrajectoryResponse struct {
+	OrderID int64                  `json:"orderId"`
+	Points  []OrderTrajectoryPoint `json:"points"`
+	Total   int64                  `json:"total"`
 }
 
 type AgentChatRequest struct {

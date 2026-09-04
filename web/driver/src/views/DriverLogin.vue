@@ -63,6 +63,7 @@ import { useRouter } from 'vue-router'
 import { closeToast, showLoadingToast, showToast } from 'vant'
 import { sendDriverSMSCode } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
+import { apiErrorMessage } from '@/utils/safe-request'
 
 const router = useRouter()
 const driverStore = useDriverStore()
@@ -185,10 +186,6 @@ async function handleRegister() {
   } finally {
     loading.value = false
   }
-}
-
-function apiErrorMessage(error, fallbackMessage) {
-  return error?.response?.data?.message || error?.message || fallbackMessage
 }
 </script>
 

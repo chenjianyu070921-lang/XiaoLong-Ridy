@@ -567,6 +567,40 @@ func (l *OrderLogic) GetMyOrderDetail(driverID, orderID int64) (*types.GetMyOrde
 	}}, nil
 }
 
+func (l *OrderLogic) GetOrderTrajectory(driverID, orderID int64) (*types.GetOrderTrajectoryResponse, error) {
+	if driverID <= 0 || orderID <= 0 {
+		return nil, ErrInvalidParam
+	}
+	if l.svcCtx == nil || l.svcCtx.TrajectoryRepository == nil {
+		return nil, ErrTrajectoryRepositoryNotConfigured
+	}
+	records, err := l.svcCtx.TrajectoryRepository.ListByOrder(l.ctx, driverID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	points := make([]types.OrderTrajectoryPoint, 0, len(records))
+	for _, record := range records {
+		reportTime := record.RecordedAt.Unix()
+		if record.RecordedAt.IsZero() {
+			reportTime = 0
+		}
+		points = append(points, types.OrderTrajectoryPoint{
+			OrderID:    record.OrderID,
+			DriverID:   record.DriverID,
+			Longitude:  record.Longitude,
+			Latitude:   record.Latitude,
+			SpeedKmh:   record.SpeedKmh,
+			Heading:    record.Heading,
+			ReportTime: reportTime,
+		})
+	}
+	return &types.GetOrderTrajectoryResponse{
+		OrderID: orderID,
+		Points:  points,
+		Total:   int64(len(points)),
+	}, nil
+}
+
 func canDriverViewOrder(driverID int64, order *orderproto.GetOrderResponse) bool {
 	if driverID <= 0 || order == nil {
 		return false

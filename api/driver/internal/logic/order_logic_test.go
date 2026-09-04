@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
@@ -171,6 +172,26 @@ func TestAcceptOrderForwardsDriverAndOrder(t *testing.T) {
 	}
 }
 
+type fakeOrderTrajectoryRepository struct {
+	listDriverID int64
+	listOrderID  int64
+	records      []svc.TrajectoryRecord
+	err          error
+}
+
+func (f *fakeOrderTrajectoryRepository) ListByOrder(_ context.Context, driverID, orderID int64) ([]svc.TrajectoryRecord, error) {
+	f.listDriverID = driverID
+	f.listOrderID = orderID
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.records, nil
+}
+
+func (f *fakeOrderTrajectoryRepository) RecordPoint(_ context.Context, _ *svc.TrajectoryRecord) error {
+	return nil
+}
+
 func TestConfirmArriveForwardsDriverAndOrder(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
@@ -306,6 +327,45 @@ func TestGetRealtimeFareRejectsNonTripOrder(t *testing.T) {
 	}
 }
 
+func TestGetOrderTrajectoryReturnsCurrentDriverPoints(t *testing.T) {
+	repo := &fakeOrderTrajectoryRepository{records: []svc.TrajectoryRecord{{
+		OrderID:    1001,
+		DriverID:   25,
+		Longitude:  116.391,
+		Latitude:   39.907,
+		SpeedKmh:   31.5,
+		Heading:    180,
+		RecordedAt: time.Unix(123, 0),
+	}}}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{TrajectoryRepository: repo})
+
+	resp, err := logic.GetOrderTrajectory(25, 1001)
+	if err != nil {
+		t.Fatalf("GetOrderTrajectory() error = %v", err)
+	}
+	if repo.listDriverID != 25 || repo.listOrderID != 1001 {
+		t.Fatalf("GetOrderTrajectory() repository query = driver:%d order:%d", repo.listDriverID, repo.listOrderID)
+	}
+	if resp.OrderID != 1001 || resp.Total != 1 || len(resp.Points) != 1 {
+		t.Fatalf("GetOrderTrajectory() response = %+v", resp)
+	}
+	point := resp.Points[0]
+	if point.OrderID != 1001 || point.DriverID != 25 || point.Longitude != 116.391 ||
+		point.Latitude != 39.907 || point.SpeedKmh != 31.5 || point.Heading != 180 ||
+		point.ReportTime != 123 {
+		t.Fatalf("GetOrderTrajectory() point = %+v", point)
+	}
+}
+
+func TestGetOrderTrajectoryRequiresRepository(t *testing.T) {
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{})
+
+	_, err := logic.GetOrderTrajectory(25, 1001)
+	if err != ErrTrajectoryRepositoryNotConfigured {
+		t.Fatalf("GetOrderTrajectory() error = %v, want %v", err, ErrTrajectoryRepositoryNotConfigured)
+	}
+}
+
 func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
@@ -327,6 +387,9 @@ func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 	}
 	if _, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{OrderID: 1001, ActualDurationS: -1}); err != ErrInvalidParam {
 		t.Fatalf("GetRealtimeFare(negative duration) error = %v, want %v", err, ErrInvalidParam)
+	}
+	if _, err := logic.GetOrderTrajectory(25, 0); err != ErrInvalidParam {
+		t.Fatalf("GetOrderTrajectory(invalid order) error = %v, want %v", err, ErrInvalidParam)
 	}
 }
 

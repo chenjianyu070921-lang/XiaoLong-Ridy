@@ -144,6 +144,7 @@ for (const endpoint of [
   '/orders/start-trip',
   '/orders/finish-trip',
   '/orders/realtime-fare',
+  '/orders/trajectory',
   '/orders/grab-list',
   '/orders/detail',
   '/orders/list',
@@ -153,18 +154,18 @@ for (const endpoint of [
 }
 for (const deadApiExport of [
   'export function listNearbyDrivers',
-  'export function getOrderTrajectory',
   'export function listPassengerReviews'
 ]) {
   assert(!api.includes(deadApiExport), `driver API module must not keep dead wrapper: ${deadApiExport}`)
 }
 for (const deadApiPath of [
   '/drivers/nearby',
-  '/orders/trajectory',
   '/reviews/list'
 ]) {
   assert(!api.includes(deadApiPath), `driver API module must not call dead or unused path: ${deadApiPath}`)
 }
+assert(api.includes('export function getOrderTrajectory'), 'driver API wrapper must expose order trajectory query')
+assert(api.includes("driverRequest.post('/orders/trajectory', { orderId }, config)"), 'driver trajectory wrapper must call /orders/trajectory')
 assert(uploadApi.includes("import axios from 'axios'"), 'driver avatar upload helper must direct-upload with axios like passenger H5')
 assert(uploadApi.includes('getAvatarUploadToken'), 'driver avatar upload helper must request a qiniu avatar token')
 assert(uploadApi.includes('uploadToQiniu'), 'driver avatar upload helper must expose qiniu direct upload')
@@ -175,6 +176,7 @@ const home = readIfExists('web/driver/src/views/DriverHome.vue')
 const ordersPanel = readIfExists('web/driver/src/components/driver-home/DriverOrdersPanel.vue')
 const minePanel = readIfExists('web/driver/src/components/driver-home/DriverMinePanel.vue')
 const trajectoryPanel = readIfExists('web/driver/src/components/driver-home/DriverTrajectoryPanel.vue')
+const certificationPanel = readIfExists('web/driver/src/components/driver-home/DriverCertificationPanel.vue')
 const driverFormat = readIfExists('web/driver/src/utils/driver-format.js')
 const driverMineData = readIfExists('web/driver/src/components/driver-home/driver-mine-data.js')
 const profilePanel = readIfExists('web/driver/src/components/driver-home/DriverProfilePanel.vue')
@@ -223,8 +225,18 @@ assert(login.includes("router.replace('/home')"), 'driver login must navigate in
 assert(apiRequest.includes("router.push('/login')"), 'driver auth expiry must navigate inside independent app')
 assert(driverIndex.includes('<link rel="icon" type="image/png" href="/logo.png" />'), 'driver frontend must set the website favicon to the app logo')
 assert(!home.includes('listPassengerReviews'), 'driver home must not call the missing passenger review endpoint')
-assert(!home.includes('getOrderTrajectory'), 'driver home must not call the removed trajectory wrapper')
-assert(!home.includes('@load-trajectory'), 'driver home must not keep dead trajectory event listeners')
+assert(home.includes('getOrderTrajectory'), 'driver home must call the real trajectory wrapper')
+assert(home.includes('DriverTrajectoryPanel'), 'driver home must import and render the trajectory panel')
+assert(home.includes('@load-trajectory="loadTrajectory"'), 'driver trajectory panel must be wired to a real loader')
+assert(home.includes('@open-trajectory="openTrajectoryPanel"'), 'driver order cards must expose a trajectory entry')
+assert(functionSource(home, 'openTrajectoryPanel').includes('trajectoryVisible.value = true'), 'driver trajectory entry must open the trajectory sheet')
+assert(functionSource(home, 'loadTrajectory').includes('getOrderTrajectory(orderId'), 'driver trajectory loader must fetch the selected order trajectory')
+assert(home.includes('trajectoryRequestSeq'), 'driver trajectory loader must guard against stale responses')
+assert(functionSource(home, 'loadTrajectory').includes('requestSeq !== trajectoryRequestSeq'), 'driver trajectory loader must ignore stale responses')
+assert(functionSource(home, 'loadTrajectory').includes('Number(trajectoryOrderId.value || 0) !== orderId'), 'driver trajectory loader must verify the selected order before applying results')
+assert(ordersPanel.includes("'open-trajectory'"), 'driver orders panel must declare trajectory entry event')
+assert(ordersPanel.includes("emit('open-trajectory', order)"), 'driver orders panel must emit trajectory entry with the order object')
+assert(trajectoryPanel.includes('<h2>订单轨迹</h2>'), 'driver trajectory panel title must describe order trajectory')
 assert(minePanel.includes('@click="$emit(\'open-reviews\')">乘客评价'), 'driver mine passenger reviews entry must use a semantic unavailable-feature event')
 assert(minePanel.includes("'open-reviews'"), 'driver mine panel must declare the passenger reviews event')
 assert(!minePanel.includes("'load-reviews'"), 'driver mine panel must not emit a dead reviews API loading event')
@@ -234,8 +246,42 @@ assert(functionSource(minePanel, 'showServiceScore').includes("title: '服务分
 assert(!minePanel.includes('@click="router.push(\'/mine/certification\')">服务分'), 'driver mine service score entry must not navigate to certification upload')
 assert(minePanel.includes('serviceScore: { type: [Number, String]'), 'driver mine panel must receive the dashboard service score value')
 assert(home.includes('serviceScore: serviceScore.value'), 'driver home must pass the loaded service score into the mine panel')
+assert(home.includes('orderStats: orderStats.value'), 'driver home must pass real order stats into the mine panel')
+assert(home.includes('const orderStats = ref('), 'driver home must own order stats state for the mine overview')
+assert(functionSource(home, 'loadCurrentTabData').includes('loadOrderStats(config)'), 'driver mine tab must refresh order stats when loading tab data')
+assert(functionSource(home, 'loadOrderStats').includes('listDriverOrders'), 'driver order stats must be derived from real driver order totals')
 assert(!minePanel.includes('withdrawableCents'), 'driver mine panel must not render unavailable withdrawable income field')
 assert(minePanel.includes("已完成订单 {{ incomeSummary?.completedOrders ?? '--' }}"), 'driver mine wallet card must render backend-owned completed order count')
+assert(functionSource(minePanel, 'openTool').includes('showToast'), 'driver mine unimplemented tool entry must tell the driver the feature is unavailable instead of doing nothing')
+for (const deadAssetEntry of [
+  '@load-vehicle',
+  '@submit-vehicle',
+  '@submit-vehicle-update',
+  '@remove-vehicle',
+  '@load-certification',
+  '@submit-certification',
+  '@read-cert-file',
+  '@remove-cert-image',
+  '@open-withdraw'
+]) {
+  assert(!home.includes(deadAssetEntry), 'driver home must not wire dead mine asset event: ' + deadAssetEntry)
+}
+for (const deadAssetFunction of [
+  'function loadVehicle(',
+  'function submitVehicle(',
+  'function submitVehicleUpdate(',
+  'function removeVehicle(',
+  'function loadCertification(',
+  'function submitCertification(',
+  'function readCertFile(',
+  'function removeCertImage(',
+  'function submitWithdraw(',
+  'function syncForms('
+]) {
+  assert(!home.includes(deadAssetFunction), 'driver home must not keep duplicated asset function: ' + deadAssetFunction)
+}
+assert(!home.includes('vehicleForm'), 'driver home must not keep dead vehicle form state')
+assert(!home.includes('certificationForm'), 'driver home must not keep dead certification form state')
 assert(home.includes('formatOrderStatus') && home.includes("from '@/utils/driver-format'"), 'driver home must import shared order status formatter')
 assert(!home.includes('function formatOrderStatus('), 'driver home must not duplicate formatOrderStatus locally')
 assert(driverFormat.includes("4: '待支付'"), 'driver shared order status 4 must render 待支付')
@@ -262,6 +308,11 @@ assert(home.includes('refreshRealtimeFare'), 'driver home must refresh fare data
 assert(home.includes('realtime-fare-strip'), 'driver home must render realtime fare inside the driving panel')
 assert(home.includes('realtimeFareAmountText'), 'driver home must keep realtime fare display formatted through computed state')
 assert(home.includes('暂用预估'), 'driver realtime fare failure state must fall back without visually disappearing')
+assert(home.includes('canStartSelectedHomeOrder'), 'driver home driving panel must expose a state guard for starting the current trip')
+assert(home.includes('canFinishSelectedHomeOrder'), 'driver home driving panel must expose a state guard for finishing the current trip')
+assert(home.includes("@click=\"handleOrderAction('start-trip', selectedHomeOrder)\""), 'driver home driving panel must let the driver start the current trip')
+assert(home.includes('@click="openFinish(selectedHomeOrder)"'), 'driver home driving panel must let the driver finish the current trip')
+assert(functionSource(home, 'submitFinishTrip').includes('resolveOrderId(finishOrder.value)'), 'driver finish trip must resolve order id from all supported order shapes')
 assert(ordersPanel.includes('class="card-header"'), 'driver order cards must copy passenger order card header structure')
 assert(ordersPanel.includes('class="status-tag"'), 'driver order cards must copy passenger status tag styling')
 assert(ordersPanel.includes('class="route-info"'), 'driver order cards must copy passenger route timeline structure')
@@ -301,9 +352,10 @@ assert(!home.includes('workActionText'), 'driver home idle primary action must n
 assert(home.includes('.go-online { border: 0; background: #5B5CFF;'), 'driver home start accepting button must keep purple primary color')
 assert(home.includes('workStatusPayload()'), 'online/offline actions must send device and location payload')
 assert(home.includes('safeApiCall'), 'driver H5 actions must keep UI usable when API calls fail')
-assert(home.includes('showIncomeLoadFailure'), 'driver income API failures must open a failure dialog')
+assert(driverAssets.includes('showIncomeLoadFailure'), 'driver income API failures must open a failure dialog')
+assert(home.includes("from '@/composables/useDriverAssets'"), 'driver home must source income state from the shared useDriverAssets composable')
 assert(home.includes('formatDriverStatus') && home.includes('activeTab.value === 2'), 'driver asset tab must pass driver status formatter to mine panel')
-assert(home.includes('rejectOrder(orderId, reason)'), 'driver reject action must submit explicit reject reason')
+assert(home.includes('rejectOrder(orderId, reason'), 'driver reject action must submit explicit reject reason')
 assert(!home.includes('actualPriceCents'), 'driver finish trip must not ask driver to enter settlement amount')
 assert(app.includes('driver-phone-shell'), 'driver app must render a centered phone shell for H5 preview')
 assert(login.includes('class="login-card"'), 'driver login must use a compact H5 login card')
@@ -424,6 +476,17 @@ assert(profileEdit.includes('profileForm.driverLicenseNo'), 'profile edit page m
 assert(walletPage.includes("from '@/components/driver-home/DriverWalletPanel.vue'"), 'wallet page must reuse the wallet panel')
 assert(vehiclePage.includes("from '@/components/driver-home/DriverVehiclePanel.vue'"), 'vehicle page must reuse the vehicle panel')
 assert(certificationPage.includes("from '@/components/driver-home/DriverCertificationPanel.vue'"), 'certification page must reuse the certification panel')
+assert(!certificationPanel.includes('cert-file-input'), 'driver certification panel must not keep image upload file inputs')
+assert(!certificationPanel.includes('read-cert-file'), 'driver certification panel must not keep image upload event handlers')
+assert(!driverAssets.includes('certItems'), 'driver assets composable must not keep certification image list state')
+assert(!driverAssets.includes('readCertFile'), 'driver assets composable must not keep certification image read handlers')
+assert(!driverAssets.includes('IdCardFront') && !driverAssets.includes('idCardFront'), 'driver assets composable must not reference certification image fields')
+assert(!api.includes('IdCardFront') && !api.includes('idCardFront') && !api.includes('idCardBack'), 'driver API wrapper must not reference certification image fields')
+assert(!home.includes('DriverCertificationPanel'), 'driver home must not re-import the certification panel (certification is a standalone page)')
+assert(driverFormat.includes('export function yuanToCents'), 'driver formatter must expose explicit yuan-to-cents conversion for withdraw records')
+assert(driverAssets.includes('return { ...record, amountCents: yuanToCents(record?.amount) }'), 'driver assets must normalize withdraw amount from yuan to amountCents at the data boundary')
+assert(walletPage.includes('formatPrice(record.amountCents)'), 'driver wallet page must render normalized withdraw amountCents')
+assert(!walletPage.includes('withdrawAmountCents'), 'driver wallet page must not keep a misleading local withdraw amount converter')
 assert(incomePage.includes('incomeBills'), 'income page must render income details independently')
 assert(orderRecordsPage.includes('listDriverOrders'), 'order records page must load driver order history')
 assert(driverRouter.includes("path: '/mine/wallet'"), 'driver router must expose wallet page')

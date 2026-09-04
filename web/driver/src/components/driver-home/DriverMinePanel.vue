@@ -10,7 +10,7 @@
       <button type="button" @click="openMinePage('/mine/wallet')">去提现 <van-icon name="arrow" /></button>
     </section>
     <section class="mine-orders section-block"><h3>订单概览 <button @click="openMinePage('/mine/orders')">全部订单 <van-icon name="arrow" /></button></h3><div class="order-stats"><span><van-icon name="orders-o" /><b>{{ orderStats.total }}</b><small>全部订单</small></span><span><van-icon name="clock-o" /><b>{{ orderStats.pending }}</b><small>待服务</small></span><span><van-icon name="location-o" /><b>{{ orderStats.serving }}</b><small>服务中</small></span><span><van-icon name="checked" /><b>{{ orderStats.done }}</b><small>已完成</small></span><span><van-icon name="close" /><b>{{ orderStats.cancelled }}</b><small>已取消</small></span></div></section>
-    <section class="section-block"><h3>更多服务</h3><div class="tool-grid"><button v-for="tool in moreTools" :key="tool.label" type="button" @click="tool.action && openMinePage(tool.action)"><strong><van-icon :name="tool.icon" /></strong><span>{{ tool.label }}</span></button></div></section>
+    <section class="section-block"><h3>更多服务</h3><div class="tool-grid"><button v-for="tool in moreTools" :key="tool.label" type="button" @click="openTool(tool)"><strong><van-icon :name="tool.icon" /></strong><span>{{ tool.label }}</span></button></div></section>
     <div class="mine-list">
       <button type="button" @click="showServiceScore">服务分 <span>{{ displayServiceScore }} <i>›</i></span></button>
       <button type="button" @click="$emit('open-reviews')">乘客评价 <span><i>›</i></span></button>
@@ -24,7 +24,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { showDialog } from 'vant'
+import { showDialog, showToast } from 'vant'
 
 const router = useRouter()
 const props = defineProps({
@@ -39,9 +39,9 @@ const props = defineProps({
 
 const displayServiceScore = computed(() => props.serviceScore || props.driverStore.driver?.serviceScore || '--')
 
-// 原型图中的工具入口，仅保留已有业务事件，未接入功能不执行跳转。
+// 原型图中的工具入口：已接入功能跳独立页面，未接入功能提示暂未开放。
 const moreTools = [
-  { label: '车辆管理', icon: 'logistics', action: '/mine/vehicle' }, { label: '费用明细', icon: 'balance-list-o' },
+  { label: '车辆管理', icon: 'logistics', action: '/mine/vehicle' }, { label: '收益明细', icon: 'balance-list-o', action: '/mine/income' },
   { label: '发票中心', icon: 'description' }, { label: '银行卡', icon: 'card' }, { label: '邀请有奖', icon: 'friends-o' }
 ]
 
@@ -55,6 +55,14 @@ defineEmits([
 async function openMinePage(path) {
   await router.replace({ path: '/home', query: { tab: 'mine' } })
   router.push(path)
+}
+
+function openTool(tool) {
+  if (!tool.action) {
+    showToast(`${tool.label}暂未开放`)
+    return
+  }
+  openMinePage(tool.action)
 }
 
 function showServiceScore() {

@@ -15,8 +15,9 @@ import {
   uploadCertification
 } from '@/api/driver'
 import { useDriverStore } from '@/stores/driver'
-import { compact, dateToUnixSeconds, unixSecondsToDateInput } from '@/utils/driver-format'
+import { compact, dateToUnixSeconds, unixSecondsToDateInput, yuanToCents } from '@/utils/driver-format'
 import { resolveCreatedVehicle as resolveVehicleRecord } from '@/utils/vehicle'
+import { apiErrorMessage, safeApiCall } from '@/utils/safe-request'
 
 export function useDriverAssets() {
   const driverStore = useDriverStore()
@@ -31,15 +32,8 @@ export function useDriverAssets() {
     insuranceNo: '',
     insuranceExpireAt: ''
   })
-  const certificationForm = reactive({ idCardFront: '', idCardBack: '', driverLicense: '', vehicleLicense: '' })
-  const certUploading = reactive({ idCardFront: false, idCardBack: false, driverLicense: false, vehicleLicense: false })
+  const certificationForm = reactive({ idCardNo: '', realName: '', driverLicenseNo: '' })
   const certSubmitting = ref(false)
-  const certItems = [
-    { key: 'idCardFront', title: '身份证正面', tip: '人像面，信息清晰' },
-    { key: 'idCardBack', title: '身份证反面', tip: '国徽面，有效期清晰' },
-    { key: 'driverLicense', title: '驾驶证', tip: '正副页，准驾车型清晰' },
-    { key: 'vehicleLicense', title: '行驶证', tip: '正副页，车牌号清晰' }
-  ]
   const incomeSummary = ref({})
   const todayIncome = ref({})
   const weekIncome = ref({})
@@ -85,7 +79,7 @@ export function useDriverAssets() {
       }
     }
     if (!driverStore.vehicleId) return null
-    const res = await safeApiCall(() => getVehicle(driverStore.vehicleId, config), '车辆查询失败', { silent: config.silentError })
+    const res = await safeApiCall(() => getVehicle(driverStore.vehicleId, config))
     if (!res) return null
     driverStore.setVehicle(res.vehicle || res)
     syncVehicleForm()
@@ -95,13 +89,13 @@ export function useDriverAssets() {
   async function submitVehicle() {
     const payload = vehiclePayload()
     if (driverStore.vehicleId) {
-      const res = await safeApiCall(() => updateVehicle({ ...payload, id: driverStore.vehicleId }), '车辆更新失败')
+      const res = await safeApiCall(() => updateVehicle({ ...payload, id: driverStore.vehicleId }))
       if (!res) return null
       showToast('车辆已更新')
       await loadVehicle()
       return res
     }
-    const res = await safeApiCall(() => createVehicle(payload), '车辆提交失败')
+    const res = await safeApiCall(() => createVehicle(payload))
     if (!res) return null
     const vehicle = await resolveVehicleRecord(payload, res, (id) => getVehicle(id, { silentError: true }))
     driverStore.setVehicle(vehicle)
@@ -115,7 +109,7 @@ export function useDriverAssets() {
       showToast('请先查询或提交车辆')
       return null
     }
-    const res = await safeApiCall(() => updateVehicle({ ...vehiclePayload(), id: driverStore.vehicleId }), '车辆更新失败')
+    const res = await safeApiCall(() => updateVehicle({ ...vehiclePayload(), id: driverStore.vehicleId }))
     if (!res) return null
     showToast('车辆已更新')
     await loadVehicle()
@@ -132,7 +126,7 @@ export function useDriverAssets() {
     } catch {
       return null
     }
-    const res = await safeApiCall(() => deleteVehicle(driverStore.vehicleId), '车辆删除失败')
+    const res = await safeApiCall(() => deleteVehicle(driverStore.vehicleId))
     if (!res) return null
     driverStore.setVehicle(null)
     showToast('车辆已删除')
@@ -140,10 +134,36 @@ export function useDriverAssets() {
   }
 
   async function loadCertification(config = {}) {
-    const res = await safeApiCall(() => getCertification(config), '资质查询失败', { silent: config.silentError })
+    const res = await safeApiCall(() => getCertification(config))
     if (!res) return null
     driverStore.setCertification(res.found === false ? null : (res.certification || res))
     return res
+  }
+
+  function syncCertificationForm() {
+    const driver = driverStore.driver || {}
+    certificationForm.idCardNo = driver.idCardNo || ''
+    certificationForm.realName = driver.realName || ''
+    certificationForm.driverLicenseNo = driver.driverLicenseNo || ''
+  }
+
+  function validateCertification() {
+    const idCard = (certificationForm.idCardNo || '').trim()
+    const name = (certificationForm.realName || '').trim()
+    const licenseNo = (certificationForm.driverLicenseNo || '').trim()
+    if (!/^\d{17}[\dXx]$/.test(idCard)) {
+      showToast('请输入正确的 18 位身份证号')
+      return false
+    }
+    if (name.length < 2) {
+      showToast('请输入真实姓名')
+      return false
+    }
+    if (!licenseNo) {
+      showToast('请输入驾驶证编号')
+      return false
+    }
+    return true
   }
 
   async function submitCertification() {
@@ -152,21 +172,16 @@ export function useDriverAssets() {
       showToast('请先绑定车辆')
       return null
     }
-    const hasImage = certItems.some((item) => certificationForm[item.key])
-    if (!hasImage) {
-      showToast('请至少上传一项资质图片')
-      return null
-    }
+    if (!validateCertification()) return null
     certSubmitting.value = true
-    const payload = compact({
+    const payload = {
       vehicleId: Number(vehicleId),
-      idCardFront: certificationForm.idCardFront,
-      idCardBack: certificationForm.idCardBack,
-      driverLicense: certificationForm.driverLicense,
-      vehicleLicense: certificationForm.vehicleLicense
-    })
+      idCardNo: certificationForm.idCardNo.trim(),
+      realName: certificationForm.realName.trim(),
+      driverLicenseNo: certificationForm.driverLicenseNo.trim()
+    }
     try {
-      const res = await safeApiCall(() => uploadCertification(payload), '资质上传失败')
+      const res = await safeApiCall(() => uploadCertification(payload))
       if (!res) return null
       showToast('资质已提交，请等待审核')
       await loadCertification()
@@ -176,41 +191,25 @@ export function useDriverAssets() {
     }
   }
 
-  async function readCertFile(event, field) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('图片不能超过5MB')
-      event.target.value = ''
-      return
-    }
-    certUploading[field] = true
-    try {
-      certificationForm[field] = await fileToBase64(file)
-    } finally {
-      certUploading[field] = false
-      event.target.value = ''
-    }
-  }
-
-  function removeCertImage(field) {
-    certificationForm[field] = ''
-  }
-
   async function loadIncome(config = {}) {
+    // 五个请求固定静默：失败统一由下方 showIncomeLoadFailure 汇总成一个弹窗，
+    // 否则每个请求都会各自触发拦截器 Toast，连弹 5 次后再叠一个弹窗。
+    const silent = { silentError: true }
     const incomeRequests = [
-      { label: '收入汇总', task: () => getIncomeSummary(config) },
-      { label: '今日收入', task: () => getTodayIncome(config) },
-      { label: '本周收入', task: () => getWeekIncome(config) },
-      { label: '收入明细', task: () => listIncomeBills({ page: 1, pageSize: 20 }, config) },
-      { label: '提现记录', task: () => listWithdraws({ page: 1, pageSize: 20 }, config) }
+      { label: '收入汇总', task: () => getIncomeSummary(silent) },
+      { label: '今日收入', task: () => getTodayIncome(silent) },
+      { label: '本周收入', task: () => getWeekIncome(silent) },
+      { label: '收入明细', task: () => listIncomeBills({ page: 1, pageSize: 20 }, silent) },
+      { label: '提现记录', task: () => listWithdraws({ page: 1, pageSize: 20 }, silent) }
     ]
     const [summary, today, week, bills, withdraws] = await Promise.allSettled(incomeRequests.map((item) => item.task()))
     incomeSummary.value = summary.status === 'fulfilled' ? summary.value : {}
     todayIncome.value = today.status === 'fulfilled' ? today.value : {}
     weekIncome.value = week.status === 'fulfilled' ? week.value : {}
     incomeBills.value = bills.status === 'fulfilled' && Array.isArray(bills.value.list) ? bills.value.list : []
-    withdrawRecords.value = withdraws.status === 'fulfilled' && Array.isArray(withdraws.value.list) ? withdraws.value.list : []
+    withdrawRecords.value = withdraws.status === 'fulfilled' && Array.isArray(withdraws.value.list)
+      ? withdraws.value.list.map(normalizeWithdrawRecord)
+      : []
 
     if (!config.silentError) {
       const failures = [summary, today, week, bills, withdraws]
@@ -225,6 +224,8 @@ export function useDriverAssets() {
     withdrawVisible.value = true
   }
 
+  // 注意：后端 /withdraws 期望的 amount 单位为「元」（driver_withdraw.amount 为 DECIMAL(10,2)），
+  // 与收入的「分」不同，此处不可换算。展示侧的单位差异由 normalizeWithdrawRecord 收敛。
   async function submitWithdraw() {
     const amount = Number(withdrawForm.amount)
     if (!Number.isFinite(amount) || amount <= 0 || !withdrawForm.payeeName.trim() || !withdrawForm.payAccount.trim()) {
@@ -237,7 +238,7 @@ export function useDriverAssets() {
         amount,
         payeeName: withdrawForm.payeeName.trim(),
         payAccount: withdrawForm.payAccount.trim()
-      }), '提现申请失败')
+      }))
       if (!res) return null
       withdrawVisible.value = false
       Object.assign(withdrawForm, { amount: '', payeeName: '', payAccount: '' })
@@ -264,9 +265,8 @@ export function useDriverAssets() {
     driverStore,
     vehicleForm,
     certificationForm,
-    certUploading,
-    certItems,
     certSubmitting,
+    syncCertificationForm,
     certStatusIcon,
     incomeSummary,
     todayIncome,
@@ -284,32 +284,20 @@ export function useDriverAssets() {
     removeVehicle,
     loadCertification,
     submitCertification,
-    readCertFile,
-    removeCertImage,
+    syncCertificationForm,
     loadIncome,
     openWithdraw,
     submitWithdraw
   }
 }
 
-function safeApiCall(task, fallbackMessage = '请求失败', options = {}) {
-  return task().catch((error) => {
-    if (!options.silent) showToast(apiErrorMessage(error, fallbackMessage))
-    return null
-  })
-}
-
-function apiErrorMessage(error, fallbackMessage = '请求失败') {
-  return error?.response?.data?.message || error?.message || fallbackMessage
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('文件读取失败'))
-    reader.readAsDataURL(file)
-  })
+/**
+ * 提现记录单位归一化：后端 withdraw.amount 为「元」，前端统一按「分」展示。
+ * 在此数据入口一次性转成 amountCents，视图层即可与收入字段（incomeCents 等）共用 formatPrice，
+ * 无需各自做单位换算。详见 utils/driver-format.js 中的单位契约说明。
+ */
+function normalizeWithdrawRecord(record) {
+  return { ...record, amountCents: yuanToCents(record?.amount) }
 }
 
 function showIncomeLoadFailure(failures) {

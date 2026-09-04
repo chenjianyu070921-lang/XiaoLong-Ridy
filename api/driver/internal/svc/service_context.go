@@ -365,6 +365,12 @@ type InternalRateLimitConfig struct {
 
 const defaultSigningKey = "local-development-signing-key"
 
+// localFallbackSigningKey 是本地/联调默认密钥：克隆仓库后不注入环境变量也能直接启动。
+// 注意与 defaultSigningKey 区分——后者是必须被校验拒绝的弱默认值。
+// 必须与 rpc/driversvc/etc/driversvc.yaml 的 signingKey 保持一致，否则跨服务签名校验不通过。
+// 生产部署请用 DRIVER_SIGNING_KEY 与 DRIVERSVC_SIGNING_KEY 注入同一份强密钥覆盖。
+const localFallbackSigningKey = "driversvc-local-dev-key"
+
 const defaultCodeTTL = 5 * time.Minute
 
 func NewServiceContext(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAddr, locationGRPCAddr, redisAddr string) *ServiceContext {
@@ -457,7 +463,7 @@ func resolveSigningKey() string {
 	if key := strings.TrimSpace(os.Getenv("DRIVER_SIGNING_KEY")); key != "" {
 		return key
 	}
-	return ""
+	return localFallbackSigningKey
 }
 
 func (s *ServiceContext) ValidateSigningKey() error {

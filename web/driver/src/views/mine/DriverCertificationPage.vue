@@ -16,14 +16,10 @@
     <DriverCertificationPanel
       :driver-store="driverStore"
       :certification-form="certificationForm"
-      :cert-uploading="certUploading"
-      :cert-items="certItems"
       :cert-submitting="certSubmitting"
       :cert-status-icon="certStatusIcon"
       :format-certification-status="formatCertificationStatus"
       @load-certification="loadCertification"
-      @read-cert-file="readCertFile"
-      @remove-cert-image="removeCertImage"
       @submit-certification="submitCertification"
     />
   </main>
@@ -42,19 +38,17 @@ const router = useRouter()
 const {
   driverStore,
   certificationForm,
-  certUploading,
-  certItems,
   certSubmitting,
   certStatusIcon,
   loadCertification,
-  readCertFile,
-  removeCertImage,
-  submitCertification
+  submitCertification,
+  syncCertificationForm
 } = useDriverAssets()
 
-onMounted(() => {
-  void driverStore.refreshProfile({ silentError: true })
-  void loadCertification({ silentError: true })
+onMounted(async () => {
+  await driverStore.refreshProfile({ silentError: true })
+  syncCertificationForm()
+  await loadCertification({ silentError: true })
 })
 
 function goHome() {
