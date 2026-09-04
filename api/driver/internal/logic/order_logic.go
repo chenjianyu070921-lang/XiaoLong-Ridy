@@ -157,7 +157,7 @@ func (l *OrderLogic) GetRealtimeFare(driverID int64, req *types.RealtimeFareRequ
 	}
 	resp, err := priceClient.EstimatePrice(l.ctx, &priceproto.EstimatePriceRequest{
 		UserId:    order.GetUserId(),
-		CityCode:  "110000",
+		CityCode:  order.GetCityCode(),
 		CarType:   order.GetCarType(),
 		DistanceM: req.ActualDistanceM,
 		DurationS: req.ActualDurationS,

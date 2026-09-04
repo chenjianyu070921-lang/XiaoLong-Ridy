@@ -19,6 +19,15 @@ import { compact, dateToUnixSeconds, unixSecondsToDateInput, yuanToCents } from 
 import { resolveCreatedVehicle as resolveVehicleRecord } from '@/utils/vehicle'
 import { apiErrorMessage, safeApiCall } from '@/utils/safe-request'
 
+function isValidIDCard(idCard) {
+  const value = String(idCard || '').trim().toUpperCase()
+  if (!/^\d{17}[\dX]$/.test(value)) return false
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+  const checks = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+  const sum = weights.reduce((total, weight, index) => total + Number(value[index]) * weight, 0)
+  return checks[sum % 11] === value[17]
+}
+
 export function useDriverAssets() {
   const driverStore = useDriverStore()
 
@@ -151,7 +160,7 @@ export function useDriverAssets() {
     const idCard = (certificationForm.idCardNo || '').trim()
     const name = (certificationForm.realName || '').trim()
     const licenseNo = (certificationForm.driverLicenseNo || '').trim()
-    if (!/^\d{17}[\dXx]$/.test(idCard)) {
+    if (!isValidIDCard(idCard)) {
       showToast('请输入正确的 18 位身份证号')
       return false
     }

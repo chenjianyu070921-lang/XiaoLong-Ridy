@@ -125,6 +125,12 @@ func (m *mockPay) RefundPayment(_ context.Context, in *pay.RefundPaymentRequest,
 func (m *mockPay) SettleOrder(context.Context, *pay.SettleOrderRequest, ...grpc.CallOption) (*pay.SettleOrderResponse, error) {
 	return &pay.SettleOrderResponse{}, nil
 }
+func (m *mockPay) GetSettlement(context.Context, *pay.GetSettlementRequest, ...grpc.CallOption) (*pay.GetSettlementResponse, error) {
+	return &pay.GetSettlementResponse{}, nil
+}
+func (m *mockPay) ListSettlements(context.Context, *pay.ListSettlementsRequest, ...grpc.CallOption) (*pay.ListSettlementsResponse, error) {
+	return &pay.ListSettlementsResponse{}, nil
+}
 
 // newTestConsumer 构造测试用 OrderConsumer：Redis 用 miniredis 模拟，RPC 用 mock。
 func newTestConsumer(t *testing.T) (*OrderConsumer, *mockDispatch, *mockOrder, *mockPay, *miniredis.Miniredis) {

@@ -882,7 +882,7 @@ function renderHomeDriverMarker() {
     homeDriverMarker = new homeAMap.Marker({
       position,
       content: homeDriverPulseContent,
-      title: '?????????',
+      title: '司机当前位置',
       anchor: 'center',
       zIndex: 120
     })
@@ -1491,7 +1491,10 @@ async function loadOrderDetail(orderId) {
   const res = await safeApiCall(() => getDriverOrderDetail(Number(orderId)))
   if (!res) return
   const order = res.order || res
-  driverStore.setCurrentOrder(order, Number(order.status) === 3 ? 'trip' : Number(order.status) === 2 ? 'pickup' : driverStore.tripPhase)
+  const status = Number(order.status)
+  if ([2, 3].includes(status)) {
+    driverStore.setCurrentOrder(order, status === 3 ? 'trip' : 'pickup')
+  }
   showDialog({
     title: order.orderNo || '订单 ' + order.orderId,
     message: (order.fromAddress || '--') + '\n到\n' + (order.toAddress || '--') + '\n' + formatPrice(order.estimatedPriceCents)
@@ -1620,6 +1623,7 @@ async function submitFinishTrip() {
     }, { silentError: true })
     finishVisible.value = false
     stopRealtimeFarePolling(true)
+    previewOrder.value = null
     driverStore.setCurrentOrder(null, 'idle')
     if (driverStore.onlineStatus === 2) driverStore.setWorkState(1)
     showToast('行程已结束，应收' + formatPrice(res?.payableAmountCents))

@@ -144,6 +144,14 @@ func (f *fakePayClient) SettleOrder(_ context.Context, _ *pay.SettleOrderRequest
 	return &pay.SettleOrderResponse{}, nil
 }
 
+func (f *fakePayClient) GetSettlement(_ context.Context, _ *pay.GetSettlementRequest, _ ...grpc.CallOption) (*pay.GetSettlementResponse, error) {
+	return &pay.GetSettlementResponse{}, nil
+}
+
+func (f *fakePayClient) ListSettlements(_ context.Context, _ *pay.ListSettlementsRequest, _ ...grpc.CallOption) (*pay.ListSettlementsResponse, error) {
+	return &pay.ListSettlementsResponse{}, nil
+}
+
 func TestFinishTripCreatesPayment(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 2002, 3)

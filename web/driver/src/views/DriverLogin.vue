@@ -103,6 +103,11 @@ function validatePhone(phone) {
   return driverPhoneRegexp.test(normalizePhone(phone))
 }
 
+function validatePassword(password) {
+  const value = String(password || '')
+  return value.length >= 8 && value.length <= 72
+}
+
 async function sendCode() {
   const phone = normalizePhone(smsForm.phone)
   if (!validatePhone(phone)) {
@@ -170,6 +175,10 @@ async function handleRegister() {
   const phone = normalizePhone(registerForm.phone)
   if (!validatePhone(phone) || !registerForm.realName || !registerForm.idCardNo || !registerForm.driverLicenseNo || !registerForm.password) {
     showToast('请填写完整注册信息')
+    return
+  }
+  if (!validatePassword(registerForm.password)) {
+    showToast('密码长度需为 8-72 位')
     return
   }
 

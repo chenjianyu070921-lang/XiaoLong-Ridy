@@ -82,3 +82,19 @@
 - **文件**: `web/driver/src/views/DriverHome.vue`, `web/driver/scripts/check-driver-web.mjs`
 - **决策**: 首页底部主行程面板进入 `driving` 模板后必须按订单状态暴露“开始行程/结束行程”；结束提交统一复用 `resolveOrderId`，兼容 `orderId/orderID/id` 等订单形态。
 - **验证**: 先新增回归断言并确认 `npm run test:driver-web` Red 失败；修复后 `npm run test:driver-web` 通过；`npm run build` 通过；`go test ./api/driver/internal/logic -run "TestConfirmArrive|TestStartTrip|TestFinishTrip" -count=1` 通过；`go test ./rpc/ordersvc/internal/logic -run "TestConfirmArrive|TestStartTrip|TestFinishTrip" -count=1` 因既有 `fakePayClient` 缺少 `GetSettlement` 编译失败，未纳入本次前端修复；`git diff --check` 退出码 0。
+
+## [11:15] - 全面扫描: 除 1–9 外是否还有别的报错
+
+- **范围**: 司机端前端 `web/driver/src` —— 提现单位、重复 Toast、静默 catch。
+- **结论**: 无新增"报错类"问题（崩溃/双 Toast/单位错/纯静默无反馈均已排除）。
+- 报错收口彻底：`safeApiCall`（`utils/safe-request.js:15-19`）只"吞"成 null 不弹提示，双 Toast 不可能复发。
+- 提现单位已归一化且后端契约确认为「元」（见 10:46 条目）：提交传「元」、展示转 `amountCents`。
+- 用户操作类 catch（登录/注册/资料/验证码/切换状态/订单动作/结束行程/评价）全部带 showToast/showDialog 且无重复。
+- 仅 4–5 处无 showToast 的 catch（DriverHome:845/1010/1189/1529、DriverTrajectoryPanel:92）为地图/实时费用/轨迹加载，已有 UI 错误态兜底（homeMapError/realtimeFareError/trajectoryError/mapError），属合理降级非 bug。
+- **开放项（非前端 bug）**: 抢单池入口未补（问题9 移除不可达分支，需后端 listAvailableOrders 支撑）；其余 1–9 已处理或确认。
+
+## [12:04] - 代码审查修复: 收敛司机端 review 反馈并修复实时计费城市码
+
+- **文件**: `web/driver/src/views/DriverHome.vue`, `web/driver/src/views/DriverLogin.vue`, `web/driver/src/components/driver-home/DriverMinePanel.vue`, `web/driver/src/composables/useDriverAssets.js`, `api/driver/internal/logic/order_logic.go`, `rpc/ordersvc/proto/ordersvc.proto`, `rpc/ordersvc/internal/logic/get_order_logic.go`, `web/driver/scripts/check-driver-*.mjs`, `rpc/ordersvc/internal/logic/*_test.go`, `mq-consumer/order-event-consumer/internal/consumer/order_consumer_test.go`
+- **决策**: `compact()` 实际保留数值 0，未改生产逻辑，仅补回归断言；实时计费需由 ordersvc 暴露 `city_code` 后 driver API 透传给 pricesvc；历史订单详情不再污染 `currentOrder`。
+- **验证**: `node scripts/check-driver-login.mjs`、`node scripts/check-driver-web.mjs`、`node scripts/check-driver-vehicle-create.mjs`、`npm run build`、`go test ./api/driver/internal/logic ./rpc/ordersvc/internal/logic -count=1`、`go test ./rpc/ordersvc ./rpc/ordersvc/order ./rpc/ordersvc/internal/server ./rpc/ordersvc/internal/logic -count=1` 均通过；`go test ./...` 仅剩既有 `api/passenger TestPassengerLocationHTTPFlow` 响应解码失败。

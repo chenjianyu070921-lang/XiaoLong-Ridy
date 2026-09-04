@@ -259,7 +259,28 @@ func TestFinishTripForwardsTripMetrics(t *testing.T) {
 }
 
 func TestGetRealtimeFareRequiresOnTripOrderOwnedByDriverAndReturnsPriceDetail(t *testing.T) {
-	orderClient := &fakeOrderClient{getOrderResponseStatus: orderproto.OrderStatus_ORDER_STATUS_ON_TRIP}
+	orderClient := &fakeOrderClient{
+		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
+			1001: {
+				OrderId:             1001,
+				OrderNo:             "NO-1001",
+				UserId:              300,
+				DriverId:            25,
+				CarType:             1,
+				FromAddress:         "pickup",
+				FromLongitude:       116.391,
+				FromLatitude:        39.907,
+				ToAddress:           "destination",
+				ToLongitude:         116.481,
+				ToLatitude:          39.991,
+				EstimatedDistanceM:  12500,
+				EstimatedDurationS:  1800,
+				EstimatedPriceCents: 29900,
+				Status:              orderproto.OrderStatus_ORDER_STATUS_ON_TRIP,
+				CityCode:            "310000",
+			},
+		},
+	}
 	priceClient := &fakePriceClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
 		OrderClient: orderClient,
@@ -284,7 +305,7 @@ func TestGetRealtimeFareRequiresOnTripOrderOwnedByDriverAndReturnsPriceDetail(t 
 		t.Fatalf("GetRealtimeFare() order request = %+v", orderClient.getOrderRequest)
 	}
 	if priceClient.estimateRequest.GetUserId() != 300 ||
-		priceClient.estimateRequest.GetCityCode() != "110000" ||
+		priceClient.estimateRequest.GetCityCode() != "310000" ||
 		priceClient.estimateRequest.GetCarType() != 1 ||
 		priceClient.estimateRequest.GetDistanceM() != 13800 ||
 		priceClient.estimateRequest.GetDurationS() != 2040 {

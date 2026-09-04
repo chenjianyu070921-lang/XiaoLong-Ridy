@@ -6,7 +6,7 @@
       <button type="button" class="mine-setting" aria-label="编辑资料" @click="$emit('edit-profile')"><van-icon name="edit" /></button>
     </header>
     <section class="income-card">
-      <div><span>我的钱包（元）</span><strong>{{ formatPrice((incomeSummary?.totalIncomeCents || todayIncome?.totalIncomeCents || 0)) }}</strong><small>已完成订单 {{ incomeSummary?.completedOrders ?? '--' }}</small></div>
+      <div><span>我的钱包（元）</span><strong>{{ formatPrice(walletTotalIncomeCents) }}</strong><small>已完成订单 {{ incomeSummary?.completedOrders ?? '--' }}</small></div>
       <button type="button" @click="openMinePage('/mine/wallet')">去提现 <van-icon name="arrow" /></button>
     </section>
     <section class="mine-orders section-block"><h3>订单概览 <button @click="openMinePage('/mine/orders')">全部订单 <van-icon name="arrow" /></button></h3><div class="order-stats"><span><van-icon name="orders-o" /><b>{{ orderStats.total }}</b><small>全部订单</small></span><span><van-icon name="clock-o" /><b>{{ orderStats.pending }}</b><small>待服务</small></span><span><van-icon name="location-o" /><b>{{ orderStats.serving }}</b><small>服务中</small></span><span><van-icon name="checked" /><b>{{ orderStats.done }}</b><small>已完成</small></span><span><van-icon name="close" /><b>{{ orderStats.cancelled }}</b><small>已取消</small></span></div></section>
@@ -38,6 +38,7 @@ const props = defineProps({
 })
 
 const displayServiceScore = computed(() => props.serviceScore || props.driverStore.driver?.serviceScore || '--')
+const walletTotalIncomeCents = computed(() => props.incomeSummary?.totalIncomeCents ?? props.todayIncome?.totalIncomeCents ?? 0)
 
 // 原型图中的工具入口：已接入功能跳独立页面，未接入功能提示暂未开放。
 const moreTools = [
