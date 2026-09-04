@@ -11,6 +11,7 @@ import (
 
 	driverconfig "XiaoLong-Ridy/rpc/driversvc/internal/config"
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
+	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	"XiaoLong-Ridy/rpc/driversvc/proto"
 
@@ -72,7 +73,7 @@ func TestUploadCertificationFallsBackToLocalStorageWhenMinioUnavailable(t *testi
 		t.Fatalf("UploadCertification() error = %v", err)
 	}
 	cert := resp.GetCertification()
-	if cert.GetId() != 99 || cert.GetVehicleId() != 77 || cert.GetAuditStatus() != int32(AuditStatusPassed) {
+	if cert.GetId() != 99 || cert.GetVehicleId() != 77 || cert.GetAuditStatus() != int32(AuditStatusPending) {
 		t.Fatalf("UploadCertification() response = %+v", resp)
 	}
 	if !strings.HasPrefix(cert.GetIdCardFrontUrl(), "/api/driver/v1/certification-files/drivers/25/id_card_front-") ||
@@ -161,4 +162,10 @@ func (r *uploadCertificationRepository) GetByDriverID(ctx context.Context, _ uin
 
 func (r *uploadCertificationRepository) UpdateAudit(context.Context, int64, int64, string, int8) error {
 	return nil
+}
+func (r *uploadCertificationRepository) AdminList(context.Context, repository.AdminCertificationFilter) ([]*repository.AdminCertificationRow, int64, error) {
+	return nil, 0, nil
+}
+func (r *uploadCertificationRepository) AdminGetByID(context.Context, uint64) (*repository.AdminCertificationRow, error) {
+	return nil, repository.ErrCertificationNotFound
 }

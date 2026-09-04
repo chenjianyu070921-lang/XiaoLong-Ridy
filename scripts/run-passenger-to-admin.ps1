@@ -1,8 +1,10 @@
 ﻿# 真实乘客端 → 管理后台 全链路本地启动脚本。
 #
 # 启动的服务与端口：
-#   usersvc(50052) ordersvc(50051) dispatchsvc(50056) pricesvc(50053) paysvc(50054) driversvc(50055)
-#   adminsvc(8084) api/passenger(8091) api/admin(8717) 管理前端 vite(5173)
+#   usersvc(50052) ordersvc(50051) dispatchsvc(50056) pricesvc(50053) paysvc(50054)
+#   driversvc(50055) locationsvc(50057)
+#   adminsvc(8084) api/passenger(8091) api/admin(8717) api/driver(8082)
+#   管理前端 vite(5173) 司机前端 vite(5175) 乘客端 H5 vite(5174)
 #
 # 数据库/Redis/签名凭据不硬编码在脚本中，统一从 rpc/usersvc/etc/usersvc.yaml
 # 提取（该文件已包含真实 DSN 与 Redis 密码），adminsvc 的凭据经环境变量注入。
@@ -101,7 +103,7 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 Set-Content -LiteralPath $pidFile -Value @() -Encoding ASCII
 
 # 目标端口预检，避免误连入旧服务。
-foreach ($port in @(50051, 50052, 50053, 50054, 50055, 50056, 8084, 8091, 8717, 5173)) {
+foreach ($port in @(50051, 50052, 50053, 50054, 50055, 50056, 50057, 8084, 8091, 8717, 8082, 5173, 5174, 5175)) {
     if (-not (Test-LocalPortAvailable -Port $port)) {
         throw "端口 $port 已被占用。为避免影响已有服务，本脚本未执行任何启动操作。"
     }
@@ -321,6 +323,44 @@ PushRPC:
 "@
 Set-Content -LiteralPath $adminsvcCfg -Value $adminsvcTemplate -Encoding UTF8
 
+# 生成 locationsvc 本地运行时配置：去掉 Etcd 注册（本地无 etcd），凭据复用共享 DSN/Redis，
+# 地图 ApiKey 与默认城市编码从 locationsvc 原始配置提取，避免在脚本中硬编码。
+$locationsvcCfg = Join-Path $logDir "locationsvc.runtime.yaml"
+$locationsvcSrc = Get-Content -LiteralPath (Join-Path $RepoRoot "rpc\locationsvc\etc\locationsvc.yaml")
+$amapKeyLine = $locationsvcSrc | Where-Object { $_ -match '^\s*ApiKey:' } | Select-Object -First 1
+$amapKey = (($amapKeyLine -replace '^\s*ApiKey:\s*', '').Trim().Trim('"'))
+if ([string]::IsNullOrWhiteSpace($amapKey)) { throw "未能从 locationsvc.yaml 提取 amap ApiKey" }
+$cityCodeLine = $locationsvcSrc | Where-Object { $_ -match '^\s*defaultCityCode:' } | Select-Object -First 1
+$cityCode = (($cityCodeLine -replace '^\s*defaultCityCode:\s*', '').Trim().Trim('"'))
+if ([string]::IsNullOrWhiteSpace($cityCode)) { throw "未能从 locationsvc.yaml 提取 defaultCityCode" }
+$locationsvcTemplate = @"
+Name: locationsvc.rpc
+defaultCityCode: "$cityCode"
+ListenOn: 0.0.0.0:50057
+Mysql:
+  Dsn: "$dsn"
+  MaxOpenConn: 100
+  MaxIdleConn: 10
+  MaxLifeTime: 3600
+myredis:
+  host: 115.191.16.159:6379
+  pass: "$redisPass"
+  db: 0
+  poolSize: 20
+  dialTimeout: 0
+  readTimeout: 0
+  writeTimeout: 0
+MapService:
+  ApiKey: "$amapKey"
+  Provider: "amap"
+  BaseUrl: "https://restapi.amap.com/v3"
+Log:
+  ServiceName: locationsvc
+  Mode: console
+  Level: info
+"@
+Set-Content -LiteralPath $locationsvcCfg -Value $locationsvcTemplate -Encoding UTF8
+
 # 构建全部服务二进制（-SkipBuild 可跳过）。
 if (-not $SkipBuild) {
     Push-Location $RepoRoot
@@ -332,9 +372,11 @@ if (-not $SkipBuild) {
             @{Name = "pricesvc";     Pkg = "./rpc/pricesvc/pricesvc.go"},
             @{Name = "paysvc";       Pkg = "./rpc/paysvc/paysvc.go"},
             @{Name = "driversvc";    Pkg = "./rpc/driversvc/driversvc.go"},
+            @{Name = "locationsvc";  Pkg = "./rpc/locationsvc/locationsvc.go"},
             @{Name = "adminsvc";     Pkg = "./rpc/adminsvc/admin.go"},
             @{Name = "passenger-api";Pkg = "./api/passenger"},
-            @{Name = "admin-api";    Pkg = "./api/admin"}
+            @{Name = "admin-api";    Pkg = "./api/admin"},
+            @{Name = "driver-api";   Pkg = "./api/driver"}
         )
         foreach ($t in $targets) {
             Write-Host "构建 $($t.Name) ..."
@@ -353,9 +395,11 @@ foreach ($path in @(
     (Join-Path $binDir "pricesvc.exe"),
     (Join-Path $binDir "paysvc.exe"),
     (Join-Path $binDir "driversvc.exe"),
+    (Join-Path $binDir "locationsvc.exe"),
     (Join-Path $binDir "adminsvc.exe"),
     (Join-Path $binDir "passenger-api.exe"),
-    (Join-Path $binDir "admin-api.exe")
+    (Join-Path $binDir "admin-api.exe"),
+    (Join-Path $binDir "driver-api.exe")
 )) {
     if (-not (Test-Path -LiteralPath $path)) {
         throw "缺少构建产物：$path"
@@ -368,6 +412,9 @@ $env:ADMINSVC_REDIS_PASSWORD = $redisPass
 # 乘客端与 usersvc 共享令牌签名密钥，保证 JWT 可互验。
 $env:JWT_SIGNING_KEY = $signingKey
 $env:PASSENGER_TOKEN_SIGNING_KEY = $signingKey
+# 司机端网关与 driversvc 共享令牌签名密钥，保证司机 JWT 可互验。
+$env:DRIVER_SIGNING_KEY = $signingKey
+$env:DRIVERSVC_SIGNING_KEY = $signingKey
 
 # Go 运行时限制空闲堆保留。
 $env:GOMEMLIMIT = "256MiB"
@@ -409,25 +456,42 @@ Start-ManagedProcess -Name "driversvc" -FilePath (Join-Path $binDir "driversvc.e
     -WorkingDirectory $RepoRoot
 if (-not (Wait-LocalPort -Port 50055)) { Fail-Startup -Message "driversvc 未在 50055 监听，请查看 $logDir\driversvc.err.log" }
 
-# 7. adminsvc
+# 7. locationsvc（订单轨迹/司机位置，无下游 RPC 依赖；本地无 etcd，用运行时配置）
+Start-ManagedProcess -Name "locationsvc" -FilePath (Join-Path $binDir "locationsvc.exe") `
+    -ArgumentList @("-f", $locationsvcCfg) `
+    -WorkingDirectory (Join-Path $RepoRoot "rpc\locationsvc")
+if (-not (Wait-LocalPort -Port 50057)) { Fail-Startup -Message "locationsvc 未在 50057 监听，请查看 $logDir\locationsvc.err.log" }
+
+# 8. adminsvc
 Start-ManagedProcess -Name "adminsvc" -FilePath (Join-Path $binDir "adminsvc.exe") `
     -ArgumentList @("-f", $adminsvcCfg) `
     -WorkingDirectory (Join-Path $RepoRoot "rpc\adminsvc")
 if (-not (Wait-LocalPort -Port 8084)) { Fail-Startup -Message "adminsvc 未在 8084 监听，请查看 $logDir\adminsvc.err.log" }
 
-# 8. api/passenger（8091）
+# 9. api/passenger（8091）
 Start-ManagedProcess -Name "passenger-api" -FilePath (Join-Path $binDir "passenger-api.exe") `
     -ArgumentList @() `
     -WorkingDirectory (Join-Path $RepoRoot "api\passenger")
 if (-not (Wait-LocalPort -Port 8091)) { Fail-Startup -Message "api/passenger 未在 8091 监听，请查看 $logDir\passenger-api.err.log" }
 
-# 9. api/admin（8717）
+# 10. api/admin（8717）
 Start-ManagedProcess -Name "admin-api" -FilePath (Join-Path $binDir "admin-api.exe") `
     -ArgumentList @() `
     -WorkingDirectory (Join-Path $RepoRoot "api\admin")
 if (-not (Wait-LocalPort -Port 8717)) { Fail-Startup -Message "api/admin 未在 8717 监听，请查看 $logDir\admin-api.err.log" }
 
-# 10. 管理前端 vite（5173）
+# 11. api/driver（司机端网关 8082，下游全部指向本机 RPC）
+$env:DRIVER_HTTP_ADDR = ":8082"
+$env:DRIVER_GRPC_ADDR = "127.0.0.1:50055"
+$env:ORDER_GRPC_ADDR = "127.0.0.1:50051"
+$env:DISPATCH_GRPC_ADDR = "127.0.0.1:50056"
+$env:LOCATION_GRPC_ADDR = "127.0.0.1:9001"
+Start-ManagedProcess -Name "driver-api" -FilePath (Join-Path $binDir "driver-api.exe") `
+    -ArgumentList @("-f", (Join-Path $RepoRoot "api\driver\etc\driver.yaml")) `
+    -WorkingDirectory (Join-Path $RepoRoot "api\driver")
+if (-not (Wait-LocalPort -Port 8082)) { Fail-Startup -Message "api/driver 未在 8082 监听，请查看 $logDir\driver-api.err.log" }
+
+# 12. 管理前端 vite（5173）
 if (Test-Path (Join-Path $RepoRoot "web\admin\node_modules\vite\bin\vite.js")) {
     $env:NODE_OPTIONS = "--max-old-space-size=384"
     Start-ManagedProcess -Name "admin-web" -FilePath "node.exe" `
@@ -438,10 +502,33 @@ if (Test-Path (Join-Path $RepoRoot "web\admin\node_modules\vite\bin\vite.js")) {
     Write-Host "警告：web\admin 未安装 node_modules，跳过前端启动。"
 }
 
+# 13. 司机前端 vite（5175）
+if (Test-Path (Join-Path $RepoRoot "web\driver\node_modules\vite\bin\vite.js")) {
+    Start-ManagedProcess -Name "driver-web" -FilePath "node.exe" `
+        -ArgumentList @((Join-Path $RepoRoot "web\driver\node_modules\vite\bin\vite.js"), "--host", "127.0.0.1") `
+        -WorkingDirectory (Join-Path $RepoRoot "web\driver")
+    if (-not (Wait-LocalPort -Port 5175)) { Write-Host "警告：司机前端未在 5175 监听，请查看 $logDir\driver-web.err.log" }
+} else {
+    Write-Host "警告：web\driver 未安装 node_modules，跳过司机前端启动。"
+}
+
+# 14. 乘客端 H5 vite（5174）
+if (Test-Path (Join-Path $RepoRoot "web\user\node_modules\vite\bin\vite.js")) {
+    Start-ManagedProcess -Name "user-web" -FilePath "node.exe" `
+        -ArgumentList @((Join-Path $RepoRoot "web\user\node_modules\vite\bin\vite.js"), "--host", "127.0.0.1") `
+        -WorkingDirectory (Join-Path $RepoRoot "web\user")
+    if (-not (Wait-LocalPort -Port 5174)) { Write-Host "警告：乘客端前端未在 5174 监听，请查看 $logDir\user-web.err.log" }
+} else {
+    Write-Host "警告：web\user 未安装 node_modules，跳过乘客端前端启动。"
+}
+
 Write-Host ""
-Write-Host "乘客端 → 后台管理 全链路已启动："
+Write-Host "乘客端 → 后台管理 → 司机端 全链路已启动："
 Write-Host "  乘客端 API      http://127.0.0.1:8091"
+Write-Host "  乘客端 H5       http://127.0.0.1:5174"
 Write-Host "  管理后台        http://127.0.0.1:5173  (API 经 8717)"
-Write-Host "  RPC: usersvc=50052 ordersvc=50051 dispatchsvc=50056 pricesvc=50053 paysvc=50054 driversvc=50055 adminsvc=8084"
+Write-Host "  司机端 API      http://127.0.0.1:8082"
+Write-Host "  司机端 H5       http://127.0.0.1:5175"
+Write-Host "  RPC: usersvc=50052 ordersvc=50051 dispatchsvc=50056 pricesvc=50053 paysvc=50054 driversvc=50055 locationsvc=50057 adminsvc=8084"
 Write-Host "  日志目录：$logDir"
 Write-Host "  停止服务：.\scripts\run-passenger-to-admin.ps1 -Stop"

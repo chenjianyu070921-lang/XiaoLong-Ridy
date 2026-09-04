@@ -12,6 +12,8 @@ service Price {
   rpc CalculateDiscount(CalculateDiscountRequest) returns (CalculateDiscountResponse);
   // 实际费用落库：行程结束时由订单模块调用，将实际费用快照写入 order_price。
   rpc SaveActualOrderPrice(SaveActualOrderPriceRequest) returns (SaveActualOrderPriceResponse);
+  // 订单价格明细查询：供管理后台按订单ID查询 order_price 快照。
+  rpc GetOrderPrice(GetOrderPriceRequest) returns (OrderPriceInfo);
   // 计价规则列表查询。
   rpc ListPriceRules(PriceRuleListRequest) returns (PriceRuleListResponse);
   // 计价规则详情查询。
@@ -94,6 +96,29 @@ message SaveActualOrderPriceRequest {
 message SaveActualOrderPriceResponse {
   bool success = 1;
   int64 order_price_id = 2;      // order_price 记录ID
+}
+
+// 订单价格明细查询请求。
+message GetOrderPriceRequest {
+  int64 order_id = 1;            // 订单ID
+}
+
+// 订单价格明细（单位：分），供管理后台展示。
+message OrderPriceInfo {
+  int64 id = 1;
+  int64 order_id = 2;
+  int64 price_rule_id = 3;
+  int64 estimated_price_cents = 4;
+  int64 actual_price_cents = 5;
+  int64 base_fee_cents = 6;
+  int64 distance_fee_cents = 7;
+  int64 time_fee_cents = 8;
+  int64 night_fee_cents = 9;
+  int64 dynamic_fee_cents = 10;
+  int64 discount_amount_cents = 11;
+  int64 platform_subsidy_cents = 12;
+  int64 payable_amount_cents = 13;
+  int32 status = 14;
 }
 
 // 通用响应

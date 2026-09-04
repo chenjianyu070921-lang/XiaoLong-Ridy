@@ -31,8 +31,8 @@ func main() {
 
 	logx.DisableStat()
 
-	// ========== 配置中心：从 etcd 拉取配置，失败降级本地 yaml ==========
-	// 注意：启动前需要先把配置写入 etcd，key 为 locationsvc.yaml
+	// ========== 配置中心：优先从 etcd 拉取配置，etcd 不可用或读取失败时降级本地 yaml ==========
+	// 注意：etcd 可用时需先把配置写入 etcd，key 为 locationsvc.yaml
 	// docker exec etcd etcdctl put locationsvc.yaml < locationsvc.yaml
 	// etcd 不可用时（连接失败/拉取失败）降级加载本地文件，保证服务可启动
 	var c config.Config

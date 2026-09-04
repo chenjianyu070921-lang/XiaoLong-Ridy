@@ -61,6 +61,7 @@ func (l *GetOrderLogic) GetOrder(in *proto.GetOrderRequest) (*proto.GetOrderResp
 		PayableCents:        order.PayableCents,
 		PaidCents:           order.PaidCents,
 		RefundCents:         order.RefundCents,
+		CityCode:            order.CityCode,
 	}, nil
 }
 

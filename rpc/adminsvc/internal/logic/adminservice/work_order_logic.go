@@ -311,7 +311,12 @@ func (l *WorkOrderLogic) GetExportDownload(in *adminsvc.ExportDownloadRequest) (
 	if err != nil {
 		return nil, err
 	}
-	if in.GetAdminRole() != 1 && owner != in.GetAdminId() {
+	// 下载角色从服务端回查管理员账号真实角色，不信任客户端传入的 admin_role，防止伪造超管角色越权下载。
+	role := int32(0)
+	if admin, err := getAdminByID(l.ctx, l.svcCtx, in.GetAdminId()); err == nil && admin != nil {
+		role = admin.Role
+	}
+	if role != 1 && owner != in.GetAdminId() {
 		return nil, status.Error(codes.PermissionDenied, "无权下载该导出文件")
 	}
 	if taskStatus != "success" {

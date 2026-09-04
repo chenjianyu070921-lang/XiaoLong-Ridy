@@ -14,6 +14,7 @@ import (
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	priceproto "XiaoLong-Ridy/rpc/pricesvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -45,41 +46,6 @@ func (l *OrderLogic) AcceptOrder(driverID, orderID int64) (*types.AcceptOrderRes
 	// 接单后从 available 集合移除，避免大厅/WS 重复展示已接订单
 	l.removeFromAvailable(driverID, orderID)
 	return &types.AcceptOrderResponse{
-		OrderID: resp.GetOrderId(),
-		Status:  int32(resp.GetStatus()),
-	}, nil
-}
-
-func (l *OrderLogic) CancelOrder(driverID int64, req *types.CancelOrderRequest) (*types.CancelOrderResponse, error) {
-	if driverID <= 0 || req == nil || req.OrderID <= 0 {
-		return nil, ErrInvalidParam
-	}
-	reason := strings.TrimSpace(req.Reason)
-	if reason == "" {
-		reason = "司机取消订单"
-	}
-	client, err := l.orderClient()
-	if err != nil {
-		return nil, err
-	}
-	resp, err := client.CancelOrder(l.ctx, &orderproto.CancelOrderRequest{
-		OrderId:      req.OrderID,
-		OperatorType: constants.OperatorDriver,
-		OperatorId:   driverID,
-		Reason:       reason,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if driverClient, err := l.driverClient(); err == nil {
-		if _, sErr := driverClient.SetDriverServiceStatus(l.ctx, &driversproto.SetDriverServiceStatusRequest{
-			DriverId:     driverID,
-			OnlineStatus: 1,
-		}); sErr != nil {
-			logx.WithContext(l.ctx).Errorf("set driver online after cancel failed (order already cancelled): %v", sErr)
-		}
-	}
-	return &types.CancelOrderResponse{
 		OrderID: resp.GetOrderId(),
 		Status:  int32(resp.GetStatus()),
 	}, nil
@@ -167,6 +133,66 @@ func (l *OrderLogic) FinishTrip(driverID int64, req *types.FinishTripRequest) (*
 	}, nil
 }
 
+func (l *OrderLogic) GetRealtimeFare(driverID int64, req *types.RealtimeFareRequest) (*types.RealtimeFareResponse, error) {
+	if driverID <= 0 || req == nil || req.OrderID <= 0 || req.ActualDistanceM < 0 || req.ActualDurationS < 0 {
+		return nil, ErrInvalidParam
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	priceClient, err := l.priceClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetDriverId() != driverID {
+		return nil, ErrForbiddenDriverResource
+	}
+	if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_ON_TRIP {
+		return nil, ErrInvalidParam
+	}
+	resp, err := priceClient.EstimatePrice(l.ctx, &priceproto.EstimatePriceRequest{
+		UserId:    order.GetUserId(),
+		CityCode:  order.GetCityCode(),
+		CarType:   order.GetCarType(),
+		DistanceM: req.ActualDistanceM,
+		DurationS: req.ActualDurationS,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, ErrInvalidParam
+	}
+	detail := resp.GetDetail()
+	mapped := types.RealtimeFareDetail{}
+	if detail != nil {
+		mapped = types.RealtimeFareDetail{
+			BaseFeeCents:     detail.GetBaseFeeCents(),
+			DistanceFeeCents: detail.GetDistanceFeeCents(),
+			TimeFeeCents:     detail.GetTimeFeeCents(),
+			NightFeeCents:    detail.GetNightFeeCents(),
+			DynamicFeeCents:  detail.GetDynamicFeeCents(),
+			TotalCents:       detail.GetTotalCents(),
+		}
+	}
+	totalCents := resp.GetTotalCents()
+	if totalCents == 0 {
+		totalCents = mapped.TotalCents
+	}
+	return &types.RealtimeFareResponse{
+		OrderID:     order.GetOrderId(),
+		PriceRuleID: resp.GetPriceRuleId(),
+		TotalCents:  totalCents,
+		Source:      "pricesvc",
+		Detail:      mapped,
+	}, nil
+}
+
 func (l *OrderLogic) RejectOrder(driverID int64, req *types.RejectOrderRequest) (*types.RejectOrderResponse, error) {
 	if driverID <= 0 || req == nil || req.OrderID <= 0 {
 		return nil, ErrInvalidParam
@@ -244,7 +270,11 @@ func (l *OrderLogic) ListMyDispatches(driverID int64, page, pageSize, status int
 				OrderID:             order.GetOrderId(),
 				OrderNo:             order.GetOrderNo(),
 				FromAddress:         order.GetFromAddress(),
+				FromLongitude:       order.GetFromLongitude(),
+				FromLatitude:        order.GetFromLatitude(),
 				ToAddress:           order.GetToAddress(),
+				ToLongitude:         order.GetToLongitude(),
+				ToLatitude:          order.GetToLatitude(),
 				Status:              int32(order.GetStatus()),
 				EstimatedPriceCents: order.GetEstimatedPriceCents(),
 				CreatedAt:           order.GetCreatedAt(),
@@ -286,7 +316,11 @@ func (l *OrderLogic) ListMyOrders(driverID int64, page, pageSize, status int32) 
 			OrderID:             order.GetOrderId(),
 			OrderNo:             order.GetOrderNo(),
 			FromAddress:         order.GetFromAddress(),
+			FromLongitude:       order.GetFromLongitude(),
+			FromLatitude:        order.GetFromLatitude(),
 			ToAddress:           order.GetToAddress(),
+			ToLongitude:         order.GetToLongitude(),
+			ToLatitude:          order.GetToLatitude(),
 			Status:              int32(order.GetStatus()),
 			EstimatedPriceCents: order.GetEstimatedPriceCents(),
 			CreatedAt:           order.GetCreatedAt(),
@@ -432,7 +466,11 @@ func (l *OrderLogic) availableOrdersFromAssignedSet(orderClient svc.OrderClient,
 			OrderID:             detail.GetOrderId(),
 			OrderNo:             detail.GetOrderNo(),
 			FromAddress:         detail.GetFromAddress(),
+			FromLongitude:       detail.GetFromLongitude(),
+			FromLatitude:        detail.GetFromLatitude(),
 			ToAddress:           detail.GetToAddress(),
+			ToLongitude:         detail.GetToLongitude(),
+			ToLatitude:          detail.GetToLatitude(),
 			Status:              int32(detail.GetStatus()),
 			EstimatedPriceCents: detail.GetEstimatedPriceCents(),
 			DistanceMeters:      int64(math.Round(distance)),
@@ -529,6 +567,40 @@ func (l *OrderLogic) GetMyOrderDetail(driverID, orderID int64) (*types.GetMyOrde
 	}}, nil
 }
 
+func (l *OrderLogic) GetOrderTrajectory(driverID, orderID int64) (*types.GetOrderTrajectoryResponse, error) {
+	if driverID <= 0 || orderID <= 0 {
+		return nil, ErrInvalidParam
+	}
+	if l.svcCtx == nil || l.svcCtx.TrajectoryRepository == nil {
+		return nil, ErrTrajectoryRepositoryNotConfigured
+	}
+	records, err := l.svcCtx.TrajectoryRepository.ListByOrder(l.ctx, driverID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	points := make([]types.OrderTrajectoryPoint, 0, len(records))
+	for _, record := range records {
+		reportTime := record.RecordedAt.Unix()
+		if record.RecordedAt.IsZero() {
+			reportTime = 0
+		}
+		points = append(points, types.OrderTrajectoryPoint{
+			OrderID:    record.OrderID,
+			DriverID:   record.DriverID,
+			Longitude:  record.Longitude,
+			Latitude:   record.Latitude,
+			SpeedKmh:   record.SpeedKmh,
+			Heading:    record.Heading,
+			ReportTime: reportTime,
+		})
+	}
+	return &types.GetOrderTrajectoryResponse{
+		OrderID: orderID,
+		Points:  points,
+		Total:   int64(len(points)),
+	}, nil
+}
+
 func canDriverViewOrder(driverID int64, order *orderproto.GetOrderResponse) bool {
 	if driverID <= 0 || order == nil {
 		return false
@@ -551,6 +623,13 @@ func (l *OrderLogic) driverClient() (svc.DriverClient, error) {
 		return nil, ErrDriverClientNotConfigured
 	}
 	return l.svcCtx.DriverClient, nil
+}
+
+func (l *OrderLogic) priceClient() (svc.PriceClient, error) {
+	if l.svcCtx == nil || l.svcCtx.PriceClient == nil {
+		return nil, ErrPriceClientNotConfigured
+	}
+	return l.svcCtx.PriceClient, nil
 }
 
 func (l *OrderLogic) dispatchClient() (svc.DispatchClient, error) {

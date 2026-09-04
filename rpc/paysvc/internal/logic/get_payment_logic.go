@@ -48,6 +48,10 @@ func (l *GetPaymentLogic) GetPayment(in *proto.GetPaymentRequest) (*proto.GetPay
 		return nil, err
 	}
 
+	var paidAt int64
+	if p.PaidAt != nil {
+		paidAt = p.PaidAt.Unix()
+	}
 	return &proto.GetPaymentResponse{
 		PaymentId:         int64(p.Id),
 		PaymentNo:         p.PaymentNo,
@@ -57,5 +61,7 @@ func (l *GetPaymentLogic) GetPayment(in *proto.GetPaymentRequest) (*proto.GetPay
 		Status:            int32(p.Status),
 		TransactionId:     p.TransactionId,
 		RefundAmountCents: priceutil.YuanToCents(p.RefundAmount),
+		UserId:            int64(p.UserId),
+		PaidAt:            paidAt,
 	}, nil
 }

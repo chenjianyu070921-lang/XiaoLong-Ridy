@@ -201,6 +201,11 @@ func (s *AdminServiceServer) GetOrderTrack(ctx context.Context, in *adminsvc.Ord
 	return l.GetOrderTrack(in)
 }
 
+// GetCapacityMap 查询实时运力地图快照。
+func (s *AdminServiceServer) GetCapacityMap(ctx context.Context, in *adminsvc.CapacityMapRequest) (*adminsvc.CapacityMapResponse, error) {
+	return adminservicelogic.NewGetCapacityMapLogic(ctx, s.svcCtx).GetCapacityMap(in)
+}
+
 // 后台取消订单。
 func (s *AdminServiceServer) CancelOrder(ctx context.Context, in *adminsvc.AdminCancelOrderRequest) (*adminsvc.CommonResponse, error) {
 	l := adminservicelogic.NewCancelOrderLogic(ctx, s.svcCtx)
@@ -477,4 +482,29 @@ func (s *AdminServiceServer) HandleRiskHitRecords(ctx context.Context, in *admin
 // ListAdminAuditOutbox 查询后台通知与审计补偿任务。
 func (s *AdminServiceServer) ListAdminAuditOutbox(ctx context.Context, in *adminsvc.AdminAuditOutboxListRequest) (*adminsvc.AdminAuditOutboxListResponse, error) {
 	return adminservicelogic.NewListAdminAuditOutboxLogic(ctx, s.svcCtx).ListAdminAuditOutbox(in)
+}
+
+// AskAiAgent 提交受限运营问答。
+func (s *AdminServiceServer) AskAiAgent(ctx context.Context, in *adminsvc.AiAskRequest) (*adminsvc.AiAnswerResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).Ask(in)
+}
+
+// GetAiSuggestions 读取三个快捷问题。
+func (s *AdminServiceServer) GetAiSuggestions(ctx context.Context, in *adminsvc.AiSuggestionsRequest) (*adminsvc.AiSuggestionsResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).Suggestions(in)
+}
+
+// GetAiHistory 查询当前管理员的会话摘要。
+func (s *AdminServiceServer) GetAiHistory(ctx context.Context, in *adminsvc.AiHistoryRequest) (*adminsvc.AiHistoryResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).History(in)
+}
+
+// AiFeedback 记录回答是否有帮助。
+func (s *AdminServiceServer) AiFeedback(ctx context.Context, in *adminsvc.AiFeedbackRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).Feedback(in)
+}
+
+// DeleteAiConversation 结束并清空指定会话。
+func (s *AdminServiceServer) DeleteAiConversation(ctx context.Context, in *adminsvc.AiConversationRequest) (*adminsvc.CommonResponse, error) {
+	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).DeleteConversation(in)
 }

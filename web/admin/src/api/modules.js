@@ -78,6 +78,10 @@ export const statisticsApi = {
   exportDetail: (no) => request.get(`/export-tasks/${no}`),
   downloadExport: (no) => download(`/export-tasks/${no}/download`),
 }
+// capacityApi 读取后台聚合的实时运力地图快照。
+export const capacityApi = {
+  map: (params) => list('/capacity/map', params),
+}
 export const riskApi = {
   blacklist: (params) => list('/blacklist', params),
   add: (data) => request.post('/blacklist', data),
@@ -98,4 +102,12 @@ export const adminsApi = {
   update: (id, data) => request.put(`/admins/${id}`, data),
   setStatus: (id, data) => request.post(`/admins/${id}/status`, data),
   resetPassword: (id, data) => request.post(`/admins/${id}/reset-password`, data),
+}
+// AI 运营助手接口。
+export const aiApi = {
+  ask: (data) => request.post('/ai-agent/ask', data),
+  suggestions: () => request.get('/ai-agent/suggestions'),
+  history: () => request.get('/ai-agent/history'),
+  feedback: (data) => request.post('/ai-agent/feedback', data),
+  deleteConversation: (id) => request.delete(`/ai-agent/conversations/${id}`),
 }

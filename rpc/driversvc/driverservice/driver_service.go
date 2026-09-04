@@ -12,9 +12,13 @@ import (
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
+
 type (
+	AdminListWithdrawsRequest      = __proto.AdminListWithdrawsRequest
 	AiScoreFactor                  = __proto.AiScoreFactor
 	AuditCertificationRequest      = __proto.AuditCertificationRequest
+	AuditWithdrawRequest           = __proto.AuditWithdrawRequest
+	AuditWithdrawResponse          = __proto.AuditWithdrawResponse
 	CertificationInfo              = __proto.CertificationInfo
 	CommonResponse                 = __proto.CommonResponse
 	CreateDriverRequest            = __proto.CreateDriverRequest
@@ -29,10 +33,6 @@ type (
 	DeleteVehicleResponse          = __proto.DeleteVehicleResponse
 	Driver                         = __proto.Driver
 	FreezeDriverRequest            = __proto.FreezeDriverRequest
-	UnfreezeDriverRequest          = __proto.UnfreezeDriverRequest
-	AdminListWithdrawsRequest      = __proto.AdminListWithdrawsRequest
-	AuditWithdrawRequest           = __proto.AuditWithdrawRequest
-	AuditWithdrawResponse          = __proto.AuditWithdrawResponse
 	GetCertificationRequest        = __proto.GetCertificationRequest
 	GetCertificationResponse       = __proto.GetCertificationResponse
 	GetDriverAiScoreRequest        = __proto.GetDriverAiScoreRequest
@@ -63,6 +63,7 @@ type (
 	SetDriverOnlineResponse        = __proto.SetDriverOnlineResponse
 	SetDriverServiceStatusRequest  = __proto.SetDriverServiceStatusRequest
 	SetDriverServiceStatusResponse = __proto.SetDriverServiceStatusResponse
+	UnfreezeDriverRequest          = __proto.UnfreezeDriverRequest
 	UpdateDriverRequest            = __proto.UpdateDriverRequest
 	UpdateDriverResponse           = __proto.UpdateDriverResponse
 	UpdateVehicleRequest           = __proto.UpdateVehicleRequest
@@ -101,8 +102,8 @@ type (
 		RejectCertification(ctx context.Context, in *AuditCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		CreateWithdraw(ctx context.Context, in *CreateWithdrawRequest, opts ...grpc.CallOption) (*CreateWithdrawResponse, error)
 		ListWithdraws(ctx context.Context, in *ListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error)
-		AdminListWithdraws(ctx context.Context, in *AdminListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error)
-		AuditWithdraw(ctx context.Context, in *AuditWithdrawRequest, opts ...grpc.CallOption) (*AuditWithdrawResponse, error)
+		// 缁狅紕鎮婇崥搴″酱閸掑棝銆夐弻銉嚄閹绘劗骞囬悽瀹狀嚞閿涘苯褰查幐澶屽Ц閹降鈧礁寰冮張?ID 閸滃苯鍙ч柨顔跨槤閿涘牊褰侀悳鏉垮礋閸?閺€鑸殿儥娴?閺€鑸殿儥鐠愶附鍩涢敍澶庣箖濠娿們鈧?		AdminListWithdraws(ctx context.Context, in *AdminListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error)
+		// 缁狅紕鎮婇崥搴″酱鐎光剝鐗抽幓鎰箛閻㈠疇顕敍姝沺prove=true 閹垫挻顑欓幋鎰閿涘牏鐤嗘稉铏瑰Ц閹?2 楠炶泛鍟撻幍鎾搭儥閺冨爼妫块敍澶涚礉approve=false 閹垫挻顑欐径杈Е閿涘牏鐤嗘稉铏瑰Ц閹?3閿涘苯顦▔銊ョ箑婵夘偓绱氶妴?		AuditWithdraw(ctx context.Context, in *AuditWithdrawRequest, opts ...grpc.CallOption) (*AuditWithdrawResponse, error)
 	}
 
 	defaultDriverService struct {

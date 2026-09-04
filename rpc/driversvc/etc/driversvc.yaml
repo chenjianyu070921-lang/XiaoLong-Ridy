@@ -1,9 +1,15 @@
 Name: driversvc.rpc
 ListenOn: 0.0.0.0:50055
+# RPC 服务端 handler 超时（毫秒）。司机列表/详情需对远端 MySQL 做车辆+认证+在线的逐行聚合，
+# 默认 2000ms 会在聚合完成前掐断请求导致列表接口 DeadlineExceeded；放大到 30s。
+Timeout: 30000
 mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
-# 本地联调 JWT 签名密钥，需与 api/driver 端保持一致以便互相校验。
-signingKey: local-development-signing-key
+# JWT 签名密钥。本地/联调填明文，保证克隆仓库后可直接 make run-driversvc。
+# 生产部署请设置环境变量 DRIVERSVC_SIGNING_KEY 注入强密钥，会覆盖此处的值
+# （见 internal/config.Config.ApplyRuntimeSigningKey）。
+# 注意：不可填 "local-development-signing-key"，启动校验会拒绝该默认弱值。
+signingKey: "driversvc-local-dev-key"
 # Redis：维护司机在线状态与多端互踢（deviceID 绑定）。
 driverRedis:
   host: 115.191.16.159:6379

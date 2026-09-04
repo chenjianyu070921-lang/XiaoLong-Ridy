@@ -20,8 +20,8 @@ type fakeDriverClient struct {
 	getVehicleRequest           *driversproto.GetVehicleRequest
 	getDriverRequest            *driversproto.GetDriverRequest
 	uploadCertificationRequest  *driversproto.UploadCertificationRequest
+	createWithdrawRequest       *driversproto.CreateWithdrawRequest
 	getDriverByPhoneRequest     *driversproto.GetDriverByPhoneRequest
-	nearbyDriversRequest        *driversproto.ListNearbyDriversRequest
 	reportLocationResponse      *driversproto.ReportLocationResponse
 	setServiceStatusResponse    *driversproto.SetDriverServiceStatusResponse
 	loginResponse               *driversproto.LoginResponse
@@ -33,8 +33,8 @@ type fakeDriverClient struct {
 	getVehicleResponse          *driversproto.GetVehicleResponse
 	getDriverResponse           *driversproto.GetDriverResponse
 	uploadCertificationResponse *driversproto.UploadCertificationResponse
+	createWithdrawResponse      *driversproto.CreateWithdrawResponse
 	getDriverByPhoneResponse    *driversproto.GetDriverByPhoneResponse
-	nearbyDriversResponse       *driversproto.ListNearbyDriversResponse
 }
 
 func (f *fakeDriverClient) CreateDriver(context.Context, *driversproto.CreateDriverRequest) (*driversproto.CreateDriverResponse, error) {
@@ -146,8 +146,17 @@ func (f *fakeDriverClient) GetCertification(context.Context, *driversproto.GetCe
 	return nil, nil
 }
 
-func (f *fakeDriverClient) CreateWithdraw(context.Context, *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error) {
-	return nil, nil
+func (f *fakeDriverClient) CreateWithdraw(_ context.Context, req *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error) {
+	f.createWithdrawRequest = req
+	if f.createWithdrawResponse != nil {
+		return f.createWithdrawResponse, nil
+	}
+	return &driversproto.CreateWithdrawResponse{
+		Id:         88,
+		WithdrawNo: "WD1001",
+		Status:     1,
+		CreatedAt:  123,
+	}, nil
 }
 
 func (f *fakeDriverClient) ListWithdraws(context.Context, *driversproto.ListWithdrawsRequest) (*driversproto.ListWithdrawsResponse, error) {
@@ -214,21 +223,6 @@ func (f *fakeDriverClient) GetDriverByPhone(_ context.Context, req *driversproto
 			Phone:  req.GetPhone(),
 			Status: driversproto.DriverStatus_DRIVER_STATUS_NORMAL,
 		},
-	}, nil
-}
-
-func (f *fakeDriverClient) ListNearbyDrivers(_ context.Context, req *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error) {
-	f.nearbyDriversRequest = req
-	if f.nearbyDriversResponse != nil {
-		return f.nearbyDriversResponse, nil
-	}
-	return &driversproto.ListNearbyDriversResponse{
-		Drivers: []*driversproto.NearbyDriver{{
-			DriverId:       25,
-			Longitude:      req.GetLongitude(),
-			Latitude:       req.GetLatitude(),
-			DistanceMeters: 1200,
-		}},
 	}, nil
 }
 

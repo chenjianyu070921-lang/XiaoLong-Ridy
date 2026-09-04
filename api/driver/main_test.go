@@ -19,7 +19,9 @@ import (
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	priceproto "XiaoLong-Ridy/rpc/pricesvc/proto"
 
+	qiniuutil "XiaoLong-Ridy/common/qiniu"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/net/websocket"
@@ -117,10 +119,6 @@ func (p *pollingOrderClient) AcceptOrder(context.Context, *orderproto.AcceptOrde
 	return nil, nil
 }
 
-func (p *pollingOrderClient) CancelOrder(context.Context, *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error) {
-	return nil, nil
-}
-
 func (p *pollingOrderClient) StartTrip(context.Context, *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error) {
 	return nil, nil
 }
@@ -157,9 +155,12 @@ func TestLoadDriverConfigReadsYamlAndEnvCanOverride(t *testing.T) {
 httpAddr: ":18082"
 driverGrpcAddr: "driversvc:5055"
 orderGrpcAddr: "ordersvc:50051"
+priceGrpcAddr: "pricesvc:50053"
 dispatchGrpcAddr: "dispatchsvc:50056"
 locationGrpcAddr: "locationsvc:50057"
 redisAddr: "redis:6379"
+corsAllowedOrigins:
+  - "https://driver.example.com"
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -169,14 +170,85 @@ redisAddr: "redis:6379"
 		t.Fatalf("loadDriverConfig() error = %v", err)
 	}
 	if cfg.HTTPAddr != ":18082" || cfg.DriverGRPCAddr != "driversvc:5055" ||
-		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.DispatchGRPCAddr != "dispatchsvc:50056" ||
+		cfg.OrderGRPCAddr != "ordersvc:50051" || cfg.PriceGRPCAddr != "pricesvc:50053" ||
+		cfg.DispatchGRPCAddr != "dispatchsvc:50056" ||
 		cfg.LocationGRPCAddr != "locationsvc:50057" || cfg.RedisAddr != "redis:6379" {
 		t.Fatalf("unexpected config: %+v", cfg)
+	}
+	if len(cfg.CORSAllowedOrigins) != 1 || cfg.CORSAllowedOrigins[0] != "https://driver.example.com" {
+		t.Fatalf("corsAllowedOrigins = %#v, want driver origin", cfg.CORSAllowedOrigins)
 	}
 
 	t.Setenv("ORDER_GRPC_ADDR", "ordersvc-prod:50051")
 	if got := envOr("ORDER_GRPC_ADDR", cfg.OrderGRPCAddr); got != "ordersvc-prod:50051" {
 		t.Fatalf("env override = %q", got)
+	}
+}
+
+func TestDriverCORSAllowsConfiguredOrigin(t *testing.T) {
+	handler := withCORS(newHTTPHandler(&svc.ServiceContext{SigningKey: "cors-test-key"}), []string{"https://driver.example.com"})
+
+	preflight := httptest.NewRequest(http.MethodOptions, "/api/driver/v1/auth/login-by-password", nil)
+	preflight.Header.Set("Origin", "https://driver.example.com")
+	preflight.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	preflight.Header.Set("Access-Control-Request-Headers", "Authorization, Content-Type")
+	preflightResponse := httptest.NewRecorder()
+	handler.ServeHTTP(preflightResponse, preflight)
+
+	if preflightResponse.Code != http.StatusNoContent {
+		t.Fatalf("preflight status = %d, want %d: %s", preflightResponse.Code, http.StatusNoContent, preflightResponse.Body.String())
+	}
+	if got := preflightResponse.Header().Get("Access-Control-Allow-Origin"); got != "https://driver.example.com" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want configured origin", got)
+	}
+	if got := preflightResponse.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPost) {
+		t.Fatalf("Access-Control-Allow-Methods = %q, want POST", got)
+	}
+	if got := preflightResponse.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "Authorization") || !strings.Contains(got, "Content-Type") {
+		t.Fatalf("Access-Control-Allow-Headers = %q, want Authorization and Content-Type", got)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/auth/login-by-password", bytes.NewBufferString(`{"phone":"13800138000","password":"wrong"}`))
+	request.Header.Set("Origin", "https://driver.example.com")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if got := response.Header().Get("Access-Control-Allow-Origin"); got != "https://driver.example.com" {
+		t.Fatalf("actual response Access-Control-Allow-Origin = %q, want configured origin", got)
+	}
+}
+
+func TestDriverCORSRejectsUnconfiguredOrigin(t *testing.T) {
+	handler := withCORS(newHTTPHandler(&svc.ServiceContext{SigningKey: "cors-reject-test-key"}), []string{"https://driver.example.com"})
+
+	request := httptest.NewRequest(http.MethodOptions, "/api/driver/v1/auth/login-by-password", nil)
+	request.Header.Set("Origin", "https://evil.example.com")
+	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if got := response.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("unexpected Access-Control-Allow-Origin for unconfigured origin: %q", got)
+	}
+	if response.Code == http.StatusNoContent {
+		t.Fatalf("unconfigured origin preflight status = %d, want request to fall through without CORS approval", response.Code)
+	}
+}
+
+func TestDriverCORSOriginsEnvOverridesYaml(t *testing.T) {
+	cfg := driverConfig{CORSAllowedOrigins: []string{"https://yaml.example.com"}}
+	t.Setenv("DRIVER_CORS_ALLOWED_ORIGINS", "https://driver.example.com, https://ops.example.com")
+
+	got := driverCORSAllowedOrigins(cfg)
+
+	want := []string{"https://driver.example.com", "https://ops.example.com"}
+	if len(got) != len(want) {
+		t.Fatalf("origins = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("origins[%d] = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
 
@@ -187,6 +259,7 @@ func TestLoadDriverConfigDefaultsUseSharedBackendServer(t *testing.T) {
 	}
 	if cfg.DriverGRPCAddr != "115.191.16.159:50055" ||
 		cfg.OrderGRPCAddr != "115.191.16.159:50051" ||
+		cfg.PriceGRPCAddr != "115.191.16.159:50053" ||
 		cfg.DispatchGRPCAddr != "115.191.16.159:50056" ||
 		cfg.LocationGRPCAddr != "115.191.16.159:50057" {
 		t.Fatalf("unexpected default backend addresses: %+v", cfg)
@@ -219,8 +292,8 @@ func TestCertificationFilesRouteServesLocalStoredImages(t *testing.T) {
 
 func TestDriverAvatarUploadRequiresDriverToken(t *testing.T) {
 	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "avatar-route-auth-test-key"})
-	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/drivers/avatar/upload", bytes.NewBufferString(`{
-		"avatar": "data:image/png;base64,aGVsbG8="
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/upload/avatar-token", bytes.NewBufferString(`{
+		"extension": "png"
 	}`))
 	response := httptest.NewRecorder()
 
@@ -231,12 +304,19 @@ func TestDriverAvatarUploadRequiresDriverToken(t *testing.T) {
 	}
 }
 
-func TestDriverAvatarUploadStoresLocalImageAndReturnsURL(t *testing.T) {
+func TestDriverAvatarUploadTokenReturnsToken(t *testing.T) {
 	const signingKey = "avatar-upload-test-key"
-	dir := t.TempDir()
-	t.Setenv("DRIVER_AVATAR_LOCAL_DIR", dir)
+	qiniuClient, err := qiniuutil.NewClient(qiniuutil.Config{
+		AccessKey: "test-access-key",
+		SecretKey: "test-secret-key",
+		Bucket:    "test-bucket",
+		Domain:    "https://cdn.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: signingKey})
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: signingKey, Qiniu: qiniuClient})
 	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
 		AccountID:     25,
 		AccountType:   "driver",
@@ -247,8 +327,8 @@ func TestDriverAvatarUploadStoresLocalImageAndReturnsURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/drivers/avatar/upload", bytes.NewBufferString(`{
-		"avatar": "data:image/png;base64,aGVsbG8="
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/upload/avatar-token", bytes.NewBufferString(`{
+		"extension": "png"
 	}`))
 	request.Header.Set("Authorization", "Bearer "+token)
 	response := httptest.NewRecorder()
@@ -261,23 +341,14 @@ func TestDriverAvatarUploadStoresLocalImageAndReturnsURL(t *testing.T) {
 	var body struct {
 		Code int `json:"code"`
 		Data struct {
-			AvatarURL string `json:"avatarUrl"`
+			UploadToken string `json:"uploadToken"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if body.Data.AvatarURL == "" || !strings.HasPrefix(body.Data.AvatarURL, "/api/driver/v1/avatar-files/drivers/25/avatar-") || !strings.HasSuffix(body.Data.AvatarURL, ".png") {
-		t.Fatalf("avatarUrl = %q, want local avatar file URL", body.Data.AvatarURL)
-	}
-
-	storedPath := filepath.Join(dir, filepath.FromSlash(strings.TrimPrefix(body.Data.AvatarURL, "/api/driver/v1/avatar-files/")))
-	data, err := os.ReadFile(storedPath)
-	if err != nil {
-		t.Fatalf("avatar file was not stored: %v", err)
-	}
-	if string(data) != "hello" {
-		t.Fatalf("stored avatar data = %q, want %q", string(data), "hello")
+	if body.Data.UploadToken == "" {
+		t.Fatalf("uploadToken = %q, want non-empty upload token", body.Data.UploadToken)
 	}
 }
 
@@ -291,17 +362,16 @@ func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 		{http.MethodGet, "/api/driver/v1/vehicles/get?id=77"},
 		{http.MethodPost, "/api/driver/v1/vehicles/update"},
 		{http.MethodPost, "/api/driver/v1/vehicles/delete?id=77"},
-		{http.MethodPost, "/api/driver/v1/drivers/nearby"},
-		{http.MethodPost, "/api/driver/v1/orders/cancel"},
 		{http.MethodPost, "/api/driver/v1/orders/reject"},
 		{http.MethodPost, "/api/driver/v1/orders/dispatches"},
+		{http.MethodPost, "/api/driver/v1/orders/grab-list"},
 		{http.MethodPost, "/api/driver/v1/orders/list"},
+		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
+		{http.MethodPost, "/api/driver/v1/orders/realtime-fare"},
 		{http.MethodGet, "/api/driver/v1/income/summary"},
 		{http.MethodGet, "/api/driver/v1/income/today"},
 		{http.MethodGet, "/api/driver/v1/income/week"},
 		{http.MethodPost, "/api/driver/v1/income/bills"},
-		{http.MethodPost, "/api/driver/v1/reviews/list"},
-		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
 	}
 
 	for _, route := range routes {
@@ -313,6 +383,44 @@ func TestOrderEndpointsRequireDriverToken(t *testing.T) {
 				t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusUnauthorized, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestUnusedDriverHTTPRoutesAreNotExposed(t *testing.T) {
+	handler := newHTTPHandler(&svc.ServiceContext{SigningKey: "unused-route-test-key"})
+	routes := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/driver/v1/drivers/nearby"},
+		{http.MethodPost, "/api/driver/v1/orders/cancel"},
+	}
+	for _, route := range routes {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			request := httptest.NewRequest(route.method, route.path, bytes.NewBufferString(`{}`))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("unused driver route must not be exposed, status = %d: %s", response.Code, response.Body.String())
+			}
+		})
+	}
+
+	spec, err := os.ReadFile("driver.api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mainSource, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, route := range routes {
+		if strings.Contains(string(spec), route.path) {
+			t.Fatalf("driver.api must not declare unused route %s", route.path)
+		}
+		if strings.Contains(string(mainSource), route.path) {
+			t.Fatalf("main.go must not register unused route %s", route.path)
+		}
 	}
 }
 
@@ -334,15 +442,16 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 		{http.MethodPost, "/api/driver/v1/vehicles"},
 		{http.MethodGet, "/api/driver/v1/vehicles/get?id=1"},
 		{http.MethodPost, "/api/driver/v1/orders/available"},
+		{http.MethodPost, "/api/driver/v1/orders/grab-list"},
 		{http.MethodPost, "/api/driver/v1/orders/heatmap"},
 		{http.MethodPost, "/api/driver/v1/orders/detail"},
 		{http.MethodPost, "/api/driver/v1/orders/accept"},
 		{http.MethodPost, "/api/driver/v1/orders/reject"},
 		{http.MethodPost, "/api/driver/v1/orders/start-trip"},
 		{http.MethodPost, "/api/driver/v1/orders/confirm-arrive"},
-		{http.MethodPost, "/api/driver/v1/orders/finish-trip"},
 		{http.MethodPost, "/api/driver/v1/orders/trajectory"},
-		{http.MethodPost, "/api/driver/v1/reviews/list"},
+		{http.MethodPost, "/api/driver/v1/orders/realtime-fare"},
+		{http.MethodPost, "/api/driver/v1/orders/finish-trip"},
 		{http.MethodGet, "/api/driver/v1/income/summary"},
 		{http.MethodGet, "/api/driver/v1/income/today"},
 		{http.MethodGet, "/api/driver/v1/income/week"},
@@ -357,6 +466,164 @@ func TestDriverHTTPExternalRoutesAreRegisteredWithoutConflicts(t *testing.T) {
 				t.Fatalf("route is not externally callable, status = %d: %s", response.Code, response.Body.String())
 			}
 		})
+	}
+}
+
+type routeTrajectoryRepository struct {
+	listDriverID int64
+	listOrderID  int64
+}
+
+func (r *routeTrajectoryRepository) ListByOrder(_ context.Context, driverID, orderID int64) ([]svc.TrajectoryRecord, error) {
+	r.listDriverID = driverID
+	r.listOrderID = orderID
+	return []svc.TrajectoryRecord{{
+		OrderID:    orderID,
+		DriverID:   driverID,
+		Longitude:  116.391,
+		Latitude:   39.907,
+		SpeedKmh:   27.5,
+		Heading:    90,
+		RecordedAt: time.Unix(123, 0),
+	}}, nil
+}
+
+func (r *routeTrajectoryRepository) RecordPoint(_ context.Context, _ *svc.TrajectoryRecord) error {
+	return nil
+}
+
+type routePriceClient struct {
+	estimateRequest *priceproto.EstimatePriceRequest
+}
+
+func (r *routePriceClient) EstimatePrice(_ context.Context, req *priceproto.EstimatePriceRequest) (*priceproto.EstimatePriceResponse, error) {
+	r.estimateRequest = req
+	return &priceproto.EstimatePriceResponse{
+		PriceRuleId: 88,
+		TotalCents:  5020,
+		Detail: &priceproto.PriceDetail{
+			BaseFeeCents:     1300,
+			DistanceFeeCents: 2800,
+			TimeFeeCents:     720,
+			DynamicFeeCents:  200,
+			TotalCents:       5020,
+		},
+	}, nil
+}
+
+func TestRealtimeFareRouteReturnsPriceDetail(t *testing.T) {
+	const signingKey = "realtime-fare-route-test-key"
+	priceClient := &routePriceClient{}
+	handler := newHTTPHandler(&svc.ServiceContext{
+		SigningKey: signingKey,
+		OrderClient: &pollingOrderClient{getOrderResponse: &orderproto.GetOrderResponse{
+			OrderId:             1001,
+			UserId:              300,
+			DriverId:            25,
+			CarType:             1,
+			Status:              orderproto.OrderStatus_ORDER_STATUS_ON_TRIP,
+			EstimatedPriceCents: 29900,
+		}},
+		PriceClient: priceClient,
+	})
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/orders/realtime-fare", bytes.NewBufferString(`{
+		"orderId": 1001,
+		"actualDistanceM": 13800,
+		"actualDurationS": 2040
+	}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			OrderID     int64  `json:"orderId"`
+			PriceRuleID int64  `json:"priceRuleId"`
+			TotalCents  int64  `json:"totalCents"`
+			Source      string `json:"source"`
+			Detail      struct {
+				BaseFeeCents    int64 `json:"baseFeeCents"`
+				DynamicFeeCents int64 `json:"dynamicFeeCents"`
+				TotalCents      int64 `json:"totalCents"`
+			} `json:"detail"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Code != 0 || body.Data.OrderID != 1001 || body.Data.PriceRuleID != 88 || body.Data.TotalCents != 5020 ||
+		body.Data.Source != "pricesvc" || body.Data.Detail.BaseFeeCents != 1300 || body.Data.Detail.DynamicFeeCents != 200 ||
+		body.Data.Detail.TotalCents != 5020 {
+		t.Fatalf("unexpected realtime fare body: %s", response.Body.String())
+	}
+	if priceClient.estimateRequest.GetDistanceM() != 13800 || priceClient.estimateRequest.GetDurationS() != 2040 {
+		t.Fatalf("EstimatePrice() request = %+v", priceClient.estimateRequest)
+	}
+}
+
+func TestOrderTrajectoryRouteReturnsCurrentDriverPoints(t *testing.T) {
+	const signingKey = "trajectory-route-test-key"
+	repo := &routeTrajectoryRepository{}
+	handler := newHTTPHandler(&svc.ServiceContext{
+		SigningKey:           signingKey,
+		TrajectoryRepository: repo,
+	})
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/driver/v1/orders/trajectory", bytes.NewBufferString(`{"orderId":1001}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if repo.listDriverID != 25 || repo.listOrderID != 1001 {
+		t.Fatalf("trajectory repository request = driver:%d order:%d", repo.listDriverID, repo.listOrderID)
+	}
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			OrderID int64 `json:"orderId"`
+			Points  []struct {
+				Longitude  float64 `json:"longitude"`
+				Latitude   float64 `json:"latitude"`
+				SpeedKmh   float64 `json:"speedKmh"`
+				Heading    int32   `json:"heading"`
+				ReportTime int64   `json:"reportTime"`
+			} `json:"points"`
+			Total int64 `json:"total"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Code != 0 || body.Data.OrderID != 1001 || body.Data.Total != 1 || len(body.Data.Points) != 1 ||
+		body.Data.Points[0].Longitude != 116.391 || body.Data.Points[0].Latitude != 39.907 ||
+		body.Data.Points[0].SpeedKmh != 27.5 || body.Data.Points[0].Heading != 90 || body.Data.Points[0].ReportTime != 123 {
+		t.Fatalf("unexpected trajectory response: %s", response.Body.String())
 	}
 }
 
@@ -685,10 +952,6 @@ func (r *recordingUpdateDriverClient) DeleteVehicle(context.Context, *driverspro
 }
 
 func (r *recordingUpdateDriverClient) GetVehicle(context.Context, *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error) {
-	return nil, nil
-}
-
-func (r *recordingUpdateDriverClient) ListNearbyDrivers(context.Context, *driversproto.ListNearbyDriversRequest) (*driversproto.ListNearbyDriversResponse, error) {
 	return nil, nil
 }
 

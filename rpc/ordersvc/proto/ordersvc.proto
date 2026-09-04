@@ -105,6 +105,7 @@ message GetOrderResponse {
   int64 payable_cents = 22; // 实付金额（分）
   int64 paid_cents = 23; // 已支付金额（分）
   int64 refund_cents = 24; // 已退款金额（分）
+  string city_code = 25; // 订单城市编码，用于后续计价和派单
 }
 
 // 分页查询订单列表。

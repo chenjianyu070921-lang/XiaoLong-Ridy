@@ -53,34 +53,35 @@ func NewUploadCertificationLogic(ctx context.Context, svcCtx *svc.ServiceContext
 
 // UploadCertification 处理资质上传：解码校验图片、上传 MinIO、落库并返回访问 URL。
 func (l *UploadCertificationLogic) UploadCertification(in *proto.UploadCertificationRequest) (*proto.UploadCertificationResponse, error) {
-	// 校验司机 ID 与至少一张图片。
-	if in == nil || in.DriverId <= 0 {
+	// 校验司机 ID、车辆 ID 与至少一张图片；认证资料必须绑定当前司机的有效车辆。
+	if in == nil {
+		return nil, status.Error(codes.InvalidArgument, "请求参数不能为空")
+	}
+	if in.DriverId <= 0 {
 		return nil, errInvalidDriverID
 	}
 	if in.VehicleId <= 0 {
-		return nil, errors.New("vehicle id is required")
+		return nil, status.Error(codes.InvalidArgument, "车辆 ID 不能为空")
 	}
 	if in.IdCardFront == "" && in.IdCardBack == "" && in.DriverLicense == "" && in.VehicleLicense == "" {
 		return nil, errEmptyCertification
 	}
 	if l.svcCtx == nil || l.svcCtx.DriverVehicleRepository == nil {
-		return nil, errors.New("driver vehicle repository not ready")
+		return nil, status.Error(codes.FailedPrecondition, "车辆服务未就绪")
 	}
+	// 先校验车辆归属，再上传图片，避免错误请求在对象存储中留下无法被后台审核关联的孤立文件。
 	vehicle, err := l.svcCtx.DriverVehicleRepository.GetByID(l.ctx, uint64(in.VehicleId))
 	if err != nil {
 		if errors.Is(err, repository.ErrVehicleNotFound) {
-			return nil, status.Error(codes.NotFound, "vehicle not found")
+			return nil, status.Error(codes.NotFound, "车辆不存在")
 		}
 		return nil, err
 	}
-	if vehicle == nil {
-		return nil, status.Error(codes.NotFound, "vehicle not found")
-	}
 	if vehicle.DriverId != uint64(in.DriverId) {
-		return nil, status.Error(codes.PermissionDenied, "vehicle does not belong to driver")
+		return nil, status.Error(codes.PermissionDenied, "车辆不属于当前司机")
 	}
 	if l.svcCtx.CertificationRepository == nil {
-		return nil, errors.New("certification repository not ready")
+		return nil, status.Error(codes.FailedPrecondition, "认证服务未就绪")
 	}
 
 	// 逐类上传图片到 MinIO，得到访问 URL。
@@ -128,21 +129,12 @@ func (l *UploadCertificationLogic) UploadCertification(in *proto.UploadCertifica
 	if vehicleLicenseURL != "" {
 		cert.VehicleLicenseUrl = vehicleLicenseURL
 	}
-	// 上传即成功：直接置为审核通过，司机可立即听单，无需等待人工审核。
-	cert.AuditStatus = AuditStatusPassed
+	// 上传资质进入待审核，由后台审核通过时（UpdateAudit）联动激活司机与车辆状态。
+	cert.AuditStatus = AuditStatusPending
 
 	saved, err := l.svcCtx.CertificationRepository.Upsert(l.ctx, cert)
 	if err != nil {
 		return nil, err
-	}
-
-	// 上传即成功联动司机状态为正常（NORMAL），确保司机可立即上线听单。
-	if l.svcCtx.DriverRepository != nil {
-		if err := l.svcCtx.DriverRepository.Update(l.ctx, cert.DriverId, map[string]interface{}{
-			"status": int8(proto.DriverStatus_DRIVER_STATUS_NORMAL),
-		}); err != nil {
-			l.Errorf("update driver status to normal after certification upload failed: %v", err)
-		}
 	}
 
 	return &proto.UploadCertificationResponse{

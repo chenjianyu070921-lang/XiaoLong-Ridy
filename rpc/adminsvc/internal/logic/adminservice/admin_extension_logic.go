@@ -16,6 +16,8 @@ import (
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
+	driversvcproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	usersvcproto "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,7 +28,26 @@ const (
 	maxConcurrentExportJobs = 4
 	// exportJobQueueSize 限制尚未开始执行的导出任务数量，避免高峰请求无限积压在进程内。
 	exportJobQueueSize = 64
+	// statisticsTimeLayout 统一统计接口的时间参数和响应时间格式。
+	statisticsTimeLayout = "2006-01-02 15:04:05"
+	// statisticsDefaultRange 是未完整传入时间范围时使用的默认查询跨度。
+	statisticsDefaultRange = 30 * 24 * time.Hour
+	// statisticsMaxRange 限制实时聚合的最大查询跨度，避免大范围查询拖垮业务库。
+	statisticsMaxRange = 90 * 24 * time.Hour
+	statisticsCacheTTL = 30 * time.Second
 )
+
+// statisticsCacheGet/Set 为统计接口提供短 TTL 缓存；缓存异常时静默降级为数据库查询。
+func statisticsCacheGet(ctx context.Context, svcCtx *svc.ServiceContext, key string, target any) bool {
+	if svcCtx == nil || svcCtx.Redis == nil { return false }
+	raw, err := svcCtx.Redis.Get(ctx, key).Bytes(); if err != nil { return false }
+	return json.Unmarshal(raw, target) == nil
+}
+func statisticsCacheSet(ctx context.Context, svcCtx *svc.ServiceContext, key string, value any) {
+	if svcCtx == nil || svcCtx.Redis == nil { return }
+	raw, err := json.Marshal(value); if err == nil { _ = svcCtx.Redis.Set(ctx, key, raw, statisticsCacheTTL).Err() }
+}
+func statisticsCacheKey(kind, start, end string) string { return "admin:statistics:" + kind + ":" + start + ":" + end }
 
 // exportJob 表示已持久化、等待本实例执行的导出任务。
 // 任务编号已写入数据库，worker 只负责驱动其状态机，不在内存中保存业务数据。
@@ -81,7 +102,8 @@ func NewIssueCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Issue
 	return &IssueCouponLogic{ctx: ctx, svcCtx: svcCtx}
 }
 
-// IssueCoupon 创建发券任务，并在当前请求内完成 user_coupon 写入。
+// IssueCoupon 创建发券任务并调用 usersvc 完成用户券发放。
+// 用户券写入与券库存、领取上限、有效期校验统一由 usersvc 负责，adminsvc 不再直写 user_coupon/coupon 表。
 func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*adminsvc.CouponIssueResponse, error) {
 	if in.GetCouponId() <= 0 || in.GetAdminId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "优惠券ID和管理员ID不能为空")
@@ -90,62 +112,27 @@ func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*admins
 	if err != nil {
 		return nil, err
 	}
+	if l.svcCtx == nil || l.svcCtx.UsersSvc == nil {
+		return nil, status.Error(codes.FailedPrecondition, "user service is not running or downstream RPC is disabled")
+	}
+	userIDs := make([]uint64, 0, len(cfg.UserIDs))
+	for _, uid := range cfg.UserIDs {
+		if uid > 0 {
+			userIDs = append(userIDs, uint64(uid))
+		}
+	}
+	resp, err := l.svcCtx.UsersSvc.AdminIssueCoupon(l.ctx, &usersvcproto.AdminIssueCouponRequest{
+		CouponId:   uint64(in.GetCouponId()),
+		UserIds:    userIDs,
+		OperatorId: in.GetAdminId(),
+		Ip:         in.GetIp(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	successCount := resp.GetSuccessCount()
+	failCount := resp.GetFailCount()
 	taskNo := newAdminTaskNo("CI")
-	tx, err := l.svcCtx.MySQL.BeginTx(l.ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	var validEndAt time.Time
-	var couponStatus int32
-	var totalCount, receivedCount, perUserLimit int64
-	err = tx.QueryRowContext(l.ctx, `
-		SELECT valid_end_at, status, total_count, received_count, per_user_limit
-		FROM coupon
-		WHERE id = ?
-		FOR UPDATE
-	`, in.GetCouponId()).Scan(&validEndAt, &couponStatus, &totalCount, &receivedCount, &perUserLimit)
-	if err == sql.ErrNoRows {
-		return nil, status.Error(codes.NotFound, "优惠券不存在")
-	}
-	if err != nil {
-		return nil, err
-	}
-	// 优惠券状态约定：1 草稿、2 启用、3 停用；只有启用模板允许真正发券。
-	if couponStatus != 2 {
-		return nil, status.Error(codes.FailedPrecondition, "优惠券未启用，不能发放")
-	}
-	if time.Now().After(validEndAt) {
-		return nil, status.Error(codes.FailedPrecondition, "优惠券已过期，不能发放")
-	}
-
-	successCount, failCount := int64(0), int64(0)
-	for _, userID := range cfg.UserIDs {
-		if userID <= 0 {
-			failCount++
-			continue
-		}
-		if totalCount > 0 && receivedCount+successCount >= totalCount {
-			failCount++
-			continue
-		}
-		var userCouponCount int64
-		if err := tx.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM user_coupon WHERE user_id = ? AND coupon_id = ?`, userID, in.GetCouponId()).Scan(&userCouponCount); err != nil {
-			return nil, err
-		}
-		if perUserLimit > 0 && userCouponCount >= perUserLimit {
-			failCount++
-			continue
-		}
-		if _, err := tx.ExecContext(l.ctx, `
-			INSERT INTO user_coupon (user_id, coupon_id, order_id, status, received_at, expire_at)
-			VALUES (?, ?, 0, 1, ?, ?)
-		`, userID, in.GetCouponId(), time.Now(), validEndAt); err != nil {
-			return nil, err
-		}
-		successCount++
-	}
 	taskStatus := int32(3)
 	failureReason := ""
 	if successCount == 0 {
@@ -155,14 +142,17 @@ func (l *IssueCouponLogic) IssueCoupon(in *adminsvc.CouponIssueRequest) (*admins
 		taskStatus = 4
 		failureReason = "部分用户因参数、库存或领取上限发放失败"
 	}
+	// 发券任务、发布记录与审计日志是 adminsvc 自己的运营数据，在本地事务内落库。
+	tx, err := l.svcCtx.MySQL.BeginTx(l.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(l.ctx, `
 		INSERT INTO admin_coupon_issue_task
 			(task_no, coupon_id, target_type, target_config, total_count, success_count, fail_count, status, failure_reason, operator_id)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, taskNo, in.GetCouponId(), in.GetTargetType(), in.GetTargetConfig(), len(cfg.UserIDs), successCount, failCount, taskStatus, failureReason, in.GetAdminId()); err != nil {
-		return nil, err
-	}
-	if _, err := tx.ExecContext(l.ctx, `UPDATE coupon SET received_count = received_count + ? WHERE id = ?`, successCount, in.GetCouponId()); err != nil {
 		return nil, err
 	}
 	if err := createOperationLogTx(l.ctx, tx, in.GetAdminId(), "coupon", "issue", "coupon", in.GetCouponId(), fmt.Sprintf("创建发券任务：%s，成功%d，失败%d", taskNo, successCount, failCount), in.GetIp()); err != nil {
@@ -448,6 +438,71 @@ func (l *RollbackPromotionActivityLogic) RollbackPromotionActivity(in *adminsvc.
 	return &adminsvc.CommonResponse{Message: "ok"}, nil
 }
 
+// normalizeStatisticsRequest 统一校验并补齐统计查询的时间范围。
+// city_code 当前没有跨业务表的权威字段，因此显式拒绝城市统计，避免返回失真的结果。
+// 返回值为格式化后的开始时间、结束时间；所有参数错误均在访问数据库前返回 InvalidArgument。
+func normalizeStatisticsRequest(in *adminsvc.StatisticsRequest) (string, string, error) {
+	if in == nil {
+		in = &adminsvc.StatisticsRequest{}
+	}
+	if strings.TrimSpace(in.GetCityCode()) != "" {
+		return "", "", status.Error(codes.InvalidArgument, "当前统计暂不支持按城市筛选")
+	}
+	now := time.Now().Truncate(time.Second)
+	var start, end time.Time
+	var err error
+	if strings.TrimSpace(in.GetStartTime()) != "" {
+		start, err = time.ParseInLocation(statisticsTimeLayout, strings.TrimSpace(in.GetStartTime()), time.Local)
+		if err != nil {
+			return "", "", status.Error(codes.InvalidArgument, "开始时间格式不合法")
+		}
+	}
+	if strings.TrimSpace(in.GetEndTime()) != "" {
+		end, err = time.ParseInLocation(statisticsTimeLayout, strings.TrimSpace(in.GetEndTime()), time.Local)
+		if err != nil {
+			return "", "", status.Error(codes.InvalidArgument, "结束时间格式不合法")
+		}
+	}
+	if start.IsZero() && end.IsZero() {
+		end = now
+		start = end.Add(-statisticsDefaultRange)
+	} else if start.IsZero() {
+		start = end.Add(-statisticsDefaultRange)
+	} else if end.IsZero() {
+		end = now
+	}
+	if start.After(now) || end.After(now) {
+		return "", "", status.Error(codes.InvalidArgument, "统计时间不能晚于当前时间")
+	}
+	if end.Before(start) {
+		return "", "", status.Error(codes.InvalidArgument, "结束时间不能早于开始时间")
+	}
+	if end.Sub(start) > statisticsMaxRange {
+		return "", "", status.Error(codes.InvalidArgument, "统计时间范围不能超过90天")
+	}
+	return start.Format(statisticsTimeLayout), end.Format(statisticsTimeLayout), nil
+}
+
+// setStatisticsMeta 写入统计响应的生成时间和数据截至时间。
+// dataAsOf 使用统一规范化后的结束时间，保证六类统计接口口径一致。
+func setStatisticsMeta(resp any, dataAsOf string) {
+	generatedAt := time.Now().Truncate(time.Second).Format(statisticsTimeLayout)
+	switch value := resp.(type) {
+	case *adminsvc.StatisticsOverviewResponse:
+		value.GeneratedAt, value.DataAsOf = generatedAt, dataAsOf
+	case *adminsvc.OrderStatisticsResponse:
+		value.GeneratedAt, value.DataAsOf = generatedAt, dataAsOf
+	case *adminsvc.DriverStatisticsResponse:
+		value.GeneratedAt, value.DataAsOf = generatedAt, dataAsOf
+	case *adminsvc.FinanceStatisticsResponse:
+		value.GeneratedAt, value.DataAsOf = generatedAt, dataAsOf
+	case *adminsvc.CouponStatisticsResponse:
+		value.GeneratedAt, value.DataAsOf = generatedAt, dataAsOf
+	case *adminsvc.UserStatisticsResponse:
+		value.GeneratedAt, value.DataAsOf = generatedAt, dataAsOf
+	}
+}
+
 // GetStatisticsOverviewLogic 处理运营总览统计。
 type GetStatisticsOverviewLogic struct {
 	ctx    context.Context
@@ -461,19 +516,23 @@ func NewGetStatisticsOverviewLogic(ctx context.Context, svcCtx *svc.ServiceConte
 
 // GetStatisticsOverview 汇总用户、司机、订单、GMV、优惠券和黑名单指标。
 func (l *GetStatisticsOverviewLogic) GetStatisticsOverview(in *adminsvc.StatisticsRequest) (*adminsvc.StatisticsOverviewResponse, error) {
-	if strings.TrimSpace(in.GetCityCode()) != "" {
-		return nil, status.Error(codes.FailedPrecondition, "当前订单与支付表未保存城市编码，暂不支持按城市统计")
+	start, end, err := normalizeStatisticsRequest(in)
+	if err != nil {
+		return nil, err
 	}
+	in = &adminsvc.StatisticsRequest{StartTime: start, EndTime: end}
 	orderWhere, orderArgs := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
 	payWhere, payArgs := buildCreatedAtWhere("created_at", in.GetStartTime(), in.GetEndTime())
 	resp := &adminsvc.StatisticsOverviewResponse{}
+	cacheKey := statisticsCacheKey("overview", start, end)
+	if statisticsCacheGet(l.ctx, l.svcCtx, cacheKey, resp) { return resp, nil }
 	// 将全部聚合放入一次 SELECT，使 MySQL 在同一语句快照内计算指标，避免高并发写入造成指标互相不一致。
 	args := make([]any, 0, len(orderArgs)*3+len(payArgs))
 	args = append(args, orderArgs...)
 	args = append(args, orderArgs...)
 	args = append(args, orderArgs...)
 	args = append(args, payArgs...)
-	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+	err = l.svcCtx.MySQL.QueryRowContext(l.ctx, `
 		SELECT
 			(SELECT COUNT(1) FROM user WHERE deleted_at IS NULL),
 			(SELECT COUNT(1) FROM driver WHERE deleted_at IS NULL),
@@ -488,6 +547,8 @@ func (l *GetStatisticsOverviewLogic) GetStatisticsOverview(in *adminsvc.Statisti
 	if err != nil {
 		return nil, err
 	}
+	setStatisticsMeta(resp, end)
+	statisticsCacheSet(l.ctx, l.svcCtx, cacheKey, resp)
 	return resp, nil
 }
 
@@ -504,20 +565,24 @@ func NewGetOrderStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 
 // GetOrderStatistics 统计订单完成、取消、超时和支付异常指标。
 func (l *GetOrderStatisticsLogic) GetOrderStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.OrderStatisticsResponse, error) {
-	if strings.TrimSpace(in.GetCityCode()) != "" {
-		return nil, status.Error(codes.FailedPrecondition, "当前订单与支付表未保存城市编码，暂不支持按城市统计")
+	start, end, err := normalizeStatisticsRequest(in)
+	if err != nil {
+		return nil, err
 	}
+	in = &adminsvc.StatisticsRequest{StartTime: start, EndTime: end}
 	// 超时记录和支付记录本身的创建时间不代表订单统计时间。
 	// 统一通过订单主表的 created_at 过滤，保证五项指标使用同一订单时间范围。
 	where, args := buildCreatedAtWhere("ro.created_at", in.GetStartTime(), in.GetEndTime())
 	resp := &adminsvc.OrderStatisticsResponse{}
+	cacheKey := statisticsCacheKey("orders", start, end)
+	if statisticsCacheGet(l.ctx, l.svcCtx, cacheKey, resp) { return resp, nil }
 	queryArgs := make([]any, 0, len(args)*5)
 	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, args...)
-	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+	err = l.svcCtx.MySQL.QueryRowContext(l.ctx, `
 		SELECT
 			(SELECT COUNT(1) FROM ride_order ro `+where+`),
 			(SELECT COUNT(1) FROM ride_order ro `+appendWhere(where, "ro.status = 5")+`),
@@ -537,6 +602,8 @@ func (l *GetOrderStatisticsLogic) GetOrderStatistics(in *adminsvc.StatisticsRequ
 	}
 	resp.CompletionRate = percentText(resp.CompletedOrderCount, resp.OrderCount)
 	resp.CancelRate = percentText(resp.CanceledOrderCount, resp.OrderCount)
+	setStatisticsMeta(resp, end)
+	statisticsCacheSet(l.ctx, l.svcCtx, cacheKey, resp)
 	return resp, nil
 }
 
@@ -554,9 +621,11 @@ func NewGetDriverStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext
 // GetDriverStatistics 汇总司机入驻、审核、完单、收入、提现和服务质量指标。
 // 当前数据库没有司机在线状态和独立接单事件表，因此本接口只返回可由现有表可靠统计的字段，避免伪造运营数据。
 func (l *GetDriverStatisticsLogic) GetDriverStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.DriverStatisticsResponse, error) {
-	if strings.TrimSpace(in.GetCityCode()) != "" {
-		return nil, status.Error(codes.FailedPrecondition, "当前司机、订单与结算表未保存城市编码，暂不支持按城市统计")
+	start, end, err := normalizeStatisticsRequest(in)
+	if err != nil {
+		return nil, err
 	}
+	in = &adminsvc.StatisticsRequest{StartTime: start, EndTime: end}
 	driverWhere, driverArgs := buildCreatedAtWhere("d.created_at", in.GetStartTime(), in.GetEndTime())
 	certWhere, certArgs := buildCreatedAtWhere("dc.created_at", in.GetStartTime(), in.GetEndTime())
 	orderWhere, orderArgs := buildCreatedAtWhere("ro.created_at", in.GetStartTime(), in.GetEndTime())
@@ -565,6 +634,8 @@ func (l *GetDriverStatisticsLogic) GetDriverStatistics(in *adminsvc.StatisticsRe
 	scoreWhere, scoreArgs := buildCreatedAtWhere("ds.updated_at", in.GetStartTime(), in.GetEndTime())
 
 	resp := &adminsvc.DriverStatisticsResponse{}
+	cacheKey := statisticsCacheKey("drivers", start, end)
+	if statisticsCacheGet(l.ctx, l.svcCtx, cacheKey, resp) { return resp, nil }
 	// 将司机报表各指标放在同一条 SQL 中读取，减少多次查询带来的快照不一致。
 	args := make([]any, 0, len(driverArgs)+len(certArgs)*2+len(orderArgs)+len(settlementArgs)+len(withdrawArgs)*3+len(scoreArgs)*2)
 	args = append(args, driverArgs...)
@@ -577,7 +648,7 @@ func (l *GetDriverStatisticsLogic) GetDriverStatistics(in *adminsvc.StatisticsRe
 	args = append(args, withdrawArgs...)
 	args = append(args, scoreArgs...)
 	args = append(args, scoreArgs...)
-	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+	err = l.svcCtx.MySQL.QueryRowContext(l.ctx, `
 		SELECT
 			(SELECT COUNT(1) FROM driver WHERE deleted_at IS NULL),
 			(SELECT COUNT(1) FROM driver d `+appendWhere(driverWhere, "d.deleted_at IS NULL")+`),
@@ -597,6 +668,8 @@ func (l *GetDriverStatisticsLogic) GetDriverStatistics(in *adminsvc.StatisticsRe
 	if err != nil {
 		return nil, err
 	}
+	setStatisticsMeta(resp, end)
+	statisticsCacheSet(l.ctx, l.svcCtx, cacheKey, resp)
 	return resp, nil
 }
 
@@ -614,14 +687,18 @@ func NewGetFinanceStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContex
 // GetFinanceStatistics 汇总支付、退款、结算、平台抽佣、司机收入和平台补贴指标。
 // 金额字段以字符串返回，保持 MySQL DECIMAL 精度，不在 Go 层转为浮点数。
 func (l *GetFinanceStatisticsLogic) GetFinanceStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.FinanceStatisticsResponse, error) {
-	if strings.TrimSpace(in.GetCityCode()) != "" {
-		return nil, status.Error(codes.FailedPrecondition, "当前支付、结算与价格表未保存城市编码，暂不支持按城市统计")
+	start, end, err := normalizeStatisticsRequest(in)
+	if err != nil {
+		return nil, err
 	}
+	in = &adminsvc.StatisticsRequest{StartTime: start, EndTime: end}
 	paymentWhere, paymentArgs := buildCreatedAtWhere("p.created_at", in.GetStartTime(), in.GetEndTime())
 	settlementWhere, settlementArgs := buildCreatedAtWhere("s.created_at", in.GetStartTime(), in.GetEndTime())
 	priceWhere, priceArgs := buildCreatedAtWhere("op.created_at", in.GetStartTime(), in.GetEndTime())
 
 	resp := &adminsvc.FinanceStatisticsResponse{}
+	cacheKey := statisticsCacheKey("revenue", start, end)
+	if statisticsCacheGet(l.ctx, l.svcCtx, cacheKey, resp) { return resp, nil }
 	// 财务报表按业务记录创建时间分别统计，避免支付、结算和补贴明细被订单时间错误截断。
 	args := make([]any, 0, len(paymentArgs)*5+len(settlementArgs)*4+len(priceArgs))
 	args = append(args, paymentArgs...)
@@ -634,7 +711,7 @@ func (l *GetFinanceStatisticsLogic) GetFinanceStatistics(in *adminsvc.Statistics
 	args = append(args, settlementArgs...)
 	args = append(args, settlementArgs...)
 	args = append(args, priceArgs...)
-	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+	err = l.svcCtx.MySQL.QueryRowContext(l.ctx, `
 		SELECT
 			(SELECT COUNT(1) FROM payment p `+appendWhere(paymentWhere, "p.status = 2")+`),
 			(SELECT COALESCE(SUM(p.amount), 0) FROM payment p `+appendWhere(paymentWhere, "p.status = 2")+`),
@@ -653,6 +730,8 @@ func (l *GetFinanceStatisticsLogic) GetFinanceStatistics(in *adminsvc.Statistics
 	if err != nil {
 		return nil, err
 	}
+	setStatisticsMeta(resp, end)
+	statisticsCacheSet(l.ctx, l.svcCtx, cacheKey, resp)
 	return resp, nil
 }
 
@@ -669,11 +748,15 @@ func NewGetCouponStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext
 
 // GetCouponStatistics 统计优惠券模板、发放、使用和过期指标。
 func (l *GetCouponStatisticsLogic) GetCouponStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.CouponStatisticsResponse, error) {
-	if strings.TrimSpace(in.GetCityCode()) != "" {
-		return nil, status.Error(codes.FailedPrecondition, "当前优惠券数据未保存城市编码，暂不支持按城市统计")
+	start, end, err := normalizeStatisticsRequest(in)
+	if err != nil {
+		return nil, err
 	}
+	in = &adminsvc.StatisticsRequest{StartTime: start, EndTime: end}
 	resp := &adminsvc.CouponStatisticsResponse{}
-	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+	cacheKey := statisticsCacheKey("coupons", start, end)
+	if statisticsCacheGet(l.ctx, l.svcCtx, cacheKey, resp) { return resp, nil }
+	err = l.svcCtx.MySQL.QueryRowContext(l.ctx, `
 		SELECT
 			(SELECT COUNT(1) FROM coupon),
 			(SELECT COUNT(1) FROM coupon WHERE status = 2),
@@ -686,6 +769,8 @@ func (l *GetCouponStatisticsLogic) GetCouponStatistics(in *adminsvc.StatisticsRe
 		return nil, err
 	}
 	resp.UseRate = percentText(resp.UsedCouponCount, resp.IssuedCouponCount)
+	setStatisticsMeta(resp, end)
+	statisticsCacheSet(l.ctx, l.svcCtx, cacheKey, resp)
 	return resp, nil
 }
 
@@ -703,14 +788,18 @@ func NewGetUserStatisticsLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 // GetUserStatistics 基于现有用户、订单、工单和黑名单表实时聚合用户运营指标。
 // 当前项目没有独立 App 活跃事件表，因此 active_user_count 使用统计范围内有订单行为的用户数作为可靠口径。
 func (l *GetUserStatisticsLogic) GetUserStatistics(in *adminsvc.StatisticsRequest) (*adminsvc.UserStatisticsResponse, error) {
-	if strings.TrimSpace(in.GetCityCode()) != "" {
-		return nil, status.Error(codes.FailedPrecondition, "当前用户、订单和工单表未保存统一城市编码，暂不支持按城市统计")
+	start, end, err := normalizeStatisticsRequest(in)
+	if err != nil {
+		return nil, err
 	}
+	in = &adminsvc.StatisticsRequest{StartTime: start, EndTime: end}
 	userWhere, userArgs := buildCreatedAtWhere("u.created_at", in.GetStartTime(), in.GetEndTime())
 	orderWhere, orderArgs := buildCreatedAtWhere("ro.created_at", in.GetStartTime(), in.GetEndTime())
 	workOrderWhere, workOrderArgs := buildCreatedAtWhere("wo.created_at", in.GetStartTime(), in.GetEndTime())
 
 	resp := &adminsvc.UserStatisticsResponse{}
+	cacheKey := statisticsCacheKey("users", start, end)
+	if statisticsCacheGet(l.ctx, l.svcCtx, cacheKey, resp) { return resp, nil }
 	// 所有指标放在同一条 SELECT 中读取，保证报表口径在同一数据库快照内完成计算。
 	args := make([]any, 0, len(userArgs)+len(orderArgs)*3+len(workOrderArgs))
 	args = append(args, userArgs...)
@@ -718,7 +807,7 @@ func (l *GetUserStatisticsLogic) GetUserStatistics(in *adminsvc.StatisticsReques
 	args = append(args, orderArgs...)
 	args = append(args, orderArgs...)
 	args = append(args, workOrderArgs...)
-	err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `
+	err = l.svcCtx.MySQL.QueryRowContext(l.ctx, `
 		SELECT
 			(SELECT COUNT(1) FROM user WHERE deleted_at IS NULL),
 			(SELECT COUNT(1) FROM user u `+appendWhere(userWhere, "u.deleted_at IS NULL")+`),
@@ -744,6 +833,8 @@ func (l *GetUserStatisticsLogic) GetUserStatistics(in *adminsvc.StatisticsReques
 	}
 	resp.ReorderRate = percentText(resp.RepeatOrderUserCount, resp.OrderUserCount)
 	resp.ComplaintRate = percentText(resp.ComplaintUserCount, resp.ActiveUserCount)
+	setStatisticsMeta(resp, end)
+	statisticsCacheSet(l.ctx, l.svcCtx, cacheKey, resp)
 	return resp, nil
 }
 
@@ -1084,6 +1175,9 @@ func (l *HandleRiskHitRecordsLogic) HandleRiskHitRecords(in *adminsvc.RiskHitAct
 	if in.GetAction() == "add_blacklist" {
 		allowedRoles = []int32{1}
 	}
+	if in.GetAction() == "freeze" {
+		allowedRoles = []int32{1}
+	}
 	if err := requireAdminRoles(l.ctx, l.svcCtx, allowedRoles...); err != nil {
 		return nil, err
 	}
@@ -1160,6 +1254,28 @@ func (l *HandleRiskHitRecordsLogic) handleOneRiskHit(id int64, in *adminsvc.Risk
 			return 0, err
 		}
 		if err = createOperationLogTx(l.ctx, tx, in.GetAdminId(), "risk", "hit_create_work_order", "work_order", workOrderID, riskHitLogDetail(hit, in.GetReason()), in.GetIp()); err != nil {
+			return 0, err
+		}
+	case "freeze":
+		reason := strings.TrimSpace(in.GetReason())
+		if hit.GetTargetType() == "user" {
+			if l.svcCtx.UsersSvc == nil {
+				return 0, status.Error(codes.FailedPrecondition, "user service is not running")
+			}
+			if _, err = l.svcCtx.UsersSvc.AdminFreezeUser(l.ctx, &usersvcproto.AdminFreezeUserRequest{UserId: uint64(hit.GetTargetId()), Reason: reason, OperatorId: in.GetAdminId(), Ip: in.GetIp()}); err != nil {
+				return 0, err
+			}
+		} else if hit.GetTargetType() == "driver" {
+			if l.svcCtx.DriverSvc == nil {
+				return 0, status.Error(codes.FailedPrecondition, "driver service is not running")
+			}
+			if _, err = l.svcCtx.DriverSvc.FreezeDriver(l.ctx, &driversvcproto.FreezeDriverRequest{DriverId: hit.GetTargetId(), Reason: reason, OperatorId: in.GetAdminId(), Ip: in.GetIp()}); err != nil {
+				return 0, err
+			}
+		} else {
+			return 0, status.Error(codes.InvalidArgument, "目标类型不支持冻结")
+		}
+		if err = createOperationLogTx(l.ctx, tx, in.GetAdminId(), "risk", "hit_freeze", "risk_hit_record", id, riskHitLogDetail(hit, reason), in.GetIp()); err != nil {
 			return 0, err
 		}
 	default:
@@ -1854,6 +1970,12 @@ func applyRiskHitDisposition(item *adminsvc.RiskHitRecord, workOrderID, activeBl
 		item.HandleAction = "hit_create_work_order"
 		item.WorkOrderId = workOrderID
 	}
+	if strings.HasPrefix(reviewAction, "hit_freeze") {
+		item.HandleStatus = "frozen"
+		item.HandleAction = "hit_freeze"
+		item.HandledBy = reviewAdminID
+		item.HandledAt = formatNullTime(reviewAt)
+	}
 }
 
 // ensureRiskHitActionAllowed 在无状态字段的前提下做重复处置保护。
@@ -1877,6 +1999,14 @@ func ensureRiskHitActionAllowed(ctx context.Context, tx *sql.Tx, hit *adminsvc.R
 		}
 		if count > 0 {
 			return status.Error(codes.AlreadyExists, "命中目标已存在风控工单")
+		}
+	case "freeze":
+		var count int64
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM admin_operation_log WHERE module = 'risk' AND action = 'hit_freeze' AND target_type = 'risk_hit_record' AND target_id = ?`, hit.GetId()).Scan(&count); err != nil {
+			return err
+		}
+		if count > 0 {
+			return status.Error(codes.AlreadyExists, "命中记录已冻结处置")
 		}
 	}
 	return nil
@@ -2153,6 +2283,11 @@ func validateRiskHitActionRequest(in *adminsvc.RiskHitActionRequest) error {
 		}
 		if in.GetPriority() < 0 || in.GetPriority() > 4 {
 			return status.Error(codes.InvalidArgument, "工单优先级不合法")
+		}
+		return nil
+	case "freeze":
+		if strings.TrimSpace(in.GetReason()) == "" {
+			return status.Error(codes.InvalidArgument, "冻结原因不能为空")
 		}
 		return nil
 	default:

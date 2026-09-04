@@ -64,9 +64,10 @@ func (l *CancelOrderLogic) CancelOrder(in *adminsvc.AdminCancelOrderRequest) (*a
 	})
 	if err != nil {
 		releaseCancelOrderIdempotency(l.ctx, l.svcCtx, idempotencyKey)
-		// ordersvc 目前部分业务错误仍以普通 error 返回，经 gRPC 透传后会变成 Unknown。
-		// 后台 HTTP 层依赖 gRPC code 做统一响应映射，因此这里把明确可识别的订单不存在错误转换为 NotFound。
-		if strings.Contains(err.Error(), "orderclient not found") {
+		// ordersvc 的订单不存在错误当前以普通 error 返回（repository.ErrOrderNotFound，
+		// 错误文本为 "orderclient not found"，属于历史 find-replace 残留），经 gRPC 透传后 code 为 Unknown。
+		// 这里按 gRPC code 优先、错误文本兜底识别订单不存在，转换为 NotFound，避免后台把"订单不存在"误报为 500。
+		if status.Code(err) == codes.NotFound || strings.Contains(err.Error(), "order not found") || strings.Contains(err.Error(), "orderclient not found") {
 			return nil, status.Error(codes.NotFound, "订单不存在")
 		}
 		return nil, err

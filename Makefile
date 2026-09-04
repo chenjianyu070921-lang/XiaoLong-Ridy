@@ -1,3 +1,6 @@
+# Go 编译并行数（Windows 上默认值太高容易导致 "Insufficient system resources" 错误）
+export GOFLAGS=-p=2
+
 # RPC 服务 goctl 生成命令
 order-goctl:
 	goctl rpc protoc rpc/ordersvc/proto/ordersvc.proto \

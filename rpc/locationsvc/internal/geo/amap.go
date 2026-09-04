@@ -36,20 +36,20 @@ type AmapPoiResponse struct {
 	Info   string `json:"info"`   // 提示信息
 	Count  string `json:"count"`  // 结果总数（高德返回的是字符串）
 	Pois   []struct {
-		Name     string `json:"name"`
-		Address  string `json:"address"`
-		Location string `json:"location"` // "经度,纬度"
-		Type     string `json:"type"`     // 分类，如"商务住宅;楼宇"
-		Distance string `json:"distance"` // 距离（米）
+		Name     string      `json:"name"`
+		Address  string      `json:"address"`
+		Location string      `json:"location"` // "经度,纬度"
+		Type     string      `json:"type"`     // 分类，如"商务住宅;楼宇"
+		// distance 在 place/around 是字符串（如 "1234"），在 place/text 是数组（[]），
+		// 用 interface{} 兼容两种响应。当前 POISearch 流程仅消费 lat/lng，无需解析 distance。
+		Distance interface{} `json:"distance"`
 	} `json:"pois"`
 }
 
-// SearchPoi 调用高德"周边搜索"（place/around）接口
+// SearchPoi 统一处理 POI 检索：传入了有效经纬度时走 place/around（周边搜索），
+// 未传入经纬度时走 place/text（关键词+城市检索），避免在 lat=0/lng=0 时搜到大西洋。
 func (c *Client) SearchPoi(keyword, city string, lat, lng float64, radius, page, size int32) (*AmapPoiResponse, error) {
 	// 参数兜底：防止空值传到高德
-	if radius <= 0 {
-		radius = 5000
-	}
 	if page <= 0 {
 		page = 1
 	}
@@ -60,19 +60,28 @@ func (c *Client) SearchPoi(keyword, city string, lat, lng float64, radius, page,
 	params := url.Values{}
 	params.Set("key", c.apiKey)
 	params.Set("keywords", keyword)
-	if city != "" {
-		// 使用 adcode/citycode 和 citylimit=true，将关键字搜索限制在当前城市。
-		params.Set("city", city)
-		params.Set("citylimit", "true")
-	}
-	params.Set("location", fmt.Sprintf("%.6f,%.6f", lng, lat))
-	params.Set("radius", strconv.Itoa(int(radius)))
 	params.Set("page", strconv.Itoa(int(page)))
 	params.Set("offset", strconv.Itoa(int(size)))
 	params.Set("extensions", "base")
 	params.Set("output", "json")
 
-	reqURL := fmt.Sprintf("%s/place/around?%s", c.baseURL, params.Encode())
+	endpoint := "place/text"
+	if lat != 0 || lng != 0 {
+		// 传入有效经纬度：使用周边搜索接口，按 location+radius 限定范围。
+		endpoint = "place/around"
+		if radius <= 0 {
+			radius = 5000
+		}
+		params.Set("location", fmt.Sprintf("%.6f,%.6f", lng, lat))
+		params.Set("radius", strconv.Itoa(int(radius)))
+	}
+	if city != "" {
+		// 使用 adcode/citycode 和 citylimit=true，将关键字搜索限制在当前城市。
+		params.Set("city", city)
+		params.Set("citylimit", "true")
+	}
+
+	reqURL := fmt.Sprintf("%s/%s?%s", c.baseURL, endpoint, params.Encode())
 
 	httpResp, err := c.httpCli.Get(reqURL)
 	if err != nil {
@@ -107,7 +116,7 @@ func (r *AmapPoiResponse) ToPoiModels() []model.Poi {
 		if err != nil {
 			continue // 坐标解析失败的直接跳过，不阻塞整体
 		}
-		distance, _ := strconv.Atoi(p.Distance)
+		distance := parseAmapDistance(p.Distance)
 		list = append(list, model.Poi{
 			Name:      p.Name,
 			Address:   p.Address,
@@ -289,6 +298,24 @@ func (r *AmapRouteResponse) Polyline() string {
 		}
 	}
 	return strings.Join(parts, ";")
+}
+
+// parseAmapDistance 将高德距离字段（place/around 字符串、place/text 数组）统一为整数米。
+// 文本检索不返回距离，函数返回 0。
+func parseAmapDistance(v interface{}) int {
+	switch val := v.(type) {
+	case string:
+		n, _ := strconv.Atoi(val)
+		return n
+	case float64:
+		return int(val)
+	case []interface{}:
+		return 0
+	case nil:
+		return 0
+	default:
+		return 0
+	}
 }
 
 // parseLocation 解析高德坐标串 "经度,纬度"

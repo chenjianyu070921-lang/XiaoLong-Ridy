@@ -22,7 +22,7 @@ const (
 )
 
 // defaultTTL 在线状态默认存活时长（心跳超时阈值），超过即视为离线。
-const defaultTTL = 60 * time.Second
+const defaultTTL = 3 * time.Minute
 
 // keyPrefix 在线状态 Hash 的 key 前缀。
 const keyPrefix = "driver:online:"

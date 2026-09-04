@@ -133,6 +133,11 @@ func (h *CleanupHandler) RetryAdminAuditOutbox() error {
 	return task.NewTask(h.svcCtx).RetryAdminAuditOutbox(50)
 }
 
+// DryRunCompensationSummary 读取补偿积压概况，不执行任何补偿动作。
+func (h *CleanupHandler) DryRunCompensationSummary(ctx context.Context) (*task.CompensationSummary, error) {
+	return task.NewTask(h.svcCtx).DryRunCompensationSummary(ctx)
+}
+
 // redispatchOrder 拉取订单详情并触发派单（幂等重派）。
 func (h *CleanupHandler) redispatchOrder(orderID int64) error {
 	orderInfo, err := h.svcCtx.OrderClient.GetOrder(context.Background(), &order.GetOrderRequest{

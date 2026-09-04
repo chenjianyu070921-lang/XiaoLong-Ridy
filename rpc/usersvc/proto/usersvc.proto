@@ -45,6 +45,12 @@ service User {
   rpc AdminListUsers(AdminUserListRequest) returns (AdminUserListResponse);
   // AdminGetUser 为管理后台提供指定用户详情查询能力。
   rpc AdminGetUser(AdminUserDetailRequest) returns (AdminUser);
+  // AdminFreezeUser 为管理后台提供用户冻结能力，状态变更由 usersvc 负责。
+  rpc AdminFreezeUser(AdminFreezeUserRequest) returns (AdminFreezeUserResponse);
+  // AdminUnfreezeUser 为管理后台提供用户解冻能力，状态变更由 usersvc 负责。
+  rpc AdminUnfreezeUser(AdminFreezeUserRequest) returns (AdminFreezeUserResponse);
+  // AdminIssueCoupon 为管理后台提供批量发券能力，券库存与领取上限由 usersvc 校验。
+  rpc AdminIssueCoupon(AdminIssueCouponRequest) returns (AdminIssueCouponResponse);
   // GetWallet 查询当前用户钱包余额和流水。
   rpc GetWallet(GetWalletRequest) returns (GetWalletResponse);
   // RechargeWallet 充值并写入钱包流水。
@@ -319,6 +325,34 @@ message AdminUserListRequest {
 // AdminUserDetailRequest 表示管理后台用户详情查询条件。
 message AdminUserDetailRequest {
   uint64 id = 1;
+}
+
+// AdminFreezeUserRequest 表示管理后台冻结用户请求。
+message AdminFreezeUserRequest {
+  uint64 user_id = 1;
+  string reason = 2;
+  int64 operator_id = 3;
+  string ip = 4;
+}
+
+// AdminFreezeUserResponse 表示用户冻结或解冻结果。
+message AdminFreezeUserResponse {
+  bool success = 1;
+}
+
+// AdminIssueCouponRequest 表示管理后台批量发券请求。
+message AdminIssueCouponRequest {
+  uint64 coupon_id = 1;      // 优惠券模板 ID
+  repeated uint64 user_ids = 2; // 目标用户 ID 列表
+  int64 operator_id = 3;     // 操作管理员 ID
+  string ip = 4;             // 操作来源 IP
+}
+
+// AdminIssueCouponResponse 表示批量发券结果。
+message AdminIssueCouponResponse {
+  int64 success_count = 1;          // 发放成功的用户数
+  int64 fail_count = 2;             // 发放失败的用户数
+  repeated string failure_reasons = 3; // 失败原因，按 user_id 汇总
 }
 
 // AdminUser 表示管理后台展示的用户资料。

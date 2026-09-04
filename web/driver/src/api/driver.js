@@ -16,64 +16,60 @@ export function registerDriver(data, config = {}) {
   return driverRequest.post('/drivers/register', data, config)
 }
 
-export function updateDriver(data) {
-  return driverRequest.post('/drivers/update', data)
-}
-
-export function uploadDriverAvatar(avatar) {
-  return driverRequest.post('/drivers/avatar/upload', { avatar })
+export function updateDriver(data, config = {}) {
+  return driverRequest.post('/drivers/update', data, config)
 }
 
 export function getDriver(config = {}) {
   return driverRequest.get('/drivers/get', config)
 }
 
-export function listNearbyDrivers(data = {}, config = {}) {
-  return driverRequest.post('/drivers/nearby', data, config)
-}
-
 export function getDriverAiScore(config = {}) {
   return driverRequest.get('/drivers/ai-score', config)
 }
 
-export function setDriverOnline(data = {}) {
-  return driverRequest.post('/drivers/online', data)
+export function setDriverOnline(data = {}, config = {}) {
+  return driverRequest.post('/drivers/online', data, config)
 }
 
-export function setDriverOffline(data = {}) {
-  return driverRequest.post('/drivers/offline', data)
+export function setDriverOffline(data = {}, config = {}) {
+  return driverRequest.post('/drivers/offline', data, config)
 }
 
-export function heartbeatDriver(data) {
-  return driverRequest.post('/drivers/heartbeat', data)
+export function heartbeatDriver(data, config = {}) {
+  return driverRequest.post('/drivers/heartbeat', data, config)
 }
 
-export function reportDriverLocation(data) {
-  return driverRequest.post('/drivers/location/report', data)
+export function reportDriverLocation(data, config = {}) {
+  return driverRequest.post('/drivers/location/report', data, config)
 }
 
-export function createVehicle(data) {
-  return driverRequest.post('/vehicles', data)
+export function createVehicle(data, config = {}) {
+  return driverRequest.post('/vehicles', data, config)
 }
 
 export function getVehicle(id, config = {}) {
   return driverRequest.get('/vehicles/get', { ...config, params: { id, ...(config.params || {}) } })
 }
 
-export function updateVehicle(data) {
-  return driverRequest.post('/vehicles/update', data)
+export function updateVehicle(data, config = {}) {
+  return driverRequest.post('/vehicles/update', data, config)
 }
 
-export function deleteVehicle(id) {
-  return driverRequest.post('/vehicles/delete', { id })
+export function deleteVehicle(id, config = {}) {
+  return driverRequest.post('/vehicles/delete', { id }, config)
 }
 
-export function createWithdraw(data) {
-  return driverRequest.post('/withdraws', data)
+export function createWithdraw(data, config = {}) {
+  return driverRequest.post('/withdraws', data, config)
 }
 
-export function uploadCertification(data) {
-  return driverRequest.post('/drivers/certification/upload', data)
+export function listWithdraws(data = {}, config = {}) {
+  return driverRequest.post('/withdraws/list', data, config)
+}
+
+export function uploadCertification(data, config = {}) {
+  return driverRequest.post('/drivers/certification/upload', data, config)
 }
 
 export function getCertification(config = {}) {
@@ -104,32 +100,40 @@ export function rejectOrder(orderId, reason = '司机主动拒单', config = {})
   return driverRequest.post('/orders/reject', { orderId, reason }, config)
 }
 
-export function confirmArrive(orderId) {
-  return driverRequest.post('/orders/confirm-arrive', { orderId })
+export function confirmArrive(orderId, config = {}) {
+  return driverRequest.post('/orders/confirm-arrive', { orderId }, config)
 }
 
-export function startTrip(orderId) {
-  return driverRequest.post('/orders/start-trip', { orderId })
+export function startTrip(orderId, config = {}) {
+  return driverRequest.post('/orders/start-trip', { orderId }, config)
 }
 
-export function finishTrip(data) {
-  return driverRequest.post('/orders/finish-trip', data)
+export function finishTrip(data, config = {}) {
+  return driverRequest.post('/orders/finish-trip', data, config)
+}
+
+export function getRealtimeFare(data = {}, config = {}) {
+  return driverRequest.post('/orders/realtime-fare', data, config)
+}
+
+export function getOrderTrajectory(orderId, config = {}) {
+  return driverRequest.post('/orders/trajectory', { orderId }, config)
 }
 
 export function listAvailableOrders(data = {}, config = {}) {
-  return driverRequest.post('/orders/available', data, config)
+  return listGrabOrders(data, config)
+}
+
+export function listGrabOrders(data = {}, config = {}) {
+  return driverRequest.post('/orders/grab-list', data, config)
 }
 
 export function getOrderHeatmap(data = {}, config = {}) {
   return driverRequest.post('/orders/heatmap', data, config)
 }
 
-export function getDriverOrderDetail(orderId) {
-  return driverRequest.post('/orders/detail', { orderId })
-}
-
-export function getOrderTrajectory(orderId, config = {}) {
-  return driverRequest.post('/orders/trajectory', { orderId }, config)
+export function getDriverOrderDetail(orderId, config = {}) {
+  return driverRequest.post('/orders/detail', { orderId }, config)
 }
 
 export function listDriverOrders(data = {}, config = {}) {
@@ -140,8 +144,19 @@ export function listDriverDispatches(data = {}, config = {}) {
   return driverRequest.post('/orders/dispatches', data, config)
 }
 
-export function listPassengerReviews(data = {}, config = {}) {
-  return driverRequest.post('/reviews/list', data, config)
+export function listReceivedReviews(params = {}, config = {}) {
+  return driverRequest.get('/reviews/received', {
+    ...config,
+    params: { page: params.page || 1, pageSize: params.pageSize || 20, ...(config.params || {}) }
+  })
+}
+
+export function listGivenReviews(data = {}, config = {}) {
+  return driverRequest.post('/reviews/given', data, config)
+}
+
+export function submitDriverReview(data, config = {}) {
+  return driverRequest.post('/reviews/submit', data, config)
 }
 
 export default driverRequest

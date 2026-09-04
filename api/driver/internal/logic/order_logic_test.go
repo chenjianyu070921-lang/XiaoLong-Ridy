@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
 	"XiaoLong-Ridy/common/constants"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	priceproto "XiaoLong-Ridy/rpc/pricesvc/proto"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -21,7 +23,6 @@ type fakeOrderClient struct {
 	getOrderResponseDriverID  int64
 	getOrderResponseStatus    orderproto.OrderStatus
 	acceptRequest             *orderproto.AcceptOrderRequest
-	cancelRequest             *orderproto.CancelOrderRequest
 	arriveRequest             *orderproto.ConfirmArriveRequest
 	startRequest              *orderproto.StartTripRequest
 	finishRequest             *orderproto.FinishTripRequest
@@ -104,11 +105,6 @@ func (f *fakeOrderClient) AcceptOrder(_ context.Context, req *orderproto.AcceptO
 	return &orderproto.AcceptOrderResponse{OrderId: req.OrderId, Status: orderproto.OrderStatus_ORDER_STATUS_ACCEPTED}, nil
 }
 
-func (f *fakeOrderClient) CancelOrder(_ context.Context, req *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error) {
-	f.cancelRequest = req
-	return &orderproto.CancelOrderResponse{OrderId: req.OrderId, Status: orderproto.OrderStatus_ORDER_STATUS_CANCELLED}, nil
-}
-
 func (f *fakeOrderClient) StartTrip(_ context.Context, req *orderproto.StartTripRequest) (*orderproto.StartTripResponse, error) {
 	f.startRequest = req
 	return &orderproto.StartTripResponse{OrderId: req.OrderId, Status: orderproto.OrderStatus_ORDER_STATUS_ON_TRIP}, nil
@@ -132,6 +128,34 @@ func (f *fakeOrderClient) FinishTrip(_ context.Context, req *orderproto.FinishTr
 	}, nil
 }
 
+type fakePriceClient struct {
+	estimateRequest  *priceproto.EstimatePriceRequest
+	estimateResponse *priceproto.EstimatePriceResponse
+	estimateErr      error
+}
+
+func (f *fakePriceClient) EstimatePrice(_ context.Context, req *priceproto.EstimatePriceRequest) (*priceproto.EstimatePriceResponse, error) {
+	f.estimateRequest = req
+	if f.estimateErr != nil {
+		return nil, f.estimateErr
+	}
+	if f.estimateResponse != nil {
+		return f.estimateResponse, nil
+	}
+	return &priceproto.EstimatePriceResponse{
+		PriceRuleId: 77,
+		TotalCents:  4860,
+		Detail: &priceproto.PriceDetail{
+			BaseFeeCents:     1300,
+			DistanceFeeCents: 2600,
+			TimeFeeCents:     720,
+			NightFeeCents:    0,
+			DynamicFeeCents:  240,
+			TotalCents:       4860,
+		},
+	}, nil
+}
+
 func TestAcceptOrderForwardsDriverAndOrder(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
@@ -148,23 +172,24 @@ func TestAcceptOrderForwardsDriverAndOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrderForwardsDriverOperatorAndReason(t *testing.T) {
-	client := &fakeOrderClient{}
-	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
+type fakeOrderTrajectoryRepository struct {
+	listDriverID int64
+	listOrderID  int64
+	records      []svc.TrajectoryRecord
+	err          error
+}
 
-	resp, err := logic.CancelOrder(25, &types.CancelOrderRequest{OrderID: 1001, Reason: "driver unavailable"})
-	if err != nil {
-		t.Fatalf("CancelOrder() error = %v", err)
+func (f *fakeOrderTrajectoryRepository) ListByOrder(_ context.Context, driverID, orderID int64) ([]svc.TrajectoryRecord, error) {
+	f.listDriverID = driverID
+	f.listOrderID = orderID
+	if f.err != nil {
+		return nil, f.err
 	}
-	if resp.OrderID != 1001 || resp.Status != int32(orderproto.OrderStatus_ORDER_STATUS_CANCELLED) {
-		t.Fatalf("CancelOrder() response = %+v", resp)
-	}
-	if client.cancelRequest.GetOperatorId() != 25 ||
-		client.cancelRequest.GetOperatorType() != constants.OperatorDriver ||
-		client.cancelRequest.GetOrderId() != 1001 ||
-		client.cancelRequest.GetReason() != "driver unavailable" {
-		t.Fatalf("CancelOrder() request = %+v", client.cancelRequest)
-	}
+	return f.records, nil
+}
+
+func (f *fakeOrderTrajectoryRepository) RecordPoint(_ context.Context, _ *svc.TrajectoryRecord) error {
+	return nil
 }
 
 func TestConfirmArriveForwardsDriverAndOrder(t *testing.T) {
@@ -233,6 +258,135 @@ func TestFinishTripForwardsTripMetrics(t *testing.T) {
 	}
 }
 
+func TestGetRealtimeFareRequiresOnTripOrderOwnedByDriverAndReturnsPriceDetail(t *testing.T) {
+	orderClient := &fakeOrderClient{
+		getOrderResponses: map[int64]*orderproto.GetOrderResponse{
+			1001: {
+				OrderId:             1001,
+				OrderNo:             "NO-1001",
+				UserId:              300,
+				DriverId:            25,
+				CarType:             1,
+				FromAddress:         "pickup",
+				FromLongitude:       116.391,
+				FromLatitude:        39.907,
+				ToAddress:           "destination",
+				ToLongitude:         116.481,
+				ToLatitude:          39.991,
+				EstimatedDistanceM:  12500,
+				EstimatedDurationS:  1800,
+				EstimatedPriceCents: 29900,
+				Status:              orderproto.OrderStatus_ORDER_STATUS_ON_TRIP,
+				CityCode:            "310000",
+			},
+		},
+	}
+	priceClient := &fakePriceClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderClient: orderClient,
+		PriceClient: priceClient,
+	})
+
+	resp, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{
+		OrderID:         1001,
+		ActualDistanceM: 13800,
+		ActualDurationS: 2040,
+	})
+	if err != nil {
+		t.Fatalf("GetRealtimeFare() error = %v", err)
+	}
+	if resp.OrderID != 1001 || resp.TotalCents != 4860 || resp.PriceRuleID != 77 || resp.Source != "pricesvc" {
+		t.Fatalf("GetRealtimeFare() response = %+v", resp)
+	}
+	if resp.Detail.BaseFeeCents != 1300 || resp.Detail.DynamicFeeCents != 240 || resp.Detail.TotalCents != 4860 {
+		t.Fatalf("GetRealtimeFare() detail = %+v", resp.Detail)
+	}
+	if orderClient.getOrderRequest == nil || orderClient.getOrderRequest.GetOrderId() != 1001 {
+		t.Fatalf("GetRealtimeFare() order request = %+v", orderClient.getOrderRequest)
+	}
+	if priceClient.estimateRequest.GetUserId() != 300 ||
+		priceClient.estimateRequest.GetCityCode() != "310000" ||
+		priceClient.estimateRequest.GetCarType() != 1 ||
+		priceClient.estimateRequest.GetDistanceM() != 13800 ||
+		priceClient.estimateRequest.GetDurationS() != 2040 {
+		t.Fatalf("GetRealtimeFare() price request = %+v", priceClient.estimateRequest)
+	}
+}
+
+func TestGetRealtimeFareRejectsOtherDriverOrder(t *testing.T) {
+	priceClient := &fakePriceClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderClient: &fakeOrderClient{
+			getOrderResponseDriverID: 26,
+			getOrderResponseStatus:   orderproto.OrderStatus_ORDER_STATUS_ON_TRIP,
+		},
+		PriceClient: priceClient,
+	})
+
+	_, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{OrderID: 1001, ActualDistanceM: 1})
+	if err != ErrForbiddenDriverResource {
+		t.Fatalf("GetRealtimeFare() error = %v, want %v", err, ErrForbiddenDriverResource)
+	}
+	if priceClient.estimateRequest != nil {
+		t.Fatalf("GetRealtimeFare() should not call pricesvc for another driver's order, got %+v", priceClient.estimateRequest)
+	}
+}
+
+func TestGetRealtimeFareRejectsNonTripOrder(t *testing.T) {
+	priceClient := &fakePriceClient{}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{
+		OrderClient: &fakeOrderClient{getOrderResponseStatus: orderproto.OrderStatus_ORDER_STATUS_ACCEPTED},
+		PriceClient: priceClient,
+	})
+
+	_, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{OrderID: 1001, ActualDistanceM: 1})
+	if err != ErrInvalidParam {
+		t.Fatalf("GetRealtimeFare() error = %v, want %v", err, ErrInvalidParam)
+	}
+	if priceClient.estimateRequest != nil {
+		t.Fatalf("GetRealtimeFare() should not call pricesvc for non-trip order, got %+v", priceClient.estimateRequest)
+	}
+}
+
+func TestGetOrderTrajectoryReturnsCurrentDriverPoints(t *testing.T) {
+	repo := &fakeOrderTrajectoryRepository{records: []svc.TrajectoryRecord{{
+		OrderID:    1001,
+		DriverID:   25,
+		Longitude:  116.391,
+		Latitude:   39.907,
+		SpeedKmh:   31.5,
+		Heading:    180,
+		RecordedAt: time.Unix(123, 0),
+	}}}
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{TrajectoryRepository: repo})
+
+	resp, err := logic.GetOrderTrajectory(25, 1001)
+	if err != nil {
+		t.Fatalf("GetOrderTrajectory() error = %v", err)
+	}
+	if repo.listDriverID != 25 || repo.listOrderID != 1001 {
+		t.Fatalf("GetOrderTrajectory() repository query = driver:%d order:%d", repo.listDriverID, repo.listOrderID)
+	}
+	if resp.OrderID != 1001 || resp.Total != 1 || len(resp.Points) != 1 {
+		t.Fatalf("GetOrderTrajectory() response = %+v", resp)
+	}
+	point := resp.Points[0]
+	if point.OrderID != 1001 || point.DriverID != 25 || point.Longitude != 116.391 ||
+		point.Latitude != 39.907 || point.SpeedKmh != 31.5 || point.Heading != 180 ||
+		point.ReportTime != 123 {
+		t.Fatalf("GetOrderTrajectory() point = %+v", point)
+	}
+}
+
+func TestGetOrderTrajectoryRequiresRepository(t *testing.T) {
+	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{})
+
+	_, err := logic.GetOrderTrajectory(25, 1001)
+	if err != ErrTrajectoryRepositoryNotConfigured {
+		t.Fatalf("GetOrderTrajectory() error = %v, want %v", err, ErrTrajectoryRepositoryNotConfigured)
+	}
+}
+
 func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 	client := &fakeOrderClient{}
 	logic := NewOrderLogic(context.Background(), &svc.ServiceContext{OrderClient: client})
@@ -251,6 +405,12 @@ func TestOrderLogicRejectsInvalidOrderParameters(t *testing.T) {
 	}
 	if _, err := logic.FinishTrip(25, &types.FinishTripRequest{OrderID: 1001, ActualDistanceM: -1}); err != ErrInvalidParam {
 		t.Fatalf("FinishTrip(negative distance) error = %v, want %v", err, ErrInvalidParam)
+	}
+	if _, err := logic.GetRealtimeFare(25, &types.RealtimeFareRequest{OrderID: 1001, ActualDurationS: -1}); err != ErrInvalidParam {
+		t.Fatalf("GetRealtimeFare(negative duration) error = %v, want %v", err, ErrInvalidParam)
+	}
+	if _, err := logic.GetOrderTrajectory(25, 0); err != ErrInvalidParam {
+		t.Fatalf("GetOrderTrajectory(invalid order) error = %v, want %v", err, ErrInvalidParam)
 	}
 }
 
@@ -659,7 +819,7 @@ func TestListAvailableOrdersFiltersAndSortsByDriverPosition(t *testing.T) {
 	}).Err(); err != nil {
 		t.Fatalf("HSet() error = %v", err)
 	}
-// available set seed; 1002 is filtered out because it is too far away.
+	// available set seed; 1002 is filtered out because it is too far away.
 	if err := rdb.SAdd(ctx, fmt.Sprintf(constants.RedisDriverAvailable, driverID), "1001", "1002", "1003").Err(); err != nil {
 		t.Fatalf("SAdd available() error = %v", err)
 	}

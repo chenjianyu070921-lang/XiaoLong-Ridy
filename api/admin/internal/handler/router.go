@@ -73,8 +73,10 @@ func (r *Router) routes() {
 	r.registerDriverRoutes()
 	r.registerMarketingRoutes()
 	r.registerStatisticsRoutes()
+	r.registerCapacityRoutes()
 	r.registerOperationRoutes()
 	r.registerOrderRoutes()
+	r.registerAiRoutes()
 }
 
 // handleNotificationOutbox 查询后台通知与审计补偿任务。
@@ -140,7 +142,7 @@ func (r *Router) handleRegister(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var body types.RegisterRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -172,7 +174,7 @@ func (r *Router) handleLogin(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var body types.LoginRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -245,7 +247,7 @@ func (r *Router) handleAdmins(w http.ResponseWriter, req *http.Request) {
 		writeSuccess(w, resp)
 	case http.MethodPost:
 		var body types.AdminSaveRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -276,7 +278,7 @@ func (r *Router) handleAdminByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var body types.AdminSaveRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -292,7 +294,7 @@ func (r *Router) handleAdminByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var body types.AdminStatusRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -307,7 +309,7 @@ func (r *Router) handleAdminByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var body types.AdminPasswordResetRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -436,7 +438,7 @@ func (r *Router) handleUserByID(w http.ResponseWriter, req *http.Request) {
 		Reason string `json:"reason"`
 		Remark string `json:"remark"`
 	}
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -531,7 +533,7 @@ func (r *Router) handleDriverByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var body types.DriverFreezeRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -546,7 +548,7 @@ func (r *Router) handleDriverByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var body types.DriverFreezeRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -604,7 +606,7 @@ func (r *Router) handleDriverWithdrawalByID(w http.ResponseWriter, req *http.Req
 		return
 	}
 	var body types.DriverWithdrawHandleRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -664,7 +666,7 @@ func (r *Router) handleDriverCertificationByID(w http.ResponseWriter, req *http.
 		return
 	}
 	var body types.AuditRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -781,7 +783,7 @@ func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var body types.OrderRedispatchRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -799,7 +801,7 @@ func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var body types.OrderRefundRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -820,7 +822,7 @@ func (r *Router) handleOrderByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var body types.OrderCancelRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -854,7 +856,7 @@ func (r *Router) handleCoupons(w http.ResponseWriter, req *http.Request) {
 		writeSuccess(w, resp)
 	case http.MethodPost:
 		var body types.CouponSaveRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -896,7 +898,7 @@ func (r *Router) handleCouponByID(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var body types.CouponIssueRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -917,7 +919,7 @@ func (r *Router) handleCouponByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var body types.CouponSaveRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -969,7 +971,7 @@ func (r *Router) handlePriceRules(w http.ResponseWriter, req *http.Request) {
 		writeSuccess(w, resp)
 	case http.MethodPost:
 		var body types.PriceRuleSaveRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -1003,7 +1005,7 @@ func (r *Router) handlePriceRuleByID(w http.ResponseWriter, req *http.Request) {
 			writeSuccess(w, resp)
 		case http.MethodPut:
 			var body types.PriceRuleSaveRequest
-			if err := decodeJSON(req, &body); err != nil {
+			if err := decodeJSON(w, req, &body); err != nil {
 				writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 				return
 			}
@@ -1061,7 +1063,7 @@ func (r *Router) handlePromotionActivities(w http.ResponseWriter, req *http.Requ
 		writeSuccess(w, resp)
 	case http.MethodPost:
 		var body types.PromotionActivitySaveRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -1089,7 +1091,7 @@ func (r *Router) handlePromotionActivityByID(w http.ResponseWriter, req *http.Re
 			return
 		}
 		var body types.PromotionActivitySaveRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -1105,7 +1107,7 @@ func (r *Router) handlePromotionActivityByID(w http.ResponseWriter, req *http.Re
 		return
 	}
 	var body types.PromotionActivityActionRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -1128,89 +1130,6 @@ func (r *Router) handlePromotionActivityByID(w http.ResponseWriter, req *http.Re
 }
 
 // handleStatisticsOverview 查询运营总览统计。
-func (r *Router) handleStatisticsOverview(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Overview(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsOrders 查询订单统计。
-func (r *Router) handleStatisticsOrders(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Orders(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsDrivers 查询司机经营统计。
-func (r *Router) handleStatisticsDrivers(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Drivers(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsRevenue 查询财务收入统计。
-func (r *Router) handleStatisticsRevenue(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Revenue(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsCoupons 查询优惠券统计。
-func (r *Router) handleStatisticsCoupons(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Coupons(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
-// handleStatisticsUsers 查询用户增长、活跃、复购、投诉和风险统计。
-func (r *Router) handleStatisticsUsers(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		writeMethodNotAllowed(w)
-		return
-	}
-	resp, err := logic.NewStatisticsLogic(r.ctx).Users(req.Context(), statisticsRequestFromQuery(req))
-	if err != nil {
-		r.writeBizError(w, err)
-		return
-	}
-	writeSuccess(w, resp)
-}
-
 // handleExportTasks 处理导出任务创建和列表查询。
 func (r *Router) handleExportTasks(w http.ResponseWriter, req *http.Request) {
 	exportLogic := logic.NewExportLogic(r.ctx)
@@ -1224,7 +1143,7 @@ func (r *Router) handleExportTasks(w http.ResponseWriter, req *http.Request) {
 		writeSuccess(w, resp)
 	case http.MethodPost:
 		var body types.ExportTaskRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -1308,7 +1227,7 @@ func (r *Router) handleWorkOrders(w http.ResponseWriter, req *http.Request) {
 		writeSuccess(w, types.PageResult{List: resp.GetList(), Total: resp.GetTotal(), Page: int(resp.GetPage()), PageSize: int(resp.GetPageSize())})
 	case http.MethodPost:
 		var body types.WorkOrderRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -1330,7 +1249,7 @@ func (r *Router) handleWorkOrderBatchActions(w http.ResponseWriter, req *http.Re
 		return
 	}
 	var body types.WorkOrderBatchActionRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -1372,7 +1291,7 @@ func (r *Router) handleWorkOrderByID(w http.ResponseWriter, req *http.Request) {
 	}
 	if len(parts) == 2 && parts[1] == "actions" && req.Method == http.MethodPost {
 		var body types.WorkOrderActionRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -1396,7 +1315,7 @@ func (r *Router) handleWorkOrderByID(w http.ResponseWriter, req *http.Request) {
 		}
 		if req.Method == http.MethodPost {
 			var body types.WorkOrderEvidenceRequest
-			if err := decodeJSON(req, &body); err != nil {
+			if err := decodeJSON(w, req, &body); err != nil {
 				writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 				return
 			}
@@ -1427,7 +1346,7 @@ func (r *Router) handleBlacklists(w http.ResponseWriter, req *http.Request) {
 		writeSuccess(w, resp)
 	case http.MethodPost:
 		var body types.BlacklistRequest
-		if err := decodeJSON(req, &body); err != nil {
+		if err := decodeJSON(w, req, &body); err != nil {
 			writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 			return
 		}
@@ -1453,7 +1372,7 @@ func (r *Router) handleBlacklistByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var body types.BlacklistRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -1487,7 +1406,7 @@ func (r *Router) handleRiskHitRecordActions(w http.ResponseWriter, req *http.Req
 		return
 	}
 	var body types.RiskHitActionRequest
-	if err := decodeJSON(req, &body); err != nil {
+	if err := decodeJSON(w, req, &body); err != nil {
 		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
 		return
 	}
@@ -1567,9 +1486,24 @@ func (r *Router) writeBizError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, 40003, permissionDeniedMessage(err))
 	case status.Code(err) == codes.Unauthenticated:
 		writeError(w, http.StatusUnauthorized, 40004, "unauthorized")
+	case status.Code(err) == codes.Unavailable:
+		// 下游 RPC 服务未启动或连接中断时返回 503，并透传真实来源，避免把下游故障误判为某一特定服务。
+		writeError(w, http.StatusServiceUnavailable, 50301, unavailableMessage(err))
 	default:
 		writeError(w, http.StatusInternalServerError, 50000, "system error")
 	}
+}
+
+// unavailableMessage 提取 gRPC Unavailable 的服务端原因。
+// 返回空或非 gRPC 错误时使用通用文案，避免前端把下游服务故障误判为后台代码错误。
+func unavailableMessage(err error) string {
+	if err != nil {
+		s := status.Convert(err)
+		if s.Code() == codes.Unavailable && s.Message() != "" {
+			return s.Message()
+		}
+	}
+	return "下游服务暂不可用，请稍后重试"
 }
 
 // permissionDeniedMessage 提取 gRPC PermissionDenied 的服务端原因。
@@ -1766,9 +1700,12 @@ func clientIP(req *http.Request) string {
 	return host
 }
 
-// decodeJSON 解析 JSON 请求体。
-func decodeJSON(req *http.Request, v any) error {
-	dec := json.NewDecoder(req.Body)
+// maxJSONBodySize 限制后台 JSON 请求体大小，防止超大 body 打满网关内存。
+const maxJSONBodySize = 1 << 20 // 1 MiB
+
+// decodeJSON 解析 JSON 请求体，并用 MaxBytesReader 限制单请求体大小。
+func decodeJSON(w http.ResponseWriter, req *http.Request, v any) error {
+	dec := json.NewDecoder(http.MaxBytesReader(w, req.Body, maxJSONBodySize))
 	dec.DisallowUnknownFields()
 	return dec.Decode(v)
 }

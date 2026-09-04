@@ -112,7 +112,7 @@ type DispatchClient interface {
 	ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error)
 }
 
-// LocationClient 定义 passenger API 调用位置服务的 RPC 契约。
+// LocationClient 定义 passenger API 调用位置服务（逆地理回显/POI 检索/司机位置/路径规划）的 RPC 契约。
 type LocationClient interface {
 	ReverseGeocode(ctx context.Context, req *locationproto.ReverseGeocodeReq, opts ...grpc.CallOption) (*locationproto.ReverseGeocodeResp, error)
 	POISearch(ctx context.Context, req *locationproto.POISearchReq, opts ...grpc.CallOption) (*locationproto.POISearchResp, error)
