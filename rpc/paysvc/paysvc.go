@@ -72,6 +72,12 @@ func main() {
 	// 启动支付成功事件对账补发任务（兜底 Kafka 发送失败）。
 	logic.StartEventReconcileJob(context.Background(), ctx, 30*time.Second)
 
+	// 启动支付渠道对账 + 自动结算任务（P0 ③）。
+	logic.StartPaymentReconcileJob(context.Background(), ctx,
+		c.Reconcile.IntervalDuration(), c.Reconcile.LookbackDuration())
+	logic.StartAutoSettleJob(context.Background(), ctx,
+		c.AutoSettle.IntervalDuration(), c.AutoSettle.DefaultCommissionRate)
+
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	s.Start()
 }

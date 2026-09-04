@@ -58,6 +58,19 @@ func (r *PaymentRepo) FindUnsentPaidPayments(ctx context.Context, limit int) ([]
 	return list, nil
 }
 
+// FindUnsettledPaidPayments 拉取已支付但未结算（settlement 表无对应订单记录）的支付单，供自动结算 job 使用。
+func (r *PaymentRepo) FindUnsettledPaidPayments(ctx context.Context, limit int) ([]*model.Payment, error) {
+	var list []*model.Payment
+	err := r.db.WithContext(ctx).
+		Table("payment AS p").
+		Joins("LEFT JOIN settlement AS s ON s.order_id = p.order_id").
+		Where("p.status = ? AND s.id IS NULL", model.PaymentStatusPaid).
+		Order("p.id ASC").
+		Limit(limit).
+		Scan(&list).Error
+	return list, err
+}
+
 // UpdateSelective 按 id 条件更新指定列（不在事务外单独使用时应放在事务里）。
 // 用 Updates(map) 仅更新给定列，避免 Save 全字段覆盖造成的：
 //   1) 并发场景下丢字段；

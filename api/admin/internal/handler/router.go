@@ -84,6 +84,10 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/admin/v1/orders", r.authRequired(r.handleOrders))
 	r.mux.HandleFunc("/admin/v1/orders/abnormal", r.authRequired(r.handleAbnormalOrders))
 	r.mux.HandleFunc("/admin/v1/orders/", r.authRequired(r.handleOrderByID))
+
+	// 支付回调路由：支付宝异步通知入口。
+	// 不走 authRequired（支付宝回调不带 token），由网关层/前端 Nginx 做来源白名单。
+	r.mux.HandleFunc("/api/pay/callback/alipay", r.handleAlipayCallback)
 }
 
 // handleRegister 处理后台管理员注册。
@@ -697,4 +701,18 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+// handleAlipayCallback 处理支付宝异步通知。
+// 注意：必须返回支付宝协议规定的 text/plain "success" / "fail"，不要走 writeSuccess/writeJSON。
+func (r *Router) handleAlipayCallback(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("fail"))
+		return
+	}
+	body, _ := logic.NewPayCallbackLogic(r.ctx).HandleAlipayNotify(req)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(body))
 }

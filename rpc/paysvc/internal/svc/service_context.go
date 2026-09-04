@@ -34,7 +34,12 @@ type ServiceContext struct {
 }
 
 // GetChannel 按渠道名返回支付渠道实现。
-// 支付宝渠道配置齐全时返回真实 AlipayChannel，否则降级为 MockChannel（M5-9 mock 兜底，仅用于本地开发）。
+//
+// M5-12：
+//   - 生产模式：启动期已保证支付宝渠道配置了真实密钥（缺则 paysvc 启动失败），
+//     此处直接返回真实 AlipayChannel，绝不做 mock 兜底。
+//   - dev/test 模式：允许 alipayChannel 为 nil（本地联调缺沙箱密钥），降级 MockChannel。
+//   - 余额渠道按真实降级到本地账户扣减（本期不动，仍返回 MockChannel 占位）。
 func (s *ServiceContext) GetChannel(name string) channel.PayChannel {
 	if name == channel.Alipay && s.alipayChannel != nil {
 		return s.alipayChannel
@@ -63,8 +68,12 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		return nil, fmt.Errorf("init alipay verifier: %w", err)
 	}
 
-	// 3. 支付宝真实渠道：密钥不全则视为"未启用真实渠道"，GetChannel 会降级 Mock。
-	alipayCh := newAlipayChannel(c.Alipay)
+	// 3. 支付宝真实渠道（M5-12 硬校验）：生产模式缺密钥直接启动失败，不降级 Mock。
+	//    仅显式配置 dev/test 模式时，允许密钥缺失降级（GetChannel 走 MockChannel），供本地联调。
+	alipayCh, err := newAlipayChannel(c.Alipay, c.Mode)
+	if err != nil {
+		return nil, fmt.Errorf("init alipay channel: %w", err)
+	}
 
 	// 4. Kafka 生产者：失败降级 NoopProducer，让服务仍能启动；事件投递失败仅记日志。
 	producer := newProducer(c.Kafka)
@@ -113,21 +122,31 @@ func (s *ServiceContext) Close() error {
 	return errors.Join(errs...)
 }
 
-// newAlipayChannel 创建支付宝真实渠道，密钥齐全才返回非 nil。
-// 失败仅记日志并返回 nil，让 GetChannel 走 mock 降级，符合"可选能力"语义。
-// 密钥读取走环境变量优先（M5-8）。
-func newAlipayChannel(a alipay.Config) *channel.AlipayChannel {
+// newAlipayChannel 创建支付宝真实渠道。
+//
+// M5-12：
+//   - 生产模式（mode 非 dev/test）：缺核心三件套（appId/privateKey/alipayPublicKey）必须返回 error，
+//     paysvc 启动失败，强制运维配置。绝不允许静默降级为 MockChannel：
+//     生产环境如果 yaml 没填密钥，paysvc "假装上线" 但调 mock 渠道生成假 transaction_id，
+//     会导致真实资金流断链。
+//   - dev/test 模式：允许密钥缺失，返回 (nil, nil)，GetChannel 走 MockChannel 兜底（仅本地联调）。
+//
+// 密钥读取优先环境变量（ALIPAY_APP_ID/ALIPAY_PRIVATE_KEY/ALIPAY_PUBLIC_KEY）。
+func newAlipayChannel(a alipay.Config, mode string) (*channel.AlipayChannel, error) {
 	if !a.HasRealKeys() {
-		logx.Info("alipay keys empty, will use mock channel (only for dev/test)")
-		return nil
+		if mode == service.TestMode || mode == service.DevMode {
+			logx.Info("alipay keys missing, channel will fallback to mock (dev/test mode only)")
+			return nil, nil
+		}
+		return nil, errors.New("alipay keys missing: appId/privateKey/alipayPublicKey must all be set in paysvc.yaml or via env ALIPAY_APP_ID/ALIPAY_PRIVATE_KEY/ALIPAY_PUBLIC_KEY; mock fallback is not allowed (M5-12)")
 	}
 	resolved := a.WithDefaults()
 	ch, err := channel.NewAlipayChannel(resolved)
 	if err != nil {
-		logx.Errorf("init alipay channel failed: %v, will use mock channel", err)
-		return nil
+		return nil, fmt.Errorf("init alipay channel: %w", err)
 	}
-	return ch
+	logx.Info("alipay real channel enabled")
+	return ch, nil
 }
 
 // newProducer 创建 Kafka 生产者，失败时降级为 NoopProducer。

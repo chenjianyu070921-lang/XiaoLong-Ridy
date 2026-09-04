@@ -28,3 +28,9 @@ kafka:
   topic: order.paid
 ordersvc:
   target: 127.0.0.1:50051
+reconcile:
+  interval: 5m
+  lookback: 30m
+autoSettle:
+  interval: 10m
+  defaultCommissionRate: 20

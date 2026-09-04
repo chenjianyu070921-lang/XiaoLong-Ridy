@@ -19,6 +19,8 @@ type Settlement struct {
 	PlatformCommission     float64    `gorm:"column:platform_commission;type:decimal(10,2);default:0" json:"platformCommission"`
 	DriverIncome           float64    `gorm:"column:driver_income;type:decimal(10,2);default:0" json:"driverIncome"`
 	Status                 int8       `gorm:"column:status;default:1" json:"status"`
+	AutoSettled            bool       `gorm:"column:auto_settled;default:0" json:"autoSettled"`
+	SettledJobRunID        string     `gorm:"column:settled_job_run_id;size:32" json:"settledJobRunId"`
 	SettledAt              *time.Time `gorm:"column:settled_at" json:"settledAt"`
 	CreatedAt              time.Time  `gorm:"column:created_at" json:"createdAt"`
 }

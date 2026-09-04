@@ -9,6 +9,7 @@ import (
 	"XiaoLong-Ridy/api/admin/internal/config"
 	"XiaoLong-Ridy/api/admin/internal/repository"
 	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
+	payclient "XiaoLong-Ridy/rpc/paysvc/pay"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
@@ -23,6 +24,8 @@ type ServiceContext struct {
 	Redis                  *redis.Client
 	AdminSvc               adminclient.AdminService
 	AdminRPCClient         zrpc.Client
+	PaySvc                 payclient.Pay
+	PayRPCClient           zrpc.Client
 	AdminRepository        *repository.AdminRepository
 	SessionRepository      *repository.SessionRepository
 	OperationLogRepository *repository.OperationLogRepository
@@ -71,12 +74,21 @@ func NewServiceContext(cfg *config.Config) (*ServiceContext, error) {
 		return nil, err
 	}
 
+	payRPCClient, paySvc, err := newPayRPCClient(cfg.PayRPC)
+	if err != nil {
+		_ = db.Close()
+		_ = redisClient.Close()
+		return nil, err
+	}
+
 	return &ServiceContext{
 		Config:                 cfg,
 		MySQL:                  db,
 		Redis:                  redisClient,
 		AdminSvc:               adminSvc,
 		AdminRPCClient:         adminRPCClient,
+		PaySvc:                 paySvc,
+		PayRPCClient:           payRPCClient,
 		AdminRepository:        adminRepo,
 		SessionRepository:      sessionRepo,
 		OperationLogRepository: repository.NewOperationLogRepository(db),
@@ -109,4 +121,17 @@ func newAdminRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, adminclient.AdminSe
 		return nil, nil, fmt.Errorf("new admin rpc client: %w", err)
 	}
 	return client, adminclient.NewAdminService(client), nil
+}
+
+// newPayRPCClient 按配置初始化 paysvc 的 gRPC 客户端。
+// 网关层支付回调（/api/pay/callback/alipay）通过它透传到 paysvc.NotifyPayment。
+func newPayRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, payclient.Pay, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50054"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("new pay rpc client: %w", err)
+	}
+	return client, payclient.NewPay(client), nil
 }

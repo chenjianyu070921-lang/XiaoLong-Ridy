@@ -20,7 +20,7 @@
 ## 2. 已实现接口验收清单
 
 ### 2.1 鉴权类
-
+ 
 | 接口 | 方法 | 状态 | 验收结果 |
 | --- | --- | ---: | --- |
 | `/admin/v1/auth/register` | POST | 已通过 | 无效请求体返回 `400`，注册链路可用 |
@@ -96,7 +96,7 @@
 | --- | --- | ---: |
 | 用户管理 | `/admin/v1/users/{id}/orders` | 待实现 |
 | 用户管理 | `/admin/v1/users/{id}/coupons` | 待实现 |
-| 司机管理 | `/admin/v1/drivers` | 待实现 |
+| 司机管理 | `/admin/v1/drivers` | 待实现 | 
 | 司机管理 | `/admin/v1/drivers/{id}/freeze` | 待实现 |
 | 订单处理 | `/admin/v1/orders/{id}/track` | 待实现 |
 | 订单处理 | `/admin/v1/orders/{id}/cancel` | 待实现 |

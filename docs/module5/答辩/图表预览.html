@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模块五答辩 · 图表预览</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --orange: #FF6A00;
+    --orange-dark: #E55E00;
+    --orange-light: #FFF3E9;
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --text: #2b2b2b;
+    --muted: #888;
+    --border: #e6e6e6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+  /* 左侧导航 */
+  nav {
+    width: 260px; background: #1f2430; color: #fff; position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0;
+  }
+  nav .logo { padding: 22px 18px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  nav .logo h1 { font-size: 17px; color: var(--orange); letter-spacing: 1px; }
+  nav .logo p { font-size: 12px; color: #9aa3b5; margin-top: 4px; }
+  nav a {
+    display: block; padding: 11px 18px; color: #c8cdd9; text-decoration: none; font-size: 13.5px; border-left: 3px solid transparent;
+  }
+  nav a:hover { background: rgba(255,255,255,.05); color: #fff; }
+  nav a.active { background: rgba(255,106,0,.12); color: var(--orange); border-left-color: var(--orange); }
+  /* 右侧内容 */
+  main { flex: 1; padding: 30px 40px 80px; max-width: 1100px; margin: 0 auto; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 26px 30px; margin-bottom: 36px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .card h2 { font-size: 20px; color: var(--text); margin-bottom: 6px; }
+  .card .tag {
+    display: inline-block; background: var(--orange-light); color: var(--orange-dark); font-size: 12px; font-weight: 600;
+    padding: 2px 10px; border-radius: 20px; margin-bottom: 10px;
+  }
+  .card .desc { font-size: 13.5px; color: var(--muted); margin-bottom: 18px; line-height: 1.7; }
+  .mermaid { text-align: center; }
+  .mermaid svg { max-width: 100%; height: auto; }
+  details { margin-top: 14px; }
+  details summary { cursor: pointer; font-size: 12.5px; color: var(--orange-dark); user-select: none; }
+  details pre { background: #fafafa; border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 12px; overflow-x: auto; margin-top: 8px; white-space: pre-wrap; word-break: break-all; }
+  .footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px 0 40px; }
+  @media (max-width: 900px) { body { flex-direction: column; } nav { width: 100%; height: auto; position: relative; } main { padding: 20px 16px; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <h1>模块五 · 答辩图表</h1>
+    <p>计价与支付｜共享屏幕用</p>
+  </div>
+  <a href="#g1">① 全项目泳道图</a>
+  <a href="#g2">② 模块五功能结构图</a>
+  <a href="#g3">③ 模块五业务流程图</a>
+  <a href="#g4">④ 模块五分层架构图</a>
+  <a href="#g5">⑤ 全项目微服务调用图</a>
+  <a href="#g6">⑥ 支付回调时序图</a>
+  <a href="#g7">⑦ 模块五里程碑</a>
+  <a href="#g8">⑧ 实训计划表分解</a>
+</nav>
+
+<main>
+
+  <!-- ① 全项目泳道图 -->
+  <div class="card" id="g1">
+    <span class="tag">流程图 · 泳道图</span>
+    <h2>① 全项目业务泳道图</h2>
+    <p class="desc">六大模块协作完成一次出行。模块五（橙色）负责「计价 → 优惠 → 支付 → 回调 → 结算」五段泳道。</p>
+    <div class="mermaid">
+flowchart LR
+  subgraph S0["乘客端（模块一）"]
+    A1["叫车下单"]
+    A2["查看预估"]
+    A3["确认支付"]
+  end
+  subgraph S1["订单与派单（模块四）"]
+    B1["创建订单"]
+    B2["派单匹配"]
+    B3["司机接单"]
+    B4["行程开始/结束"]
+  end
+  subgraph S2["计价与支付（模块五）"]
+    C1["价格预估 EstimatePrice"]
+    C2["优惠计算 CalculateDiscount"]
+    C3["支付预下单 CreatePayment"]
+    C4["支付回调 NotifyPayment"]
+    C5["司机结算 SettleOrder"]
+    C6["退款 RefundPayment"]
+  end
+  subgraph S3["位置与推送（模块六）"]
+    D1["位置上报 location-report"]
+    D2["消息推送 pushsvc"]
+  end
+
+  A1 --> B1
+  B1 --> C1
+  C1 --> A2
+  A2 --> C2
+  C2 --> A3
+  A3 --> C3
+  C3 -->|"order.paid"| C4
+  C4 --> C5
+  B4 --> C6
+  B2 --> D1
+  C4 --> D2
+  C5 --> D2
+</div>
+    <details><summary>查看 mermaid 源码</summary><pre>
+flowchart LR
+  subgraph S0["乘客端（模块一）"]
+    A1["叫车下单"] --> B1
+    A2["查看预估"]
+    A3["确认支付"]
+  end
+  subgraph S1["订单与派单（模块四）"]
+    B1["创建订单"]
+    B2["派单匹配"]
+    B3["司机接单"]
+    B4["行程开始/结束"]
+  end
+  subgraph S2["计价与支付（模块五）"]
+    C1["价格预估 EstimatePrice"]
+    C2["优惠计算 CalculateDiscount"]
+    C3["支付预下单 CreatePayment"]
+    C4["支付回调 NotifyPayment"]
+    C5["司机结算 SettleOrder"]
+    C6["退款 RefundPayment"]
+  end
+  subgraph S3["位置与推送（模块六）"]
+    D1["位置上报 location-report"]
+    D2["消息推送 pushsvc"]
+  end
+  A1 --> B1
+  B1 --> C1
+  C1 --> A2
+  A2 --> C2
+  C2 --> A3
+  A3 --> C3
+  C3 -->|"order.paid"| C4
+  C4 --> C5
+  B4 --> C6
+  B2 --> D1
+  C4 --> D2
+  C5 --> D2</pre></details>
+  </div>
+
+  <!-- ② 模块五功能结构图 -->
+  <div class="card" id="g2">
+    <span class="tag">功能结构图</span>
+    <h2>② 模块五功能结构图</h2>
+    <p class="desc">pricesvc（计价服务 :50053）+ paysvc（支付服务 :50054）的功能分解。</p>
+    <div class="mermaid">
+flowchart TD
+  M5["模块五 计价与支付"] --> PS["pricesvc 计价服务"]
+  M5 --> PA["paysvc 支付服务"]
+  M5 --> COM["common 公共层"]
+
+  PS --> PS1["行程价格预估<br/>EstimatePrice"]
+  PS --> PS2["优惠券抵扣计算<br/>CalculateDiscount"]
+  PS --> PS3["实际费用落库<br/>SaveActualOrderPrice"]
+  PS --> PS4["计价规则引擎<br/>rule/price_engine"]
+  PS1 --> PS4
+  PS2 --> D2_["rule/discount"]
+
+  PA --> PA1["支付预下单<br/>CreatePayment"]
+  PA --> PA2["支付回调（幂等+验签）<br/>NotifyPayment"]
+  PA --> PA3["支付查询<br/>GetPayment"]
+  PA --> PA4["退款<br/>RefundPayment"]
+  PA --> PA5["司机结算<br/>SettleOrder"]
+  PA1 --> CH["渠道抽象 channel<br/>mock / alipay / wechat"]
+  PA4 --> CH
+  PA5 --> ST["rule/settlement"]
+
+  COM --> COM1["priceutil 金额工具<br/>分/元 + Add + Round"]
+  COM --> COM2["errorx 统一错误码"]
+  COM --> COM3["constants 状态/Key/Topic"]
+  COM --> COM4["mq 事件定义 order.paid"]
+</div>
+    <details><summary>查看 mermaid 源码</summary><pre>
+flowchart TD
+  M5["模块五 计价与支付"] --> PS["pricesvc 计价服务"]
+  M5 --> PA["paysvc 支付服务"]
+  M5 --> COM["common 公共层"]
+  PS --> PS1["行程价格预估 EstimatePrice"]
+  PS --> PS2["优惠券抵扣计算 CalculateDiscount"]
+  PS --> PS3["实际费用落库 SaveActualOrderPrice"]
+  PS --> PS4["计价规则引擎 rule/price_engine"]
+  PS1 --> PS4
+  PS2 --> D2_["rule/discount"]
+  PA --> PA1["支付预下单 CreatePayment"]
+  PA --> PA2["支付回调（幂等+验签） NotifyPayment"]
+  PA --> PA3["支付查询 GetPayment"]
+  PA --> PA4["退款 RefundPayment"]
+  PA --> PA5["司机结算 SettleOrder"]
+  PA1 --> CH["渠道抽象 channel mock / alipay / wechat"]
+  PA4 --> CH
+  PA5 --> ST["rule/settlement"]
+  COM --> COM1["priceutil 金额工具 分/元 + Add + Round"]
+  COM --> COM2["errorx 统一错误码"]
+  COM --> COM3["constants 状态/Key/Topic"]
+  COM --> COM4["mq 事件定义 order.paid"]</pre></details>
+  </div>
+
+  <!-- ③ 模块五业务流程图 -->
+  <div class="card" id="g3">
+    <span class="tag">业务流程图</span>
+    <h2>③ 模块五业务闭环（演示页 7 步）</h2>
+    <p class="desc">答辩现场演示页就是按这条链路走的：行程配置 → 价格预估 → 优惠抵扣 → 创建支付 → 支付回调 → 司机结算 → 退款。</p>
+    <div class="mermaid">
+flowchart TD
+  S1["① 行程配置<br/>城市/车型/里程/时长/时刻"] --> S2["② 价格预估<br/>EstimatePrice"]
+  S2 --> S3{"是否夜间/高峰？"}
+  S3 -->|"23:00-05:00"| S4["加收夜间附加费"]
+  S3 -->|"早7-9 晚17-19"| S5["高峰动态调价 ×1.3"]
+  S3 -->|"否"| S6["基础价计算"]
+  S4 --> S7["③ 优惠抵扣<br/>CalculateDiscount"]
+  S5 --> S7
+  S6 --> S7
+  S7 --> S8["④ 创建支付<br/>CreatePayment"]
+  S8 --> S9["模拟收银台弹窗"]
+  S9 --> S10["⑤ 支付回调<br/>NotifyPayment"]
+  S10 --> S11{"重复回调？"}
+  S11 -->|"是"| S12["幂等：直接返回已处理"]
+  S11 -->|"否"| S13["状态 待支付→支付成功<br/>发 order.paid 事件"]
+  S12 --> S14["⑥ 司机结算<br/>SettleOrder"]
+  S13 --> S14
+  S14 --> S15["⑦ 退款<br/>RefundPayment"]
+  S15 --> S16["状态流转 已退款"]
+</div>
+    <details><summary>查看 mermaid 源码</summary><pre>
+flowchart TD
+  S1["① 行程配置 城市/车型/里程/时长/时刻"] --> S2["② 价格预估 EstimatePrice"]
+  S2 --> S3{"是否夜间/高峰？"}
+  S3 -->|"23:00-05:00"| S4["加收夜间附加费"]
+  S3 -->|"早7-9 晚17-19"| S5["高峰动态调价 ×1.3"]
+  S3 -->|"否"| S6["基础价计算"]
+  S4 --> S7["③ 优惠抵扣 CalculateDiscount"]
+  S5 --> S7
+  S6 --> S7
+  S7 --> S8["④ 创建支付 CreatePayment"]
+  S8 --> S9["模拟收银台弹窗"]
+  S9 --> S10["⑤ 支付回调 NotifyPayment"]
+  S10 --> S11{"重复回调？"}
+  S11 -->|"是"| S12["幂等：直接返回已处理"]
+  S11 -->|"否"| S13["状态 待支付→支付成功 发 order.paid 事件"]
+  S12 --> S14["⑥ 司机结算 SettleOrder"]
+  S13 --> S14
+  S14 --> S15["⑦ 退款 RefundPayment"]
+  S15 --> S16["状态流转 已退款"]</pre></details>
+  </div>
+
+  <!-- ④ 模块五分层架构图 -->
+  <div class="card" id="g4">
+    <span class="tag">架构图</span>
+    <h2>④ 模块五分层架构</h2>
+    <p class="desc">go-zero zrpc 标准分层：server 转发壳 → logic 业务流程 → rule 纯函数引擎 → repository 数据访问 → channel 渠道抽象，向下访问 MySQL / Redis / Kafka。</p>
+    <div class="mermaid">
+flowchart TB
+  subgraph L1["接入层"]
+    G1["API 网关 / gRPC 客户端"]
+  end
+  subgraph L2["zrpc 服务层（go-zero）"]
+    S1["pricesvc :50053"]
+    S2["paysvc :50054"]
+  end
+  subgraph L3["logic 业务逻辑层"]
+    LG1["Estimate / Discount<br/>SaveActualOrderPrice"]
+    LG2["CreatePayment / NotifyPayment<br/>GetPayment / Refund / Settle"]
+  end
+  subgraph L4["领域层（纯函数，可单测）"]
+    R1["rule 计价引擎<br/>price_engine / night / peak / discount"]
+    R2["rule 支付结算<br/>settlement / refund"]
+  end
+  subgraph L5["基础设施层"]
+    D1["MySQL 4张表<br/>price_rule/order_price/payment/settlement"]
+    D2["Redis 缓存"]
+    D3["Kafka topic<br/>order.paid"]
+    D4["渠道抽象 channel<br/>mock/alipay/wechat"]
+  end
+
+  G1 --> S1
+  G1 --> S2
+  S1 --> LG1
+  S2 --> LG2
+  LG1 --> R1
+  LG2 --> R2
+  R1 --> D1
+  R2 --> D1
+  LG2 --> D2
+  LG2 --> D3
+  LG2 --> D4
+  D4 --> D1
+</div>
+    <details><summary>查看 mermaid 源码</summary><pre>
+flowchart TB
+  subgraph L1["接入层"]
+    G1["API 网关 / gRPC 客户端"]
+  end
+  subgraph L2["zrpc 服务层（go-zero）"]
+    S1["pricesvc :50053"]
+    S2["paysvc :50054"]
+  end
+  subgraph L3["logic 业务逻辑层"]
+    LG1["Estimate / Discount SaveActualOrderPrice"]
+    LG2["CreatePayment / NotifyPayment GetPayment / Refund / Settle"]
+  end
+  subgraph L4["领域层（纯函数，可单测）"]
+    R1["rule 计价引擎 price_engine / night / peak / discount"]
+    R2["rule 支付结算 settlement / refund"]
+  end
+  subgraph L5["基础设施层"]
+    D1["MySQL 4张表 price_rule/order_price/payment/settlement"]
+    D2["Redis 缓存"]
+    D3["Kafka topic order.paid"]
+    D4["渠道抽象 channel mock/alipay/wechat"]
+  end
+  G1 --> S1
+  G1 --> S2
+  S1 --> LG1
+  S2 --> LG2
+  LG1 --> R1
+  LG2 --> R2
+  R1 --> D1
+  R2 --> D1
+  LG2 --> D2
+  LG2 --> D3
+  LG2 --> D4
+  D4 --> D1</pre></details>
+  </div>
+
+  <!-- ⑤ 全项目微服务调用图 -->
+  <div class="card" id="g5">
+    <span class="tag">架构图 · 全项目</span>
+    <h2>⑤ 全项目微服务调用图</h2>
+    <p class="desc">模块五与上下游的关系：被订单模块/乘客端调用，依赖订单模块取司机 ID、向推送模块发事件。</p>
+    <div class="mermaid">
+flowchart LR
+  subgraph API["API 网关"]
+    AP["api/passenger 乘客端"]
+    AD["api/driver 司机端"]
+    AA["api/admin 管理后台"]
+  end
+  subgraph BIZ["业务服务"]
+    U["usersvc"]
+    O["ordersvc 订单"]
+    D["dispatchsvc 派单"]
+    L["locationsvc 位置"]
+    P["pushsvc 推送"]
+  end
+  subgraph M5["模块五（本组）"]
+    PR["pricesvc 计价"]
+    PA["paysvc 支付"]
+  end
+
+  AP --> O
+  AP --> PR
+  AP --> PA
+  AP --> U
+  AD --> D
+  AD --> O
+  AA --> O
+  AA --> PR
+  AA --> PA
+  O -->|"FinishTrip 调实际费用落库"| PR
+  O -->|"订单金额/状态"| PA
+  PA -->|"GetOrder 取司机ID"| O
+  PA -->|"order.paid 事件"| P
+  D --> L
+  O --> L
+</div>
+    <details><summary>查看 mermaid 源码</summary><pre>
+flowchart LR
+  subgraph API["API 网关"]
+    AP["api/passenger 乘客端"]
+    AD["api/driver 司机端"]
+    AA["api/admin 管理后台"]
+  end
+  subgraph BIZ["业务服务"]
+    U["usersvc"]
+    O["ordersvc 订单"]
+    D["dispatchsvc 派单"]
+    L["locationsvc 位置"]
+    P["pushsvc 推送"]
+  end
+  subgraph M5["模块五（本组）"]
+    PR["pricesvc 计价"]
+    PA["paysvc 支付"]
+  end
+  AP --> O
+  AP --> PR
+  AP --> PA
+  AP --> U
+  AD --> D
+  AD --> O
+  AA --> O
+  AA --> PR
+  AA --> PA
+  O -->|"FinishTrip 调实际费用落库"| PR
+  O -->|"订单金额/状态"| PA
+  PA -->|"GetOrder 取司机ID"| O
+  PA -->|"order.paid 事件"| P
+  D --> L
+  O --> L</pre></details>
+  </div>
+
+  <!-- ⑥ 支付回调时序图 -->
+  <div class="card" id="g6">
+    <span class="tag">时序图</span>
+    <h2>⑥ 支付回调时序图（核心难点）</h2>
+    <p class="desc">支付宝回调到达后的完整处理链：验签 → 事务内金额比对+状态机流转 → outbox-lite 发事件 → 取司机 ID → 生成结算单。</p>
+    <div class="mermaid">
+sequenceDiagram
+  participant ALI as 支付宝/模拟渠道
+  participant PAY as paysvc.NotifyPayment
+  participant DB as MySQL(payment)
+  participant KF as Kafka(order.paid)
+  participant ORD as ordersvc.GetOrder
+  participant ST as 结算单 settlement
+
+  ALI->>PAY: 回调（payment_no + sign + 金额）
+  PAY->>PAY: 验签（RSA2，失败直接拒绝）
+  PAY->>DB: 事务开始
+  DB-->>PAY: 读支付单
+  alt 状态已支付（重复回调）
+    PAY->>PAY: 幂等：直接返回 success，不发事件
+  else 状态=待支付
+    PAY->>DB: 金额比对（回调额=单金额）
+    PAY->>DB: 条件更新 WHERE id=? AND status=待支付
+    DB-->>PAY: 行受影响=1 → 状态=支付成功
+  end
+  PAY->>PAY: 事务提交
+  PAY->>KF: 发 order.paid（outbox-lite，失败记日志可对账补发）
+  PAY->>ORD: GetOrder(order_id) 取 driver_id
+  ORD-->>PAY: driver_id
+  PAY->>ST: CalcSettlement 生成结算单
+  PAY-->>ALI: success
+</div>
+    <details><summary>查看 mermaid 源码</summary><pre>
+sequenceDiagram
+  participant ALI as 支付宝/模拟渠道
+  participant PAY as paysvc.NotifyPayment
+  participant DB as MySQL(payment)
+  participant KF as Kafka(order.paid)
+  participant ORD as ordersvc.GetOrder
+  participant ST as 结算单 settlement
+
+  ALI->>PAY: 回调（payment_no + sign + 金额）
+  PAY->>PAY: 验签（RSA2，失败直接拒绝）
+  PAY->>DB: 事务开始
+  DB-->>PAY: 读支付单
+  alt 状态已支付（重复回调）
+    PAY->>PAY: 幂等：直接返回 success，不发事件
+  else 状态=待支付
+    PAY->>DB: 金额比对（回调额=单金额）
+    PAY->>DB: 条件更新 WHERE id=? AND status=待支付
+    DB-->>PAY: 行受影响=1 → 状态=支付成功
+  end
+  PAY->>PAY: 事务提交
+  PAY->>KF: 发 order.paid（outbox-lite，失败记日志可对账补发）
+  PAY->>ORD: GetOrder(order_id) 取 driver_id
+  ORD-->>PAY: driver_id
+  PAY->>ST: CalcSettlement 生成结算单
+  PAY-->>ALI: success</pre></details>
+  </div>
+
+  <!-- ⑦ 模块五里程碑 -->
+  <div class="card" id="g7">
+    <span class="tag">项目时间线</span>
+    <h2>⑦ 模块五开发里程碑</h2>
+    <p class="desc">按日 check 实训计划推进：从骨架到答辩交付的完整时间线。</p>
+    <div class="mermaid">
+gantt
+  title 模块五开发里程碑（2026-08）
+  dateFormat  YYYY-MM-DD
+  axisFormat  %m-%d
+  section 需求与设计
+    计价规则梳理（组长日check）  :a1, 2026-08-13, 1d
+    DDL + 接口设计             :a2, 2026-08-13, 1d
+  section 研发
+    服务骨架 + 3基础接口        :b1, 2026-08-13, 1d
+    支付闭环（回调/结算/退款）   :b2, 2026-08-14, 1d
+    高峰溢价 rule 扩展          :b3, 2026-08-14, 1d
+    全链路联调                 :b4, 2026-08-17, 1d
+  section 交付与答辩
+    答辩演示页面（真实引擎）     :c1, 2026-08-27, 1d
+    接口文档/对接说明/联调记录   :c2, 2026-08-27, 1d
+    答辩材料（本次）            :c3, 2026-08-28, 1d
+</div>
+    <details><summary>查看 mermaid 源码</summary><pre>
+gantt
+  title 模块五开发里程碑（2026-08）
+  dateFormat  YYYY-MM-DD
+  axisFormat  %m-%d
+  section 需求与设计
+    计价规则梳理（组长日check）  :a1, 2026-08-13, 1d
+    DDL + 接口设计             :a2, 2026-08-13, 1d
+  section 研发
+    服务骨架 + 3基础接口        :b1, 2026-08-13, 1d
+    支付闭环（回调/结算/退款）   :b2, 2026-08-14, 1d
+    高峰溢价 rule 扩展          :b3, 2026-08-14, 1d
+    全链路联调                 :b4, 2026-08-17, 1d
+  section 交付与答辩
+    答辩演示页面（真实引擎）     :c1, 2026-08-27, 1d
+    接口文档/对接说明/联调记录   :c2, 2026-08-27, 1d
+    答辩材料（本次）            :c3, 2026-08-28, 1d</pre></details>
+  </div>
+
+  <!-- ⑧ 实训计划表分解 -->
+  <div class="card" id="g8">
+    <span class="tag">实训计划</span>
+    <h2>⑧ 组长实训计划 → 本人落地</h2>
+    <p class="desc">组长日 check 任务拆解与本人的完成情况对照。</p>
+    <div class="mermaid">
+gantt
+  title 实训计划落地对照
+  dateFormat  YYYY-MM-DD
+  axisFormat  %m-%d
+  section 组长要求
+    行程价格预估接口           :t1, 2026-08-13, 1d
+    优惠券抵扣计算接口         :t2, 2026-08-13, 1d
+    支付预下单接口             :t3, 2026-08-13, 1d
+    对接订单状态回调           :t4, 2026-08-14, 1d
+    对接推送模块通知接口        :t5, 2026-08-14, 1d
+    产出接口文档/结算SQL/代码   :t6, 2026-08-14, 1d
+  section 本人落地
+    计价+优惠+支付 三个RPC     :d1, 2026-08-13, 1d
+    支付回调+结算+退款闭环     :d2, 2026-08-14, 1d
+    GetOrder+consumer 对接说明 :d3, 2026-08-14, 1d
+    接口文档 + DDL + seed      :d4, 2026-08-14, 1d
+    全链路联调验证             :d5, 2026-08-17, 1d
+    答辩演示页（真实引擎）      :d6, 2026-08-27, 1d
+</div>
+    <details><summary>查看 mermaid 源码</summary><pre>
+gantt
+  title 实训计划落地对照
+  dateFormat  YYYY-MM-DD
+  axisFormat  %m-%d
+  section 组长要求
+    行程价格预估接口           :t1, 2026-08-13, 1d
+    优惠券抵扣计算接口         :t2, 2026-08-13, 1d
+    支付预下单接口             :t3, 2026-08-13, 1d
+    对接订单状态回调           :t4, 2026-08-14, 1d
+    对接推送模块通知接口        :t5, 2026-08-14, 1d
+    产出接口文档/结算SQL/代码   :t6, 2026-08-14, 1d
+  section 本人落地
+    计价+优惠+支付 三个RPC     :d1, 2026-08-13, 1d
+    支付回调+结算+退款闭环     :d2, 2026-08-14, 1d
+    GetOrder+consumer 对接说明 :d3, 2026-08-14, 1d
+    接口文档 + DDL + seed      :d4, 2026-08-14, 1d
+    全链路联调验证             :d5, 2026-08-17, 1d
+    答辩演示页（真实引擎）      :d6, 2026-08-27, 1d</pre></details>
+  </div>
+
+  <div class="footer">
+    模块五 · 计价与支付答辩材料 ｜ 图表与真实代码对齐 ｜ 演示页：<code>go run ./rpc/pricesvc/demo</code> → http://127.0.0.1:8787/
+  </div>
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#FFF3E9',
+      primaryBorderColor: '#FF6A00',
+      primaryTextColor: '#2b2b2b',
+      lineColor: '#FF8C40',
+      fontFamily: '"Microsoft YaHei", "PingFang SC", sans-serif'
+    },
+    flowchart: { curve: 'basis', padding: 12 },
+    sequence: { actorMargin: 46, messageMargin: 30 },
+    gantt: { barHeight: 22, barGap: 6, topPadding: 40 }
+  });
+
+  // 左侧导航高亮
+  const links = document.querySelectorAll('nav a');
+  window.addEventListener('scroll', () => {
+    let current = 'g1';
+    document.querySelectorAll('.card').forEach(card => {
+      if (window.scrollY >= card.offsetTop - 120) current = card.id;
+    });
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+  });
+</script>
+</body>
+</html>

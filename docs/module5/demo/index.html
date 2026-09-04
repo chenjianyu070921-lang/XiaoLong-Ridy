@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模块五 · 计价与支付演示</title>
+<style>
+  :root {
+    --primary: #FF6A00;
+    --primary-deep: #F25000;
+    --primary-soft: #FFF0E3;
+    --green: #18B566;
+    --green-soft: #E5F8EF;
+    --red: #E5484D;
+    --red-soft: #FDECEC;
+    --gray: #9AA0A6;
+    --gray-soft: #F5F6F7;
+    --text: #2B2B2B;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #FFE9D6 0%, #FFF7EF 40%, #FFEFDD 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+  }
+  .stage-title {
+    position: fixed; top: 28px; left: 0; right: 0; text-align: center;
+    font-size: 15px; color: #B9733B; letter-spacing: 2px;
+  }
+
+  /* ── 手机框 ── */
+  .phone {
+    width: 400px; height: 800px;
+    background: #FFFFFF;
+    border-radius: 42px;
+    box-shadow: 0 24px 70px rgba(242, 110, 40, 0.25), inset 0 0 0 2px #FFD9BE;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  .app { display: flex; flex-direction: column; height: 100%; }
+
+  /* ── 头部 ── */
+  .app-header {
+    background: linear-gradient(120deg, var(--primary) 0%, var(--primary-deep) 100%);
+    color: #fff; padding: 18px 20px 14px;
+  }
+  .app-header .row { display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 10px; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--primary); font-weight: 800; font-size: 18px;
+  }
+  .brand .t1 { font-size: 16px; font-weight: 700; letter-spacing: 1px; }
+  .brand .t2 { font-size: 10px; opacity: 0.9; margin-top: 2px; }
+  .mode-badge {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .mode-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #B8B8B8; }
+  .mode-badge.real .dot { background: #7CFFB0; box-shadow: 0 0 6px #7CFFB0; }
+
+  /* ── 步骤条 ── */
+  .step-nav {
+    display: flex; gap: 4px; padding: 10px 16px 8px;
+    border-bottom: 1px solid #F3F3F3; overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .step-nav .chip {
+    flex-shrink: 0; font-size: 11px; color: #666;
+    padding: 5px 9px; border-radius: 16px; background: var(--gray-soft);
+    cursor: pointer; border: none; transition: all .15s;
+  }
+  .step-nav .chip.active { background: var(--primary); color: #fff; }
+  .step-nav .chip:hover { background: var(--primary-soft); color: var(--primary); }
+
+  /* ── 内容区 ── */
+  .content { flex: 1; overflow-y: auto; padding: 14px 16px 90px; }
+  .content::-webkit-scrollbar { width: 4px; }
+  .content::-webkit-scrollbar-thumb { background: #eee; border-radius: 4px; }
+
+  .card {
+    background: #fff; border: 1px solid #F1F1F1; border-radius: var(--radius);
+    padding: 16px; margin-bottom: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+  }
+  .card .head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .card .head .no {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--primary-soft);
+    color: var(--primary); font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .card .head h3 { font-size: 14px; font-weight: 600; }
+  .card .head .hint { font-size: 11px; color: var(--gray); margin-left: auto; }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
+  .field .val { font-size: 14px; font-weight: 600; }
+  .field .val .unit { font-size: 11px; color: var(--gray); font-weight: 400; margin-left: 2px; }
+
+  .row2 { display: flex; gap: 10px; }
+  .row2 .field { flex: 1; }
+
+  select, input[type="number"], input[type="datetime-local"] {
+    width: 100%; padding: 9px 10px; border: 1px solid #E3E3E3; border-radius: 10px;
+    font-size: 14px; background: #FAFBFC; color: var(--text); outline: none;
+  }
+  select:focus, input:focus { border-color: var(--primary); background: #fff; }
+
+  input[type="range"] { width: 100%; accent-color: var(--primary); }
+
+  .cars { display: flex; gap: 8px; }
+  .car {
+    flex: 1; text-align: center; padding: 10px 4px; border: 2px solid #EEEEEE;
+    border-radius: 12px; cursor: pointer; transition: all .15s;
+  }
+  .car.selected { border-color: var(--primary); background: var(--primary-soft); }
+  .car .nm { font-size: 13px; font-weight: 600; }
+  .car .pr { font-size: 11px; color: var(--gray); margin-top: 2px; }
+
+  .scene-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .scene-btn {
+    font-size: 12px; padding: 5px 11px; border-radius: 14px; border: 1px solid #FFD3B3;
+    color: var(--primary); background: #FFF7EF; cursor: pointer; transition: all .15s;
+  }
+  .scene-btn:hover { background: var(--primary); color: #fff; }
+
+  .btn {
+    width: 100%; padding: 12px; border: none; border-radius: 12px;
+    font-size: 15px; font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .btn-primary { background: linear-gradient(120deg, var(--primary), var(--primary-deep)); color: #fff; }
+  .btn-primary:hover { opacity: 0.92; transform: translateY(-1px); }
+  .btn-ghost { background: var(--gray-soft); color: #555; }
+  .btn-ghost:hover { background: #EBECED; }
+  .btn-sm { width: auto; padding: 7px 14px; font-size: 13px; border-radius: 10px; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+  /* 计价明细 */
+  .rule-bar {
+    background: var(--primary-soft); border-radius: 10px; padding: 10px 12px;
+    margin-bottom: 12px; font-size: 12px; color: #A05A22; line-height: 1.7;
+  }
+  .rule-bar b { color: var(--primary-deep); }
+  .tags { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tag { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+  .tag.night { background: #2C3E50; color: #FFD27F; }
+  .tag.peak { background: var(--red-soft); color: var(--red); }
+  .tag.normal { background: var(--green-soft); color: var(--green); }
+  .tag.sys { background: var(--gray-soft); color: var(--gray); }
+
+  .fee-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed #F0F0F0; font-size: 13px; }
+  .fee-row:last-child { border-bottom: none; }
+  .fee-row .k { color: #666; }
+  .fee-row .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fee-row.hl .v { color: var(--primary); font-size: 15px; }
+  .fee-row.hl { border-bottom: none; padding-top: 12px; }
+
+  /* 优惠券 */
+  .coupon { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1.5px solid #EEE; border-radius: 12px; cursor: pointer; margin-bottom: 8px; transition: all .15s; }
+  .coupon:hover { border-color: #FFC9A3; }
+  .coupon.selected { border-color: var(--primary); background: var(--primary-soft); }
+  .coupon .cface {
+    width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg, #FF9A3F, #FF6A00);
+    color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .coupon .cface .amt { font-size: 16px; font-weight: 800; }
+  .coupon .cface .lbl { font-size: 9px; opacity: .9; }
+  .coupon .cinfo { flex: 1; }
+  .coupon .cinfo .n { font-size: 13px; font-weight: 600; }
+  .coupon .cinfo .d { font-size: 11px; color: var(--gray); margin-top: 3px; }
+
+  /* 支付 */
+  .channels { display: flex; gap: 8px; }
+  .channel {
+    flex: 1; text-align: center; padding: 10px 4px; border: 2px solid #EEE; border-radius: 12px;
+    cursor: pointer; transition: all .15s; font-size: 13px; font-weight: 600;
+  }
+  .channel.selected { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+
+  .pay-info { background: var(--gray-soft); border-radius: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.9; word-break: break-all; }
+  .pay-info .k { color: var(--gray); }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; }
+  .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .st-pending { background: var(--primary-soft); color: var(--primary); }
+  .st-pending .dot { background: var(--primary); }
+  .st-paid { background: var(--green-soft); color: var(--green); }
+  .st-paid .dot { background: var(--green); }
+  .st-refunded { background: var(--gray-soft); color: #666; }
+  .st-refunded .dot { background: #999; }
+
+  /* 结算 */
+  .settle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .settle-cell { background: var(--gray-soft); border-radius: 12px; padding: 12px; text-align: center; }
+  .settle-cell .n { font-size: 12px; color: var(--gray); }
+  .settle-cell .v { font-size: 18px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .settle-cell.green { background: var(--green-soft); }
+  .settle-cell.green .v { color: var(--green); }
+  .settle-cell.orange { background: var(--primary-soft); }
+  .settle-cell.orange .v { color: var(--primary); }
+
+  .empty-hint { text-align: center; color: var(--gray); font-size: 13px; padding: 18px 0; }
+  .empty-hint .step-dot { font-size: 28px; color: #D8DBDE; display: block; margin-bottom: 8px; }
+
+  /* 收银台弹窗 */
+  .mask {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.45); z-index: 30;
+    display: none; align-items: center; justify-content: center; border-radius: 42px;
+  }
+  .mask.show { display: flex; }
+  .cashier {
+    width: 300px; background: #fff; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+  }
+  .cashier .ch-top { background: linear-gradient(120deg, var(--primary), var(--primary-deep)); color: #fff; padding: 18px; text-align: center; }
+  .cashier .ch-top .amt { font-size: 28px; font-weight: 800; margin-top: 4px; }
+  .cashier .ch-top .no { font-size: 11px; opacity: .85; margin-top: 4px; word-break: break-all; }
+  .cashier .ch-body { padding: 16px; }
+  .cashier .ch-row { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; color: #555; }
+  .cashier .ch-btns { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .cashier .ch-sec { padding: 0 16px 14px; }
+  .cashier .ch-sec .sec-title { font-size: 11px; color: var(--gray); margin-bottom: 6px; }
+
+  /* 日志 */
+  .log-toggle {
+    position: absolute; right: 14px; bottom: 14px; z-index: 20;
+    width: 46px; height: 46px; border-radius: 50%; border: none;
+    background: #2B2B2B; color: #fff; font-size: 18px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center;
+  }
+  .log-toggle:hover { transform: scale(1.05); }
+  .log-panel {
+    position: absolute; inset: 0; z-index: 40; background: #16181D;
+    border-radius: 42px; display: none; flex-direction: column; overflow: hidden;
+  }
+  .log-panel.show { display: flex; }
+  .log-panel .lp-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; color: #fff; background: #1F2229;
+  }
+  .log-panel .lp-head .tt { font-size: 13px; font-weight: 600; }
+  .log-panel .lp-head .mode-txt { font-size: 11px; color: #8A919E; }
+  .log-panel .lp-head button { background: none; border: none; color: #8A919E; font-size: 16px; cursor: pointer; }
+  .log-body { flex: 1; overflow-y: auto; padding: 12px 14px; font-family: "Cascadia Code", Consolas, monospace; font-size: 11px; line-height: 1.7; }
+  .log-body::-webkit-scrollbar { width: 4px; }
+  .log-body::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+  .log-entry { margin-bottom: 14px; }
+  .log-entry .le-time { color: #5B6470; }
+  .log-entry .le-api { color: #66B2FF; font-weight: 600; }
+  .log-entry .le-kw { color: #C792EA; }
+  .log-entry .le-req, .log-entry .le-resp { color: #9EA7B3; white-space: pre-wrap; word-break: break-all; padding-left: 10px; border-left: 2px solid #2A2E36; margin-top: 3px; }
+  .log-entry .le-resp.ok { border-left-color: var(--green); color: #7EE2A8; }
+  .log-entry .le-resp.err { border-left-color: var(--red); color: #FF8F93; }
+
+  .toast {
+    position: absolute; left: 50%; top: 60px; transform: translateX(-50%) translateY(-8px);
+    background: rgba(43,43,43,0.92); color: #fff; font-size: 12px; padding: 8px 16px;
+    border-radius: 20px; z-index: 50; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="stage-title">花小猪网约车 · 模块五 计价与支付 演示</div>
+
+<div class="phone" id="phone">
+  <div class="app">
+    <header class="app-header">
+      <div class="row">
+        <div class="brand">
+          <div class="logo">花</div>
+          <div>
+            <div class="t1">花小猪打车</div>
+            <div class="t2">计价 · 支付 · 结算</div>
+          </div>
+        </div>
+        <div class="mode-badge" id="modeBadge"><span class="dot"></span><span id="modeText">检测服务…</span></div>
+      </div>
+    </header>
+
+    <nav class="step-nav" id="stepNav"></nav>
+
+    <main class="content" id="content">
+
+      <!-- ① 行程配置 -->
+      <section class="card" id="step-trip">
+        <div class="head"><span class="no">1</span><h3>行程配置</h3><span class="hint">输入本次行程参数</span></div>
+        <div class="field">
+          <label>出发城市</label>
+          <select id="cityCode">
+            <option value="110000">北京</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>选择车型</label>
+          <div class="cars" id="carType">
+            <div class="car" data-type="1"><div class="nm">特惠快车</div><div class="pr">起步 8 元</div></div>
+            <div class="car selected" data-type="2"><div class="nm">快车</div><div class="pr">起步 12 元</div></div>
+            <div class="car" data-type="3"><div class="nm">拼车</div><div class="pr">起步 6 元</div></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>行程里程：<span class="val" id="distanceText">12.5 km</span></label>
+          <input type="range" id="distance" min="1" max="40" step="0.5" value="12.5">
+        </div>
+        <div class="field">
+          <label>预计时长：<span class="val" id="durationText">30 分钟</span></label>
+          <input type="range" id="duration" min="5" max="120" step="1" value="30">
+        </div>
+        <div class="field">
+          <label>出发时刻（影响夜间费 / 高峰溢价判断）</label>
+          <input type="datetime-local" id="departTime">
+        </div>
+        <div class="field">
+          <label>快捷场景</label>
+          <div class="scene-btns" id="scenes">
+            <button class="scene-btn" data-h="10" data-m="0">白天 10:00</button>
+            <button class="scene-btn" data-h="8" data-m="0">早高峰 08:00</button>
+            <button class="scene-btn" data-h="18" data-m="0">晚高峰 18:00</button>
+            <button class="scene-btn" data-h="23" data-m="30">夜间跨天 23:30</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btnEstimate">开始价格预估</button>
+      </section>
+
+      <!-- ② 价格预估 -->
+      <section class="card" id="step-price">
+        <div class="head"><span class="no">2</span><h3>价格预估</h3><span class="hint" id="priceModeHint">—</span></div>
+        <div id="priceResult"></div>
+      </section>
+
+      <!-- ③ 优惠抵扣 -->
+      <section class="card" id="step-discount">
+        <div class="head"><span class="no">3</span><h3>优惠券抵扣</h3><span class="hint">CalculateDiscount</span></div>
+        <div id="couponList"></div>
+        <div id="discountResult"></div>
+      </section>
+
+      <!-- ④ 创建支付 -->
+      <section class="card" id="step-pay">
+        <div class="head"><span class="no">4</span><h3>创建支付单</h3><span class="hint">CreatePayment</span></div>
+        <div class="field">
+          <label>支付渠道</label>
+          <div class="channels" id="payChannel">
+            <div class="channel selected" data-ch="wechat">微信</div>
+            <div class="channel" data-ch="alipay">支付宝</div>
+            <div class="channel" data-ch="balance">余额</div>
+          </div>
+        </div>
+        <div class="pay-info" id="payOrderInfo" style="margin-bottom:12px;">
+          <div><span class="k">支付金额：</span><b id="payAmountText">—</b></div>
+          <div><span class="k">订单编号：</span><span id="payOrderIdText">—</span></div>
+        </div>
+        <button class="btn btn-primary" id="btnCreatePay" disabled>创建支付单</button>
+        <div id="payResult" style="margin-top:12px;"></div>
+      </section>
+
+      <!-- ⑤ 支付回调 -->
+      <section class="card" id="step-notify">
+        <div class="head"><span class="no">5</span><h3>支付回调</h3><span class="hint">NotifyPayment · 验签+幂等</span></div>
+        <div id="notifyPanel"></div>
+      </section>
+
+      <!-- ⑥ 司机结算 -->
+      <section class="card" id="step-settle">
+        <div class="head"><span class="no">6</span><h3>司机结算</h3><span class="hint">SettleOrder · 平台抽成 20%</span></div>
+        <div id="settleResult"></div>
+      </section>
+
+      <!-- ⑦ 退款 -->
+      <section class="card" id="step-refund">
+        <div class="head"><span class="no">7</span><h3>退款</h3><span class="hint">RefundPayment</span></div>
+        <div id="refundPanel"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <button class="log-toggle" id="logToggle" title="流水日志">≣</button>
+  <div class="toast" id="toast"></div>
+
+  <!-- 收银台弹窗 -->
+  <div class="mask" id="payMask">
+    <div class="cashier">
+      <div class="ch-top">
+        <div>花小猪 · 安全收银台</div>
+        <div class="amt" id="cashierAmt">¥ 0.00</div>
+        <div class="no" id="cashierNo">—</div>
+      </div>
+      <div class="ch-body">
+        <div class="ch-row"><span>支付渠道</span><b id="cashierChannel">—</b></div>
+        <div class="ch-row"><span>交易流水号</span><b id="cashierTx" style="word-break:break-all;max-width:150px;text-align:right;">—</b></div>
+        <div class="ch-row"><span>支付参数</span><b id="cashierParams" style="word-break:break-all;max-width:150px;text-align:right;">—</b></div>
+      </div>
+      <div class="ch-btns">
+        <button class="btn btn-primary" id="btnPayConfirm">确认支付（模拟回调）</button>
+      </div>
+      <div class="ch-sec">
+        <div class="sec-title">幂等演示：支付成功后，可再点一次「模拟重复回调」</div>
+        <button class="btn btn-ghost btn-sm" id="btnDupNotify" style="width:100%;">模拟重复回调</button>
+      </div>
+      <div class="ch-btns" style="padding-top:0;">
+        <button class="btn btn-ghost btn-sm" id="btnCloseCashier" style="width:100%;">关闭收银台</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 日志面板 -->
+  <div class="log-panel" id="logPanel">
+    <div class="lp-head">
+      <div>
+        <div class="tt">接口流水日志</div>
+        <div class="mode-txt" id="lpMode">—</div>
+      </div>
+      <button id="logClose">✕</button>
+    </div>
+    <div class="log-body" id="logBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ══════════════════════ 常量与内置兜底数据 ══════════════════════ */
+const API_BASE = "http://127.0.0.1:8787";
+
+// 与 scripts/sql/migrate/07_price_rule_seed.sql 完全一致的北京三条规则（内置降级模式用）
+const RULES = [
+  { id: 1, name: "北京特惠快车", cityCode: "110000", carType: 1, basePrice: 8.00, baseDistanceKm: 2.00, perKmPrice: 1.80, perMinutePrice: 0.40, nightStart: "23:00:00", nightEnd: "05:00:00", nightSurcharge: 5.00, dynamicMaxFactor: 1.20 },
+  { id: 2, name: "北京快车", cityCode: "110000", carType: 2, basePrice: 12.00, baseDistanceKm: 3.00, perKmPrice: 2.50, perMinutePrice: 0.50, nightStart: "23:00:00", nightEnd: "05:00:00", nightSurcharge: 8.00, dynamicMaxFactor: 1.50 },
+  { id: 3, name: "北京拼车", cityCode: "110000", carType: 3, basePrice: 6.00, baseDistanceKm: 2.00, perKmPrice: 1.20, perMinutePrice: 0.30, nightStart: "23:00:00", nightEnd: "05:00:00", nightSurcharge: 3.00, dynamicMaxFactor: 1.10 },
+];
+
+const STEPS = [
+  { id: "trip", label: "行程配置" },
+  { id: "price", label: "价格预估" },
+  { id: "discount", label: "优惠抵扣" },
+  { id: "pay", label: "创建支付" },
+  { id: "notify", label: "支付回调" },
+  { id: "settle", label: "司机结算" },
+  { id: "refund", label: "退款" },
+];
+
+/* ══════════════════════ 全局状态 ══════════════════════ */
+let MODE = "local"; // real | local
+const state = {
+  carType: 2,
+  payChannel: "wechat",
+  coupon: null,           // 当前选中券（null=无券）
+  estimate: null,         // {rule, detail, totalCents, isNight, isPeak, factor}
+  discount: null,         // {discountAmountCents, platformSubsidyCents, payableAmountCents}
+  paymentNo: null,
+  payStatus: null,        // 1/2/4
+};
+
+/* ══════════════════════ 工具函数 ══════════════════════ */
+const $ = (id) => document.getElementById(id);
+const fmtYuan = (cents) => (cents / 100).toFixed(2);
+const pad = (n) => String(n).padStart(2, "0");
+const nowTime = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function setDepartTime(h, m) {
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  $("departTime").value = formatLocalInput(d);
+}
+function formatLocalInput(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/* ══════════════════════ 日志 ══════════════════════ */
+function log(api, req, resp, err) {
+  const body = $("logBody");
+  const el = document.createElement("div");
+  el.className = "log-entry";
+  const time = nowTime();
+  const reqJson = req === undefined ? "" : JSON.stringify(req);
+  const respStr = err ? `ERROR: ${err}` : JSON.stringify(resp);
+  el.innerHTML = `
+    <div><span class="le-time">[${time}]</span> <span class="le-api">${api}</span></div>
+    ${reqJson ? `<div class="le-req">req ${reqJson}</div>` : ""}
+    <div class="le-resp ${err ? "err" : "ok"}">resp ${respStr}</div>`;
+  body.appendChild(el);
+  body.scrollTop = body.scrollHeight;
+  // 也打印到控制台，方便答辩现场看终端
+  console.log(`[${time}] ${api}`, req ?? "", err ? "ERROR:" + err : resp);
+}
+
+/* ══════════════════════ 内置降级计算（与真实 rule 引擎同公式） ══════════════════════ */
+function parseClock(s) {
+  const [h, m] = s.split(":").map(Number);
+  return h * 60 + m;
+}
+function isNightTime(hour, min, start, end) {
+  if (!start || !end) return false;
+  const st = parseClock(start), en = parseClock(end);
+  const cur = hour * 60 + min;
+  return st < en ? (cur >= st && cur < en) : (cur >= st || cur < en);
+}
+function localEstimate(p) {
+  const rule = RULES.find(r => r.cityCode === p.cityCode && r.carType === p.carType);
+  if (!rule) throw new Error(`未找到计价规则: city=${p.cityCode} type=${p.carType}`);
+  const d = new Date(p.timestamp * 1000);
+  const isNight = isNightTime(d.getHours(), d.getMinutes(), rule.nightStart, rule.nightEnd);
+  const isPeak = (d.getHours() >= 7 && d.getHours() < 9) || (d.getHours() >= 17 && d.getHours() < 19);
+  const factor = isPeak ? rule.dynamicMaxFactor : 1.0;
+
+  const base = Math.round(rule.basePrice * 100);
+  const baseDistM = Math.round(rule.baseDistanceKm * 1000);
+  const perKm = Math.round(rule.perKmPrice * 100);
+  const perMin = Math.round(rule.perMinutePrice * 100);
+  const distanceFee = p.distanceM > baseDistM ? Math.floor((p.distanceM - baseDistM) * perKm / 1000) : 0;
+  const timeFee = Math.floor(p.durationS * perMin / 60);
+  const nightFee = isNight ? Math.round(rule.nightSurcharge * 100) : 0;
+  const basic = base + distanceFee + timeFee;
+  const capped = Math.max(1.0, Math.min(rule.dynamicMaxFactor, factor));
+  const dynamicFee = capped > 1.0 ? Math.round(basic * (capped - 1.0)) : 0;
+  const total = basic + nightFee + dynamicFee;
+
+  return {
+    rule: { ...rule },
+    detail: { baseFeeCents: base, distanceFeeCents: distanceFee, timeFeeCents: timeFee, nightFeeCents: nightFee, dynamicFeeCents: dynamicFee, totalCents: total },
+    totalCents: total, isNight, isPeak, factor: capped,
+  };
+}
+function localDiscount(totalCents, coupon) {
+  if (coupon.thresholdCents > 0 && totalCents < coupon.thresholdCents) throw new Error("订单金额未满足优惠券门槛");
+  let discountCents = 0;
+  if (coupon.type === 1) {
+    discountCents = coupon.faceValueCents;
+    if (discountCents > totalCents) discountCents = totalCents;
+  } else if (coupon.type === 2) {
+    if (coupon.discount > 0 && coupon.discount < 100) {
+      discountCents = totalCents - Math.floor(totalCents * coupon.discount / 100);
+      if (coupon.maxDiscountCents > 0 && discountCents > coupon.maxDiscountCents) discountCents = coupon.maxDiscountCents;
+    }
+  }
+  if (discountCents < 0) discountCents = 0;
+  if (discountCents > totalCents) discountCents = totalCents;
+  return { discountAmountCents: discountCents, platformSubsidyCents: 0, payableAmountCents: totalCents - discountCents };
+}
+function localSettle(totalCents, rate) {
+  rate = Math.max(0, Math.min(100, rate));
+  const commission = Math.round(totalCents * rate / 100);
+  return { platformCommissionCents: commission, driverIncomeCents: totalCents - commission };
+}
+
+/* 内置支付状态机 */
+const localPayments = new Map();
+let localSeq = 0;
+function genNo(prefix) {
+  const d = new Date();
+  const ts = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  return `${prefix}${ts}${String(d.getMilliseconds()).padStart(3,"0")}${String(Math.floor(Math.random()*1000)).padStart(3,"0")}`;
+}
+function localCreatePayment(req) {
+  const paymentNo = genNo("PAY");
+  const transactionId = `${req.channel}_${paymentNo}`;
+  const payParams = `mock://${req.channel}?payment_no=${paymentNo}&amount=${req.amountCents}`;
+  const rec = { paymentId: ++localSeq, paymentNo, orderId: req.orderId, userId: req.userId, amountCents: req.amountCents, channel: req.channel, transactionId, payParams, status: 1, notifyCount: 0, refundedCents: 0, lastNotifyTime: "" };
+  localPayments.set(paymentNo, rec);
+  return { paymentId: rec.paymentId, paymentNo, transactionId, payParams, status: 1 };
+}
+function localNotify(paymentNo) {
+  const rec = localPayments.get(paymentNo);
+  if (!rec) throw new Error("支付单不存在");
+  rec.notifyCount++;
+  rec.lastNotifyTime = nowTime();
+  if (rec.status === 2) return { success: true, idempotent: true, message: "重复回调已忽略（幂等）", paymentNo, status: 2 };
+  rec.status = 2;
+  return { success: true, idempotent: false, message: "支付成功", paymentNo, status: 2 };
+}
+function localGetPayment(paymentNo) {
+  const rec = localPayments.get(paymentNo);
+  if (!rec) throw new Error("支付单不存在");
+  return { paymentNo: rec.paymentNo, orderId: rec.orderId, amountCents: rec.amountCents, channel: rec.channel, status: rec.status, transactionId: rec.transactionId, refundAmountCents: rec.refundedCents, notifyCount: rec.notifyCount, lastNotifyTime: rec.lastNotifyTime };
+}
+function localRefund(req) {
+  const rec = localPayments.get(req.paymentNo);
+  if (!rec) throw new Error("支付单不存在");
+  if (rec.status !== 2) throw new Error("仅支付成功状态可退款");
+  if (req.refundAmountCents <= 0) throw new Error("退款金额必须为正");
+  const refundable = rec.amountCents - rec.refundedCents;
+  if (req.refundAmountCents > refundable) throw new Error(`退款金额超过可退额 ${fmtYuan(refundable)}`);
+  rec.refundedCents += req.refundAmountCents;
+  const full = rec.refundedCents >= rec.amountCents;
+  if (full) rec.status = 4;
+  return { success: true, refundNo: genNo("RF"), refundedAmountCents: rec.refundedCents, fullRefund: full, status: rec.status, message: "退款成功" };
+}
+
+/* ══════════════════════ API 层（真实 / 降级分发） ══════════════════════ */
+async function api(path, body, isGet) {
+  if (MODE === "real") {
+    const url = API_BASE + path;
+    const opt = isGet
+      ? { method: "GET" }
+      : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+    const r = await fetch(url, opt);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    return j;
+  }
+  // 内置降级
+  if (path === "/api/estimate") return localEstimate(body);
+  if (path === "/api/discount") return localDiscount(body.totalCents, body.coupon);
+  if (path === "/api/payment/create") return localCreatePayment(body);
+  if (path === "/api/payment/notify") return localNotify(body.paymentNo);
+  if (path === "/api/payment") return localGetPayment(body.paymentNo);
+  if (path === "/api/payment/refund") return localRefund(body);
+  if (path === "/api/settle") return localSettle(body.totalCents, body.commissionRate);
+  throw new Error("unknown api: " + path);
+}
+
+async function detectMode() {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 1200);
+    const r = await fetch(API_BASE + "/health", { signal: ctl.signal });
+    clearTimeout(timer);
+    if (r.ok) {
+      MODE = "real";
+      setModeBadge(true);
+      return;
+    }
+  } catch (e) { /* 忽略 */ }
+  MODE = "local";
+  setModeBadge(false);
+}
+function setModeBadge(real) {
+  const badge = $("modeBadge");
+  if (real) {
+    badge.classList.add("real");
+    $("modeText").textContent = "真实计价引擎";
+    $("lpMode").textContent = "模式：真实模式（go run ./rpc/pricesvc/demo 提供计算）";
+  } else {
+    badge.classList.remove("real");
+    $("modeText").textContent = "内置模拟模式";
+    $("lpMode").textContent = "模式：内置模拟（未检测到演示服务，页面内置同公式计算）";
+  }
+}
+
+/* ══════════════════════ UI 渲染 ══════════════════════ */
+
+function renderSteps() {
+  const nav = $("stepNav");
+  nav.innerHTML = STEPS.map((s, i) => `<button class="chip" data-id="${s.id}">${i + 1}.${s.label}</button>`).join("");
+  nav.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const sec = $(`step-${chip.dataset.id}`);
+      sec.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+}
+
+function statusPill(status) {
+  if (status === 1) return '<span class="status-pill st-pending"><span class="dot"></span>待支付</span>';
+  if (status === 2) return '<span class="status-pill st-paid"><span class="dot"></span>支付成功</span>';
+  if (status === 4) return '<span class="status-pill st-refunded"><span class="dot"></span>已退款</span>';
+  return `<span class="status-pill st-refunded"><span class="dot"></span>状态码 ${status}</span>`;
+}
+
+function renderEstimate(resp) {
+  const r = resp.rule;
+  const d = resp.detail;
+  const tags = [];
+  if (resp.isNight) tags.push('<span class="tag night">夜间时段 23:00-05:00</span>');
+  if (resp.isPeak) tags.push(`<span class="tag peak">高峰时段 · 调价 x${resp.factor.toFixed(2)}</span>`);
+  if (!resp.isNight && !resp.isPeak) tags.push('<span class="tag normal">平峰时段 · 无附加费</span>');
+
+  $("priceModeHint").textContent = MODE === "real" ? "真实计价引擎计算" : "内置同公式计算";
+
+  $("priceResult").innerHTML = `
+    <div class="rule-bar">命中规则：<b>${r.name}</b>（${r.cityCode}）· 起步 <b>¥${r.basePrice.toFixed(2)}</b> 含 <b>${r.baseDistanceKm}km</b> · 里程 <b>¥${r.perKmPrice.toFixed(2)}/km</b> · 时长 <b>¥${r.perMinutePrice.toFixed(2)}/分</b> · 夜间附加 <b>¥${r.nightSurcharge.toFixed(2)}</b></div>
+    <div class="tags">${tags.join("")}</div>
+    <div class="fee-row"><span class="k">起步价</span><span class="v">¥${fmtYuan(d.baseFeeCents)}</span></div>
+    <div class="fee-row"><span class="k">里程费（超出起步里程）</span><span class="v">¥${fmtYuan(d.distanceFeeCents)}</span></div>
+    <div class="fee-row"><span class="k">时长费</span><span class="v">¥${fmtYuan(d.timeFeeCents)}</span></div>
+    <div class="fee-row"><span class="k">夜间附加费</span><span class="v">¥${fmtYuan(d.nightFeeCents)}</span></div>
+    <div class="fee-row"><span class="k">动态调价费（factor=${resp.factor.toFixed(2)}）</span><span class="v">¥${fmtYuan(d.dynamicFeeCents)}</span></div>
+    <div class="fee-row hl"><span class="k">预估总价</span><span class="v">¥${fmtYuan(resp.totalCents)}</span></div>`;
+
+  // 联动优惠与支付
+  renderCoupons();
+  updatePayInfo();
+  $("btnCreatePay").disabled = false;
+}
+
+function renderCoupons() {
+  const total = state.estimate ? state.estimate.totalCents : 0;
+  const coupons = [
+    { id: "none", name: "不使用优惠券", desc: "按原价支付" },
+    { id: "fixed5", name: "立减 5 元", desc: "固定金额券 · 无门槛", type: 1, faceValueCents: 500, thresholdCents: 0, discount: 0, maxDiscountCents: 0 },
+    { id: "fold8", name: "8 折优惠券", desc: "满 20 元可用 · 最高优惠 10 元", type: 2, faceValueCents: 0, thresholdCents: 2000, discount: 80, maxDiscountCents: 1000 },
+  ];
+  $("couponList").innerHTML = coupons.map((c) => {
+    const face = c.type === 1 ? fmtYuan(c.faceValueCents) : `${c.discount}折`;
+    const sel = (state.coupon === null && c.id === "none") || (state.coupon && state.coupon.id === c.id);
+    return `<div class="coupon ${sel ? "selected" : ""}" data-id="${c.id}">
+      <div class="cface"><div class="amt">${c.type === 1 ? "¥" + face : face}</div><div class="lbl">${c.type === 1 ? "立减券" : "折扣券"}</div></div>
+      <div class="cinfo"><div class="n">${c.name}</div><div class="d">${c.desc}</div></div>
+    </div>`;
+  }).join("");
+  $("couponList").querySelectorAll(".coupon").forEach((el) => {
+    el.addEventListener("click", () => selectCoupon(coupons.find((c) => c.id === el.dataset.id)));
+  });
+}
+
+function selectCoupon(c) {
+  state.coupon = c.id === "none" ? null : { ...c };
+  renderCoupons();
+  renderDiscount();
+}
+
+function renderDiscount() {
+  const box = $("discountResult");
+  if (!state.estimate) { box.innerHTML = '<div class="empty-hint">请先完成价格预估</div>'; return; }
+  const total = state.estimate.totalCents;
+  box.innerHTML = `
+    <div class="fee-row"><span class="k">订单金额</span><span class="v">¥${fmtYuan(total)}</span></div>
+    <button class="btn btn-primary" id="btnDiscount" style="margin-top:10px;">计算优惠</button>`;
+}
+
+async function runDiscount() {
+  const total = state.estimate.totalCents;
+  const coupon = state.coupon
+    ? { type: state.coupon.type, faceValueCents: state.coupon.faceValueCents, discount: state.coupon.discount, thresholdCents: state.coupon.thresholdCents, maxDiscountCents: state.coupon.maxDiscountCents }
+    : { type: 0, faceValueCents: 0, discount: 0, thresholdCents: 0, maxDiscountCents: 0 };
+  const body = { totalCents: total, coupon };
+  try {
+    const resp = await api("/api/discount", body);
+    log("/api/discount", body, resp);
+    state.discount = resp;
+    $("discountResult").innerHTML = `
+      <div class="fee-row"><span class="k">订单金额</span><span class="v">¥${fmtYuan(total)}</span></div>
+      <div class="fee-row"><span class="k">优惠券抵扣</span><span class="v" style="color:var(--red);">-¥${fmtYuan(resp.discountAmountCents)}</span></div>
+      <div class="fee-row"><span class="k">平台补贴</span><span class="v">¥${fmtYuan(resp.platformSubsidyCents)}</span></div>
+      <div class="fee-row hl"><span class="k">乘客实付</span><span class="v">¥${fmtYuan(resp.payableAmountCents)}</span></div>`;
+    updatePayInfo();
+    toast(state.coupon ? "优惠计算完成" : "未使用优惠券");
+  } catch (e) {
+    log("/api/discount", body, null, e.message);
+    toast("优惠券不满足使用条件");
+  }
+}
+
+function updatePayInfo() {
+  const payable = state.discount ? state.discount.payableAmountCents : (state.estimate ? state.estimate.totalCents : 0);
+  $("payAmountText").textContent = payable > 0 ? `¥${fmtYuan(payable)}` : "—";
+  $("payOrderIdText").textContent = "ORD20260827001";
+}
+
+async function createPayment() {
+  const amount = state.discount ? state.discount.payableAmountCents : state.estimate.totalCents;
+  const body = { orderId: 1001, userId: 2001, amountCents: amount, channel: state.payChannel };
+  try {
+    const resp = await api("/api/payment/create", body);
+    log("/api/payment/create", body, resp);
+    state.paymentNo = resp.paymentNo;
+    state.payStatus = resp.status;
+    $("payResult").innerHTML = `
+      <div class="pay-info">
+        <div><span class="k">支付单号：</span><span>${resp.paymentNo}</span></div>
+        <div><span class="k">交易流水号：</span><span>${resp.transactionId}</span></div>
+        <div><span class="k">支付参数：</span><span>${resp.payParams}</span></div>
+        <div style="margin-top:6px;"><span class="k">状态：</span>${statusPill(resp.status)}</div>
+      </div>`;
+    openCashier(resp);
+    toast("支付单创建成功");
+  } catch (e) {
+    log("/api/payment/create", body, null, e.message);
+    toast("创建支付单失败");
+  }
+}
+
+function openCashier(resp) {
+  const amount = state.discount ? state.discount.payableAmountCents : state.estimate.totalCents;
+  $("cashierAmt").textContent = `¥${fmtYuan(amount)}`;
+  $("cashierNo").textContent = resp.paymentNo;
+  const chName = { wechat: "微信支付", alipay: "支付宝", balance: "余额支付" }[resp.channel] || resp.channel;
+  $("cashierChannel").textContent = chName;
+  $("cashierTx").textContent = resp.transactionId;
+  $("cashierParams").textContent = resp.payParams;
+  $("payMask").classList.add("show");
+}
+
+async function payConfirm() {
+  const body = { paymentNo: state.paymentNo };
+  try {
+    const resp = await api("/api/payment/notify", body);
+    log("/api/payment/notify", body, resp);
+    state.payStatus = resp.status;
+    $("payResult").innerHTML += `
+      <div class="pay-info" style="margin-top:8px;background:var(--green-soft);">
+        <div><span class="k">回调结果：</span><b style="color:var(--green);">${resp.message}</b></div>
+        <div><span class="k">状态：</span>${statusPill(resp.status)}</div>
+      </div>`;
+    renderNotifyPanel();
+    renderSettle();   // 支付成功 → 激活结算卡片
+    renderRefund();   // 支付成功 → 激活退款卡片
+    toast(resp.message);
+  } catch (e) {
+    log("/api/payment/notify", body, null, e.message);
+    toast("回调处理失败");
+  }
+}
+
+async function dupNotify() {
+  const body = { paymentNo: state.paymentNo };
+  try {
+    const resp = await api("/api/payment/notify", body);
+    log("/api/payment/notify (重复回调)", body, resp);
+    toast(resp.message);
+    // 在面板里追加幂等提示
+    const panel = $("notifyPanel");
+    panel.innerHTML += `<div class="rule-bar" style="margin-top:8px;">⚡ ${resp.message}</div>`;
+  } catch (e) {
+    log("/api/payment/notify (重复回调)", body, null, e.message);
+  }
+}
+
+function renderNotifyPanel() {
+  const panel = $("notifyPanel");
+  const amount = state.discount ? state.discount.payableAmountCents : state.estimate.totalCents;
+  if (!state.paymentNo) {
+    panel.innerHTML = '<div class="empty-hint"><span class="step-dot">④</span>请先创建支付单</div>';
+    return;
+  }
+  const paid = state.payStatus === 2;
+  panel.innerHTML = `
+    <div class="pay-info">
+      <div><span class="k">支付单号：</span><span>${state.paymentNo}</span></div>
+      <div><span class="k">支付金额：</span><b>¥${fmtYuan(amount)}</b></div>
+      <div style="margin-top:6px;"><span class="k">当前状态：</span>${statusPill(state.payStatus)}</div>
+    </div>
+    ${!paid ? '<div class="empty-hint" style="padding:12px 0 4px;">点击上方收银台「确认支付」完成回调演示</div>'
+            : `<div class="rule-bar" style="margin-top:10px;">
+                <b>回调链路</b>：验签通过 → 金额比对一致 → 条件更新 WHERE id=? AND status=待支付<br>
+                支付成功后已下发 <b>order.paid</b> Kafka 事件（订单模块消费）→ 触发司机结算
+              </div>
+              <button class="btn btn-ghost btn-sm" id="btnDup2" style="width:100%;">再点一次：模拟重复回调（幂等演示）</button>`}`;
+  if (state.payStatus === 2) {
+    $("btnDup2").addEventListener("click", dupNotify);
+  }
+}
+
+function renderSettle() {
+  const box = $("settleResult");
+  const total = state.discount ? state.discount.payableAmountCents : (state.estimate ? state.estimate.totalCents : 0);
+  // 已支付且有订单金额 → 渲染结算按钮
+  if (state.payStatus === 2 && total > 0) {
+    box.innerHTML = `<button class="btn btn-primary" id="btnSettle">生成结算单（¥${fmtYuan(total)} × 20%）</button>`;
+    $("btnSettle").addEventListener("click", runSettle);
+    return;
+  }
+  // 未支付或无订单 → 占位
+  box.innerHTML = '<div class="empty-hint"><span class="step-dot">⑤</span>支付成功后自动触发结算，或点击下方按钮手动结算</div>';
+}
+
+async function runSettle() {
+  const total = state.discount ? state.discount.payableAmountCents : state.estimate.totalCents;
+  const body = { totalCents: total, commissionRate: 20 };
+  try {
+    const resp = await api("/api/settle", body);
+    log("/api/settle", body, resp);
+    $("settleResult").innerHTML = `
+      <div class="settle-grid">
+        <div class="settle-cell orange"><div class="n">订单总金额</div><div class="v">¥${fmtYuan(total)}</div></div>
+        <div class="settle-cell"><div class="n">平台抽成（${resp.commissionRate}%）</div><div class="v">¥${fmtYuan(resp.platformCommissionCents)}</div></div>
+        <div class="settle-cell green"><div class="n">司机实收</div><div class="v">¥${fmtYuan(resp.driverIncomeCents)}</div></div>
+        <div class="settle-cell"><div class="n">结算单号</div><div class="v" style="font-size:11px;word-break:break-all;">SET${Date.now()}</div></div>
+      </div>
+      <div class="rule-bar" style="margin-top:10px;">结算公式：平台抽成 = 总金额 × ${resp.commissionRate}%，四舍五入到分；司机实收 = 总金额 − 抽成</div>`;
+    toast("结算单已生成");
+  } catch (e) {
+    log("/api/settle", body, null, e.message);
+    toast("结算失败");
+  }
+}
+
+function renderRefund() {
+  const box = $("refundPanel");
+  // 已支付且有支付单号 → 渲染退款表单
+  if (state.paymentNo && state.payStatus === 2) {
+    const amount = state.discount ? state.discount.payableAmountCents : state.estimate.totalCents;
+    const amountYuan = fmtYuan(amount);
+    box.innerHTML = `
+      <div class="field">
+        <label>退款金额（元）</label>
+        <div style="display:flex;gap:8px;">
+          <input type="number" id="refundAmt" value="${amountYuan}" step="0.01" min="0.01" max="${amountYuan}" style="flex:1;">
+          <button class="btn btn-ghost btn-sm" id="btnRefundAll">全额</button>
+        </div>
+      </div>
+      <div class="field"><label>退款原因</label><input type="text" id="refundReason" value="司机取消/乘客未上车" placeholder="退款原因"></div>
+      <button class="btn btn-danger" id="btnRefund">执行退款</button>`;
+    $("btnRefundAll").addEventListener("click", () => { $("refundAmt").value = amountYuan; });
+    $("btnRefund").addEventListener("click", runRefund);
+    return;
+  }
+  // 未支付或无支付单 → 占位
+  box.innerHTML = '<div class="empty-hint"><span class="step-dot">⑥</span>支付成功后即可演示退款</div>';
+}
+
+async function runRefund() {
+  const body = {
+    paymentNo: state.paymentNo,
+    refundAmountCents: Math.round(parseFloat($("refundAmt").value) * 100) || 0,
+    reason: $("refundReason").value || "演示退款",
+  };
+  try {
+    const resp = await api("/api/payment/refund", body);
+    log("/api/payment/refund", body, resp);
+    state.payStatus = resp.status;
+    $("refundPanel").innerHTML = `
+      <div class="pay-info">
+        <div><span class="k">退款单号：</span><span>${resp.refundNo}</span></div>
+        <div><span class="k">累计退款：</span><b>¥${fmtYuan(resp.refundedAmountCents)}</b></div>
+        <div style="margin-top:6px;"><span class="k">支付单状态：</span>${statusPill(resp.status)}</div>
+      </div>
+      <div class="rule-bar" style="margin-top:10px;">${resp.fullRefund ? "全额退款 → 状态流转为「已退款」" : "部分退款 → 状态保持「支付成功」"}</div>`;
+    toast(resp.message);
+  } catch (e) {
+    log("/api/payment/refund", body, null, e.message);
+    toast(e.message);
+  }
+}
+
+/* ══════════════════════ 事件绑定与初始化 ══════════════════════ */
+function bindEvents() {
+  // 车型选择
+  $("carType").querySelectorAll(".car").forEach((el) => {
+    el.addEventListener("click", () => {
+      $("carType").querySelectorAll(".car").forEach((c) => c.classList.remove("selected"));
+      el.classList.add("selected");
+      state.carType = parseInt(el.dataset.type);
+    });
+  });
+  // 里程/时长
+  $("distance").addEventListener("input", () => { $("distanceText").textContent = `${$("distance").value} km`; });
+  $("duration").addEventListener("input", () => { $("durationText").textContent = `${$("duration").value} 分钟`; });
+  // 场景
+  $("scenes").querySelectorAll(".scene-btn").forEach((b) => {
+    b.addEventListener("click", () => setDepartTime(parseInt(b.dataset.h), parseInt(b.dataset.m)));
+  });
+  // 预估
+  $("btnEstimate").addEventListener("click", async () => {
+    const dt = new Date($("departTime").value || new Date());
+    const body = {
+      cityCode: $("cityCode").value,
+      carType: state.carType,
+      distanceM: Math.round(parseFloat($("distance").value) * 1000),
+      durationS: Math.round(parseFloat($("duration").value) * 60),
+      timestamp: Math.round(dt.getTime() / 1000),
+    };
+    try {
+      const resp = await api("/api/estimate", body);
+      log("/api/estimate", body, resp);
+      state.estimate = resp;
+      state.discount = null;
+      state.paymentNo = null;
+      state.payStatus = null;
+      renderEstimate(resp);
+      renderNotifyPanel();
+      renderSettle();
+      renderRefund();
+      $("priceResult").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {
+      log("/api/estimate", body, null, e.message);
+      toast("预估失败：" + e.message);
+    }
+  });
+  // 支付渠道
+  $("payChannel").querySelectorAll(".channel").forEach((el) => {
+    el.addEventListener("click", () => {
+      $("payChannel").querySelectorAll(".channel").forEach((c) => c.classList.remove("selected"));
+      el.classList.add("selected");
+      state.payChannel = el.dataset.ch;
+    });
+  });
+  $("btnCreatePay").addEventListener("click", createPayment);
+  // 收银台
+  $("btnPayConfirm").addEventListener("click", async () => {
+    await payConfirm();
+  });
+  $("btnDupNotify").addEventListener("click", dupNotify);
+  $("btnCloseCashier").addEventListener("click", () => { $("payMask").classList.remove("show"); });
+  // 优惠
+  $("discountResult").addEventListener("click", (e) => {
+    if (e.target.id === "btnDiscount") runDiscount();
+  });
+  // 日志
+  $("logToggle").addEventListener("click", () => $("logPanel").classList.add("show"));
+  $("logClose").addEventListener("click", () => $("logPanel").classList.remove("show"));
+}
+
+async function init() {
+  renderSteps();
+  setDepartTime(10, 0);
+  bindEvents();
+  renderCoupons();
+  renderNotifyPanel();
+  renderSettle();
+  renderRefund();
+  await detectMode();
+  log("init", undefined, { mode: MODE, message: MODE === "real" ? "已连接演示服务（真实计价引擎）" : "未检测到演示服务，使用内置同公式计算。启动方式：go run ./rpc/pricesvc/demo" });
+  log("说明", undefined, { tips: "依次完成：行程配置 → 价格预估 → 优惠 → 支付 → 回调 → 结算 → 退款" });
+}
+
+init();
+</script>
+</body>
+</html>

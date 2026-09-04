@@ -33,10 +33,25 @@
 4. 对接订单模块状态回调、推送模块通知接口，整理交互参数
 5. 产出：计价支付接口文档、费用结算表 SQL、价格计算 & 支付基础代码
 
-## 环境注意
-- Windows，PowerShell。python 只有 WindowsApps stub（不可用），无 pandoc，无 py launcher
-- 读取 docx 需用 PowerShell + .NET ZipFile 解压 word/document.xml（注意 GBK 编码坑）
-- 中文路径在 PS 脚本里易乱码，需用 [System.IO.Directory] 枚举
+## 答辩演示页面（2026-08-27 新增）
+- 项目无前端工程（纯 Go 后端），模块五答辩效果展示用自建演示页面。
+- `docs/module5/demo/index.html`：单文件演示页（花小猪橙 H5 手机框），7 步流程：行程配置→价格预估→优惠→创建支付→支付回调(含幂等演示)→司机结算→退款，底部接口流水日志。
+- `rpc/pricesvc/demo/demo_server.go`：真实演示服务（HTTP :8787，复用真实 internal/rule 计价引擎 + 静态托管页面）。
+- `rpc/paysvc/demoapi/demoapi.go`：支付侧适配包（包装 paysvc internal：MockChannel/CalcSettlement/单号生成）。
+- 启动：项目根 `go run ./rpc/pricesvc/demo` → 浏览器打开 http://127.0.0.1:8787/；不启动服务时页面自动降级内置 JS 同公式计算。
+- 使用说明见 `docs/module5/demo/README.md`。
+
+## Go 开发经验（2026-08-27）
+- **internal 包隔离**：`scripts/` 等非服务内路径无法 import `rpc/xxx/internal/...`。跨服务复用 internal 需在服务内建导出适配包（如 `rpc/paysvc/demoapi`），或把代码放服务内部（如 `rpc/pricesvc/demo`）。
+- **同一目录不能有多个 main 包**：scripts/e2e 下 pay/price 两个 client 各有 main 声明（既有问题，单独 go run 指定文件使用，未处理）。
 
 ## 用户偏好（必须遵守）
 - **代码提交**：AI 完成工作后**不要自动 git commit / push**，提交动作由用户自己完成。AI 只写代码 + 编译 + 跑测试验证。（2026-08-14 明确要求）
+
+## 答辩场景事实（2026-08-28）
+- 答辩老师姓**邹**（结束语已点明）。
+- 答辩时长：主讲 30 分钟 + 老师提问。
+- 主讲人姓名：**乔宇翔**（已由桌面文件 `花小猪网约车答辩稿-乔宇翔.md`、`乔宇翔工作日报.xlsx` 确认）。
+- 用户偏好的交付物形态：`.docx`（不是 .md）。
+- **最终交付位置：桌面「答辩」文件夹 `C:/Users/hjy/Desktop/答辩`**（8 张 PNG + docx + 图表预览.html + 演示页.html + 答辩速查手册.md）。项目内归档：`docs/module5/答辩/`（docx/html/README）。
+- 渲染工具：全局 `@mermaid-js/mermaid-cli`（mmdc）可把 mermaid 直接转 PNG。

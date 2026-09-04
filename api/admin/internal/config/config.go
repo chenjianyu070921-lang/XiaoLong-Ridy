@@ -16,6 +16,7 @@ type Config struct {
 	Redis    RedisConfig        `json:"redis"`
 	Auth     AuthConfig         `json:"auth"`
 	AdminRPC zrpc.RpcClientConf `json:"admin_rpc"`
+	PayRPC   zrpc.RpcClientConf `json:"pay_rpc"`
 }
 
 // MySQLConfig 定义 MySQL 数据源连接字符串。
@@ -58,6 +59,9 @@ func Load(path string) (*Config, error) {
 	}
 	if len(cfg.AdminRPC.Endpoints) == 0 && cfg.AdminRPC.Target == "" {
 		cfg.AdminRPC.Target = "127.0.0.1:8080"
+	}
+	if len(cfg.PayRPC.Endpoints) == 0 && cfg.PayRPC.Target == "" {
+		cfg.PayRPC.Target = "127.0.0.1:50054"
 	}
 	return &cfg, nil
 }
