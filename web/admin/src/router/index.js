@@ -42,6 +42,7 @@ const routes = [
         meta: { title: '司机审核', requiresAuth: true },
       },
       { path: 'drivers', name: 'DriverList', component: () => import('../views/driver/index.vue'), meta: { title: '司机列表', requiresAuth: true } },
+      { path: 'punishments', name: 'Punishments', component: () => import('../views/driver/punishments.vue'), meta: { title: '处罚管理', requiresAuth: true } },
       {
         path: 'drivers/:id',
         name: 'DriverDetail',

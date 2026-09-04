@@ -28,6 +28,10 @@ func TestRoleAllowed(t *testing.T) {
 		{name: "客服不能查询风控命中", method: "/adminsvc.AdminService/ListRiskHitRecords", role: adminRoleCS, want: false},
 		{name: "运营不能处置风控命中", method: "/adminsvc.AdminService/HandleRiskHitRecords", role: adminRoleOps, want: false},
 		{name: "客服不能处置风控命中", method: "/adminsvc.AdminService/HandleRiskHitRecords", role: adminRoleCS, want: false},
+		{name: "超管可访问 AI 运营洞察", method: "/adminsvc.AdminService/AskAiAgent", role: adminRoleSuper, want: true},
+		{name: "运营可访问 AI 运营洞察", method: "/adminsvc.AdminService/AskAiAgent", role: adminRoleOps, want: true},
+		{name: "客服可访问 AI 运营洞察(ai:insight:view)", method: "/adminsvc.AdminService/AskAiAgent", role: adminRoleCS, want: true},
+		{name: "客服可清空本人 AI 会话", method: "/adminsvc.AdminService/DeleteAiConversation", role: adminRoleCS, want: true},
 		{name: "未知角色拒绝", method: "/adminsvc.AdminService/ListUsers", role: 99, want: false},
 	}
 

@@ -33,6 +33,8 @@ service DriverService {
   rpc SetDriverOffline(SetDriverOfflineRequest) returns (SetDriverOfflineResponse);
   rpc ReportLocation(ReportLocationRequest) returns (ReportLocationResponse);
   rpc SetDriverServiceStatus(SetDriverServiceStatusRequest) returns (SetDriverServiceStatusResponse);
+  rpc ApplyAdminPunishment(AdminPunishmentRequest) returns (CommonResponse);
+  rpc ReverseAdminPunishment(AdminPunishmentRequest) returns (CommonResponse);
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 
   rpc CreateVehicle(CreateVehicleRequest) returns (CreateVehicleResponse);
@@ -195,6 +197,16 @@ message SetDriverServiceStatusResponse {
   int64 driver_id = 1;
   int32 online_status = 2;
   int64 updated_at = 3;
+}
+
+// AdminPunishmentRequest 表示司机域执行管理后台处罚所需的最小载荷。
+message AdminPunishmentRequest {
+  int64 driver_id = 1;
+  string punishment_no = 2;
+  string event_id = 3;
+  string actions = 4;
+  int32 score_delta = 5;
+  int32 priority_weight_delta = 6;
 }
 
 message GetDriverByPhoneRequest {

@@ -25,6 +25,14 @@ type Task struct {
 	svcCtx *svc.ServiceContext
 }
 
+// RunRefundCompensation 执行持久化退款补偿任务。
+func (t *Task) RunRefundCompensation(max int) error {
+	if t == nil || t.svcCtx == nil {
+		return fmt.Errorf("job service context not ready")
+	}
+	return NewRefundCompensationTask(t.svcCtx.Db, t.svcCtx.OrderClient).RunRefundCompensation(max)
+}
+
 func NewTask(svcCtx *svc.ServiceContext) *Task {
 	return &Task{svcCtx: svcCtx}
 }

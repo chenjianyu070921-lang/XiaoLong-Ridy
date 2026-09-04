@@ -35,6 +35,11 @@ func (h *CleanupHandler) DailyReport() error {
 	return task.NewTask(h.svcCtx).DailyReport()
 }
 
+// RunRefundCompensation 执行持久化退款补偿任务。
+func (h *CleanupHandler) RunRefundCompensation() error {
+	return task.NewTask(h.svcCtx).RunRefundCompensation(50)
+}
+
 // TimeoutCancelOrders 扫描超时未接单订单并自动取消。
 // 分页拉取 ListTimeoutOrders，逐个调用 TimeoutCancel；单条取消失败不阻断，记录日志后继续。
 func (h *CleanupHandler) TimeoutCancelOrders() error {
@@ -131,6 +136,12 @@ func (h *CleanupHandler) RetryRefundEvents() error {
 // 单条失败不会阻断整轮扫描，任务内部会维护 retry_count 和最终 failed 状态。
 func (h *CleanupHandler) RetryAdminAuditOutbox() error {
 	return task.NewTask(h.svcCtx).RetryAdminAuditOutbox(50)
+}
+
+// RetryAdminDomainOutbox 扫描管理后台领域可靠事件并投递 Kafka。
+// 任务仅处理已提交的 outbox，不直接修改处罚、退款、活动或发券等领域状态。
+func (h *CleanupHandler) RetryAdminDomainOutbox() error {
+	return task.NewTask(h.svcCtx).RetryAdminDomainOutbox(50)
 }
 
 // DryRunCompensationSummary 读取补偿积压概况，不执行任何补偿动作。

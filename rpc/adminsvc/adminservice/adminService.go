@@ -13,101 +13,117 @@ import (
 )
 
 type (
-	AbnormalOrder                    = adminsvc.AbnormalOrder
-	AbnormalOrderListRequest         = adminsvc.AbnormalOrderListRequest
-	AbnormalOrderListResponse        = adminsvc.AbnormalOrderListResponse
-	Admin                            = adminsvc.Admin
-	AdminCancelOrderRequest          = adminsvc.AdminCancelOrderRequest
-	AuditDriverCertificationRequest  = adminsvc.AuditDriverCertificationRequest
-	AuthResponse                     = adminsvc.AuthResponse
-	Blacklist                        = adminsvc.Blacklist
-	BlacklistListRequest             = adminsvc.BlacklistListRequest
-	BlacklistListResponse            = adminsvc.BlacklistListResponse
-	BlacklistRequest                 = adminsvc.BlacklistRequest
-	ChangeUserStatusRequest          = adminsvc.ChangeUserStatusRequest
-	CommonResponse                   = adminsvc.CommonResponse
-	Coupon                           = adminsvc.Coupon
-	CreateCouponResponse             = adminsvc.CreateCouponResponse
-	CreatePriceRuleResponse          = adminsvc.CreatePriceRuleResponse
-	CouponIssueRequest               = adminsvc.CouponIssueRequest
-	CouponIssueResponse              = adminsvc.CouponIssueResponse
-	CouponIssueTask                  = adminsvc.CouponIssueTask
-	CouponIssueTaskListRequest       = adminsvc.CouponIssueTaskListRequest
-	CouponIssueTaskListResponse      = adminsvc.CouponIssueTaskListResponse
-	CouponListRequest                = adminsvc.CouponListRequest
-	CouponListResponse               = adminsvc.CouponListResponse
-	CouponRequest                    = adminsvc.CouponRequest
-	CouponStatisticsResponse         = adminsvc.CouponStatisticsResponse
-	DriverStatisticsResponse         = adminsvc.DriverStatisticsResponse
-	FinanceStatisticsResponse        = adminsvc.FinanceStatisticsResponse
-	DispatchRecord                   = adminsvc.DispatchRecord
-	Driver                           = adminsvc.Driver
-	DriverDetailRequest              = adminsvc.DriverDetailRequest
-	FreezeDriverRequest              = adminsvc.FreezeDriverRequest
-	DriverWithdraw                   = adminsvc.DriverWithdraw
-	DriverWithdrawListRequest        = adminsvc.DriverWithdrawListRequest
-	DriverWithdrawListResponse       = adminsvc.DriverWithdrawListResponse
-	DriverWithdrawHandleRequest      = adminsvc.DriverWithdrawHandleRequest
-	DriverListRequest                = adminsvc.DriverListRequest
-	DriverListResponse               = adminsvc.DriverListResponse
-	DriverCertification              = adminsvc.DriverCertification
-	DriverCertificationDetailRequest = adminsvc.DriverCertificationDetailRequest
-	DriverCertificationListRequest   = adminsvc.DriverCertificationListRequest
-	DriverCertificationListResponse  = adminsvc.DriverCertificationListResponse
-	ExportTask                       = adminsvc.ExportTask
-	ExportTaskDetailRequest          = adminsvc.ExportTaskDetailRequest
-	ExportTaskListRequest            = adminsvc.ExportTaskListRequest
-	ExportTaskListResponse           = adminsvc.ExportTaskListResponse
-	ExportTaskRequest                = adminsvc.ExportTaskRequest
-	ExportTaskResponse               = adminsvc.ExportTaskResponse
-	LoginRequest                     = adminsvc.LoginRequest
-	LogoutRequest                    = adminsvc.LogoutRequest
-	MeRequest                        = adminsvc.MeRequest
-	MeResponse                       = adminsvc.MeResponse
-	MenuItem                         = adminsvc.MenuItem
-	MenusRequest                     = adminsvc.MenusRequest
-	MenusResponse                    = adminsvc.MenusResponse
-	OperationLog                     = adminsvc.OperationLog
-	OperationLogListRequest          = adminsvc.OperationLogListRequest
-	OperationLogListResponse         = adminsvc.OperationLogListResponse
-	Order                            = adminsvc.Order
-	OrderDetail                      = adminsvc.OrderDetail
-	OrderDetailRequest               = adminsvc.OrderDetailRequest
-	OrderListRequest                 = adminsvc.OrderListRequest
-	OrderListResponse                = adminsvc.OrderListResponse
-	OrderPrice                       = adminsvc.OrderPrice
-	OrderStatisticsResponse          = adminsvc.OrderStatisticsResponse
-	OrderStatusLog                   = adminsvc.OrderStatusLog
-	Payment                          = adminsvc.Payment
-	PriceRule                        = adminsvc.PriceRule
-	PriceRuleDetailRequest           = adminsvc.PriceRuleDetailRequest
-	PriceRuleListRequest             = adminsvc.PriceRuleListRequest
-	PriceRuleListResponse            = adminsvc.PriceRuleListResponse
-	PriceRuleRequest                 = adminsvc.PriceRuleRequest
-	PriceRuleStatusRequest           = adminsvc.PriceRuleStatusRequest
-	PromotionActivity                = adminsvc.PromotionActivity
-	PromotionActivityActionRequest   = adminsvc.PromotionActivityActionRequest
-	PromotionActivityListRequest     = adminsvc.PromotionActivityListRequest
-	PromotionActivityListResponse    = adminsvc.PromotionActivityListResponse
-	PromotionActivityRequest         = adminsvc.PromotionActivityRequest
-	RegisterRequest                  = adminsvc.RegisterRequest
-	RiskHitRecord                    = adminsvc.RiskHitRecord
-	RiskHitActionRequest             = adminsvc.RiskHitActionRequest
-	RiskHitActionResponse            = adminsvc.RiskHitActionResponse
-	RiskHitRecordListRequest         = adminsvc.RiskHitRecordListRequest
-	RiskHitRecordListResponse        = adminsvc.RiskHitRecordListResponse
-	AdminAuditOutboxListRequest      = adminsvc.AdminAuditOutboxListRequest
-	AdminAuditOutbox                 = adminsvc.AdminAuditOutbox
-	AdminAuditOutboxListResponse     = adminsvc.AdminAuditOutboxListResponse
-	Settlement                       = adminsvc.Settlement
-	StatisticsOverviewResponse       = adminsvc.StatisticsOverviewResponse
-	StatisticsRequest                = adminsvc.StatisticsRequest
-	User                             = adminsvc.User
-	UserDetailRequest                = adminsvc.UserDetailRequest
-	UserListRequest                  = adminsvc.UserListRequest
-	UserListResponse                 = adminsvc.UserListResponse
-	ValidateSessionRequest           = adminsvc.ValidateSessionRequest
-	ValidateSessionResponse          = adminsvc.ValidateSessionResponse
+	AbnormalOrder                     = adminsvc.AbnormalOrder
+	AbnormalOrderListRequest          = adminsvc.AbnormalOrderListRequest
+	AbnormalOrderListResponse         = adminsvc.AbnormalOrderListResponse
+	Admin                             = adminsvc.Admin
+	AdminCancelOrderRequest           = adminsvc.AdminCancelOrderRequest
+	AuditDriverCertificationRequest   = adminsvc.AuditDriverCertificationRequest
+	AuthResponse                      = adminsvc.AuthResponse
+	Blacklist                         = adminsvc.Blacklist
+	BlacklistListRequest              = adminsvc.BlacklistListRequest
+	BlacklistListResponse             = adminsvc.BlacklistListResponse
+	BlacklistRequest                  = adminsvc.BlacklistRequest
+	ChangeUserStatusRequest           = adminsvc.ChangeUserStatusRequest
+	CommonResponse                    = adminsvc.CommonResponse
+	Coupon                            = adminsvc.Coupon
+	CreateCouponResponse              = adminsvc.CreateCouponResponse
+	CreatePriceRuleResponse           = adminsvc.CreatePriceRuleResponse
+	CouponIssueRequest                = adminsvc.CouponIssueRequest
+	CouponIssueResponse               = adminsvc.CouponIssueResponse
+	CouponIssueTask                   = adminsvc.CouponIssueTask
+	CouponIssueTaskListRequest        = adminsvc.CouponIssueTaskListRequest
+	CouponIssueTaskListResponse       = adminsvc.CouponIssueTaskListResponse
+	CouponListRequest                 = adminsvc.CouponListRequest
+	CouponListResponse                = adminsvc.CouponListResponse
+	CouponRequest                     = adminsvc.CouponRequest
+	CouponStatisticsResponse          = adminsvc.CouponStatisticsResponse
+	DriverStatisticsResponse          = adminsvc.DriverStatisticsResponse
+	FinanceStatisticsResponse         = adminsvc.FinanceStatisticsResponse
+	DispatchRecord                    = adminsvc.DispatchRecord
+	Driver                            = adminsvc.Driver
+	DriverDetailRequest               = adminsvc.DriverDetailRequest
+	FreezeDriverRequest               = adminsvc.FreezeDriverRequest
+	DriverWithdraw                    = adminsvc.DriverWithdraw
+	DriverWithdrawListRequest         = adminsvc.DriverWithdrawListRequest
+	DriverWithdrawListResponse        = adminsvc.DriverWithdrawListResponse
+	DriverWithdrawHandleRequest       = adminsvc.DriverWithdrawHandleRequest
+	DriverListRequest                 = adminsvc.DriverListRequest
+	DriverListResponse                = adminsvc.DriverListResponse
+	DriverCertification               = adminsvc.DriverCertification
+	DriverCertificationDetailRequest  = adminsvc.DriverCertificationDetailRequest
+	DriverCertificationListRequest    = adminsvc.DriverCertificationListRequest
+	DriverCertificationListResponse   = adminsvc.DriverCertificationListResponse
+	ExportTask                        = adminsvc.ExportTask
+	ExportTaskDetailRequest           = adminsvc.ExportTaskDetailRequest
+	ExportTaskListRequest             = adminsvc.ExportTaskListRequest
+	ExportTaskListResponse            = adminsvc.ExportTaskListResponse
+	ExportTaskRequest                 = adminsvc.ExportTaskRequest
+	ExportTaskResponse                = adminsvc.ExportTaskResponse
+	LoginRequest                      = adminsvc.LoginRequest
+	LogoutRequest                     = adminsvc.LogoutRequest
+	MeRequest                         = adminsvc.MeRequest
+	MeResponse                        = adminsvc.MeResponse
+	MenuItem                          = adminsvc.MenuItem
+	MenusRequest                      = adminsvc.MenusRequest
+	MenusResponse                     = adminsvc.MenusResponse
+	OperationLog                      = adminsvc.OperationLog
+	OperationLogListRequest           = adminsvc.OperationLogListRequest
+	OperationLogListResponse          = adminsvc.OperationLogListResponse
+	Order                             = adminsvc.Order
+	OrderDetail                       = adminsvc.OrderDetail
+	OrderDetailRequest                = adminsvc.OrderDetailRequest
+	OrderListRequest                  = adminsvc.OrderListRequest
+	OrderListResponse                 = adminsvc.OrderListResponse
+	OrderPrice                        = adminsvc.OrderPrice
+	OrderStatisticsResponse           = adminsvc.OrderStatisticsResponse
+	OrderStatusLog                    = adminsvc.OrderStatusLog
+	Payment                           = adminsvc.Payment
+	PriceRule                         = adminsvc.PriceRule
+	PriceRuleDetailRequest            = adminsvc.PriceRuleDetailRequest
+	PriceRuleListRequest              = adminsvc.PriceRuleListRequest
+	PriceRuleListResponse             = adminsvc.PriceRuleListResponse
+	PriceRuleRequest                  = adminsvc.PriceRuleRequest
+	PriceRuleStatusRequest            = adminsvc.PriceRuleStatusRequest
+	PromotionActivity                 = adminsvc.PromotionActivity
+	PromotionActivityActionRequest    = adminsvc.PromotionActivityActionRequest
+	PromotionActivityListRequest      = adminsvc.PromotionActivityListRequest
+	PromotionActivityListResponse     = adminsvc.PromotionActivityListResponse
+	PromotionActivityRequest          = adminsvc.PromotionActivityRequest
+	DriverPunishmentRuleListRequest   = adminsvc.DriverPunishmentRuleListRequest
+	DriverPunishmentRuleListResponse  = adminsvc.DriverPunishmentRuleListResponse
+	DriverPunishmentRuleRequest       = adminsvc.DriverPunishmentRuleRequest
+	DriverPunishmentRuleStatusRequest = adminsvc.DriverPunishmentRuleStatusRequest
+	DriverPunishmentRule              = adminsvc.DriverPunishmentRule
+	DriverPunishmentListRequest       = adminsvc.DriverPunishmentListRequest
+	DriverPunishmentListResponse      = adminsvc.DriverPunishmentListResponse
+	DriverPunishmentDetailRequest     = adminsvc.DriverPunishmentDetailRequest
+	DriverPunishmentRequest           = adminsvc.DriverPunishmentRequest
+	DriverPunishmentActionRequest     = adminsvc.DriverPunishmentActionRequest
+	DriverPunishment                  = adminsvc.DriverPunishment
+	PunishmentAppealListRequest       = adminsvc.PunishmentAppealListRequest
+	PunishmentAppealListResponse      = adminsvc.PunishmentAppealListResponse
+	PunishmentAppealReviewRequest     = adminsvc.PunishmentAppealReviewRequest
+	PunishmentAppealRequest           = adminsvc.PunishmentAppealRequest
+	PunishmentAppeal                  = adminsvc.PunishmentAppeal
+	RegisterRequest                   = adminsvc.RegisterRequest
+	RiskHitRecord                     = adminsvc.RiskHitRecord
+	RiskHitActionRequest              = adminsvc.RiskHitActionRequest
+	RiskHitActionResponse             = adminsvc.RiskHitActionResponse
+	RiskHitRecordListRequest          = adminsvc.RiskHitRecordListRequest
+	RiskHitRecordListResponse         = adminsvc.RiskHitRecordListResponse
+	AdminAuditOutboxListRequest       = adminsvc.AdminAuditOutboxListRequest
+	AdminAuditOutbox                  = adminsvc.AdminAuditOutbox
+	AdminAuditOutboxListResponse      = adminsvc.AdminAuditOutboxListResponse
+	Settlement                        = adminsvc.Settlement
+	StatisticsOverviewResponse        = adminsvc.StatisticsOverviewResponse
+	StatisticsRequest                 = adminsvc.StatisticsRequest
+	User                              = adminsvc.User
+	UserDetailRequest                 = adminsvc.UserDetailRequest
+	UserListRequest                   = adminsvc.UserListRequest
+	UserListResponse                  = adminsvc.UserListResponse
+	ValidateSessionRequest            = adminsvc.ValidateSessionRequest
+	ValidateSessionResponse           = adminsvc.ValidateSessionResponse
 
 	AdminService interface {
 		// 管理员注册。
@@ -191,6 +207,27 @@ type (
 		PublishPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 回滚活动配置。
 		RollbackPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 查询司机处罚规则。
+		ListDriverPunishmentRules(ctx context.Context, in *DriverPunishmentRuleListRequest, opts ...grpc.CallOption) (*DriverPunishmentRuleListResponse, error)
+		// 创建司机处罚规则。
+		CreateDriverPunishmentRule(ctx context.Context, in *DriverPunishmentRuleRequest, opts ...grpc.CallOption) (*DriverPunishmentRule, error)
+		// 更新司机处罚规则。
+		UpdateDriverPunishmentRule(ctx context.Context, in *DriverPunishmentRuleRequest, opts ...grpc.CallOption) (*DriverPunishmentRule, error)
+		// 启停司机处罚规则。
+		SetDriverPunishmentRuleStatus(ctx context.Context, in *DriverPunishmentRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 查询司机处罚单。
+		ListDriverPunishments(ctx context.Context, in *DriverPunishmentListRequest, opts ...grpc.CallOption) (*DriverPunishmentListResponse, error)
+		// 查询司机处罚单详情。
+		GetDriverPunishment(ctx context.Context, in *DriverPunishmentDetailRequest, opts ...grpc.CallOption) (*DriverPunishment, error)
+		// 创建司机处罚单。
+		CreateDriverPunishment(ctx context.Context, in *DriverPunishmentRequest, opts ...grpc.CallOption) (*DriverPunishment, error)
+		// 撤销司机处罚单。
+		CancelDriverPunishment(ctx context.Context, in *DriverPunishmentActionRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		// 查询司机处罚申诉。
+		ListPunishmentAppeals(ctx context.Context, in *PunishmentAppealListRequest, opts ...grpc.CallOption) (*PunishmentAppealListResponse, error)
+		CreatePunishmentAppeal(ctx context.Context, in *PunishmentAppealRequest, opts ...grpc.CallOption) (*PunishmentAppeal, error)
+		// 审核司机处罚申诉。
+		ReviewPunishmentAppeal(ctx context.Context, in *PunishmentAppealReviewRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		// 查询运营总览统计。
 		GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error)
 		// 查询订单统计。
@@ -482,6 +519,61 @@ func (m *defaultAdminService) PublishPromotionActivity(ctx context.Context, in *
 func (m *defaultAdminService) RollbackPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.RollbackPromotionActivity(ctx, in, opts...)
+}
+
+// ListDriverPunishmentRules 调用处罚规则查询接口。
+func (m *defaultAdminService) ListDriverPunishmentRules(ctx context.Context, in *DriverPunishmentRuleListRequest, opts ...grpc.CallOption) (*DriverPunishmentRuleListResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListDriverPunishmentRules(ctx, in, opts...)
+}
+
+// CreateDriverPunishmentRule 调用处罚规则创建接口。
+func (m *defaultAdminService) CreateDriverPunishmentRule(ctx context.Context, in *DriverPunishmentRuleRequest, opts ...grpc.CallOption) (*DriverPunishmentRule, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).CreateDriverPunishmentRule(ctx, in, opts...)
+}
+
+// UpdateDriverPunishmentRule 调用处罚规则更新接口。
+func (m *defaultAdminService) UpdateDriverPunishmentRule(ctx context.Context, in *DriverPunishmentRuleRequest, opts ...grpc.CallOption) (*DriverPunishmentRule, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).UpdateDriverPunishmentRule(ctx, in, opts...)
+}
+
+// SetDriverPunishmentRuleStatus 调用处罚规则启停接口。
+func (m *defaultAdminService) SetDriverPunishmentRuleStatus(ctx context.Context, in *DriverPunishmentRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).SetDriverPunishmentRuleStatus(ctx, in, opts...)
+}
+
+// ListDriverPunishments 调用处罚单查询接口。
+func (m *defaultAdminService) ListDriverPunishments(ctx context.Context, in *DriverPunishmentListRequest, opts ...grpc.CallOption) (*DriverPunishmentListResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListDriverPunishments(ctx, in, opts...)
+}
+
+// GetDriverPunishment 调用处罚单详情接口。
+func (m *defaultAdminService) GetDriverPunishment(ctx context.Context, in *DriverPunishmentDetailRequest, opts ...grpc.CallOption) (*DriverPunishment, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).GetDriverPunishment(ctx, in, opts...)
+}
+
+// CreateDriverPunishment 调用处罚单创建接口。
+func (m *defaultAdminService) CreateDriverPunishment(ctx context.Context, in *DriverPunishmentRequest, opts ...grpc.CallOption) (*DriverPunishment, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).CreateDriverPunishment(ctx, in, opts...)
+}
+
+// CancelDriverPunishment 调用处罚单撤销接口。
+func (m *defaultAdminService) CancelDriverPunishment(ctx context.Context, in *DriverPunishmentActionRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).CancelDriverPunishment(ctx, in, opts...)
+}
+
+// ListPunishmentAppeals 调用处罚申诉查询接口。
+func (m *defaultAdminService) ListPunishmentAppeals(ctx context.Context, in *PunishmentAppealListRequest, opts ...grpc.CallOption) (*PunishmentAppealListResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ListPunishmentAppeals(ctx, in, opts...)
+}
+
+// ReviewPunishmentAppeal 调用处罚申诉审核接口。
+func (m *defaultAdminService) ReviewPunishmentAppeal(ctx context.Context, in *PunishmentAppealReviewRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).ReviewPunishmentAppeal(ctx, in, opts...)
+}
+
+// CreatePunishmentAppeal 调用处罚申诉创建接口。
+func (m *defaultAdminService) CreatePunishmentAppeal(ctx context.Context, in *PunishmentAppealRequest, opts ...grpc.CallOption) (*PunishmentAppeal, error) {
+	return adminsvc.NewAdminServiceClient(m.cli.Conn()).CreatePunishmentAppeal(ctx, in, opts...)
 }
 
 // 查询运营总览统计。

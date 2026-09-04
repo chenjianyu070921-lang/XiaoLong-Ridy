@@ -26,37 +26,44 @@ const (
 // 其余请求（如 Me/Menus 的查询目标、OperationLogListRequest 的筛选条件）中的 admin_id
 // 不属于操作者身份，不参与一致性校验，避免合法读请求被误判为伪造身份。
 var operatorIdentityMethods = map[string]struct{}{
-	"/adminsvc.AdminService/FreezeUser":                 {},
-	"/adminsvc.AdminService/UnfreezeUser":               {},
-	"/adminsvc.AdminService/FreezeDriver":               {},
-	"/adminsvc.AdminService/UnfreezeDriver":             {},
-	"/adminsvc.AdminService/ApproveDriverCertification": {},
-	"/adminsvc.AdminService/RejectDriverCertification":  {},
-	"/adminsvc.AdminService/CancelOrder":                {},
-	"/adminsvc.AdminService/RedispatchOrder":            {},
-	"/adminsvc.AdminService/RefundOrder":                {},
-	"/adminsvc.AdminService/RetryRefundTask":            {},
-	"/adminsvc.AdminService/CreateCoupon":               {},
-	"/adminsvc.AdminService/UpdateCoupon":               {},
-	"/adminsvc.AdminService/DisableCoupon":              {},
-	"/adminsvc.AdminService/IssueCoupon":                {},
-	"/adminsvc.AdminService/CreatePriceRule":            {},
-	"/adminsvc.AdminService/UpdatePriceRule":            {},
-	"/adminsvc.AdminService/EnablePriceRule":            {},
-	"/adminsvc.AdminService/DisablePriceRule":           {},
-	"/adminsvc.AdminService/CreatePromotionActivity":    {},
-	"/adminsvc.AdminService/UpdatePromotionActivity":    {},
-	"/adminsvc.AdminService/PublishPromotionActivity":   {},
-	"/adminsvc.AdminService/RollbackPromotionActivity":  {},
-	"/adminsvc.AdminService/CreateExportTask":           {},
-	"/adminsvc.AdminService/CreateWorkOrder":            {},
-	"/adminsvc.AdminService/ActWorkOrder":               {},
-	"/adminsvc.AdminService/BatchActWorkOrders":         {},
-	"/adminsvc.AdminService/AddWorkOrderEvidence":       {},
-	"/adminsvc.AdminService/AddBlacklist":               {},
-	"/adminsvc.AdminService/ReleaseBlacklist":           {},
-	"/adminsvc.AdminService/HandleRiskHitRecords":       {},
-	"/adminsvc.AdminService/HandleDriverWithdraw":       {},
+	"/adminsvc.AdminService/FreezeUser":                    {},
+	"/adminsvc.AdminService/UnfreezeUser":                  {},
+	"/adminsvc.AdminService/FreezeDriver":                  {},
+	"/adminsvc.AdminService/UnfreezeDriver":                {},
+	"/adminsvc.AdminService/ApproveDriverCertification":    {},
+	"/adminsvc.AdminService/RejectDriverCertification":     {},
+	"/adminsvc.AdminService/CancelOrder":                   {},
+	"/adminsvc.AdminService/RedispatchOrder":               {},
+	"/adminsvc.AdminService/RefundOrder":                   {},
+	"/adminsvc.AdminService/RetryRefundTask":               {},
+	"/adminsvc.AdminService/CreateCoupon":                  {},
+	"/adminsvc.AdminService/UpdateCoupon":                  {},
+	"/adminsvc.AdminService/DisableCoupon":                 {},
+	"/adminsvc.AdminService/IssueCoupon":                   {},
+	"/adminsvc.AdminService/CreatePriceRule":               {},
+	"/adminsvc.AdminService/UpdatePriceRule":               {},
+	"/adminsvc.AdminService/EnablePriceRule":               {},
+	"/adminsvc.AdminService/DisablePriceRule":              {},
+	"/adminsvc.AdminService/CreatePromotionActivity":       {},
+	"/adminsvc.AdminService/UpdatePromotionActivity":       {},
+	"/adminsvc.AdminService/PublishPromotionActivity":      {},
+	"/adminsvc.AdminService/RollbackPromotionActivity":     {},
+	"/adminsvc.AdminService/CreateDriverPunishmentRule":    {},
+	"/adminsvc.AdminService/UpdateDriverPunishmentRule":    {},
+	"/adminsvc.AdminService/SetDriverPunishmentRuleStatus": {},
+	"/adminsvc.AdminService/CreateDriverPunishment":        {},
+	"/adminsvc.AdminService/CancelDriverPunishment":        {},
+	"/adminsvc.AdminService/ReviewPunishmentAppeal":        {},
+	"/adminsvc.AdminService/CreatePunishmentAppeal":        {},
+	"/adminsvc.AdminService/CreateExportTask":              {},
+	"/adminsvc.AdminService/CreateWorkOrder":               {},
+	"/adminsvc.AdminService/ActWorkOrder":                  {},
+	"/adminsvc.AdminService/BatchActWorkOrders":            {},
+	"/adminsvc.AdminService/AddWorkOrderEvidence":          {},
+	"/adminsvc.AdminService/AddBlacklist":                  {},
+	"/adminsvc.AdminService/ReleaseBlacklist":              {},
+	"/adminsvc.AdminService/HandleRiskHitRecords":          {},
+	"/adminsvc.AdminService/HandleDriverWithdraw":          {},
 }
 
 // NewAuthorizationInterceptor 创建 adminsvc 的服务端授权拦截器。
@@ -122,6 +129,9 @@ func roleAllowed(method string, role int32) bool {
 		case "/adminsvc.AdminService/Logout", "/adminsvc.AdminService/Me", "/adminsvc.AdminService/Menus",
 			"/adminsvc.AdminService/ListOperationLogs", "/adminsvc.AdminService/ListUsers", "/adminsvc.AdminService/GetUser",
 			"/adminsvc.AdminService/ListDriverCertifications", "/adminsvc.AdminService/GetDriverCertification",
+			"/adminsvc.AdminService/ListDriverPunishmentRules", "/adminsvc.AdminService/ListDriverPunishments",
+			"/adminsvc.AdminService/GetDriverPunishment", "/adminsvc.AdminService/ListPunishmentAppeals",
+			"/adminsvc.AdminService/CreatePunishmentAppeal",
 			"/adminsvc.AdminService/ListOrders", "/adminsvc.AdminService/GetOrder", "/adminsvc.AdminService/ListAbnormalOrders",
 			"/adminsvc.AdminService/GetOrderTrack", "/adminsvc.AdminService/CancelOrder", "/adminsvc.AdminService/RedispatchOrder",
 			"/adminsvc.AdminService/ListWorkOrders", "/adminsvc.AdminService/GetWorkOrder",
@@ -129,7 +139,11 @@ func roleAllowed(method string, role int32) bool {
 			"/adminsvc.AdminService/AddWorkOrderEvidence", "/adminsvc.AdminService/ListWorkOrderEvidence",
 			"/adminsvc.AdminService/GetStatisticsOverview", "/adminsvc.AdminService/GetOrderStatistics",
 			"/adminsvc.AdminService/GetDriverStatistics", "/adminsvc.AdminService/GetFinanceStatistics",
-			"/adminsvc.AdminService/GetCouponStatistics", "/adminsvc.AdminService/GetUserStatistics":
+			"/adminsvc.AdminService/GetCouponStatistics", "/adminsvc.AdminService/GetUserStatistics",
+			// AI 运营洞察：独立只读权限 ai:insight:view，客服/运营/超管均可访问，但绝不暴露任何写接口。
+			"/adminsvc.AdminService/AskAiAgent", "/adminsvc.AdminService/GetAiSuggestions",
+			"/adminsvc.AdminService/GetAiHistory", "/adminsvc.AdminService/AiFeedback",
+			"/adminsvc.AdminService/DeleteAiConversation":
 			return true
 		default:
 			return false
@@ -137,6 +151,7 @@ func roleAllowed(method string, role int32) bool {
 	}
 
 	// 运营拥有日常运营查询和配置编辑权限；资金、风控、价格生效及活动正式发布收归超管。
+	// AI 运营洞察（ai:insight:view）经由下方 default 对所有运营角色开放，属只读洞察，不执行写动作。
 	switch method {
 	case "/adminsvc.AdminService/ListAdminAuditOutbox":
 		return true
@@ -147,6 +162,9 @@ func roleAllowed(method string, role int32) bool {
 		"/adminsvc.AdminService/AddBlacklist", "/adminsvc.AdminService/ReleaseBlacklist",
 		"/adminsvc.AdminService/RefundOrder",
 		"/adminsvc.AdminService/HandleDriverWithdraw":
+		return false
+	case "/adminsvc.AdminService/SetDriverPunishmentRuleStatus", "/adminsvc.AdminService/CancelDriverPunishment":
+		// 规则正式启停和处罚撤销会直接影响司机权益，统一收归超管。
 		return false
 	case "/adminsvc.AdminService/HandleRiskHitRecords":
 		// 风控命中处置可能新增黑名单、创建工单并写入审计，统一收归超管。
