@@ -1,9 +1,10 @@
 <template>
   <van-popup
     :show="visible"
-    position="right"
+    position="bottom"
+    teleport="#driver-home-popups"
     class="reviews-panel"
-    :style="{ width: '100%', height: '100%' }"
+    :style="{ left: '0', right: '0', width: 'min(100vw, 390px)', height: '100%', margin: '0 auto', borderRadius: 0 }"
     @update:show="(v) => emit('update:visible', v)"
   >
     <div class="reviews-header">
