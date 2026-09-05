@@ -345,16 +345,6 @@ const orderStatus = ref(0)
 const orderPage = ref(1)
 const orderPageSize = ref(8)
 const orderTotal = ref(0)
-const orderStats = computed(() => {
-  const list = orders.value
-  return {
-    total: orderTotal.value,
-    pending: list.filter((item) => [1, 2].includes(Number(item.status))).length,
-    serving: list.filter((item) => [2, 3].includes(Number(item.status))).length,
-    done: list.filter((item) => Number(item.status) === 5).length,
-    cancelled: list.filter((item) => Number(item.status) === 6).length
-  }
-})
 const nearbyOrders = ref([])
 const nearbyOrderLoading = ref(false)
 const nearbyOrderPage = ref(1)
@@ -374,8 +364,8 @@ const finishSubmitting = ref(false)
 const heatmapVisible = ref(false)
 const heatmapLoading = ref(false)
 const heatmapRadiusMeters = 5000
-// 可接单半径，与后端 driversvc availableOrderRadiusMeters 对齐，用于地图“检测范围”圈可视化。
-const listenRadiusMeters = 10000
+// 可接单半径，与后端 driversvc 默认搜索半径 3000m 对齐，用于地图“检测范围”圈可视化。
+const listenRadiusMeters = 3000
 const heatmapPoints = ref([])
 const heatmapCenter = ref(null)
 const homeMapContainer = ref(null)
@@ -937,6 +927,14 @@ function renderHomeRangeCircle() {
     homeRangeCircle.setCenter(center)
     homeRangeCircle.setRadius(listenRadiusMeters)
   }
+  // 空闲态下把视野适配到检测范围圈（半径较大，需缩放到可完整显示），选中订单时交由路线视图接管。
+  if (!selectedHomeOrder.value && homeMapInstance) {
+    try {
+      homeMapInstance.setFitView([homeRangeCircle], false, [72, 72, 72, 72])
+    } catch (e) {
+      // 视图适配失败不影响圈本身渲染
+    }
+  }
 }
 
 function getConnectedHomeMapContainer() {
@@ -996,6 +994,12 @@ function renderHomeRouteLine() {
     showDir: true
   })
   homeMapInstance.add(homeRouteLine)
+  // 选中订单后把视野适配到路线（底部留出悬浮面板空间），避免停留在检测范围的缩小视野。
+  try {
+    homeMapInstance.setFitView([homeRouteLine], false, [72, 72, 260, 72])
+  } catch (e) {
+    // 视图适配失败不影响路线本身渲染
+  }
 }
 
 function centerHomeMapOnDriver() {
@@ -1750,21 +1754,6 @@ function deviceId() {
 .message-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: #fff7e6; color: #f59e0b; font-size: 18px; }
 .home-map-stage { position: relative; height: calc(100vh - 180px); min-height: 460px; margin: 10px -12px 0; overflow: hidden; background: #dfe8f3; }
 .home-amap { position: absolute; inset: 0; width: 100%; height: 100%; }
-.driver-location-pulse { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
-.driver-location-pulse .pulse-core { position: relative; z-index: 1; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; background: #5B5CFF; box-shadow: 0 0 0 6px rgba(91, 92, 255, .18); }
-.driver-location-pulse .pulse-ring { position: absolute; width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(91, 92, 255, .4); animation: pulse-ring 2s ease-out infinite; }
-.driver-location-pulse .pulse-ring.delay { animation-delay: 1s; }
-.driver-location-pulse .pulse-core, .driver-location-pulse .pulse-ring { pointer-events: none; }
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.8);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
-}
 
 .heatmap-legend { position: absolute; left: 12px; top: 12px; z-index: 5; display: inline-flex; align-items: center; gap: 5px; padding: 7px 9px; border-radius: 999px; background: rgba(255,255,255,.94); color: #667085; font-size: 11px; font-weight: 800; box-shadow: 0 6px 16px rgba(15,23,42,.14); }
 .heatmap-legend i { width: 18px; height: 8px; border-radius: 999px; }
@@ -1826,4 +1815,17 @@ function deviceId() {
 .driver-tabbar { left: 50%; right: auto; width: min(100vw, 430px); height: calc(60px + env(safe-area-inset-bottom)); border-top: 1px solid #e6eaf2; box-shadow: 0 -8px 24px rgba(15,23,42,.08); transform: translateX(-50%); --van-tabbar-item-active-color: #5B5CFF; --van-tabbar-item-text-color: #98a2b3; }
 button:disabled { opacity: .48; }
 @media (max-width: 360px) { .driver-home-page { padding-inline: 10px; } .income-today-card strong { font-size: 30px; } .income-today-card { align-items: flex-start; } .withdraw-entry { min-width: 68px; padding-inline: 10px; } }
+</style>
+
+<!-- 司机位置脉冲标识由高德地图动态注入到地图内部 DOM，scoped 样式无法作用，必须放在全局样式中 -->
+<style>
+.driver-location-pulse { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
+.driver-location-pulse .pulse-core { position: relative; z-index: 1; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; background: #5B5CFF; box-shadow: 0 0 0 6px rgba(91, 92, 255, .18); }
+.driver-location-pulse .pulse-ring { position: absolute; width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(91, 92, 255, .4); animation: pulse-ring 2s ease-out infinite; }
+.driver-location-pulse .pulse-ring.delay { animation-delay: 1s; }
+.driver-location-pulse .pulse-core, .driver-location-pulse .pulse-ring { pointer-events: none; }
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
 </style>
