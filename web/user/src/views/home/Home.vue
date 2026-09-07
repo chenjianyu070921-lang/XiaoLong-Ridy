@@ -120,20 +120,22 @@
       </div>
     </van-popup>
 
-    <div v-if="showLoginCoupon" class="coupon-ad-mask" @click.self="closeLoginCoupon">
+    <div v-if="enableCouponAds && showLoginCoupon" class="coupon-ad-mask" @click.self="closeLoginCoupon">
       <section class="coupon-ad login-coupon-ad" role="dialog" aria-modal="true" aria-label="登录优惠券广告">
         <button type="button" class="coupon-ad-close login-coupon-close" aria-label="关闭登录优惠券广告" @click="closeLoginCoupon"><van-icon name="cross" size="20" /></button>
         <button type="button" class="coupon-ad-body" @click="useLoginCoupon">
-          <img src="/login-coupon-ad.png" alt="登录送优惠券" class="coupon-gift-image" />
+          <!-- 登录优惠券专属图片尚未纳入仓库，使用公共 Logo 作为稳定兜底资源，避免 Vite 构建因静态文件缺失而中断。 -->
+          <img src="/logo.png" alt="登录送优惠券" class="coupon-gift-image" />
         </button>
       </section>
     </div>
 
-    <div v-if="showWelcomeCoupon" class="coupon-ad-mask" @click.self="showWelcomeCoupon = false">
+    <div v-if="enableCouponAds && showWelcomeCoupon" class="coupon-ad-mask" @click.self="showWelcomeCoupon = false">
       <section class="coupon-ad" role="dialog" aria-modal="true" aria-label="新人优惠券">
         <button type="button" class="coupon-ad-close" aria-label="关闭优惠券广告" @click="showWelcomeCoupon = false"><van-icon name="cross" size="20" /></button>
         <button type="button" class="coupon-ad-body" @click="viewWelcomeCoupons">
-          <img src="/new-user-coupon-gift.png" alt="新人优惠券礼包" class="coupon-gift-image" />
+          <!-- 新人优惠券图片缺失时复用公共 Logo，确保新人弹窗仍可正常交互。 -->
+          <img src="/logo.png" alt="新人优惠券礼包" class="coupon-gift-image" />
           <span class="coupon-ad-action">查看优惠券</span>
         </button>
       </section>
@@ -175,6 +177,8 @@ const destinationAddress = ref('')
 const searchVisible = ref(false)
 const showWelcomeCoupon = ref(false)
 const showLoginCoupon = ref(false)
+// 优惠券弹框功能暂时关闭，保留原有代码供后续开发完成后开启。
+const enableCouponAds = false
 const searchMode = ref('destination')
 const keyword = ref('')
 const searchResults = ref([])
@@ -605,7 +609,12 @@ async function refreshNearbyDrivers() {
       content: '<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#fff;box-shadow:0 2px 8px #0f172a40;font-size:20px">🚕</div>'
     }))
     if (nearbyDriverMarkers.value.length) mapInstance.value.add(nearbyDriverMarkers.value)
-  } catch (error) { console.warn('查询附近司机失败:', error) }
+  } catch (error) {
+    console.warn('查询附近司机失败:', error)
+    // 查询失败代表当前无法获取在线司机，清理旧覆盖物后保持首页可继续使用。
+    nearbyDriverMarkers.value.forEach(marker => mapInstance.value?.remove(marker))
+    nearbyDriverMarkers.value = []
+  }
   clearTimeout(nearbyDriverTimer)
   nearbyDriverTimer = setTimeout(refreshNearbyDrivers, 15000)
 }
@@ -929,6 +938,15 @@ function openActiveOrder() {
     estimatedPriceCents: order.estimatedPriceCents,
     createdAt: order.createdAt
   })
+  // 状态页复用下单参数展示路线；订单列表未提供坐标，故只恢复可用的文本和车型。
+  orderStore.setOrderParams({
+    carType: Number(order.carType) || 2,
+    fromAddress: order.fromAddress || '',
+    toAddress: order.toAddress || '',
+    userCouponId: Number(order.userCouponId || 0),
+    couponId: Number(order.couponId || 0),
+    cityCode: order.cityCode || ''
+  })
   const target = { 1: '/order/waiting', 2: '/order/driver-coming', 3: '/order/trip' }[Number(order.status)]
   router.push(target || `/orders/${order.orderId}`)
 }
@@ -939,9 +957,9 @@ onMounted(async () => {
   loadActiveOrder()
   const editMode = String(route.query.edit || '')
   if (editMode === 'pickup' || editMode === 'destination') openLocationSearch(editMode)
-  if (localStorage.getItem(newUserPendingGiftKey) === '1' && !localStorage.getItem(welcomeCouponKey)) {
+  if (enableCouponAds && localStorage.getItem(newUserPendingGiftKey) === '1' && !localStorage.getItem(welcomeCouponKey)) {
     showWelcomeCoupon.value = true
-  } else if (localStorage.getItem(loginCouponPendingKey) === '1') {
+  } else if (enableCouponAds && localStorage.getItem(loginCouponPendingKey) === '1') {
     showLoginCoupon.value = true
   }
 })

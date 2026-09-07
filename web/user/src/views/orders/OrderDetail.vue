@@ -56,13 +56,13 @@
       </div>
     </div>
 
-    <!-- 司机信息 -->
-    <div class="driver-card" v-if="order.driverName">
+    <!-- 司机信息：只要订单已分配司机就展示，姓名缺失时由展示函数降级为「司机 #ID」。 -->
+    <div class="driver-card" v-if="order.driverId">
       <h3>司机信息</h3>
       <div class="driver-info">
         <img :src="order.driverAvatar || '/default-avatar.png'" alt="" />
         <div class="info">
-          <p class="name">{{ order.driverName }}</p>
+          <p class="name">{{ order.driverDisplayName }}</p>
           <p class="car">{{ order.plateNumber }} · {{ order.carModel }}</p>
           <div class="rating">
             <van-rate :model-value="order.driverRating || 4.9" readonly size="12" color="#F59E0B" void-icon="star" void-color="#E5E7EB" />
@@ -177,7 +177,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog, showLoadingToast, closeToast } from 'vant'
 import { getOrderDetail, cancelOrder } from '@/api/order'
-import { ORDER_STATUS, getOrderStatusText, normalizeOrderStatus } from '@/constants/order'
+import { ORDER_STATUS, formatDriverDisplayName, formatPlateNumber, getOrderStatusText, normalizeOrderStatus } from '@/constants/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -223,7 +223,9 @@ const mapOrderDetail = (item) => {
     totalPrice: money(estimatedPriceCents),
     discountPrice: money(discountCents),
     payablePrice: money(payableCents),
-    driverName: item.driverName || '',
+    // 司机姓名统一按"姓氏+师傅"脱敏展示，详情页不得暴露司机完整实名。
+    driverDisplayName: formatDriverDisplayName(item.driverName, item.driverId),
+    plateNumber: formatPlateNumber(item.plateNumber),
     driverRating: Number(item.driverRating || 0),
     hasCoupon: couponId > 0 && discountCents > 0,
     couponName: item.couponName || '优惠券',

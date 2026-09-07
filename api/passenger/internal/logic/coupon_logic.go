@@ -54,6 +54,8 @@ func (l *CouponLogic) ClaimWelcomeGift() (*types.ClaimWelcomeGiftResponse, error
 	if err != nil {
 		return nil, err
 	}
+	// Status 传 0 = 不筛选状态。「是否新人」的判定口径是「名下是否存在任意一张券」：
+	// 只要领过一张（哪怕已核销或已过期）就再也不能领礼包。这是当前产品口径，改动前请确认。
 	existing, err := client.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{UserId: userID, Status: 0})
 	if err != nil {
 		return nil, err
@@ -61,8 +63,12 @@ func (l *CouponLogic) ClaimWelcomeGift() (*types.ClaimWelcomeGiftResponse, error
 	if len(existing.GetList()) > 0 {
 		return nil, errors.New("新人礼包仅限首次登录用户领取")
 	}
+	// 新人礼包写死为这四张券模板，ID 与 rpc/usersvc/client/local.go 中预置的种子券一一对应；
+	// 换环境或重建券模板时必须同步修改这里，否则整批领取会失败。
 	ids := []uint64{9001, 9002, 9003, 9004}
 	result := make([]types.CouponInfo, 0, len(ids))
+	// 逐张领取：中途任何一张失败都会直接报错返回，但**前面已领到的券不会回滚**，
+	// 用户会拿到部分礼包。若要严格全有或全无，应改为在 usersvc 侧做成单事务批量领取。
 	for _, id := range ids {
 		item, claimErr := client.ClaimCoupon(l.ctx, &userproto.ClaimCouponRequest{UserId: userID, CouponId: id})
 		if claimErr != nil {
@@ -109,6 +115,8 @@ func (l *CouponLogic) userClient() (svc.UserClient, error) {
 }
 
 // isValidUserCouponStatus 校验用户券状态筛选，0 表示全部。
+// 上界 4 对应 model.UserCouponStatusLocked（1=未使用 2=已核销 3=已过期 4=已锁定）；
+// 这里与 usersvc 的 isValidCouponStatus 白名单等价，usersvc 若新增券状态需同步放开此处范围。
 func isValidUserCouponStatus(status int32) bool {
 	return status >= 0 && status <= 4
 }

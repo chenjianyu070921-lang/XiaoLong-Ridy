@@ -69,7 +69,11 @@ export const useOrderStore = defineStore('order', () => {
       toAddress: '',
       toLat: 0,
       toLng: 0,
-      couponId: ''
+      couponId: '',
+      userCouponId: 0,
+      cityCode: '',
+      estimatedDistanceM: 0,
+      estimatedDurationS: 0
     }
   }
 

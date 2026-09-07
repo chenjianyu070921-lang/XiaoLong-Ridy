@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 
 	"XiaoLong-Ridy/rpc/locationsvc/internal/svc"
@@ -42,17 +43,39 @@ func (l *NearbyDriversLogic) NearbyDrivers(in *locationsvc.NearbyDriversReq) (*l
 		limit = 100
 	}
 
-	res, err := l.svcCtx.Redis.GeoRadius(l.ctx, svc.GeoKey(l.svcCtx.GetConfig().DefaultCityCode), in.Lng, in.Lat, &redis.GeoRadiusQuery{
+	// 司机端当前统一写入 default 城市 GEO key；同时查询配置城市 key，兼容历史数据和多城市配置。
+	keys := []string{svc.GeoKey("default")}
+	configuredKey := svc.GeoKey(l.svcCtx.GetConfig().DefaultCityCode)
+	if configuredKey != keys[0] {
+		keys = append(keys, configuredKey)
+	}
+	query := &redis.GeoRadiusQuery{
 		Radius:    in.Radius,
 		Unit:      "m",
 		WithDist:  true,
 		WithCoord: true,
 		Sort:      "ASC",
 		Count:     limit,
-	}).Result()
-	if err != nil {
-		l.Errorf("Redis GEO 查询失败: %v", err)
-		return nil, err
+	}
+	// 汇总多个 key 后按距离排序，避免同一司机因兼容 key 重复出现在结果中。
+	seen := make(map[string]bool)
+	res := make([]redis.GeoLocation, 0, limit)
+	for _, key := range keys {
+		items, queryErr := l.svcCtx.Redis.GeoRadius(l.ctx, key, in.Lng, in.Lat, query).Result()
+		if queryErr != nil {
+			l.Errorf("Redis GEO 查询失败: key=%s err=%v", key, queryErr)
+			continue
+		}
+		for _, item := range items {
+			if !seen[item.Name] {
+				seen[item.Name] = true
+				res = append(res, item)
+			}
+		}
+	}
+	sort.Slice(res, func(i, j int) bool { return res[i].Dist < res[j].Dist })
+	if len(res) > limit {
+		res = res[:limit]
 	}
 
 	resp := &locationsvc.NearbyDriversResp{

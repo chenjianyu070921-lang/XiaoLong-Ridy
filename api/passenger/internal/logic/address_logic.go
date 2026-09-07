@@ -11,6 +11,10 @@ import (
 
 // AddressLogic 封装乘客常用地址业务流程。
 // API 层只负责解析登录态和调用 usersvc RPC，不直接操作地址仓储。
+//
+// 越权防线：所有方法的 userID 一律由 JWT 经 currentUserID 解析得出，绝不从请求体读取，
+// 因此乘客无法通过伪造 user_id 访问他人地址；
+// 具体到某一个地址的归属校验则下沉到 usersvc（请求同时带上 Id 和 UserId，由下游判定）。
 type AddressLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
@@ -52,6 +56,8 @@ func (l *AddressLogic) CreateAddress(req *types.CreateAddressRequest) (*types.Ad
 }
 
 // ListAddresses 调用 usersvc.ListAddresses 查询当前乘客常用地址列表。
+// 请求参数当前未使用（形参为 _）：列表既不分页也不支持条件筛选，
+// 保持「一次取回全部常用地址」的简单契约，身份也只认 JWT。
 func (l *AddressLogic) ListAddresses(_ *types.ListAddressesRequest) (*types.ListAddressesResponse, error) {
 	userID, err := currentUserID(l.svcCtx, l.token)
 	if err != nil {

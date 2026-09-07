@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"XiaoLong-Ridy/api/passenger/internal/logic"
 	"XiaoLong-Ridy/api/passenger/internal/svc"
@@ -80,7 +79,7 @@ func RefreshTokenHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 func LogoutHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 文档要求登出接口从 Authorization: Bearer {JWT} 中读取当前登录态。
-		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		token := bearerToken(r)
 		if token == "" {
 			writeError(w, http.StatusUnauthorized, codeInvalidToken, "Token无效")
 			return
