@@ -19,8 +19,6 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	registerCouponRoutes(mux, svcCtx)
 	registerReviewRoutes(mux, svcCtx)
 	registerWalletRoutes(mux, svcCtx)
-	// 注册位置服务路由，包含附近司机、POI 搜索及地理编码接口。
-	registerLocationRoutes(mux, svcCtx)
 	return mux
 }
 
