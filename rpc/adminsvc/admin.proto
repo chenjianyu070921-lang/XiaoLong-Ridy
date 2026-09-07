@@ -189,6 +189,8 @@ service AdminService {
   rpc ListAdminAuditOutbox(AdminAuditOutboxListRequest) returns (AdminAuditOutboxListResponse);
   // 提交受限运营问答并返回结构化回答（AI 运营助手）。
   rpc AskAiAgent(AiAskRequest) returns (AiAnswerResponse);
+  // 提交受限运营问答并以流式分块返回，供网关 SSE 逐步渲染（先事实、后逐字结论）。
+  rpc AskAiAgentStream(AiAskRequest) returns (stream AiAnswerChunk);
   // 读取当前管理员可见的三个快捷问题。
   rpc GetAiSuggestions(AiSuggestionsRequest) returns (AiSuggestionsResponse);
   // 查询当前管理员自己的 AI 问答会话摘要。
@@ -1742,6 +1744,17 @@ message AiAnswerResponse {
   repeated string citations = 6;
   string conversation_id = 7;
   string trace_id = 8;
+}
+
+// AiAnswerChunk 是流式问答的一个分块。
+// type 取值：facts（事实先到）/ delta（模型增量文本）/ final（校验后完整结果）/
+// fallback（降级模板）/ error（失败原因）。
+message AiAnswerChunk {
+  string type = 1;
+  string text = 2;
+  AiAnswerResponse answer = 3;
+  string conversation_id = 4;
+  string trace_id = 5;
 }
 
 message AiSuggestionsRequest {

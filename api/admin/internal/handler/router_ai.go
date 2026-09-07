@@ -1,16 +1,22 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
 	"XiaoLong-Ridy/api/admin/internal/types"
 	adminclient "XiaoLong-Ridy/rpc/adminsvc/client/adminservice"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // registerAiRoutes 注册 AI 运营助手相关路由，全部经过 authRequired 鉴权。
 func (r *Router) registerAiRoutes() {
 	r.mux.HandleFunc("/admin/v1/ai-agent/ask", r.authRequired(r.handleAiAsk))
+	r.mux.HandleFunc("/admin/v1/ai-agent/ask/stream", r.authRequired(r.handleAiAskStream))
 	r.mux.HandleFunc("/admin/v1/ai-agent/suggestions", r.authRequired(r.handleAiSuggestions))
 	r.mux.HandleFunc("/admin/v1/ai-agent/history", r.authRequired(r.handleAiHistory))
 	r.mux.HandleFunc("/admin/v1/ai-agent/feedback", r.authRequired(r.handleAiFeedback))
@@ -41,6 +47,64 @@ func (r *Router) handleAiAsk(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	writeSuccess(w, toAiAnswerDTO(resp))
+}
+
+// handleAiAskStream 以 SSE 逐步返回 AI 回答：先事实（数据证据），再增量文本，最后最终结果或降级答案。
+// 鉴权与 handleAiAsk 一致（authRequired 包裹），仅在传输层改为逐帧 Flush。
+func (r *Router) handleAiAskStream(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		writeMethodNotAllowed(w)
+		return
+	}
+	var body types.AiAskRequest
+	if err := decodeJSON(w, req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, 40001, "invalid request body")
+		return
+	}
+	stream, err := r.ctx.AdminSvc.AskAiAgentStream(req.Context(), &adminclient.AiAskRequest{
+		Scene:          body.Scene,
+		Question:       body.Question,
+		ConversationId: body.ConversationID,
+		StartTime:      body.StartTime,
+		EndTime:        body.EndTime,
+		DemoMode:       body.DemoMode,
+	})
+	if err != nil {
+		r.writeBizError(w, err)
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, 50001, "streaming unsupported")
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	// 关闭反向代理缓冲，保证增量帧即时到达前端。
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			logx.Errorf("ai-agent stream recv failed: %v", err)
+			payload, _ := json.Marshal(map[string]string{"type": "error", "text": err.Error()})
+			fmt.Fprintf(w, "data: %s\n\n", payload)
+			flusher.Flush()
+			return
+		}
+		payload, marshalErr := json.Marshal(chunk)
+		if marshalErr != nil {
+			continue
+		}
+		fmt.Fprintf(w, "data: %s\n\n", payload)
+		flusher.Flush()
+	}
 }
 
 // handleAiSuggestions 读取当前管理员可见的三个快捷问题。

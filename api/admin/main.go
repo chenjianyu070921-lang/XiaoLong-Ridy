@@ -38,8 +38,10 @@ func main() {
 		Addr:         cfg.HTTPAddr,
 		Handler:      router,
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		// 写超时需覆盖 AI 流式问答的模型生成耗时（实测约 45 秒），否则网关会在模型
+		// 返回前切断 SSE 连接，导致前端只能拿到部分增量文本。
+		WriteTimeout: 180 * time.Second,
+		IdleTimeout:  180 * time.Second,
 	}
 
 	// 优雅关停：监听 SIGINT/SIGTERM，收到信号后停止接收新连接并等待在途请求处理完成，

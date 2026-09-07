@@ -1,5 +1,8 @@
 # 管理后台 HTTP 到 RPC 边界说明
 
+> 最近同步：2026-09-05。本文档以当前 `api/admin` 路由注册、`rpc/adminsvc/admin.proto` 与各 logic 实际调用为准。
+> 说明：司机处罚域（`/admin/v1/punishment-rules`、`/punishments`、`/punishment-appeals`）的 HTTP 路由已注册，但 `rpc/adminsvc/admin.proto` 源文件尚未包含对应 RPC 定义，本文档暂不记录该域接口。
+
 ## 1. 当前架构边界
 
 `api/admin` 只负责 HTTP 接入层能力：
@@ -11,161 +14,157 @@
 | 参数转换 | 将 Path、Query、Body 转换为 `rpc/adminsvc` 的 protobuf 请求 |
 | 响应包装 | 将 RPC 返回包装为统一 JSON：`code/message/data` |
 
-`rpc/adminsvc` 负责后台核心业务动作：
+`rpc/adminsvc` 负责后台核心业务动作，并按领域调用下游 RPC：
 
-| 业务模块 | RPC 方法 |
-| --- | --- |
-| 用户管理 | `ListUsers`、`GetUser`、`FreezeUser`、`UnfreezeUser` |
-| 司机管理与审核 | `ListDrivers`、`GetDriver`、`FreezeDriver`、`ListDriverCertifications`、`GetDriverCertification`、`ApproveDriverCertification`、`RejectDriverCertification` |
-| 订单管理 | `ListOrders`、`GetOrder`、`CancelOrder`、`ListAbnormalOrders` |
-| 优惠券配置 | `ListCoupons`、`CreateCoupon`、`UpdateCoupon`、`DisableCoupon`、`IssueCoupon`、`ListCouponIssueTasks` |
-| 计价规则 | `ListPriceRules`、`GetPriceRule`、`CreatePriceRule`、`UpdatePriceRule`、`EnablePriceRule`、`DisablePriceRule` |
-| 营销活动 | `ListPromotionActivities`、`CreatePromotionActivity`、`UpdatePromotionActivity`、`PublishPromotionActivity`、`RollbackPromotionActivity` |
-| 统计导出 | `GetStatisticsOverview`、`GetOrderStatistics`、`GetCouponStatistics`、`CreateExportTask`、`ListExportTasks`、`GetExportTask` |
-| 风控管理 | `ListBlacklists`、`AddBlacklist`、`ReleaseBlacklist`、`ListRiskHitRecords` |
-| 操作日志 | `ListOperationLogs` |
+| 业务模块 | adminsvc RPC 方法（admin.proto） | 下游依赖 |
+| --- | --- | --- |
+| 管理员管理 | `Register`、`Login`、`Logout`、`ValidateSession`、`Me`、`Menus`、`ListAdmins`、`CreateAdmin`、`UpdateAdmin`、`SetAdminStatus`、`ResetAdminPassword` | 本地表 `admin_user`；Redis 会话 |
+| 操作日志 | `ListOperationLogs` | 本地表 `admin_operation_log` |
+| 用户管理 | `ListUsers`、`GetUser`、`FreezeUser`、`UnfreezeUser`、`ListUserOrders`、`ListUserCoupons` | `usersvc.AdminListUsers`、`usersvc.AdminGetUser`、`usersvc.AdminFreezeUser`/`AdminUnfreezeUser`、`ordersvc.ListOrders`、`usersvc.ListMyCoupons` |
+| 司机管理 | `ListDrivers`、`GetDriver`、`FreezeDriver`、`UnfreezeDriver` | `driversvc.ListDrivers`、`driversvc.GetDriver`、`driversvc.FreezeDriver`、`driversvc.UnfreezeDriver` |
+| 司机资质审核 | `ListDriverCertifications`、`GetDriverCertification`、`ApproveDriverCertification`、`RejectDriverCertification` | `driversvc.AdminListCertifications`、`driversvc.AdminGetCertification`、`driversvc.ApproveCertification`、`driversvc.RejectCertification` |
+| 司机提现审核 | `ListDriverWithdrawals`、`HandleDriverWithdraw` | `driversvc.AdminListWithdraws`、`driversvc.AuditWithdraw` |
+| 订单管理 | `ListOrders`、`GetOrder`、`ListAbnormalOrders`、`CancelOrder`、`RedispatchOrder`、`RefundOrder`、`GetOrderTrack` | `ordersvc.ListOrders`、`ordersvc.GetOrder`/`ListOrderStatusLogs`、`ordersvc.CancelOrder`、`ordersvc.RedispatchOrder`、`ordersvc.ForceRefundOrder`、`locationsvc.GetOrderTrack` |
+| 退款补偿 | `ListRefundRetryTasks`、`RetryRefundTask` | 本地表 `admin_refund_compensation_task`；实际补偿由 `job` 的 `RetryRefundEvents`/`RunRefundCompensation` 执行 |
+| 优惠券配置 | `ListCoupons`、`CreateCoupon`、`UpdateCoupon`、`DisableCoupon`、`IssueCoupon`、`ListCouponIssueTasks` | 本地表 `coupon`、`admin_coupon_issue_task`；发券调用 `usersvc.AdminIssueCoupon` 写入 `user_coupon` |
+| 计价规则 | `ListPriceRules`、`GetPriceRule`、`CreatePriceRule`、`UpdatePriceRule`、`EnablePriceRule`、`DisablePriceRule` | `pricesvc`（adminsvc 不直接读写 `price_rule`） |
+| 营销活动 | `ListPromotionActivities`、`CreatePromotionActivity`、`UpdatePromotionActivity`、`PublishPromotionActivity`、`RollbackPromotionActivity` | 本地表 `promotion_activity`；发布/回滚写结构化 `admin_operation_log` |
+| 工单管理 | `CreateWorkOrder`、`ListWorkOrders`、`GetWorkOrder`、`ActWorkOrder`、`BatchActWorkOrders`、`AddWorkOrderEvidence`、`ListWorkOrderEvidence` | 本地表 `admin_complaint_work_order`、`admin_work_order_flow`、`admin_work_order_evidence` |
+| 统计与运力地图 | `GetStatisticsOverview`、`GetOrderStatistics`、`GetDriverStatistics`、`GetFinanceStatistics`、`GetCouponStatistics`、`GetUserStatistics`、`GetCapacityMap` | 基于业务表实时聚合；运力地图读取 `driversvc.ListDrivers` |
+| 导出任务 | `CreateExportTask`、`ListExportTasks`、`GetExportTask`、`GetExportDownload`、`DownloadExport` | 本地表 `admin_export_task`；goroutine 异步生成 CSV，HTTP 层流式返回 |
+| 风控管理 | `ListBlacklists`、`AddBlacklist`、`ReleaseBlacklist`、`ListRiskHitRecords`、`HandleRiskHitRecords` | 本地表 `blacklist`、`risk_blacklist_hit_record`；拉黑司机/用户联动 `driversvc.FreezeDriver`/`usersvc.AdminFreezeUser` |
+| 审计补偿 | `ListAdminAuditOutbox` | 本地表 `admin_audit_outbox`，实际重试由 `job.RetryAdminAuditOutbox` 执行 |
+| AI 运营助手 | `AskAiAgent`、`GetAiSuggestions`、`GetAiHistory`、`AiFeedback`、`DeleteAiConversation` | adminsvc 本地降级/演示引擎；问答会话存 Redis，`Ask`/`Feedback`/`DeleteConversation` 写脱敏审计 |
 
 ## 2. HTTP 接口到 RPC 方法映射
 
-| HTTP 接口 | HTTP 层处理 | RPC 方法 |
+除注册接口与登录外，其余全部经 `authRequired`（Bearer token → `ValidateSession` → gRPC metadata `x-admin-token` 透传 → 服务端 RBAC）。
+
+| HTTP 接口（方法见路径行为） | HTTP 层处理 | RPC 方法 |
 | --- | --- | --- |
 | `POST /admin/v1/auth/register` | 解析注册请求；可选 Bearer Token 用于后续管理员注册授权 | `AdminService.Register` |
 | `POST /admin/v1/auth/login` | 解析账号密码 | `AdminService.Login` |
 | `POST /admin/v1/auth/logout` | 透传 token | `AdminService.Logout` |
 | `GET /admin/v1/auth/me` | 透传 token | `AdminService.Me` |
 | `GET /admin/v1/menus` | 透传 token | `AdminService.Menus` |
+| `GET|POST /admin/v1/admins` | 管理员列表 / 新增 | `AdminService.ListAdmins` / `CreateAdmin` |
+| `PUT /admin/v1/admins/{id}` | 编辑管理员 | `AdminService.UpdateAdmin` |
+| `POST /admin/v1/admins/{id}/status` | 启停管理员 | `AdminService.SetAdminStatus` |
+| `POST /admin/v1/admins/{id}/reset-password` | 重置密码 | `AdminService.ResetAdminPassword` |
+| `GET /admin/v1/operation-logs` | 解析日志筛选条件 | `AdminService.ListOperationLogs` |
 | `GET /admin/v1/users` | 解析分页、关键字、状态、时间范围 | `AdminService.ListUsers` |
-| `GET /admin/v1/users/{id}` | 解析用户 ID | `AdminService.GetUser` |
+| `GET /admin/v1/users/{id}` | 解析用户 ID，支持 `sensitive=1` | `AdminService.GetUser` |
+| `GET /admin/v1/users/{id}/orders` | 用户订单历史 | `AdminService.ListUserOrders -> ordersvc.ListOrders` |
+| `GET /admin/v1/users/{id}/coupons` | 用户优惠券历史 | `AdminService.ListUserCoupons -> usersvc.ListMyCoupons` |
 | `POST /admin/v1/users/{id}/freeze` | 解析用户 ID、原因、备注、管理员 ID、IP | `AdminService.FreezeUser` |
-| `POST /admin/v1/users/{id}/unfreeze` | 解析用户 ID、原因、备注、管理员 ID、IP | `AdminService.UnfreezeUser` |
+| `POST /admin/v1/users/{id}/unfreeze` | 同上 | `AdminService.UnfreezeUser` |
+| `GET /admin/v1/user-coupons` | 全局入口，必须带 `user_id` | `AdminService.ListUserCoupons -> usersvc.ListMyCoupons` |
 | `GET /admin/v1/drivers` | 解析分页、关键字、状态 | `AdminService.ListDrivers -> driversvc.ListDrivers` |
-| `GET /admin/v1/drivers/{id}` | 解析司机 ID | `AdminService.GetDriver -> driversvc.GetDriver` |
+| `GET /admin/v1/drivers/{id}` | 解析司机 ID，支持 `sensitive=1` | `AdminService.GetDriver -> driversvc.GetDriver` |
 | `POST /admin/v1/drivers/{id}/freeze` | 解析司机 ID、原因、备注、管理员 ID、IP | `AdminService.FreezeDriver -> driversvc.FreezeDriver` |
-| `GET /admin/v1/driver-certifications` | 解析审核状态和筛选条件 | `AdminService.ListDriverCertifications` |
-| `GET /admin/v1/driver-certifications/{id}` | 解析审核记录 ID | `AdminService.GetDriverCertification` |
-| `POST /admin/v1/driver-certifications/{id}/approve` | 解析审核 ID、备注、管理员 ID、IP | `AdminService.ApproveDriverCertification` |
-| `POST /admin/v1/driver-certifications/{id}/reject` | 解析审核 ID、驳回原因、管理员 ID、IP | `AdminService.RejectDriverCertification` |
-| `GET /admin/v1/orders` | 解析订单筛选条件 | `AdminService.ListOrders` |
-| `GET /admin/v1/orders/{id}` | 解析订单 ID | `AdminService.GetOrder` |
+| `POST /admin/v1/drivers/{id}/unfreeze` | 同上 | `AdminService.UnfreezeDriver -> driversvc.UnfreezeDriver` |
+| `GET /admin/v1/driver-withdrawals` | 解析提现筛选条件 | `AdminService.ListDriverWithdrawals -> driversvc.AdminListWithdraws` |
+| `POST /admin/v1/driver-withdrawals/{id}/approve` | 审核打款成功 | `AdminService.HandleDriverWithdraw -> driversvc.AuditWithdraw` |
+| `POST /admin/v1/driver-withdrawals/{id}/reject` | 审核打款失败 | `AdminService.HandleDriverWithdraw -> driversvc.AuditWithdraw` |
+| `GET /admin/v1/driver-certifications` | 解析审核状态和筛选条件 | `AdminService.ListDriverCertifications -> driversvc.AdminListCertifications` |
+| `GET /admin/v1/driver-certifications/{id}` | 解析审核记录 ID | `AdminService.GetDriverCertification -> driversvc.AdminGetCertification` |
+| `POST /admin/v1/driver-certifications/{id}/approve` | 解析审核 ID、备注、管理员 ID、IP | `AdminService.ApproveDriverCertification -> driversvc.ApproveCertification` |
+| `POST /admin/v1/driver-certifications/{id}/reject` | 解析审核 ID、驳回原因、管理员 ID、IP | `AdminService.RejectDriverCertification -> driversvc.RejectCertification` |
+| `GET /admin/v1/orders` | 解析订单筛选条件 | `AdminService.ListOrders -> ordersvc.ListOrders` |
 | `GET /admin/v1/orders/abnormal` | 解析 `abnormal_type=cancel/payment/dispatch` | `AdminService.ListAbnormalOrders` |
-| `POST /admin/v1/orders/{id}/cancel` | 解析订单 ID、取消原因、管理员 ID、IP | `AdminService.CancelOrder` |
+| `GET /admin/v1/orders/{id}` | 解析订单 ID | `AdminService.GetOrder -> ordersvc.GetOrder`（含状态日志等聚合） |
+| `GET /admin/v1/orders/{id}/track` | 解析订单轨迹 | `AdminService.GetOrderTrack -> locationsvc.GetOrderTrack` |
+| `POST /admin/v1/orders/{id}/cancel` | 解析订单 ID、取消原因、管理员 ID、IP | `AdminService.CancelOrder -> ordersvc.CancelOrder` |
+| `POST /admin/v1/orders/{id}/redispatch` | 解析目标司机、原因、request_id | `AdminService.RedispatchOrder -> ordersvc.RedispatchOrder` |
+| `POST /admin/v1/orders/{id}/refund` | 解析退款金额、原因、request_id | `AdminService.RefundOrder -> ordersvc.ForceRefundOrder` |
+| `GET /admin/v1/refund-retry-tasks` | 查询退款补偿队列 | `AdminService.ListRefundRetryTasks` |
+| `POST /admin/v1/refund-retry-tasks/{refund_no}` | 立即触发指定退款补偿 | `AdminService.RetryRefundTask` |
 | `GET /admin/v1/coupons` | 解析优惠券筛选条件 | `AdminService.ListCoupons` |
 | `POST /admin/v1/coupons` | 解析优惠券模板请求体、管理员 ID、IP | `AdminService.CreateCoupon` |
 | `PUT /admin/v1/coupons/{id}` | 解析优惠券 ID、模板请求体、管理员 ID、IP | `AdminService.UpdateCoupon` |
 | `POST /admin/v1/coupons/{id}/disable` | 解析优惠券 ID、管理员 ID、IP | `AdminService.DisableCoupon` |
 | `POST /admin/v1/coupons/{id}/issue` | 解析优惠券 ID、发券目标、管理员 ID、IP | `AdminService.IssueCoupon` |
 | `GET /admin/v1/coupon-issue-tasks` | 解析发券任务筛选条件 | `AdminService.ListCouponIssueTasks` |
-| `GET /admin/v1/price-rules` | 解析计价规则筛选条件 | `AdminService.ListPriceRules` |
-| `POST /admin/v1/price-rules` | 解析计价规则配置、管理员 ID、IP | `AdminService.CreatePriceRule` |
-| `GET /admin/v1/price-rules/{id}` | 解析计价规则 ID | `AdminService.GetPriceRule` |
-| `PUT /admin/v1/price-rules/{id}` | 解析计价规则 ID、配置、管理员 ID、IP | `AdminService.UpdatePriceRule` |
-| `POST /admin/v1/price-rules/{id}/enable` | 解析计价规则 ID、管理员 ID、IP | `AdminService.EnablePriceRule` |
-| `POST /admin/v1/price-rules/{id}/disable` | 解析计价规则 ID、管理员 ID、IP | `AdminService.DisablePriceRule` |
+| `GET /admin/v1/price-rules` | 解析计价规则筛选条件 | `AdminService.ListPriceRules -> pricesvc.ListPriceRules` |
+| `POST /admin/v1/price-rules` | 解析计价规则配置、管理员 ID、IP | `AdminService.CreatePriceRule -> pricesvc.CreatePriceRule` |
+| `GET /admin/v1/price-rules/{id}` | 解析计价规则 ID | `AdminService.GetPriceRule -> pricesvc.GetPriceRule` |
+| `PUT /admin/v1/price-rules/{id}` | 解析计价规则 ID、配置、管理员 ID、IP | `AdminService.UpdatePriceRule -> pricesvc.UpdatePriceRule` |
+| `POST /admin/v1/price-rules/{id}/enable` | 启用计价规则 | `AdminService.EnablePriceRule -> pricesvc.EnablePriceRule` |
+| `POST /admin/v1/price-rules/{id}/disable` | 停用计价规则 | `AdminService.DisablePriceRule -> pricesvc.DisablePriceRule` |
 | `GET /admin/v1/promotion-activities` | 解析活动筛选条件 | `AdminService.ListPromotionActivities` |
 | `POST /admin/v1/promotion-activities` | 解析活动配置、管理员 ID、IP | `AdminService.CreatePromotionActivity` |
 | `PUT /admin/v1/promotion-activities/{id}` | 解析活动 ID、活动配置、管理员 ID、IP | `AdminService.UpdatePromotionActivity` |
 | `POST /admin/v1/promotion-activities/{id}/publish` | 解析发布范围和灰度配置 | `AdminService.PublishPromotionActivity` |
 | `POST /admin/v1/promotion-activities/{id}/rollback` | 解析回滚配置 | `AdminService.RollbackPromotionActivity` |
 | `GET /admin/v1/statistics/overview` | 解析统计时间范围 | `AdminService.GetStatisticsOverview` |
-| `GET /admin/v1/statistics/orders` | 解析统计时间范围 | `AdminService.GetOrderStatistics` |
-| `GET /admin/v1/statistics/users` | 解析统计时间范围 | `AdminService.GetUserStatistics` |
-| `GET /admin/v1/statistics/coupons` | 解析统计时间范围 | `AdminService.GetCouponStatistics` |
+| `GET /admin/v1/statistics/orders` | 同上 | `AdminService.GetOrderStatistics` |
+| `GET /admin/v1/statistics/drivers` | 同上 | `AdminService.GetDriverStatistics` |
+| `GET /admin/v1/statistics/revenue` | 同上 | `AdminService.GetFinanceStatistics` |
+| `GET /admin/v1/statistics/coupons` | 同上 | `AdminService.GetCouponStatistics` |
+| `GET /admin/v1/statistics/users` | 同上 | `AdminService.GetUserStatistics` |
+| `GET /admin/v1/capacity/map` | 解析状态、听单状态、limit | `AdminService.GetCapacityMap -> driversvc.ListDrivers` |
 | `POST /admin/v1/export-tasks` | 解析导出类型、筛选条件、管理员 ID、IP | `AdminService.CreateExportTask` |
 | `GET /admin/v1/export-tasks` | 解析导出任务筛选条件 | `AdminService.ListExportTasks` |
 | `GET /admin/v1/export-tasks/{task_no}` | 解析导出任务编号 | `AdminService.GetExportTask` |
+| `GET /admin/v1/export-tasks/{task_no}/download` | 鉴权后流式返回 CSV | `AdminService.DownloadExport`（HTTP 直接建 stream 客户端） |
+| `GET|POST /admin/v1/work-orders` | 工单列表 / 创建 | `AdminService.ListWorkOrders` / `CreateWorkOrder` |
+| `GET /admin/v1/work-orders/{id}` | 工单详情 | `AdminService.GetWorkOrder` |
+| `POST /admin/v1/work-orders/{id}/actions` | 工单流转 | `AdminService.ActWorkOrder` |
+| `POST /admin/v1/work-orders/batch-actions` | 批量流转 | `AdminService.BatchActWorkOrders` |
+| `GET /admin/v1/work-orders/{id}/evidence` | 证据列表 | `AdminService.ListWorkOrderEvidence` |
+| `POST /admin/v1/work-orders/{id}/evidence` | 新增证据索引 | `AdminService.AddWorkOrderEvidence` |
 | `GET /admin/v1/blacklist` | 解析黑名单筛选条件 | `AdminService.ListBlacklists` |
 | `POST /admin/v1/blacklist` | 解析拉黑对象、原因、管理员 ID、IP | `AdminService.AddBlacklist` |
-| `POST/PATCH /admin/v1/blacklist/{id}/release` | 解析黑名单 ID、解除原因 | `AdminService.ReleaseBlacklist` |
+| `POST|PATCH /admin/v1/blacklist/{id}/release` | 解析黑名单 ID、解除原因 | `AdminService.ReleaseBlacklist` |
 | `GET /admin/v1/risk/hit-records` | 解析风控命中筛选条件 | `AdminService.ListRiskHitRecords` |
+| `POST /admin/v1/risk/hit-records/actions` | 复核/拉黑/转工单 | `AdminService.HandleRiskHitRecords` |
 | `GET /admin/v1/notification-outbox` | 解析通知/审计补偿筛选条件 | `AdminService.ListAdminAuditOutbox` |
-| `GET /admin/v1/operation-logs` | 解析日志筛选条件 | `AdminService.ListOperationLogs` |
+| `POST /admin/v1/ai-agent/ask` | 提交受限运营问答 | `AdminService.AskAiAgent` |
+| `GET /admin/v1/ai-agent/suggestions` | 快捷问题 | `AdminService.GetAiSuggestions` |
+| `GET /admin/v1/ai-agent/history` | 本人会话摘要 | `AdminService.GetAiHistory` |
+| `POST /admin/v1/ai-agent/feedback` | 记录是否有帮助 | `AdminService.AiFeedback` |
+| `DELETE /admin/v1/ai-agent/conversations/{id}` | 结束并清空会话 | `AdminService.DeleteAiConversation` |
+| `GET /healthz`、`GET /` | 健康检查与服务说明 | 无 |
 
 ## 3. 数据写入边界
 
 | 操作 | 写入位置 | 说明 |
 | --- | --- | --- |
-| 司机审核通过 | `rpc/driversvc` + `rpc/adminsvc` | `adminsvc` 同步调用 `driversvc.ApproveCertification`；driversvc 在本地事务内更新 `driver_certification`、`driver`、`driver_vehicle`；adminsvc 写审计日志，失败时写 `admin_audit_outbox` 补偿任务 |
-| 司机审核驳回 | `rpc/driversvc` + `rpc/adminsvc` | `adminsvc` 同步调用 `driversvc.RejectCertification`；driversvc 在本地事务内只更新审核状态；adminsvc 写审计日志，失败时写 `admin_audit_outbox` 补偿任务 |
-| 司机冻结 | `rpc/driversvc` + `rpc/adminsvc` + `rpc/pushesvc` | `adminsvc` 校验权限并调用 `driversvc.FreezeDriver`；driversvc 更新司机状态并把 Redis 在线状态置离线；adminsvc 写审计并调用 `pushsvc.SendNotice/SendPush`，通知失败写 `admin_audit_outbox` |
-| 司机风控拉黑 | `rpc/adminsvc` + `rpc/driversvc` + `rpc/pushesvc` | `adminsvc` 写入 `blacklist`；目标类型为 `driver` 时提交后联动 `driversvc.FreezeDriver`，并通过 pushsvc 通知司机 |
-| 风控命中处置 | `rpc/adminsvc` | `review_pass` 写审计日志，`add_blacklist` 写黑名单，`create_work_order` 写投诉/申诉工单；命中列表的处置状态由审计、黑名单和工单表推导，不新增数据库字段 |
-| 敏感信息查看 | `rpc/adminsvc` + `rpc/usersvc` / `rpc/driversvc` | 用户和司机详情默认脱敏；仅 `sensitive=1` 且管理员为超管/运营时返回完整手机号、身份证号等字段，并写 `admin_operation_log` |
-| 优惠券新增/编辑/下架 | `rpc/adminsvc` | 写入或更新 `coupon` 表；新增与 `admin_operation_log` 使用同一事务，成功响应返回新优惠券 ID |
-| 优惠券发放任务 | `rpc/adminsvc` | 写入 `admin_coupon_issue_task`，同步写入 `user_coupon`，更新 `coupon.received_count` |
-| 计价规则管理 | `rpc/adminsvc` + `rpc/pricesvc` | `api/admin` 和 `adminsvc` 均不直接修改 `price_rule`；由 `adminsvc` 转发到 `pricesvc` 完成列表、详情、新增、编辑、启停；创建响应透传真实规则 ID，审计失败写入 `admin_audit_outbox` 后仍返回已生效结果 |
-| 活动配置发布/回滚 | `rpc/adminsvc` | 更新 `promotion_activity.status`，写入 `admin_operation_log` |
-| 风控黑名单 | `rpc/adminsvc` | 写入或更新 `blacklist`，查询 `risk_blacklist_hit_record`；风控命中处置按动作做权限分层，超管可全部处置，运营可复核/转工单，客服只读受限 |
-| 导出任务 | `rpc/adminsvc` | 写入 `admin_export_task` 独立任务表，并由 goroutine 异步生成 CSV 文件；当前支持 `users`、`drivers`、`orders`、`operation_logs`、`statistics` 五类导出，筛选字段按导出类型白名单校验；迁移脚本为 `scripts/sql/migrate/09_admin_export_audit_task.sql` |
-| 用户冻结/解封 | `rpc/adminsvc` | 更新 `user.status` |
-| 操作审计 | `rpc/adminsvc` | 写入 `admin_operation_log` |
+| 司机审核通过 | `rpc/driversvc` + `rpc/adminsvc` | `adminsvc` 同步调用 `driversvc.ApproveCertification`；driversvc 本地事务更新 `driver_certification`、`driver`、`driver_vehicle`；adminsvc 写审计日志，失败时写 `admin_audit_outbox` 补偿 |
+| 司机审核驳回 | `rpc/driversvc` + `rpc/adminsvc` | `adminsvc` 同步调用 `driversvc.RejectCertification`；driversvc 只更新审核状态；adminsvc 写审计，失败时写 outbox |
+| 司机冻结/解冻 | `rpc/driversvc` + `rpc/adminsvc` | 调用 `driversvc.FreezeDriver`/`UnfreezeDriver`；冻结后写审计并通过 `pushsvc.SendNotice/SendPush` 通知司机，通知失败写 `admin_audit_outbox` |
+| 司机风控拉黑 | `rpc/adminsvc` + `rpc/driversvc`/`rpc/usersvc` + `rpc/pushesvc` | 写 `blacklist`；目标为 `driver` 联动 `driversvc.FreezeDriver`、为 `user` 联动 `usersvc.AdminFreezeUser` |
+| 风控命中处置 | `rpc/adminsvc` | `review_pass` 写审计，`add_blacklist` 写黑名单，`create_work_order` 写工单；处置状态由审计、黑名单和工单表推导，不新增数据库字段 |
+| 敏感信息查看 | `rpc/adminsvc` + `rpc/usersvc` / `rpc/driversvc` | 用户和司机详情默认脱敏；仅 `sensitive=1` 且超管/运营时返回明文并写 `admin_operation_log` |
+| 用户冻结/解封 | `rpc/adminsvc` | 调用 `usersvc.AdminFreezeUser`/`AdminUnfreezeUser` 更新 `user.status`，并写审计 |
+| 司机提现审核 | `rpc/driversvc` + `rpc/adminsvc` | 调用 `driversvc.AuditWithdraw` 打款成功/失败流转，adminsvc 写审计 |
+| 优惠券新增/编辑/下架 | `rpc/adminsvc` | 写入或更新 `coupon`；新增与 `admin_operation_log` 同事务，返回新 ID |
+| 优惠券发放任务 | `rpc/adminsvc` + `rpc/usersvc` | 写入 `admin_coupon_issue_task`，调用 `usersvc.AdminIssueCoupon` 同步写 `user_coupon` 并更新 `coupon.received_count` |
+| 计价规则管理 | `rpc/adminsvc` + `rpc/pricesvc` | adminsvc 转发到 `pricesvc` 完成读写与启停，不直接修改 `price_rule` |
+| 活动配置发布/回滚 | `rpc/adminsvc` | 更新 `promotion_activity.status`，写结构化 `admin_operation_log` |
+| 工单与证据 | `rpc/adminsvc` | 写入 `admin_complaint_work_order`、`admin_work_order_flow`、`admin_work_order_evidence` |
+| 导出任务 | `rpc/adminsvc` | 写入 `admin_export_task`，goroutine 异步生成 CSV；支持 `users`、`drivers`、`orders`、`operation_logs`、`statistics` 五类导出 |
+| 退款补偿 | `rpc/adminsvc` + `rpc/ordersvc` | `RefundOrder` 调用 `ordersvc.ForceRefundOrder`；失败/待重试项写入 `admin_refund_compensation_task`，由 `job` 重试补偿 |
+| 操作审计 | `rpc/adminsvc` | 写 `admin_operation_log`；失败时按动作写 `admin_audit_outbox` |
+
+管理后台 outbox 补偿策略（`job`）：
+
+| 任务 | 频率 | 覆盖范围 |
+| --- | --- | --- |
+| `RetryAdminAuditOutbox` | 每 30 秒 | 重写审计日志、重放 `driversvc.FreezeDriver`、重试 `pushsvc.SendNotice/SendPush` |
+| `RetryAdminDomainOutbox` | 每 10 秒 | 将 `admin_domain_outbox` 中处罚、退款、发券、活动和通知事件可靠投递 Kafka |
+| `RetryRefundEvents` / `RunRefundCompensation` | 每 10 秒 | 消费退款补偿队列/`admin_refund_compensation_task`，推进 `pending/processing/retrying/success/manual_review/failed` 状态 |
 
 ## 4. 联调要求
 
-1. 先启动 `rpc/adminsvc`，默认监听 `127.0.0.1:8084`。
-2. 再启动 `api/admin`，默认监听 `127.0.0.1:8717`，并读取 `api/admin/etc/admin.json` 中的 `admin_rpc.target=127.0.0.1:8084`。
-3. 前端和 Postman 仍然调用原 HTTP 路径，不直接调用 RPC。
-4. MySQL 使用统一配置的远程 `xiaolong_ridy` 数据库，Redis 使用本地 Docker `6379`。
+1. 先启动下游 RPC（usersvc/ordersvc/driversvc/pricesvc/locationsvc/pushsvc 等），再启动 `rpc/adminsvc`，默认监听 `0.0.0.0:8084`。
+2. 再启动 `api/admin`，默认监听 `0.0.0.0:8717`。
+3. 前端和 Postman 只调用原 HTTP 路径，不直接调用 RPC。
+4. MySQL 使用统一配置的远程 `xiaolong_ridy` 数据库（`115.191.16.159`）；本地一键启动见 `scripts/run-passenger-to-admin.ps1`。
 
-## 5. 2026-08-15 P0 当前实现补充
+## 5. 2026-09 修订说明（相对历史版本的现状更新）
 
-### 5.1 后台订单取消
-
-当前已按 `api/admin -> rpc/adminsvc -> rpc/ordersvc` 边界落地后台订单取消。
-
-| 层级 | 已落地内容 |
-| --- | --- |
-| HTTP 路由 | `POST /admin/v1/orders/{id}/cancel` |
-| HTTP 职责 | 校验登录态，解析订单 ID、取消原因、管理员 ID、客户端 IP |
-| adminsvc RPC | `AdminService.CancelOrder(AdminCancelOrderRequest) returns (CommonResponse)` |
-| 下游 RPC | 同步调用 `ordersvc.CancelOrder` |
-| 下游入参 | `order_id`、`operator_type=admin`、`operator_id=admin_id`、`reason` |
-| 当前验证 | `go test ./api/admin/...`、`go test ./rpc/adminsvc/...` 已通过 |
-
-### 5.2 司机审核边界
-
-当前已切换为 `api/admin -> adminsvc -> driversvc`：
-
-| 动作 | adminsvc 职责 | driversvc 职责 |
-| --- | --- | --- |
-| 审核通过 | 参数校验、调用 `driversvc.ApproveCertification`、写 `admin_operation_log` | 事务更新 `driver_certification.audit_status=2`、`driver.status=2`、`driver_vehicle.status=2` |
-| 审核驳回 | 参数校验、调用 `driversvc.RejectCertification`、写 `admin_operation_log` | 事务更新 `driver_certification.audit_status=3` 和驳回原因 |
-
-司机审核审计失败策略：
-- `driversvc` 负责审核状态回流的本地事务，审核通过会联动司机和车辆状态，审核驳回不会激活司机和车辆。
-- `adminsvc` 在 `driversvc` 成功后写 `admin_operation_log`；如果审计日志写入失败，接口返回错误，不返回业务成功，避免形成“业务成功但审计缺失”的假成功。
-- 审计日志失败时，`adminsvc` 会写入 `admin_audit_outbox` 补偿任务，后续可由 job 或独立 auditsvc 重放审计事件；当前不跨服务反向回滚 driversvc 已提交事务。
-
-### 5.3 司机查询、冻结与风控边界
-
-当前司机列表、司机详情和司机冻结已切换为 `api/admin -> adminsvc -> driversvc`：
-
-| 场景 | adminsvc 职责 | driversvc 职责 |
-| --- | --- | --- |
-| 司机列表/详情 | 鉴权、参数转换和字段适配 | 聚合司机基础资料、车辆、认证，并以 Redis 在线状态作为 `online_status` 权威来源 |
-| 司机冻结 | 校验超管权限、调用 driversvc、写操作日志、调用 pushsvc 通知司机 | 将司机状态置为冻结，同步在线状态为离线，并更新持久化位置状态 |
-| 司机风控拉黑 | 写黑名单和审计；目标为司机时提交后联动冻结 | 执行司机冻结，避免 adminsvc 直接修改司机表 |
-
-司机通知通过 `pushsvc.SendNotice/SendPush` 执行；通知失败时写入 `admin_audit_outbox` 补偿，不回滚已经完成的司机域状态变更。当前 `job` 已接入 `RetryAdminAuditOutbox`，每 30 秒扫描 `pending` 和超时 `running` 任务，支持重写审计日志、重放 `driversvc.FreezeDriver`、重放 `pushsvc.SendNotice/SendPush`。
-
-管理后台 outbox 补偿策略：
-
-| action | 补偿动作 | 成功状态 | 失败状态 |
-| --- | --- | --- | --- |
-| 普通审计动作 | 重写 `admin_operation_log` | `success` | 未达上限回到 `pending`，超过上限置 `failed` |
-| `freeze_driver` | 调用 `driversvc.FreezeDriver` | `success` | 未达上限回到 `pending`，超过上限置 `failed` |
-| `*_notice` | 调用 `pushsvc.SendNotice` | `success` | 未达上限回到 `pending`，超过上限置 `failed` |
-| `*_push` | 调用 `pushsvc.SendPush` | `success` | 未达上限回到 `pending`，超过上限置 `failed` |
-| `*_notify` | 依次调用 `pushsvc.SendNotice` 和 `pushsvc.SendPush` | `success` | 未达上限回到 `pending`，超过上限置 `failed` |
-
-### 5.4 P1/P2 当前落地边界
-
-| 模块 | 当前落地 |
-| --- | --- |
-| 优惠券发放任务 | `POST /admin/v1/coupons/{id}/issue` 同步创建任务并写 `user_coupon`；`GET /admin/v1/coupon-issue-tasks` 查询任务 |
-| 活动配置 | 支持活动列表、新增、编辑、发布、回滚；新增/编辑校验活动规则 JSON，发布校验 `all/gray` 范围和灰度目标，发布/回滚更新 `promotion_activity.status` 并写结构化操作日志，列表回填最近发布范围、目标配置、发布时间和回滚时间 |
-| 数据统计 | 支持运营总览、订单统计、优惠券统计，基于现有业务表实时聚合 |
-| 导出任务 | 支持创建、列表和详情查询；使用 `admin_export_task` 承载 `pending/running/success/failed/canceled` 状态、文件路径、失败原因和过期时间，后台异步生成 CSV |
-| 风控管理 | 支持黑名单列表、新增、解除，以及命中记录查询 |
-| 接口自动化测试 | `api/admin/internal/handler/router_test.go` 已覆盖当前已注册 HTTP 接口的全量冒烟测试；`go test ./api/admin/... ./rpc/adminsvc/... ./rpc/pricesvc/... ./rpc/driversvc/...` 已通过 |
-
-统计与城市筛选限制：当前 `ride_order` 没有权威 `city_code` 字段，因此运营总览和订单统计收到非空 `city_code` 会返回参数错误，不能静默返回跨城市数据。订单相关指标的时间范围统一按订单创建时间过滤。
+1. `ListUsers`/`GetUser` 已切 `usersvc.AdminListUsers`/`AdminGetUser`，不再由 adminsvc 直读用户表；`ListOrders`/`GetOrder` 已切 `ordersvc`，不再直读订单表。
+2. 新增模块均已开放：管理员管理（`/admins`）、司机提现（`/driver-withdrawals`）、司机解冻、订单人工改派/退款/轨迹（`/orders/{id}/track|redispatch|refund`）、退款补偿队列（`/refund-retry-tasks`）、运力地图（`/capacity/map`）、工单（`/work-orders`，含证据与批量动作）、导出下载（`/export-tasks/{task_no}/download`）、AI 运营助手（`/ai-agent/*`）、审计补偿查询（`/notification-outbox`）。
+3. 统计路由现为 `/statistics/{overview,orders,drivers,revenue,coupons,users}` 六个子资源。
+4. 司机处罚域路由已注册但 `admin.proto` 尚未同步对应 RPC，本文档暂不列示（待 proto 补全后补充）。

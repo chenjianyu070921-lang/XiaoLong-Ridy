@@ -113,6 +113,44 @@ export const adminsApi = {
 // AI 运营助手接口。
 export const aiApi = {
   ask: (data) => request.post('/ai-agent/ask', data),
+  // 流式问答：以 SSE 分块返回（facts/delta/final/fallback），每帧回调 onChunk。
+  // 用 fetch 而非 EventSource，因为 EventSource 不支持自定义 Authorization 头。
+  askStream: async (data, onChunk, signal) => {
+    const token = localStorage.getItem('admin_token')
+    const resp = await fetch('/admin/v1/ai-agent/ask/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+      signal,
+    })
+    if (!resp.ok) {
+      throw new Error(`流式问答失败：HTTP ${resp.status}`)
+    }
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const frames = buffer.split('\n\n')
+      buffer = frames.pop() || ''
+      for (const frame of frames) {
+        const line = frame.trim()
+        if (!line.startsWith('data:')) continue
+        const payload = line.slice(5).trim()
+        if (!payload) continue
+        try {
+          onChunk(JSON.parse(payload))
+        } catch {
+          // 单帧解析失败不中断后续帧
+        }
+      }
+    }
+  },
   suggestions: () => request.get('/ai-agent/suggestions'),
   history: () => request.get('/ai-agent/history'),
   feedback: (data) => request.post('/ai-agent/feedback', data),
