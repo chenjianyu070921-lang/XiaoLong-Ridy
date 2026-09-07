@@ -99,12 +99,8 @@ func (l *CancelOrderLogic) CancelOrder(in *proto.CancelOrderRequest) (*proto.Can
 		unmarkDriverBusy(l.ctx, l.svcCtx, order.DriverId)
 	}
 
-	// 取消订单时释放锁定的优惠券，避免用户券被永久占用（P0-M4-4：取消不释放券）。
-	if order.CouponId > 0 {
-		if rerr := l.svcCtx.OrderRepository.ReleaseCoupon(l.ctx, order.UserId, order.Id); rerr != nil {
-			l.Logger.Errorf("cancel order %d release coupon %d failed: %v", order.Id, order.CouponId, rerr)
-		}
-	}
+	// 优惠券释放已由 CancelWithCoupon 在同一 MySQL 事务内完成（gorm_order_repository.cancelTx），
+	// 此处不再重复调用 ReleaseCoupon 避免双重释放的混淆风险（P0-4 修复）。
 
 	// 取消成功后同步失效该订单的待派单记录，避免残留 Pending 被重派任务重复处理。
 	syncCancelDispatch(l.ctx, l.svcCtx.DispatchClient, order.Id, reason)

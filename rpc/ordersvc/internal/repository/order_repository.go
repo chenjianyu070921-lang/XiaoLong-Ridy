@@ -35,7 +35,9 @@ type OrderRepository interface {
 	FinishTrip(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error)
 	// CompleteOrder 将待支付订单改为已完成，写入完成日志，并落库实付金额 paidCents。
 	// paidCents 必落：下游退款金额取 order.PaidCents，若不落库则恒为 0，退款链路完全失效。
-	CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error)
+	// userID + couponID：若 couponID > 0 则在同一事务内核销优惠券（status Locked→Used），
+	// 保证订单状态变更与券核销原子化，避免 ConsumeByOrder 在事务外失败导致优惠券泄漏（P0-1 修复）。
+	CompleteOrder(ctx context.Context, orderID, userID, couponID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error)
 	// MarkDispatchAccepted 将指定司机的派单记录标记为已接受。
 	MarkDispatchAccepted(ctx context.Context, orderID, driverID uint64) error
 	// AppendStatusLog 追加一条状态日志。

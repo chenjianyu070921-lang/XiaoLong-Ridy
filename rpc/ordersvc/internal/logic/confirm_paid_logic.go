@@ -80,7 +80,9 @@ func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.Con
 	}
 	// 支付单已通过四要素核验（单号/订单/金额/状态），in.AmountCents 即乘客实付金额。
 	// 必须落库 paid_cents：后续退款以 order.PaidCents 为基准，不落库会导致退款退 0 分。
-	ok, err := l.svcCtx.OrderRepository.CompleteOrder(l.ctx, order.Id, statusLog, in.AmountCents)
+	// CompleteOrder 在同一 MySQL 事务内完成订单状态变更、paid_cents 落库、
+	// 状态日志写入和优惠券核销（couponID > 0 时），避免"订单已 Completed 但优惠券核销失败"的数据泄漏（P0-1 修复）。
+	ok, err := l.svcCtx.OrderRepository.CompleteOrder(l.ctx, order.Id, order.UserId, uint64(order.CouponId), statusLog, in.AmountCents)
 	if err != nil {
 		return nil, err
 	}
@@ -88,11 +90,7 @@ func (l *ConfirmPaidLogic) ConfirmPaid(in *proto.ConfirmPaidRequest) (*proto.Con
 		return nil, ErrOrderStatusNotAllowed
 	}
 
-	if l.svcCtx.CouponConsumer != nil {
-		if err := l.svcCtx.CouponConsumer.ConsumeByOrder(l.ctx, order.UserId, order.Id); err != nil {
-			return nil, err
-		}
-	}
+	// 优惠券核销已移入 CompleteOrder 事务内，此处不再单独调用 CouponConsumer.ConsumeByOrder（P0-1 修复）。
 
 	if l.svcCtx.EventBus != nil {
 		payload, _ := json.Marshal(map[string]interface{}{

@@ -11,10 +11,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// CompleteOrder 条件更新待支付订单为已完成，写入完成日志，并落库实付金额。
-func (r *gormOrderRepository) CompleteOrder(ctx context.Context, orderID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error) {
+// CompleteOrder 条件更新待支付订单为已完成，写入完成日志，落库实付金额，
+// 并在同一事务内核销优惠券（若 couponID > 0），保证订单状态变更与券核销原子化。
+func (r *gormOrderRepository) CompleteOrder(ctx context.Context, orderID, userID, couponID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 从支付确认日志中读取实付金额，状态、金额和状态日志必须在同一事务提交。
 		paidCents := statusLog.PaidCents
 		res := tx.Model(&model.RideOrder{}).
 			Where("id = ? AND status = ? AND deleted_at IS NULL", orderID, constants.OrderStatusWaitPay).
@@ -27,7 +27,26 @@ func (r *gormOrderRepository) CompleteOrder(ctx context.Context, orderID uint64,
 			return errOrderNotUpdated
 		}
 		statusLog.OrderId = orderID
-		return tx.Create(statusLog).Error
+		if err := tx.Create(statusLog).Error; err != nil {
+			return err
+		}
+		// 事务内核销优惠券：仅当 couponID > 0 时执行，避免空参数误改无券订单。
+		// 直接用 tx 而非 couponConsumer.ConsumeByOrder，与 CompleteOrder 共享同一 MySQL 事务。
+		if couponID > 0 && userID > 0 {
+			if err := tx.Table("user_coupon").
+				Where("user_id = ? AND locked_order_id = ? AND status = ?", userID, orderID, userCouponStatusLocked).
+				Updates(map[string]interface{}{
+					"status":          userCouponStatusUsed,
+					"order_id":        orderID,
+					"locked_order_id": 0,
+					"locked_at":       nil,
+					"used_at":         time.Now(),
+					"updated_at":      time.Now(),
+				}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if errors.Is(err, errOrderNotUpdated) {
 		return false, nil
@@ -55,8 +74,9 @@ func (r *gormOrderRepository) MarkDispatchAccepted(ctx context.Context, orderID,
 	return nil
 }
 
-// CompleteOrder 内存版：待支付订单改为已完成。
-func (r *MemoryOrderRepository) CompleteOrder(_ context.Context, orderID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error) {
+// CompleteOrder 内存版：待支付订单改为已完成。coupon 相关参数仅为接口对齐，
+// 内存仓储不维护独立券表，故忽略 userID / couponID（P0-1）。
+func (r *MemoryOrderRepository) CompleteOrder(_ context.Context, orderID, userID, couponID uint64, statusLog *model.OrderStatusLog, paidCents int64) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

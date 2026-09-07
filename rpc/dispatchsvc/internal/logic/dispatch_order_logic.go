@@ -145,6 +145,13 @@ func (l *DispatchOrderLogic) DispatchOrder(in *proto.DispatchOrderRequest) (*pro
 		candidates = filtered
 	}
 
+	// P0-6 修复：候选为空时返回 ErrNoAvailableDriver，触发上游（ordersvc）入队 DispatchRetryQueue 延迟重试。
+	// 此前 dispatchsvc 返回"成功但空列表"，ordersvc 视为派单成功（虽然没人接单），导致订单一直 WaitAccept 直到超时。
+	if len(candidates) == 0 {
+		l.Logger.Errorf("no available driver for orderId=%d after exclude filtering (P0-6)", in.OrderId)
+		return nil, ErrNoAvailableDriver
+	}
+
 	list := make([]*proto.DispatchRecord, 0, len(candidates))
 	driverIDs := make([]int64, 0, len(candidates))
 	for _, candidate := range candidates {

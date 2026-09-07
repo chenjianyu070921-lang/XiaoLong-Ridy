@@ -71,14 +71,19 @@ func TestGeoDispatchEngineAvailabilityFilter(t *testing.T) {
 	}
 }
 
-// TestGeoDispatchEngineAvailabilityNil 验证未注入 availability 时原样返回（兼容旧行为）。
+// TestGeoDispatchEngineAvailabilityNil 验证未注入 availability 时会 panic。
+// P0-5 修复：旧行为是 nil 时原样返回所有司机（包括忙碌中的），存在把派单反派给已接单司机的风险。
+// 现在改为 panic，迫使配置错误在启动/调用时暴露。
 func TestGeoDispatchEngineAvailabilityNil(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("filterAvailable() with nil availability should panic (P0-5 fix)")
+		}
+	}()
 	eng := &geoDispatchEngine{}
 	locs := []redis.GeoLocation{{Name: "1"}, {Name: "2"}}
-	filtered := eng.filterAvailable(context.Background(), locs)
-	if len(filtered) != 2 {
-		t.Fatalf("filterAvailable() with nil availability len = %d, want 2", len(filtered))
-	}
+	eng.filterAvailable(context.Background(), locs)
 }
 
 func TestGeoDispatchEnginePreferenceFilter(t *testing.T) {

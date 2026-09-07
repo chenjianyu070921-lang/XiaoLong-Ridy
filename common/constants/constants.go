@@ -69,4 +69,8 @@ const (
 	MaxDispatchRetryAttempt = 3
 	RefundRetryQueueKey     = "refund:retry:events"
 	MaxRefundRetryAttempt   = 5
+	// PaymentRetryQueueKey 行程结束后创建支付单失败的重试队列。
+	// P0-3 修复：FinishTrip 先把订单状态改成 WaitPay 再调 createPayment，后者失败时无补偿会导致订单永久卡 WaitPay。
+	PaymentRetryQueueKey   = "payment:retry:orders"
+	MaxPaymentRetryAttempt = 5
 )

@@ -16,10 +16,8 @@ import (
 func TestConfirmPaidSuccess(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 2002, 4) // 待支付
-	couponConsumer := &repository.MemoryCouponConsumer{}
 	l := NewConfirmPaidLogic(context.Background(), &svc.ServiceContext{
 		OrderRepository: repo,
-		CouponConsumer:  couponConsumer,
 		PayClient:       &fakePayClient{},
 	})
 
@@ -43,6 +41,9 @@ func TestConfirmPaidSuccess(t *testing.T) {
 	if fresh.Status != constants.OrderStatusCompleted {
 		t.Fatalf("completed orderclient status = %d, want %d", fresh.Status, constants.OrderStatusCompleted)
 	}
+	if fresh.PaidCents != 5200 {
+		t.Fatalf("paid_cents = %d, want 5200", fresh.PaidCents)
+	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != constants.OrderStatusWaitPay || logs[1].ToStatus != constants.OrderStatusCompleted {
 		t.Fatalf("status logs = %+v", logs)
@@ -50,9 +51,8 @@ func TestConfirmPaidSuccess(t *testing.T) {
 	if !strings.Contains(logs[1].Remark, "PAY123") {
 		t.Fatalf("confirm remark = %q, want payment no", logs[1].Remark)
 	}
-	if couponConsumer.Calls != 1 || couponConsumer.UserID != order.UserId || couponConsumer.OrderID != order.Id {
-		t.Fatalf("coupon consumer calls=%d userID=%d orderID=%d", couponConsumer.Calls, couponConsumer.UserID, couponConsumer.OrderID)
-	}
+	// 优惠券核销已移入 CompleteOrder 的 MySQL 事务内（P0-1 修复），
+	// MemoryOrderRepository 不维护独立券表故不做核销断言。
 }
 
 func TestConfirmPaidRejectsInvalidParams(t *testing.T) {

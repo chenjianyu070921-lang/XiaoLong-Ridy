@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -108,12 +110,52 @@ func (l *RefundOrderLogic) refundOrder(in *proto.RefundOrderRequest) (*proto.Ref
 		}
 	}
 
+	// 发布 order.refunded 事件，由 order-event-consumer 查询支付单并调用 paysvc 完成通道退款；
+	// 用户主动退款此前缺失此步骤（P0-2 修复），导致订单状态已 Refunded 但通道侧未回款。
+	if l.svcCtx.EventBus != nil {
+		payload, _ := json.Marshal(orderRefundedEvent{
+			OrderId:       in.OrderId,
+			OrderNo:       order.OrderNo,
+			RefundNo:      in.RefundNo,
+			RefundCents:   refundCents,
+			OperatorId:    in.UserId,
+			OperatorType:  constants.OperatorUser,
+			RefundTimeout: 0,
+		})
+		if pubErr := l.svcCtx.EventBus.Publish(l.ctx, constants.TopicOrderRefunded, payload); pubErr != nil {
+			l.Logger.Errorf("publish order.refunded failed: %v", pubErr)
+			l.enqueueRefundRetry(payload)
+		}
+	}
+
 	l.Infof("order %d refunded, refundCents=%d", in.OrderId, refundCents)
 	return &proto.RefundOrderResponse{
 		OrderId:     in.OrderId,
 		Status:      proto.OrderStatus_ORDER_STATUS_REFUNDED,
 		RefundCents: refundCents,
 	}, nil
+}
+
+// enqueueRefundRetry 将退款事件写入 Redis 延迟队列，交由 job 负责重试投递 Kafka。
+// 复用 ForceRefundOrderLogic 的 orderRefundedEvent 结构体（同 package）。
+func (l *RefundOrderLogic) enqueueRefundRetry(payload []byte) {
+	if l.svcCtx.Redis == nil {
+		l.Logger.Errorf("refund retry queue unavailable, event lost: %s", payload)
+		return
+	}
+	var event orderRefundedEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		l.Logger.Errorf("decode refund retry event failed: %v", err)
+		return
+	}
+	event.Attempt = 0
+	retryPayload, _ := json.Marshal(event)
+	if err := l.svcCtx.Redis.ZAdd(l.ctx, constants.RefundRetryQueueKey, redis.Z{
+		Score:  float64(time.Now().Unix()),
+		Member: string(retryPayload),
+	}).Err(); err != nil {
+		l.Logger.Errorf("enqueue refund retry failed: %v", err)
+	}
 }
 
 // delIdemKey 释放退款幂等键，使业务未生效时可安全重试；失败仅记日志。

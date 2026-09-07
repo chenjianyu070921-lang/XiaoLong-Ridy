@@ -4,10 +4,12 @@ import (
 	"XiaoLong-Ridy/rpc/paysvc/pay"
 	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
@@ -15,6 +17,7 @@ import (
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 	price "XiaoLong-Ridy/rpc/pricesvc/price"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -114,7 +117,12 @@ func (l *FinishTripLogic) FinishTrip(in *proto.FinishTripRequest) (*proto.Finish
 		}
 	}
 
-	l.createPayment(order, effectiveAmount)
+	// P0-3 修复：createPayment 在订单已改成 WaitPay 后才调，失败时订单永久卡 WaitPay。
+	// 现在 createPayment 返回空串（失败）时，将 (orderId, amount) 入 Redis ZSet 重试队列，
+	// 由后台 job 扫描重调，避免订单长期处于"待支付但无支付单"的死态。
+	if pn := l.createPayment(order, effectiveAmount); pn == "" {
+		l.enqueuePaymentRetry(order.Id, effectiveAmount)
+	}
 
 	return &proto.FinishTripResponse{
 		OrderId:            in.OrderId,
@@ -176,4 +184,35 @@ func (l *FinishTripLogic) createPayment(order *model.RideOrder, amountCents int6
 	}
 	l.Logger.Infof("create payment success, orderId=%d paymentNo=%s", order.Id, resp.PaymentNo)
 	return resp.PaymentNo
+}
+
+// paymentRetryEvent 创建支付单失败的重试事件载荷。
+type paymentRetryEvent struct {
+	OrderId      uint64 `json:"order_id"`
+	AmountCents  int64  `json:"amount_cents"`
+	RetryAttempt int    `json:"retry_attempt"`
+}
+
+// enqueuePaymentRetry 将需要创建支付单的订单写入 Redis ZSet 重试队列，
+// 指数退避（5s / 15s / 45s / 135s / 405s），由后台 job 扫描重调 paysvc.CreatePayment。
+func (l *FinishTripLogic) enqueuePaymentRetry(orderId uint64, amountCents int64) {
+	if l.svcCtx.Redis == nil {
+		l.Logger.Errorf("payment retry queue unavailable, orderId=%d lost (P0-3)", orderId)
+		return
+	}
+	event := paymentRetryEvent{
+		OrderId:      orderId,
+		AmountCents:  amountCents,
+		RetryAttempt: 0,
+	}
+	payload, _ := json.Marshal(event)
+	// Score = 当前时间戳（Unix 秒），job 用 ZRangeByScore 获取到期任务。
+	if err := l.svcCtx.Redis.ZAdd(l.ctx, constants.PaymentRetryQueueKey, redis.Z{
+		Score:  float64(time.Now().Unix()),
+		Member: string(payload),
+	}).Err(); err != nil {
+		l.Logger.Errorf("enqueue payment retry failed, orderId=%d: %v", orderId, err)
+	} else {
+		l.Logger.Errorf("enqueued payment retry for orderId=%d (P0-3)", orderId)
+	}
 }

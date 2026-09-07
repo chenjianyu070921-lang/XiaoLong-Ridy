@@ -193,7 +193,9 @@ func (e *geoDispatchEngine) scoreCandidates(ctx context.Context, locs []redis.Ge
 
 func (e *geoDispatchEngine) filterAvailable(ctx context.Context, locs []redis.GeoLocation) []redis.GeoLocation {
 	if e.availability == nil {
-		return locs
+		// P0-5 修复：availability 未注入时 panic 而非静默返回所有司机。
+		// 若走 geo 引擎必须注入 availability（Redis busy/online 集合检查），否则忙碌司机也会被纳入候选。
+		panic("[ALERT] geoDispatchEngine availability callback not injected, busy drivers will leak into dispatch candidates (P0-5)")
 	}
 	filtered := locs[:0]
 	for _, loc := range locs {
