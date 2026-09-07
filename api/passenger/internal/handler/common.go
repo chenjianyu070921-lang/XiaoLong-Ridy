@@ -12,12 +12,27 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// bearerToken 从 Authorization 头中解析 Bearer Token。
+// bearerToken 从 Authorization 头中解析 Bearer Token；缺少 Bearer scheme 时返回空串。
+// 按 RFC 6750，scheme 大小写不敏感（"Bearer " / "bearer " 均应接受），故用 EqualFold 比对；
+// Token 本身保留原始大小写，因为 JWT 是区分大小写的 base64url。
+// 非 Bearer 头一律视为未登录，与司机端 middleware.extractBearer 的行为保持一致。
 func bearerToken(r *http.Request) string {
-	return strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	const scheme = "bearer "
+	header := r.Header.Get("Authorization")
+	if len(header) < len(scheme) || !strings.EqualFold(header[:len(scheme)], scheme) {
+		return ""
+	}
+	return strings.TrimSpace(header[len(scheme):])
 }
 
 // writeBusinessError 将业务层错误转换为统一 HTTP 响应。
+//
+// 匹配顺序有讲究，修改前请先读：
+//  1. 先匹配本进程的 sentinel error（errors.Is），再匹配下游 gRPC 的 status message；
+//  2. 下游 error 经 gRPC 传输后会被包装成 status，errors.Is 判定失效，
+//     所以下游错误只能走 matchesBusinessError / matchesBusinessErrorMessage 做文案比对；
+//     这意味着下游一旦改错误文案，这里的映射会静默失效并落到 default 的 500；
+//  3. default 兜底 500，新增业务错误务必在此登记，否则前端只会看到笼统的 internal error。
 func writeBusinessError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, logic.ErrUnauthorized):

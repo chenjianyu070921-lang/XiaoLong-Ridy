@@ -255,6 +255,9 @@ type OrderStatusPollResponse {
 	Changed bool `json:"changed"`
 	UpdatedAt int64 `json:"updatedAt"`
 	DriverID int64 `json:"driverId"`
+	DriverName string `json:"driverName,optional"`
+	PlateNumber string `json:"plateNumber,optional"`
+	CarModel string `json:"carModel,optional"`
 	Payment PaymentStatusResponse `json:"payment,optional"`
 	Dispatch DispatchStatusResponse `json:"dispatch,optional"`
 }

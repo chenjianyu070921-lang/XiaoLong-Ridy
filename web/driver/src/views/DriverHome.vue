@@ -343,16 +343,6 @@ const orderStatus = ref(0)
 const orderPage = ref(1)
 const orderPageSize = ref(8)
 const orderTotal = ref(0)
-const orderStats = computed(() => {
-  const list = orders.value
-  return {
-    total: orderTotal.value,
-    pending: list.filter((item) => [1, 2].includes(Number(item.status))).length,
-    serving: list.filter((item) => [2, 3].includes(Number(item.status))).length,
-    done: list.filter((item) => Number(item.status) === 5).length,
-    cancelled: list.filter((item) => Number(item.status) === 6).length
-  }
-})
 const nearbyOrders = ref([])
 const nearbyOrderLoading = ref(false)
 const nearbyOrderPage = ref(1)

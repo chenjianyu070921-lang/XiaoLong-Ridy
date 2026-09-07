@@ -19,7 +19,7 @@
             <van-rate v-model="driverInfo.rating" readonly size="12" color="#F59E0B" void-icon="star" void-color="#E5E7EB" />
             <span class="score">{{ driverInfo.rating }}分</span>
           </div>
-          <p class="car-info">{{ driverInfo.carColor }} · {{ driverInfo.carModel }}</p>
+          <p class="car-info">{{ driverInfo.carModel }}</p>
           <p class="plate-number">{{ driverInfo.plateNumber }}</p>
         </div>
         <div class="actions">
@@ -81,21 +81,26 @@ import { showToast, showDialog, showLoadingToast, closeToast } from 'vant'
 import AMapLoader from '@amap/amap-jsapi-loader'
 import { getAmapConfig } from '@/config/amap'
 import { useOrderStore } from '@/stores/order'
+import { formatDriverDisplayName, formatPlateNumber } from '@/constants/order'
 import { cancelOrder, pollOrderStatus, getOrderTracking } from '@/api/order'
 
 const router = useRouter()
 const orderStore = useOrderStore()
 
-// 乘客接口当前只提供司机 ID；不伪造姓名、车牌等身份信息。
+// 乘客接口当前只提供司机 ID；姓名通过 driversvc 实时聚合后按"姓氏+师傅"展示，
+// 真实姓名或车牌未返回时降级使用占位文案，禁止凭空伪造信息。
 const driverInfo = ref({
-  name: '司机待定',
+  name: '司机信息加载中',
   avatar: '',
   rating: 0,
   carColor: '',
   carModel: '',
-  plateNumber: '',
+  plateNumber: '车牌信息加载中',
   phone: ''
 })
+
+// 司机姓名与车牌号统一使用 constants/order 的脱敏规则：姓名只展示"姓氏+师傅"，
+// 车牌为后端返回值；两者缺失时由共享函数降级为占位文案。
 
 const arrivalMinutes = ref(0)
 const distance = ref(0)
@@ -107,17 +112,25 @@ let trackingTimer = null
 let mapInstance = null
 let driverMarker = null
 
+// 把订单快照里的司机信息同步到展示字段。真实姓名按"姓氏+师傅"展示，
+// 真实姓名或车牌号缺失时用占位文案，绝不把"司机 #ID"当真实姓名展示。
+const syncDriverInfo = (order = {}) => {
+  const driverID = Number(order.driverId || order.driverID || 0)
+  driverInfo.value.name = formatDriverDisplayName(order.driverName, driverID)
+  driverInfo.value.plateNumber = formatPlateNumber(order.plateNumber || order.plate || '')
+  driverInfo.value.carModel = (order.carModel || '').trim() || '车型信息加载中'
+  driverInfo.value.phone = order.driverPhone || order.phone || ''
+  driverInfo.value.avatar = order.driverAvatar || order.avatar || ''
+}
+
 // 使用真实追踪快照更新司机位置、距离和预计到达时间。
 const refreshTracking = async () => {
   const orderId = orderStore.currentOrder?.orderId
   if (!orderId) return
   try {
     const snapshot = await getOrderTracking(orderId)
-    if (snapshot?.driverId) driverInfo.value.name = orderStore.currentOrder?.driverName || `司机 #${snapshot.driverId}`
-    // 司机接单信息来自订单快照，实时追踪接口只负责位置，二者合并展示。
-    const current = orderStore.currentOrder || {}
-    driverInfo.value.plateNumber = current.plateNumber || driverInfo.value.plateNumber
-    driverInfo.value.carModel = current.carModel || driverInfo.value.carModel
+    // 司机接单信息来自订单快照（轮询携带真实姓名/车牌），实时追踪接口只负责位置，二者合并展示。
+    syncDriverInfo(orderStore.currentOrder || {})
     distance.value = Number(snapshot?.remainingDistanceM || 0)
     arrivalMinutes.value = Math.max(0, Math.ceil(Number(snapshot?.remainingDurationS || 0) / 60))
     const position = [Number(snapshot?.driverLongitude), Number(snapshot?.driverLatitude)]
@@ -198,7 +211,11 @@ const pollStatus = async () => {
   try {
     const result = await pollOrderStatus(orderStore.currentOrder?.orderId)
     const status = Number(result?.status)
-    orderStore.setCurrentOrder({ ...orderStore.currentOrder, ...result })
+    // 轮询接口会带回司机姓名/车牌号；只覆盖当前已存在的字段，避免把 driverId 等重置。
+    const merged = { ...orderStore.currentOrder, ...result }
+    orderStore.setCurrentOrder(merged)
+    // 同步司机姓名、车牌号到展示字段。
+    syncDriverInfo(merged)
     if (status === 3) {
       router.replace('/order/trip')
     } else if (status === 6 || status === 7) {
@@ -211,6 +228,8 @@ const pollStatus = async () => {
 }
 
 onMounted(async () => {
+  // 进入页面时把 store 中已有的司机姓名/车牌立刻同步展示，避免在轮询返回前一直显示占位。
+  syncDriverInfo(orderStore.currentOrder || {})
   // 初始化地图并立即拉取一次真实司机位置。
   await initDriverMap()
   await refreshTracking()
@@ -253,7 +272,9 @@ const initDriverMap = async () => {
 }
 
 .map-container {
-  height: 55vh;
+  /* 适当降低地图高度，避免在矮屏设备上司机卡片被裁切或与底部按钮重叠。 */
+  height: 46vh;
+  min-height: 280px;
   background: #E5E7EB;
   position: relative;
 }
@@ -272,7 +293,10 @@ const initDriverMap = async () => {
 }
 
 .driver-card {
-  margin: -30px 16px 80px;
+  /* 相对地图仅有 18px 叠放即可保持视觉层次，同时保证头部信息不被地图遮挡。 */
+  margin: -18px 16px 96px;
+  position: relative;
+  z-index: 2;
   background: white;
   border-radius: 16px;
   padding: 20px;

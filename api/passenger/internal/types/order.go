@@ -178,14 +178,19 @@ type OrderStatusPollRequest struct {
 }
 
 // OrderStatusPollResponse 表示订单状态轮询结果，changed 为 true 时前端刷新展示节点。
+// DriverName 与 PlateNumber 来自 driversvc 实时聚合：Driversvc 不可用或司机尚未入库时为空串，由前端降级占位。
+// CarModel 当前轮询不返回，保留字段供前端做向后兼容。
 type OrderStatusPollResponse struct {
-	OrderID   int64                   `json:"orderId"`
-	Status    int32                   `json:"status"`
-	Changed   bool                    `json:"changed"`
-	UpdatedAt int64                   `json:"updatedAt"`
-	DriverID  int64                   `json:"driverId"`
-	Payment   *PaymentStatusResponse  `json:"payment,omitempty"`
-	Dispatch  *DispatchStatusResponse `json:"dispatch,omitempty"`
+	OrderID     int64                   `json:"orderId"`
+	Status      int32                   `json:"status"`
+	Changed     bool                    `json:"changed"`
+	UpdatedAt   int64                   `json:"updatedAt"`
+	DriverID    int64                   `json:"driverId"`
+	DriverName  string                  `json:"driverName"`
+	PlateNumber string                  `json:"plateNumber"`
+	CarModel    string                  `json:"carModel"`
+	Payment     *PaymentStatusResponse  `json:"payment,omitempty"`
+	Dispatch    *DispatchStatusResponse `json:"dispatch,omitempty"`
 }
 
 // OrderTrackingRequest 表示乘客查询当前订单实时位置的请求参数。

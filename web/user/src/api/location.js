@@ -18,5 +18,6 @@ export function geocodeAddress(data) {
 
 // 查询乘客当前位置 5 公里内的在线司机，供首页地图绘制车辆图标。
 export function getNearbyDrivers(data) {
-  return request.post('/location/nearby-drivers', data)
+  // 司机端未启动时该查询可能返回 404，此接口属于首页弱依赖，不应弹出全局服务错误。
+  return request.post('/location/nearby-drivers', data, { silentError: true })
 }

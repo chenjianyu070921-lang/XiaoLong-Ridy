@@ -88,7 +88,7 @@
           :class="{ selected: selectedMethod === method.id }"
           @click="selectedMethod = method.id"
         >
-          <component :is="method.icon" size="24" :color="method.color" />
+          <van-icon :name="method.icon" size="24" :color="method.color" />
           <span>{{ method.name }}</span>
           <van-icon 
             :name="selectedMethod === method.id ? 'success' : 'circle'"
@@ -117,6 +117,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast, closeToast, showDialog } from 'vant'
 import { useOrderStore } from '@/stores/order'
+import { formatDriverDisplayName, formatPlateNumber } from '@/constants/order'
 import { payOrder, getPaymentStatus, getOrderDetail } from '@/api/order'
 
 const router = useRouter()
@@ -143,10 +144,9 @@ const mapOrderDetail = (data) => {
   const baseFeeCents = Math.min(original, 2040)
   const distanceFeeCents = Math.max(0, original - baseFeeCents)
   const rawName = String(data?.driverName || '')
-  const driverDisplayName = rawName
-    ? `${rawName.replace(/司机|师傅/g, '').slice(0, 1)}师傅`
-    : (data?.driverId ? `司机${data.driverId}师傅` : '司机师傅')
-  const plateNumber = data?.plateNumber || data?.plateNo || ''
+  // 司机对乘客仅展示姓氏（统一脱敏规则），避免暴露完整实名；缺少实名时不展示司机 ID。
+  const driverDisplayName = formatDriverDisplayName(rawName, data?.driverId)
+  const plateNumber = formatPlateNumber(data?.plateNumber || data?.plateNo)
   return {
     orderId: Number(data?.orderId || 0),
     totalPrice: (Math.max(0, payable) / 100).toFixed(2),
@@ -162,14 +162,16 @@ const mapOrderDetail = (data) => {
   }
 }
 
-// 当前产品只支持钱包余额支付，默认选中余额并隐藏未接入的第三方渠道。
+// 三种渠道均由 paysvc 提供统一预下单；余额即时完成，微信/支付宝返回 mock 待支付参数。
 const selectedMethod = ref('balance')
 const loading = ref(false)
 let paymentPollTimer = null
 
 // 支付方式列表
 const payMethods = ref([
-  { id: 'balance', name: '余额支付', icon: 'van-icon', color: '#F59E0B' }
+  { id: 'wechat', name: '微信支付', icon: 'wechat-pay', color: '#07C160' },
+  { id: 'alipay', name: '支付宝', icon: 'alipay', color: '#1677FF' },
+  { id: 'balance', name: '余额支付', icon: 'balance-pay', color: '#F59E0B' }
 ])
 
 // 联系司机

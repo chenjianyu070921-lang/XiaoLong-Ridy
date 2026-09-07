@@ -7,6 +7,7 @@ import (
 	"time"
 
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
@@ -116,6 +117,19 @@ type grpcOrderClient struct {
 	cli orderproto.OrderClient
 }
 
+// grpcDriverClient 将 driversvc 客户端适配为 passenger 的查询契约。
+type grpcDriverClient struct {
+	cli driverproto.DriverServiceClient
+}
+
+func newGRPCDriverClient(cli driverproto.DriverServiceClient) DriverClient {
+	return &grpcDriverClient{cli: cli}
+}
+
+func (c *grpcDriverClient) GetDriver(ctx context.Context, req *driverproto.GetDriverRequest) (*driverproto.GetDriverResponse, error) {
+	return c.cli.GetDriver(ctx, req)
+}
+
 // newGRPCOrderClient 创建 ordersvc gRPC adapter。
 func newGRPCOrderClient(cli orderproto.OrderClient) *grpcOrderClient {
 	return &grpcOrderClient{cli: cli}
@@ -200,8 +214,14 @@ func newGRPCPriceClientFromProto(cli priceproto.PriceClient, cityCode string) *g
 	}
 }
 
+// fallbackSpeedMetersPerMinute 是前端未传预估时长时，用于折算行程时长的兜底平均车速。
+// 取 250 米/分钟 ≈ 15 km/h，接近城市拥堵路况；pricesvc 的 duration_s 单位是秒，故折算后需 *60。
+const fallbackSpeedMetersPerMinute = 250.0
+
 // EstimatePrice 将 passenger 的坐标预估请求转换成 pricesvc 需要的里程、时长和城市编码。
 func (c *grpcPriceClient) EstimatePrice(ctx context.Context, req *priceclient.EstimatePriceRequest) (*priceclient.EstimatePriceResponse, error) {
+	// 里程兜底链：优先用前端传入的预估里程 -> 缺失时用 haversine 直线距离 ->
+	// 仍为 0（起终点相同或坐标非法）则兜底 1000 米，避免把 0 里程传给计价服务。
 	distanceM := req.EstimatedMeters
 	if distanceM <= 0 {
 		distanceM = haversineMeters(req.FromLatitude, req.FromLongitude, req.ToLatitude, req.ToLongitude)
@@ -210,9 +230,10 @@ func (c *grpcPriceClient) EstimatePrice(ctx context.Context, req *priceclient.Es
 		distanceM = 1000
 	}
 
+	// 时长兜底链：优先用前端传入的预估时长 -> 缺失时按兜底均速折算（米/分钟换算成秒）-> 兜底 60 秒。
 	durationS := req.EstimatedSecond
 	if durationS <= 0 {
-		durationS = int64(math.Ceil(float64(distanceM) / 250.0))
+		durationS = int64(math.Ceil(float64(distanceM)/fallbackSpeedMetersPerMinute)) * 60
 	}
 	if durationS <= 0 {
 		durationS = 60

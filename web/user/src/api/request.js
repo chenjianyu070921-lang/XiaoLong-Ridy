@@ -38,6 +38,8 @@ request.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status, data } = error.response
+      // 允许低优先级后台查询按请求关闭全局错误提示，避免非关键接口影响当前页面操作。
+      const silentError = error.config?.silentError === true
       // 登录和发送验证码接口返回 401 时表示本次认证失败，不能触发全局登出跳转。
       const requestUrl = error.config?.url || ''
       const isAuthRequest = requestUrl.includes('/auth/login-by-sms') || requestUrl.includes('/auth/send-sms-code')
@@ -48,20 +50,20 @@ request.interceptors.response.use(
             const userStore = useUserStore()
             userStore.logout()
             router.push('/login')
-            showToast('登录已过期，请重新登录')
+            if (!silentError) showToast('登录已过期，请重新登录')
           }
           break
         case 403:
-          showToast('没有权限')
+          if (!silentError) showToast('没有权限')
           break
         case 429:
-          showToast('操作太频繁，请稍后再试')
+          if (!silentError) showToast('操作太频繁，请稍后再试')
           break
         default:
-          showToast(data?.message || '服务器错误')
+          if (!silentError) showToast(data?.message || '服务器错误')
       }
     } else {
-      showToast('网络连接失败，请检查网络')
+      if (error.config?.silentError !== true) showToast('网络连接失败，请检查网络')
     }
     return Promise.reject(error)
   }

@@ -12,6 +12,7 @@ import (
 	"XiaoLong-Ridy/common/datasource"
 	qiniuutil "XiaoLong-Ridy/common/qiniu"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	orderlocal "XiaoLong-Ridy/rpc/ordersvc/client"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
@@ -35,6 +36,7 @@ const (
 	defaultPriceRPCAddr    = "127.0.0.1:50053"
 	defaultPayRPCAddr      = "127.0.0.1:50054"
 	defaultDispatchRPCAddr = "127.0.0.1:50056"
+	defaultDriverRPCAddr   = "127.0.0.1:50055"
 	// locationsvc 默认监听 50057；50055 是 driversvc 端口，不能混用。
 	defaultLocationRPCAddr = "127.0.0.1:50057"
 	defaultPriceCityCode   = "110000"
@@ -51,6 +53,7 @@ type RuntimeConfig struct {
 	PriceRPCAddr    string
 	PayRPCAddr      string
 	DispatchRPCAddr string
+	DriverRPCAddr   string
 	LocationRPCAddr string
 	ClientMode      string
 	PriceCityCode   string
@@ -112,6 +115,11 @@ type DispatchClient interface {
 	ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error)
 }
 
+// DriverClient 定义查询司机及车辆公开资料所需的最小 RPC 契约。
+type DriverClient interface {
+	GetDriver(context.Context, *driverproto.GetDriverRequest) (*driverproto.GetDriverResponse, error)
+}
+
 // LocationClient 定义 passenger API 调用位置服务（逆地理回显/POI 检索/司机位置/路径规划）的 RPC 契约。
 type LocationClient interface {
 	ReverseGeocode(ctx context.Context, req *locationproto.ReverseGeocodeReq, opts ...grpc.CallOption) (*locationproto.ReverseGeocodeResp, error)
@@ -130,6 +138,7 @@ type ServiceContext struct {
 	PriceClient     PriceClient
 	PayClient       PayClient
 	DispatchClient  DispatchClient
+	DriverClient    DriverClient
 	LocationClient  LocationClient
 	Reviews         ReviewRepository
 	TokenSigningKey string
@@ -173,12 +182,18 @@ func LoadRuntimeConfigFromEnv() RuntimeConfig {
 // applyRuntimeEnvOverrides 使用环境变量覆盖 YAML 配置，便于本地临时切换端口或下游 RPC 地址。
 func applyRuntimeEnvOverrides(cfg RuntimeConfig) RuntimeConfig {
 	cfg.HTTPAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_HTTP_ADDR"), cfg.HTTPAddr)
-	cfg.TokenSigningKey = firstNonEmptyRuntime(os.Getenv("PASSENGER_TOKEN_SIGNING_KEY"), cfg.TokenSigningKey)
+	// 乘客端专用密钥优先；未配置时兼容所有网关共享的 JWT_SIGNING_KEY。
+	cfg.TokenSigningKey = firstNonEmptyRuntime(
+		os.Getenv("PASSENGER_TOKEN_SIGNING_KEY"),
+		os.Getenv("JWT_SIGNING_KEY"),
+		cfg.TokenSigningKey,
+	)
 	cfg.UserRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_USERSVC_ADDR"), cfg.UserRPCAddr)
 	cfg.OrderRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_ORDERSVC_ADDR"), cfg.OrderRPCAddr)
 	cfg.PriceRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_PRICESVC_ADDR"), cfg.PriceRPCAddr)
 	cfg.PayRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_PAYSVC_ADDR"), cfg.PayRPCAddr)
 	cfg.DispatchRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_DISPATCHSVC_ADDR"), cfg.DispatchRPCAddr)
+	cfg.DriverRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_DRIVERSVC_ADDR"), cfg.DriverRPCAddr)
 	cfg.LocationRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_LOCATIONSVC_ADDR"), cfg.LocationRPCAddr)
 	cfg.ClientMode = firstNonEmptyRuntime(os.Getenv("PASSENGER_CLIENT_MODE"), cfg.ClientMode)
 	cfg.PriceCityCode = firstNonEmptyRuntime(os.Getenv("PASSENGER_PRICE_CITY_CODE"), cfg.PriceCityCode)
@@ -240,9 +255,14 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		closeGRPCConns(userConn, orderConn, priceConn, payConn)
 		return nil, err
 	}
-	locationClient, locationConn, err := buildLocationClient(cfg.LocationRPCAddr)
+	driverClient, driverConn, err := buildDriverClient(cfg.DriverRPCAddr)
 	if err != nil {
 		closeGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn)
+		return nil, err
+	}
+	locationClient, locationConn, err := buildLocationClient(cfg.LocationRPCAddr)
+	if err != nil {
+		closeGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, driverConn)
 		return nil, err
 	}
 
@@ -252,6 +272,7 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		WithPriceClient(priceClient),
 		WithPayClient(payClient),
 		WithDispatchClient(dispatchClient),
+		WithDriverClient(driverClient),
 		WithLocationClient(locationClient),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 		WithPriceCityCode(cfg.PriceCityCode),
@@ -285,7 +306,7 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		logx.Infof("passenger mysqlDSN empty, use memory review repository")
 		ctx.Reviews = NewMemoryReviewRepository()
 	}
-	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, locationConn)
+	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, driverConn, locationConn)
 	return ctx, nil
 }
 
@@ -299,6 +320,7 @@ func newLocalServiceContext(cfg RuntimeConfig) *ServiceContext {
 		WithPriceClient(priceclient.NewLocalClient()),
 		WithPayClient(newLocalPayClient(paylocal.NewLocalClient())),
 		WithDispatchClient(newMemoryDispatchClient()),
+		WithDriverClient(nil),
 		WithReviewRepository(NewMemoryReviewRepository()),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 		WithPriceCityCode(cfg.PriceCityCode),
@@ -311,7 +333,11 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 		cfg.HTTPAddr = defaultHTTPAddr
 	}
 	if cfg.TokenSigningKey == "" {
-		cfg.TokenSigningKey = strings.TrimSpace(os.Getenv("JWT_SIGNING_KEY"))
+		// 环境变量优先于配置文件，支持乘客专用变量和历史共享变量两种注入方式。
+		cfg.TokenSigningKey = firstNonEmptyRuntime(
+			os.Getenv("PASSENGER_TOKEN_SIGNING_KEY"),
+			os.Getenv("JWT_SIGNING_KEY"),
+		)
 	}
 	// 本地开发模式使用固定开发密钥，避免每次启动都因未配置环境变量退出。
 	if strings.TrimSpace(cfg.TokenSigningKey) == "" && cfg.ClientMode == clientModeLocal {
@@ -331,6 +357,9 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 	}
 	if cfg.DispatchRPCAddr == "" {
 		cfg.DispatchRPCAddr = defaultDispatchRPCAddr
+	}
+	if cfg.DriverRPCAddr == "" {
+		cfg.DriverRPCAddr = defaultDriverRPCAddr
 	}
 	if cfg.LocationRPCAddr == "" {
 		cfg.LocationRPCAddr = defaultLocationRPCAddr
@@ -390,6 +419,11 @@ func WithDispatchClient(client DispatchClient) Option {
 	return func(ctx *ServiceContext) {
 		ctx.DispatchClient = client
 	}
+}
+
+// WithDriverClient 注入司机资料查询客户端。
+func WithDriverClient(client DriverClient) Option {
+	return func(ctx *ServiceContext) { ctx.DriverClient = client }
 }
 
 // WithLocationClient 注入位置服务客户端。
@@ -473,6 +507,15 @@ func buildDispatchClient(addr string) (DispatchClient, *grpc.ClientConn, error) 
 		return nil, nil, err
 	}
 	return newGRPCDispatchClient(dispatchproto.NewDispatchClient(conn)), conn, nil
+}
+
+// buildDriverClient 根据 driversvc 地址创建真实 gRPC 客户端。
+func buildDriverClient(addr string) (DriverClient, *grpc.ClientConn, error) {
+	conn, err := newInsecureGRPCConn(addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return newGRPCDriverClient(driverproto.NewDriverServiceClient(conn)), conn, nil
 }
 
 // buildLocationClient 根据 locationsvc 地址创建真实 gRPC 客户端。
