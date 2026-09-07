@@ -113,9 +113,9 @@ type LoginResponse {
 }
 
 type SetOnlineRequest {
-	DeviceID          string  `json:"deviceId"`
-	Longitude         float64 `json:"longitude"`
-	Latitude          float64 `json:"latitude"`
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
 }
 
 type SetOfflineRequest {
@@ -317,7 +317,7 @@ type WithdrawRecord {
 
 type ListWithdrawsResponse {
 	List  []WithdrawRecord `json:"list"`
-	Total   int64            `json:"total"`
+	Total int64            `json:"total"`
 }
 
 type GetIncomeSummaryResponse {
@@ -337,6 +337,7 @@ type PeriodIncomeResponse {
 	EndAt            int64  `json:"endAt"`
 	Source           string `json:"source"`
 }
+
 type ListIncomeBillsRequest {
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"pageSize"`
@@ -461,6 +462,7 @@ type OrderBrief {
 	DistanceMeters      int64  `json:"distanceMeters"`
 	CreatedAt           int64  `json:"createdAt"`
 }
+
 type MyDispatchItem {
 	Dispatch DispatchRecord `json:"dispatch"`
 	Order    OrderBrief     `json:"order"`
@@ -650,6 +652,10 @@ service driver-api {
 	@handler GetDriverAiScoreHandler
 	get /api/driver/v1/drivers/ai-score (GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse)
 
+	// 触发一次司机评分重算（喂数），司机身份从登录态取，无需请求体。
+	@handler RefreshDriverScoreHandler
+	post /api/driver/v1/drivers/ai-score/refresh returns (GetDriverAiScoreResponse)
+
 	@handler SetOnlineHandler
 	post /api/driver/v1/drivers/online (SetOnlineRequest) returns (SetOnlineResponse)
 
@@ -710,7 +716,7 @@ service driver-api {
 	@handler ListAvailableOrdersHandler
 	post /api/driver/v1/orders/available (ListMyOrdersRequest) returns (ListMyOrdersResponse)
 
-	@handler ListAvailableOrdersHandler
+	@handler ListGrabOrdersHandler
 	post /api/driver/v1/orders/grab-list (ListMyOrdersRequest) returns (ListMyOrdersResponse)
 
 	@handler GetOrderHeatmapHandler
@@ -752,3 +758,4 @@ service driver-api {
 	@handler AgentChatHandler
 	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 }
+

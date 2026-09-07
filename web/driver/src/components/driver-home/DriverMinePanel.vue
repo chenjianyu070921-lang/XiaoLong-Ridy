@@ -20,6 +20,7 @@
       <button type="button" @click="$emit('refresh-dashboard')">听单检测 <span><i>›</i></span></button>
       <button type="button" @click="$emit('open-help')">帮助中心 <span><i>›</i></span></button>
       <button type="button" @click="$emit('open-settings')">设置 <span><i>›</i></span></button>
+      <button type="button" class="logout-button" @click="$emit('logout')">退出登录 <van-icon name="arrow" /></button>
     </div>
   </section>
 </template>

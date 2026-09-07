@@ -3,6 +3,9 @@
 # 默认端口从 8082 改为 18082：8082 在部分 Windows 机器上会被 QQ 等客户端抢注，
 # 导致 driver-api 只能 bind 到 IPv6，前端/proxy 走 127.0.0.1 时打到占用进程返回 404。
 httpAddr: ":18082"
+# 司机端 JWT 签名密钥（本地联调用）。生产环境请通过环境变量 DRIVER_SIGNING_KEY 注入强密钥，
+# 且必须与 rpc/driversvc/etc/driversvc.yaml 的 signingKey 保持一致，否则跨服务签名校验不通过。
+signingKey: "driversvc-local-dev-key"
 # 下游 driversvc gRPC 地址（可通过环境变量 DRIVER_GRPC_ADDR 覆盖）
 # 必须与 rpc/driversvc/etc/driversvc.yaml 的 ListenOn 保持一致（均为 50055），否则联调时连接失败。
 driverGrpcAddr: "127.0.0.1:50055"

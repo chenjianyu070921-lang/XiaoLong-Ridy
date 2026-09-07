@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"XiaoLong-Ridy/api/driver/internal/handler"
+	"XiaoLong-Ridy/api/driver/internal/middleware"
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/common/jwtx"
@@ -26,6 +28,12 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/net/websocket"
 )
+
+// newHTTPHandler 复刻 main 中路由树的构建方式，供测试复用：
+// 用 InternalServiceAuth 包裹 handler.NewRouter 返回的 mux，与线上 main 保持一致。
+func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
+	return middleware.InternalServiceAuth(svcCtx)(handler.NewRouter(svcCtx))
+}
 
 func TestAgentChatEndpointRequiresDriverTokenAndRunsAgent(t *testing.T) {
 	const signingKey = "agent-chat-test-key"
@@ -252,16 +260,16 @@ func TestDriverCORSOriginsEnvOverridesYaml(t *testing.T) {
 	}
 }
 
-func TestLoadDriverConfigDefaultsUseSharedBackendServer(t *testing.T) {
+func TestLoadDriverConfigDefaultsUseLocalBackend(t *testing.T) {
 	cfg, err := loadDriverConfig(filepath.Join(t.TempDir(), "missing-driver.yaml"))
 	if err != nil {
 		t.Fatalf("loadDriverConfig() error = %v", err)
 	}
-	if cfg.DriverGRPCAddr != "115.191.16.159:50055" ||
-		cfg.OrderGRPCAddr != "115.191.16.159:50051" ||
-		cfg.PriceGRPCAddr != "115.191.16.159:50053" ||
-		cfg.DispatchGRPCAddr != "115.191.16.159:50056" ||
-		cfg.LocationGRPCAddr != "115.191.16.159:50057" {
+	if cfg.DriverGRPCAddr != "127.0.0.1:50055" ||
+		cfg.OrderGRPCAddr != "127.0.0.1:50051" ||
+		cfg.PriceGRPCAddr != "127.0.0.1:50053" ||
+		cfg.DispatchGRPCAddr != "127.0.0.1:50056" ||
+		cfg.LocationGRPCAddr != "127.0.0.1:50057" {
 		t.Fatalf("unexpected default backend addresses: %+v", cfg)
 	}
 }
@@ -956,6 +964,10 @@ func (r *recordingUpdateDriverClient) GetVehicle(context.Context, *driversproto.
 }
 
 func (r *recordingUpdateDriverClient) GetDriverAiScore(context.Context, *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
+	return nil, nil
+}
+
+func (r *recordingUpdateDriverClient) RefreshDriverScore(context.Context, *driversproto.RefreshDriverScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
 	return nil, nil
 }
 

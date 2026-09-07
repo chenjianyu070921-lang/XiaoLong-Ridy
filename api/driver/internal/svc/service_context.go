@@ -74,6 +74,7 @@ type DriverClient interface {
 	DeleteVehicle(ctx context.Context, req *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error)
 	GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error)
 	GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
+	RefreshDriverScore(ctx context.Context, req *driversproto.RefreshDriverScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
 	UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error)
 	GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error)
 	CreateWithdraw(ctx context.Context, req *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error)
@@ -190,6 +191,12 @@ func (g *grpcClient) GetDriverAiScore(ctx context.Context, req *driversproto.Get
 	ctx, cancel := RPCContext(ctx)
 	defer cancel()
 	return g.cli.GetDriverAiScore(ctx, req)
+}
+
+func (g *grpcClient) RefreshDriverScore(ctx context.Context, req *driversproto.RefreshDriverScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.RefreshDriverScore(ctx, req)
 }
 
 func (g *grpcClient) UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error) {
@@ -468,17 +475,17 @@ func resolveSigningKey() string {
 
 func (s *ServiceContext) ValidateSigningKey() error {
 	if s == nil {
-		return errors.New("driver signing key is empty")
+		return errors.New("driver signing key is empty: 请设置环境变量 DRIVER_SIGNING_KEY（值需与 rpc/driversvc/etc/driversvc.yaml 的 signingKey 一致）")
 	}
 	key := strings.TrimSpace(s.SigningKey)
 	if key == "" {
-		return errors.New("driver signing key is empty")
+		return errors.New("driver signing key is empty: 请设置环境变量 DRIVER_SIGNING_KEY（值需与 rpc/driversvc/etc/driversvc.yaml 的 signingKey 一致）")
 	}
 	if key == defaultSigningKey {
-		return errors.New("driver signing key must not use default development value")
+		return errors.New("driver signing key must not use default development value: 请勿使用 'local-development-signing-key'，改用 DRIVER_SIGNING_KEY 注入强密钥")
 	}
 	if expected := strings.TrimSpace(os.Getenv("DRIVERSVC_SIGNING_KEY")); expected != "" && expected != key {
-		return errors.New("DRIVER_SIGNING_KEY and DRIVERSVC_SIGNING_KEY mismatch")
+		return errors.New("DRIVER_SIGNING_KEY and DRIVERSVC_SIGNING_KEY mismatch: 两个环境变量必须注入同一份密钥（与 rpc/driversvc/etc/driversvc.yaml 的 signingKey 一致）")
 	}
 	return nil
 }

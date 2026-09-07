@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -26,18 +25,19 @@ import (
 
 const defaultHTTPAddress = ":8082"
 
-// Driver-side backend services use the shared development server by default.
-const defaultDriverGRPCAddr = "115.191.16.159:50055"
+// Driver-side backend services are expected to run locally (localhost) in dev;
+// override via env (DRIVER_GRPC_ADDR etc.) or etc/driver.yaml to point at a remote instance.
+const defaultDriverGRPCAddr = "127.0.0.1:50055"
 
-const defaultOrderGRPCAddr = "115.191.16.159:50051"
+const defaultOrderGRPCAddr = "127.0.0.1:50051"
 
-const defaultPayGRPCAddr = "115.191.16.159:50054"
+const defaultPayGRPCAddr = "127.0.0.1:50054"
 
-const defaultPriceGRPCAddr = "115.191.16.159:50053"
+const defaultPriceGRPCAddr = "127.0.0.1:50053"
 
-const defaultDispatchGRPCAddr = "115.191.16.159:50056"
+const defaultDispatchGRPCAddr = "127.0.0.1:50056"
 
-const defaultLocationGRPCAddr = "115.191.16.159:50057"
+const defaultLocationGRPCAddr = "127.0.0.1:50057"
 
 const defaultRedisAddr = ""
 
@@ -59,6 +59,10 @@ type driverConfig struct {
 	QiniuBucket        string                 `yaml:"qiniuBucket"`
 	QiniuDomain        string                 `yaml:"qiniuDomain"`
 	QiniuUploadURL     string                 `yaml:"qiniuUploadURL"`
+	// SigningKey 司机端 JWT 签名密钥；为空时回退到内置本地联调默认值。
+	// 生产/联调跨服务校验必须与 rpc/driversvc/etc/driversvc.yaml 的 signingKey 保持一致，
+	// 推荐通过环境变量 DRIVER_SIGNING_KEY 注入，避免明文入库。
+	SigningKey string `yaml:"signingKey"`
 }
 
 func main() {
@@ -101,6 +105,11 @@ func main() {
 	} else {
 		svcCtx.Qiniu = qiniuClient
 	}
+	// 司机端 JWT 签名密钥解析优先级：环境变量 DRIVER_SIGNING_KEY > 配置文件 signingKey > 内置本地联调默认值。
+	// 三层兜底确保 dev 联调无需手动注入即可启动，密钥永远不会落为空（空密钥会在 ValidateSigningKey 触发 panic）。
+	if key := strings.TrimSpace(cfg.SigningKey); key != "" {
+		svcCtx.SigningKey = key
+	}
 	svcCtx.SigningKey = envOr("DRIVER_SIGNING_KEY", svcCtx.SigningKey)
 	if err := svcCtx.ValidateSigningKey(); err != nil {
 		panic(fmt.Errorf("driver api signing key check: %w", err))
@@ -111,7 +120,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         address,
-		Handler:      recoverMiddleware(withCORS(newHTTPHandler(svcCtx), driverCORSAllowedOrigins(cfg))),
+		Handler:      recoverMiddleware(withCORS(middleware.InternalServiceAuth(svcCtx)(handler.NewRouter(svcCtx)), driverCORSAllowedOrigins(cfg))),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -243,71 +252,6 @@ func compactStrings(values []string) []string {
 	return out
 }
 
-func localCertificationDir() string {
-	if dir := strings.TrimSpace(os.Getenv("DRIVER_CERT_LOCAL_DIR")); dir != "" {
-		return dir
-	}
-	return filepath.Join(".run", "certifications")
-}
-
-func newHTTPHandler(svcCtx *svc.ServiceContext) http.Handler {
-	mux := http.NewServeMux()
-
-	// 登录/注册/发码公开接口：接入 IP 级限流，防止验证码刷发与密码/验证码爆破。
-	// send-sms-code 限流更严（5 次/分钟/IP）；登录与注册 10 次/分钟/IP。
-	smsLimit := middleware.LoginRateLimit(5, time.Minute)
-	authLimit := middleware.LoginRateLimit(10, time.Minute)
-	mux.Handle("/api/driver/v1/auth/send-sms-code", smsLimit(methodSwitch("POST", handler.SendSMSCodeHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/auth/login-by-password", authLimit(methodSwitch("POST", handler.LoginByPasswordHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/auth/login-by-sms", authLimit(methodSwitch("POST", handler.LoginBySMSHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/register", authLimit(methodSwitch("POST", handler.RegisterDriverHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/certification-files/", http.StripPrefix(
-		"/api/driver/v1/certification-files/",
-		http.FileServer(http.Dir(localCertificationDir())),
-	))
-	protected := middleware.RequireAuth(svcCtx)
-	mux.Handle("/api/driver/v1/upload/avatar-token", protected(methodSwitch("POST", handler.AvatarUploadTokenHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/update", protected(methodSwitch("POST", handler.UpdateDriverHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/get", protected(methodSwitch("GET", handler.GetDriverHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/online", protected(methodSwitch("POST", handler.SetOnlineHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/offline", protected(methodSwitch("POST", handler.SetOfflineHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/heartbeat", protected(methodSwitch("POST", handler.HeartbeatHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/location/report", protected(methodSwitch("POST", handler.ReportLocationHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/ai-score", protected(methodSwitch("GET", handler.GetDriverAiScoreHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/certification/upload", protected(methodSwitch("POST", handler.UploadCertificationHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/drivers/certification", protected(methodSwitch("GET", handler.GetCertificationHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/vehicles", protected(methodSwitch("POST", handler.CreateVehicleHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/vehicles/get", protected(methodSwitch("GET", handler.GetVehicleHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/vehicles/update", protected(methodSwitch("POST", handler.UpdateVehicleHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/vehicles/delete", protected(methodSwitch("POST", handler.DeleteVehicleHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/withdraws", protected(methodSwitch("POST", handler.CreateWithdrawHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/withdraws/list", protected(methodSwitch("POST", handler.ListWithdrawsHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/income/summary", protected(methodSwitch("GET", handler.GetIncomeSummaryHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/income/today", protected(methodSwitch("GET", handler.GetTodayIncomeHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/income/week", protected(methodSwitch("GET", handler.GetWeekIncomeHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/income/bills", protected(methodSwitch("POST", handler.ListIncomeBillsHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/accept", protected(methodSwitch("POST", handler.AcceptOrderHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/reject", protected(methodSwitch("POST", handler.RejectOrderHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/dispatches", protected(methodSwitch("POST", handler.ListMyDispatchesHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/available", protected(methodSwitch("POST", handler.ListAvailableOrdersHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/grab-list", protected(methodSwitch("POST", handler.ListAvailableOrdersHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/heatmap", protected(methodSwitch("POST", handler.GetOrderHeatmapHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/list", protected(methodSwitch("POST", handler.ListMyOrdersHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/detail", protected(methodSwitch("POST", handler.GetMyOrderDetailHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/trajectory", protected(methodSwitch("POST", handler.GetOrderTrajectoryHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/start-trip", protected(methodSwitch("POST", handler.StartTripHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/confirm-arrive", protected(methodSwitch("POST", handler.ConfirmArriveHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/realtime-fare", protected(methodSwitch("POST", handler.GetRealtimeFareHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", handler.FinishTripHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/ws", handler.DriverPushWSHandler(svcCtx))
-	mux.Handle("/api/driver/v1/reviews/received", protected(methodSwitch("GET", handler.ListReceivedReviewsHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/reviews/submit", protected(methodSwitch("POST", handler.SubmitDriverReviewHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/reviews/given", protected(methodSwitch("POST", handler.ListGivenReviewsHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", handler.AgentChatHandler())))
-
-	return middleware.InternalServiceAuth(svcCtx)(mux)
-}
-
 func withCORS(next http.Handler, allowedOrigins []string) http.Handler {
 	allowed := make(map[string]struct{}, len(allowedOrigins))
 	for _, origin := range compactStrings(allowedOrigins) {
@@ -338,24 +282,4 @@ func withCORS(next http.Handler, allowedOrigins []string) http.Handler {
 	})
 }
 
-func internalOrDriverAuth(svcCtx *svc.ServiceContext, h http.HandlerFunc) http.Handler {
-	protected := middleware.RequireAuth(svcCtx)(h)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		serviceToken := os.Getenv("DRIVER_AGENT_SERVICE_TOKEN")
-		if serviceToken != "" && r.Header.Get("X-Internal-Service-Token") == serviceToken {
-			h(w, r)
-			return
-		}
-		protected.ServeHTTP(w, r)
-	})
-}
 
-func methodSwitch(method string, h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != method {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		h(w, r)
-	}
-}

@@ -47,6 +47,8 @@ service DriverService {
   rpc LoginBySms(LoginBySMSRequest) returns (LoginResponse);
   rpc ListNearbyDrivers(ListNearbyDriversRequest) returns (ListNearbyDriversResponse);
   rpc GetDriverAiScore(GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse);
+  // 重新计算并写回司机评分指标（喂数），返回刷新后的评分，供联调与定时任务触发。
+  rpc RefreshDriverScore(RefreshDriverScoreRequest) returns (GetDriverAiScoreResponse);
 
   rpc UploadCertification(UploadCertificationRequest) returns (UploadCertificationResponse);
   rpc GetCertification(GetCertificationRequest) returns (GetCertificationResponse);
@@ -353,6 +355,10 @@ message GetDriverAiScoreResponse {
   repeated AiScoreFactor factors = 4;
   bool degraded = 5;
   string degrade_reason = 6;
+}
+
+message RefreshDriverScoreRequest {
+  int64 driver_id = 1;
 }
 
 message UploadCertificationRequest {

@@ -127,6 +127,10 @@ func (f *fakeDriverClient) GetDriverAiScore(context.Context, *driversproto.GetDr
 	return nil, nil
 }
 
+func (f *fakeDriverClient) RefreshDriverScore(context.Context, *driversproto.RefreshDriverScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
+	return nil, nil
+}
+
 func (f *fakeDriverClient) UploadCertification(_ context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error) {
 	f.uploadCertificationRequest = req
 	if f.uploadCertificationResponse != nil {
