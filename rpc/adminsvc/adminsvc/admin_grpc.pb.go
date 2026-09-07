@@ -110,6 +110,7 @@ const (
 	AdminService_HandleRiskHitRecords_FullMethodName          = "/adminsvc.AdminService/HandleRiskHitRecords"
 	AdminService_ListAdminAuditOutbox_FullMethodName          = "/adminsvc.AdminService/ListAdminAuditOutbox"
 	AdminService_AskAiAgent_FullMethodName                    = "/adminsvc.AdminService/AskAiAgent"
+	AdminService_AskAiAgentStream_FullMethodName              = "/adminsvc.AdminService/AskAiAgentStream"
 	AdminService_GetAiSuggestions_FullMethodName              = "/adminsvc.AdminService/GetAiSuggestions"
 	AdminService_GetAiHistory_FullMethodName                  = "/adminsvc.AdminService/GetAiHistory"
 	AdminService_AiFeedback_FullMethodName                    = "/adminsvc.AdminService/AiFeedback"
@@ -305,6 +306,8 @@ type AdminServiceClient interface {
 	ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error)
 	// 提交受限运营问答并返回结构化回答（AI 运营助手）。
 	AskAiAgent(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (*AiAnswerResponse, error)
+	// 提交受限运营问答并以流式分块返回，供网关 SSE 逐步渲染（先事实、后逐字结论）。
+	AskAiAgentStream(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (AdminService_AskAiAgentStreamClient, error)
 	// 读取当前管理员可见的三个快捷问题。
 	GetAiSuggestions(ctx context.Context, in *AiSuggestionsRequest, opts ...grpc.CallOption) (*AiSuggestionsResponse, error)
 	// 查询当前管理员自己的 AI 问答会话摘要。
@@ -1256,6 +1259,39 @@ func (c *adminServiceClient) AskAiAgent(ctx context.Context, in *AiAskRequest, o
 	return out, nil
 }
 
+func (c *adminServiceClient) AskAiAgentStream(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (AdminService_AskAiAgentStreamClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AdminService_ServiceDesc.Streams[1], AdminService_AskAiAgentStream_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &adminServiceAskAiAgentStreamClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type AdminService_AskAiAgentStreamClient interface {
+	Recv() (*AiAnswerChunk, error)
+	grpc.ClientStream
+}
+
+type adminServiceAskAiAgentStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *adminServiceAskAiAgentStreamClient) Recv() (*AiAnswerChunk, error) {
+	m := new(AiAnswerChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *adminServiceClient) GetAiSuggestions(ctx context.Context, in *AiSuggestionsRequest, opts ...grpc.CallOption) (*AiSuggestionsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AiSuggestionsResponse)
@@ -1485,6 +1521,8 @@ type AdminServiceServer interface {
 	ListAdminAuditOutbox(context.Context, *AdminAuditOutboxListRequest) (*AdminAuditOutboxListResponse, error)
 	// 提交受限运营问答并返回结构化回答（AI 运营助手）。
 	AskAiAgent(context.Context, *AiAskRequest) (*AiAnswerResponse, error)
+	// 提交受限运营问答并以流式分块返回，供网关 SSE 逐步渲染（先事实、后逐字结论）。
+	AskAiAgentStream(*AiAskRequest, AdminService_AskAiAgentStreamServer) error
 	// 读取当前管理员可见的三个快捷问题。
 	GetAiSuggestions(context.Context, *AiSuggestionsRequest) (*AiSuggestionsResponse, error)
 	// 查询当前管理员自己的 AI 问答会话摘要。
@@ -1772,6 +1810,9 @@ func (UnimplementedAdminServiceServer) ListAdminAuditOutbox(context.Context, *Ad
 }
 func (UnimplementedAdminServiceServer) AskAiAgent(context.Context, *AiAskRequest) (*AiAnswerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AskAiAgent not implemented")
+}
+func (UnimplementedAdminServiceServer) AskAiAgentStream(*AiAskRequest, AdminService_AskAiAgentStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method AskAiAgentStream not implemented")
 }
 func (UnimplementedAdminServiceServer) GetAiSuggestions(context.Context, *AiSuggestionsRequest) (*AiSuggestionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAiSuggestions not implemented")
@@ -3439,6 +3480,27 @@ func _AdminService_AskAiAgent_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_AskAiAgentStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(AiAskRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AdminServiceServer).AskAiAgentStream(m, &adminServiceAskAiAgentStreamServer{ServerStream: stream})
+}
+
+type AdminService_AskAiAgentStreamServer interface {
+	Send(*AiAnswerChunk) error
+	grpc.ServerStream
+}
+
+type adminServiceAskAiAgentStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *adminServiceAskAiAgentStreamServer) Send(m *AiAnswerChunk) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 func _AdminService_GetAiSuggestions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AiSuggestionsRequest)
 	if err := dec(in); err != nil {
@@ -3899,6 +3961,11 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "DownloadExport",
 			Handler:       _AdminService_DownloadExport_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "AskAiAgentStream",
+			Handler:       _AdminService_AskAiAgentStream_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -152,7 +152,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 				KeyPrefix:  c.AiAgent.Conversation.KeyPrefix,
 			},
 		},
-		AiAgentModel: aiagent.DisabledModel{},
+		// AI 运营助手模型：接入火山方舟；未配置 Model.Name 或缺少 ARK_API_KEY 时自动降级到本地模板。
+		AiAgentModel: aiagent.NewArkModel(aiagent.ModelConfig{
+			Endpoint:       c.AiAgent.Model.Endpoint,
+			Name:           c.AiAgent.Model.Name,
+			TimeoutSeconds: c.AiAgent.Model.TimeoutSeconds,
+		}),
 	}
 }
 

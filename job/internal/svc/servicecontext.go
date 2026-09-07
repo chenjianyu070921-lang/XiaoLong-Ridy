@@ -53,7 +53,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	// 创建 driversvc RPC 客户端，供管理后台 outbox 冻结司机补偿使用。
 	driverRPC := c.DriverRPC
 	if len(driverRPC.Endpoints) == 0 && driverRPC.Target == "" {
-		driverRPC.Target = "127.0.0.1:5055"
+		driverRPC.Target = "127.0.0.1:50055"
 	}
 	driverClient := driverproto.NewDriverServiceClient(zrpc.MustNewClient(driverRPC).Conn())
 	// 创建 pushsvc RPC 客户端，供管理后台 outbox 通知补偿使用。

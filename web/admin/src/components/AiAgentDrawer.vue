@@ -51,18 +51,65 @@ async function ask(text) {
   if (!q || loading.value) return
   question.value = ''
   loading.value = true
+  // 先落一条占位消息：问题气泡与数据骨架立刻可见，再由流式分块逐步填充，避免长时间空白。
+  const item = {
+    question: q,
+    streaming: true,
+    answer: {
+      summary: '',
+      evidence: [],
+      priorities: [],
+      actions: [],
+      source_mode: '',
+      conversation_id: conversationId.value || '',
+      trace_id: '',
+    },
+  }
+  messages.value.push(item)
+  const idx = messages.value.length - 1
   try {
-    const answer = await aiApi.ask({
-      scene: scene.value,
-      question: q,
-      conversation_id: conversationId.value || undefined,
-      ...timeRange(),
-    })
-    conversationId.value = answer.conversation_id
-    messages.value.push({ question: q, answer })
+    await aiApi.askStream(
+      {
+        scene: scene.value,
+        question: q,
+        conversation_id: conversationId.value || undefined,
+        ...timeRange(),
+      },
+      (chunk) => {
+        const target = messages.value[idx]
+        if (!target) return
+        if (chunk.type === 'facts') {
+          // 事实先到：先把数据证据渲染出来。
+          target.answer.evidence = chunk.answer?.evidence || []
+          target.answer.actions = chunk.answer?.actions || []
+          if (chunk.conversation_id) {
+            target.answer.conversation_id = chunk.conversation_id
+            conversationId.value = chunk.conversation_id
+          }
+        } else if (chunk.type === 'delta') {
+          // 增量文本：逐字追加到结论。
+          target.answer.summary = (target.answer.summary || '') + (chunk.text || '')
+        } else if (chunk.type === 'final' || chunk.type === 'fallback') {
+          const a = chunk.answer || {}
+          target.answer = {
+            ...target.answer,
+            ...a,
+            conversation_id: a.conversation_id || chunk.conversation_id || target.answer.conversation_id,
+            trace_id: a.trace_id || chunk.trace_id || target.answer.trace_id,
+          }
+          if (target.answer.conversation_id) conversationId.value = target.answer.conversation_id
+          target.streaming = false
+        } else if (chunk.type === 'error') {
+          ElMessage.error(chunk.text || 'AI 分析失败')
+          target.streaming = false
+        }
+      },
+    )
   } catch {
-    /* 错误已由 request 拦截器统一提示 */
+    ElMessage.error('AI 分析失败，请重试')
   } finally {
+    const target = messages.value[idx]
+    if (target) target.streaming = false
     loading.value = false
   }
 }
@@ -149,7 +196,11 @@ onMounted(loadSuggestions)
         <div v-for="(item, idx) in messages" :key="idx" class="ai-msg">
           <div class="ai-ask">{{ item.question }}</div>
           <div class="ai-answer">
-            <div class="ai-src"><el-tag :type="sourceModeTag(item.answer.source_mode)" size="small" effect="plain">{{ sourceModeText[item.answer.source_mode] || item.answer.source_mode }}</el-tag></div>
+            <div class="ai-src">
+              <el-tag :type="sourceModeTag(item.answer.source_mode)" size="small" effect="plain">{{ sourceModeText[item.answer.source_mode] || item.answer.source_mode }}</el-tag>
+              <el-tag v-if="item.streaming" size="small" type="info" effect="plain">生成中…</el-tag>
+            </div>
+            <div v-if="item.streaming && !item.answer.summary" class="ai-typing">正在检索数据并生成分析…</div>
 
             <section class="ai-sec">
               <h4>结论</h4>
@@ -230,7 +281,8 @@ onMounted(loadSuggestions)
 .ai-msg{margin-bottom:16px}
 .ai-ask{background:var(--brand,#6c5ce7);color:#fff;padding:10px 14px;border-radius:12px 12px 12px 4px;font-size:14px;margin-bottom:10px}
 .ai-answer{background:var(--panel-bg,#fff);border:1px solid var(--border-color,#e5e4f0);border-radius:12px;padding:14px}
-.ai-src{margin-bottom:10px}
+.ai-src{display:flex;gap:6px;align-items:center;margin-bottom:10px}
+.ai-typing{font-size:12px;color:var(--muted-color,#8b88a3);margin-bottom:10px}
 .ai-sec{margin-bottom:14px}
 .ai-sec h4{margin:0 0 8px;font-size:13px;color:var(--muted-color,#8b88a3);font-weight:600}
 .ai-sec p{margin:0;font-size:14px;color:var(--text-color,#2e2c4e);line-height:1.6}

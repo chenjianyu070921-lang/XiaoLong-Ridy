@@ -337,6 +337,8 @@ type (
 		ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error)
 		// 提交受限运营问答（AI 运营助手）。
 		AskAiAgent(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (*AiAnswerResponse, error)
+		// 提交受限运营问答并以流式分块返回（供网关 SSE 逐步渲染）。
+		AskAiAgentStream(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (adminsvc.AdminService_AskAiAgentStreamClient, error)
 		// 读取三个快捷问题。
 		GetAiSuggestions(ctx context.Context, in *AiSuggestionsRequest, opts ...grpc.CallOption) (*AiSuggestionsResponse, error)
 		// 查询当前管理员的 AI 会话摘要。
@@ -856,6 +858,11 @@ func (m *defaultAdminService) ListAdminAuditOutbox(ctx context.Context, in *Admi
 func (m *defaultAdminService) AskAiAgent(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (*AiAnswerResponse, error) {
 	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
 	return client.AskAiAgent(ctx, in, opts...)
+}
+
+func (m *defaultAdminService) AskAiAgentStream(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (adminsvc.AdminService_AskAiAgentStreamClient, error) {
+	client := adminsvc.NewAdminServiceClient(m.cli.Conn())
+	return client.AskAiAgentStream(ctx, in, opts...)
 }
 
 func (m *defaultAdminService) GetAiSuggestions(ctx context.Context, in *AiSuggestionsRequest, opts ...grpc.CallOption) (*AiSuggestionsResponse, error) {
