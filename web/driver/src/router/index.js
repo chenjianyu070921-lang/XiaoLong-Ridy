@@ -30,6 +30,18 @@ const routes = [
     meta: { requiresDriverAuth: true }
   },
   {
+    path: '/mine/bank-cards',
+    name: 'DriverMineBankCards',
+    component: () => import('@/views/mine/DriverBankCardsPage.vue'),
+    meta: { requiresDriverAuth: true }
+  },
+  {
+    path: '/mine/bank-cards/bind',
+    name: 'DriverMineBindCard',
+    component: () => import('@/views/mine/DriverBindCardPage.vue'),
+    meta: { requiresDriverAuth: true }
+  },
+  {
     path: '/mine/vehicle',
     name: 'DriverMineVehicle',
     component: () => import('@/views/mine/DriverVehiclePage.vue'),

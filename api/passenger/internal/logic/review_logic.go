@@ -16,7 +16,12 @@ var (
 	ErrReviewRepositoryNotConfigured = errors.New("review repository not configured")
 	// ErrReviewAlreadyExists 表示同一订单已经评价过。
 	ErrReviewAlreadyExists = errors.New("review already exists")
+	// ErrReviewNotQualified 表示司机完成订单数不足，暂不支持乘客评价。
+	ErrReviewNotQualified = errors.New("driver has not enough completed orders to receive review")
 )
+
+// minReviewCompletedOrders 是司机可接收乘客评价的完成订单门槛。
+const minReviewCompletedOrders = 5
 
 // ReviewLogic 封装乘客评价订单的业务流程。
 type ReviewLogic struct {
@@ -57,6 +62,14 @@ func (l *ReviewLogic) SubmitReview(req *types.SubmitReviewRequest) (*types.Submi
 	if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_COMPLETED || order.GetDriverId() <= 0 {
 		return nil, ErrInvalidRequest
 	}
+	// 门槛限制：司机完成订单未满 5 单时，乘客不能对该司机评价。
+	completedOrders, err := l.driverCompletedOrders(order.GetDriverId())
+	if err != nil {
+		return nil, err
+	}
+	if completedOrders < minReviewCompletedOrders {
+		return nil, ErrReviewNotQualified
+	}
 	review := &svc.OrderReview{
 		OrderID:   uint64(req.OrderID),
 		UserID:    userID,
@@ -79,6 +92,27 @@ func (l *ReviewLogic) SubmitReview(req *types.SubmitReviewRequest) (*types.Submi
 		Rating:    int32(review.Rating),
 		CreatedAt: review.CreatedAt.Unix(),
 	}, nil
+}
+
+// driverCompletedOrders 返回司机已完成订单总数（status=已完成）。
+func (l *ReviewLogic) driverCompletedOrders(driverID int64) (int64, error) {
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return 0, err
+	}
+	resp, err := orderClient.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
+		DriverId: driverID,
+		Status:   orderproto.OrderStatus_ORDER_STATUS_COMPLETED,
+		Page:     1,
+		PageSize: 1,
+	})
+	if err != nil {
+		return 0, err
+	}
+	if resp == nil {
+		return 0, nil
+	}
+	return resp.Total, nil
 }
 
 // reviewRepository 获取评价仓储依赖。

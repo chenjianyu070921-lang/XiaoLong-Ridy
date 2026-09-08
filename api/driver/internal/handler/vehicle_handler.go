@@ -104,3 +104,19 @@ func DeleteVehicleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+func ListVehiclesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "登录凭证无效")
+			return
+		}
+		resp, err := logic.NewVehicleLogic(r.Context(), svcCtx).ListVehicles(int64(claims.AccountID))
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

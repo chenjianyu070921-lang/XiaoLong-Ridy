@@ -10,6 +10,8 @@ mysql:
 # （见 internal/config.Config.ApplyRuntimeSigningKey）。
 # 注意：不可填 "local-development-signing-key"，启动校验会拒绝该默认弱值。
 signingKey: "driversvc-local-dev-key"
+# 银行卡号 AES-GCM 加密密钥（敏感数据存储加密用，勿用默认弱值；生产请注入强密钥）。
+cardKey: "driversvc-local-card-key-2026"
 # Redis：维护司机在线状态与多端互踢（deviceID 绑定）。
 driverRedis:
   host: 115.191.16.159:6379

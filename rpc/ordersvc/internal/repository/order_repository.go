@@ -27,6 +27,8 @@ type OrderRepository interface {
 	CancelWithCoupon(ctx context.Context, orderID, userID uint64, wantStatuses []int8, cancelBy, reason string, statusLog *model.OrderStatusLog) (bool, error)
 	// TimeoutCancel 仅将未接单且未绑定司机的订单改为超时取消，并写入状态日志。
 	TimeoutCancel(ctx context.Context, orderID uint64, reason string, statusLog *model.OrderStatusLog) (bool, error)
+	// TimeoutAccept 将已接单但未开始行程、且更新时间早于 before 的订单超时取消，并写入状态日志。
+	TimeoutAccept(ctx context.Context, orderID uint64, before time.Time, reason string, statusLog *model.OrderStatusLog) (bool, error)
 	// Accept 将待接单订单改为已接单并绑定司机。
 	Accept(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error)
 	// StartTrip 将已接单订单改为行程中。
@@ -46,6 +48,8 @@ type OrderRepository interface {
 	List(ctx context.Context, userID, driverID uint64, status int8, page, pageSize int32) ([]model.RideOrder, int64, error)
 	// ListTimeoutOrders 查询创建时间早于 before 的待接单订单。
 	ListTimeoutOrders(ctx context.Context, before time.Time, page, pageSize int32) ([]model.RideOrder, int64, error)
+	// ListAcceptedTimeoutOrders 查询已接单但未开始行程、且更新时间早于 before 的订单。
+	ListAcceptedTimeoutOrders(ctx context.Context, before time.Time, page, pageSize int32) ([]model.RideOrder, int64, error)
 	// ListStatusLogs 分页查询订单状态日志。
 	ListStatusLogs(ctx context.Context, orderID uint64, page, pageSize int32) ([]model.OrderStatusLog, int64, error)
 	// Refund 将已完成订单退款为已退款终态，并落库退款金额，需状态机合法跳转。

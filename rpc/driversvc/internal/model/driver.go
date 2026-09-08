@@ -7,9 +7,10 @@ type Driver struct {
 	Id              uint64     `gorm:"primaryKey;column:id" json:"id"`
 	Phone           string     `gorm:"column:phone;size:20" json:"phone"`
 	PasswordHash    string     `gorm:"column:password_hash;size:255;default:''" json:"passwordHash"`
-	RealName        string     `gorm:"column:real_name;size:50;default:''" json:"realName"`
-	IdCardNo        string     `gorm:"column:id_card_no;size:30;default:''" json:"idCardNo"`
-	DriverLicenseNo string     `gorm:"column:driver_license_no;size:30;default:''" json:"driverLicenseNo"`
+	RealName             string     `gorm:"column:real_name;size:50;default:''" json:"realName"`
+	IdCardNo             string     `gorm:"column:id_card_no;size:30;default:''" json:"idCardNo"`
+	WithdrawPasswordHash string     `gorm:"column:withdraw_password_hash;size:255;default:''" json:"-"`
+	DriverLicenseNo      string     `gorm:"column:driver_license_no;size:30;default:''" json:"driverLicenseNo"`
 	AvatarUrl       string     `gorm:"column:avatar_url;size:255;default:''" json:"avatarUrl"`
 	Status          int8       `gorm:"column:status;default:1" json:"status"`
 	OnlineStatus    int8       `gorm:"column:online_status;default:0" json:"onlineStatus"`

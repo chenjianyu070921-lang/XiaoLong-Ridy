@@ -3,8 +3,6 @@ package logic
 import (
 	"context"
 	"errors"
-	"strings"
-	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
@@ -13,9 +11,6 @@ import (
 
 // ErrReviewRepositoryNotConfigured 表示评价仓储未配置（MySQL 未初始化时降级）。
 var ErrReviewRepositoryNotConfigured = errors.New("review repository not configured")
-
-// ErrReviewAlreadyExists 表示同一订单已经评价过。
-var ErrReviewAlreadyExists = errors.New("driver review already exists")
 
 // ReviewLogic 封装司机端评价业务逻辑。
 type ReviewLogic struct {
@@ -28,7 +23,7 @@ func NewReviewLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReviewLogi
 	return &ReviewLogic{ctx: ctx, svcCtx: svcCtx}
 }
 
-// ListReceivedReviews 返回当前司机收到的乘客评价（双向评价中的"接收乘客端评价"）。
+// ListReceivedReviews 返回当前司机收到的乘客评价。
 func (l *ReviewLogic) ListReceivedReviews(driverID int64, req *types.ListReviewsRequest) (*types.ListReceivedReviewsResponse, error) {
 	if driverID <= 0 {
 		return nil, ErrInvalidParam
@@ -63,88 +58,6 @@ func (l *ReviewLogic) ListReceivedReviews(driverID int64, req *types.ListReviews
 	}, nil
 }
 
-// ListGivenReviews 返回当前司机给出的乘客评价。
-func (l *ReviewLogic) ListGivenReviews(driverID int64, req *types.ListGivenReviewsRequest) (*types.ListGivenReviewsResponse, error) {
-	if driverID <= 0 {
-		return nil, ErrInvalidParam
-	}
-	page, pageSize := normalizeReviewPage(req.Page, req.PageSize)
-	repo, err := l.reviewRepository()
-	if err != nil {
-		return nil, err
-	}
-	rows, total, err := repo.ListDriverReviewsByDriver(l.ctx, driverID, page, pageSize)
-	if err != nil {
-		return nil, err
-	}
-	list := make([]types.ReviewItem, 0, len(rows))
-	for _, row := range rows {
-		list = append(list, types.ReviewItem{
-			OrderID:   int64(row.OrderID),
-			UserID:    0, // 评价列表不暴露对端用户身份 ID，保护隐私
-			DriverID:  int64(row.DriverID),
-			Rating:    int32(row.Rating),
-			Comment:   row.Comment,
-			Tags:      row.Tags,
-			CreatedAt: row.CreatedAt.Unix(),
-			Direction: "given",
-		})
-	}
-	return &types.ListGivenReviewsResponse{
-		List:     list,
-		Total:    total,
-		Page:     page,
-		PageSize: pageSize,
-	}, nil
-}
-
-// SubmitDriverReview 校验订单归属与完成状态后，写入司机对乘客的评价（双向评价中的"司机评乘客"）。
-func (l *ReviewLogic) SubmitDriverReview(driverID int64, req *types.SubmitDriverReviewRequest) (*types.SubmitDriverReviewResponse, error) {
-	if req == nil || req.OrderID <= 0 || req.Rating < 1 || req.Rating > 5 {
-		return nil, ErrInvalidParam
-	}
-	orderClient, err := l.orderClient()
-	if err != nil {
-		return nil, err
-	}
-	repo, err := l.reviewRepository()
-	if err != nil {
-		return nil, err
-	}
-	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
-	if err != nil {
-		return nil, err
-	}
-	if order.GetDriverId() != driverID {
-		return nil, ErrForbiddenDriverResource
-	}
-	if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_COMPLETED {
-		return nil, ErrInvalidParam
-	}
-	review := &svc.DriverOrderReview{
-		OrderID:   uint64(req.OrderID),
-		UserID:    uint64(order.GetUserId()),
-		DriverID:  uint64(driverID),
-		Rating:    int8(req.Rating),
-		Comment:   strings.TrimSpace(req.Comment),
-		Tags:      strings.TrimSpace(req.Tags),
-		CreatedAt: time.Now(),
-	}
-	if err := repo.CreateDriverReview(l.ctx, review); err != nil {
-		if errors.Is(err, svc.ErrReviewAlreadyExists) {
-			return nil, ErrReviewAlreadyExists
-		}
-		return nil, err
-	}
-	return &types.SubmitDriverReviewResponse{
-		ReviewID:  int64(review.ID),
-		OrderID:   int64(review.OrderID),
-		DriverID:  int64(review.DriverID),
-		Rating:    int32(review.Rating),
-		CreatedAt: review.CreatedAt.Unix(),
-	}, nil
-}
-
 func (l *ReviewLogic) reviewRepository() (svc.ReviewRepository, error) {
 	if l.svcCtx == nil || l.svcCtx.ReviewRepository == nil {
 		return nil, ErrReviewRepositoryNotConfigured
@@ -152,11 +65,55 @@ func (l *ReviewLogic) reviewRepository() (svc.ReviewRepository, error) {
 	return l.svcCtx.ReviewRepository, nil
 }
 
-func (l *ReviewLogic) orderClient() (svc.OrderClient, error) {
-	if l.svcCtx == nil || l.svcCtx.OrderClient == nil {
-		return nil, ErrOrderClientNotConfigured
+// minReviewOrders 是司机可接收乘客评价的完成订单门槛。
+const minReviewOrders = 5
+
+// GetReviewSummary 返回司机评价概览。服务平均分由 order_review 表真实聚合计算，
+// 并返回完成单数、评价数、平均分与能否接收评价（完成订单 >= 5 单）。
+func (l *ReviewLogic) GetReviewSummary(driverID int64) (*types.ReviewSummaryResponse, error) {
+	if driverID <= 0 {
+		return nil, ErrInvalidParam
 	}
-	return l.svcCtx.OrderClient, nil
+	repo, err := l.reviewRepository()
+	if err != nil {
+		return nil, err
+	}
+	reviewCount, avgRating, err := repo.CountAndAvgRatingByDriver(l.ctx, driverID)
+	if err != nil {
+		return nil, err
+	}
+	completed := l.completedOrderCount(l.ctx, driverID)
+	canReceive := completed >= minReviewOrders
+
+	return &types.ReviewSummaryResponse{
+		CanReceiveReview:    canReceive,
+		CompletedOrderCount: completed,
+		ReviewCount:         reviewCount,
+		AvgRating:           roundReviewRating(avgRating),
+		ServiceScore:        roundReviewRating(avgRating),
+	}, nil
+}
+
+// completedOrderCount 通过 ordersvc 统计司机已完成订单数（status=已完成）。
+func (l *ReviewLogic) completedOrderCount(ctx context.Context, driverID int64) int64 {
+	if l.svcCtx == nil || l.svcCtx.OrderClient == nil {
+		return 0
+	}
+	resp, err := l.svcCtx.OrderClient.ListOrders(ctx, &orderproto.ListOrdersRequest{
+		DriverId: driverID,
+		Status:   orderproto.OrderStatus_ORDER_STATUS_COMPLETED,
+		Page:     1,
+		PageSize: 1,
+	})
+	if err != nil || resp == nil {
+		return 0
+	}
+	return resp.Total
+}
+
+// roundReviewRating 保留一位小数。
+func roundReviewRating(v float64) float64 {
+	return float64(int(v*10+0.5)) / 10
 }
 
 // normalizeReviewPage 将分页参数规范为安全范围：页码最小 1，每页大小 1~100。

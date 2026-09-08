@@ -73,12 +73,18 @@ type DriverClient interface {
 	UpdateVehicle(ctx context.Context, req *driversproto.UpdateVehicleRequest) (*driversproto.UpdateVehicleResponse, error)
 	DeleteVehicle(ctx context.Context, req *driversproto.DeleteVehicleRequest) (*driversproto.DeleteVehicleResponse, error)
 	GetVehicle(ctx context.Context, req *driversproto.GetVehicleRequest) (*driversproto.GetVehicleResponse, error)
+	ListVehicles(ctx context.Context, req *driversproto.ListVehiclesRequest) (*driversproto.ListVehiclesResponse, error)
 	GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
 	RefreshDriverScore(ctx context.Context, req *driversproto.RefreshDriverScoreRequest) (*driversproto.GetDriverAiScoreResponse, error)
 	UploadCertification(ctx context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error)
 	GetCertification(ctx context.Context, req *driversproto.GetCertificationRequest) (*driversproto.GetCertificationResponse, error)
 	CreateWithdraw(ctx context.Context, req *driversproto.CreateWithdrawRequest) (*driversproto.CreateWithdrawResponse, error)
 	ListWithdraws(ctx context.Context, req *driversproto.ListWithdrawsRequest) (*driversproto.ListWithdrawsResponse, error)
+	BindBankCard(ctx context.Context, req *driversproto.BindBankCardRequest) (*driversproto.BindBankCardResponse, error)
+	ListBankCards(ctx context.Context, req *driversproto.ListBankCardsRequest) (*driversproto.ListBankCardsResponse, error)
+	DeleteBankCard(ctx context.Context, req *driversproto.DeleteBankCardRequest) (*driversproto.CommonResponse, error)
+	VerifyWithdrawPassword(ctx context.Context, req *driversproto.VerifyWithdrawPasswordRequest) (*driversproto.CommonResponse, error)
+	ResetWithdrawPassword(ctx context.Context, req *driversproto.ResetWithdrawPasswordRequest) (*driversproto.ResetWithdrawPasswordResponse, error)
 }
 
 type grpcClient struct {
@@ -187,6 +193,12 @@ func (g *grpcClient) GetVehicle(ctx context.Context, req *driversproto.GetVehicl
 	return g.cli.GetVehicle(ctx, req)
 }
 
+func (g *grpcClient) ListVehicles(ctx context.Context, req *driversproto.ListVehiclesRequest) (*driversproto.ListVehiclesResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ListVehicles(ctx, req)
+}
+
 func (g *grpcClient) GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
 	ctx, cancel := RPCContext(ctx)
 	defer cancel()
@@ -221,6 +233,36 @@ func (g *grpcClient) ListWithdraws(ctx context.Context, req *driversproto.ListWi
 	ctx, cancel := RPCContext(ctx)
 	defer cancel()
 	return g.cli.ListWithdraws(ctx, req)
+}
+
+func (g *grpcClient) BindBankCard(ctx context.Context, req *driversproto.BindBankCardRequest) (*driversproto.BindBankCardResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.BindBankCard(ctx, req)
+}
+
+func (g *grpcClient) ListBankCards(ctx context.Context, req *driversproto.ListBankCardsRequest) (*driversproto.ListBankCardsResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ListBankCards(ctx, req)
+}
+
+func (g *grpcClient) DeleteBankCard(ctx context.Context, req *driversproto.DeleteBankCardRequest) (*driversproto.CommonResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.DeleteBankCard(ctx, req)
+}
+
+func (g *grpcClient) VerifyWithdrawPassword(ctx context.Context, req *driversproto.VerifyWithdrawPasswordRequest) (*driversproto.CommonResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.VerifyWithdrawPassword(ctx, req)
+}
+
+func (g *grpcClient) ResetWithdrawPassword(ctx context.Context, req *driversproto.ResetWithdrawPasswordRequest) (*driversproto.ResetWithdrawPasswordResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.ResetWithdrawPassword(ctx, req)
 }
 
 type OrderClient interface {
@@ -351,6 +393,7 @@ type ServiceContext struct {
 	RedisClient          *redis.Client
 	Qiniu                *qiniuutil.Client
 	PushPollInterval     time.Duration
+	ReviewPollInterval   time.Duration
 	PushPollPageSize     int32
 }
 
@@ -457,10 +500,6 @@ func NewServiceContextWithStorage(driverGRPCAddr, orderGRPCAddr, dispatchGRPCAdd
 			svcCtx.TrajectoryRepository = NewGormTrajectoryRepository(db)
 			svcCtx.HeatmapRepository = NewGormHeatmapRepository(db)
 			svcCtx.ReviewRepository = NewGormDriverReviewRepository(db)
-			if err := db.AutoMigrate(&DriverOrderReview{}); err != nil {
-				// driver_review 表结构缺失只影响评价接口，不阻塞其他能力启动。
-				logx.Errorf("driver api driver_review table migrate failed: %v", err)
-			}
 		}
 	}
 	return svcCtx

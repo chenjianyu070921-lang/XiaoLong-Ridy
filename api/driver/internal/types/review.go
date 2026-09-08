@@ -6,7 +6,7 @@ type ListReviewsRequest struct {
 	PageSize int32 `form:"pageSize"`
 }
 
-// ReviewItem 表示一条评价记录，Direction 区分收到/给出的评价。
+// ReviewItem 表示一条乘客对司机的评价记录。
 type ReviewItem struct {
 	OrderID   int64  `json:"orderId"`
 	UserID    int64  `json:"userId"`
@@ -26,33 +26,12 @@ type ListReceivedReviewsResponse struct {
 	PageSize int32        `json:"pageSize"`
 }
 
-// ListGivenReviewsRequest 是分页查询司机给出评价的请求参数。
-type ListGivenReviewsRequest struct {
-	Page     int32 `form:"page"`
-	PageSize int32 `form:"pageSize"`
-}
-
-// ListGivenReviewsResponse 返回司机给出的评价列表。
-type ListGivenReviewsResponse struct {
-	List     []ReviewItem `json:"list"`
-	Total    int64        `json:"total"`
-	Page     int32        `json:"page"`
-	PageSize int32        `json:"pageSize"`
-}
-
-// SubmitDriverReviewRequest 表示司机评价乘客的请求参数。
-type SubmitDriverReviewRequest struct {
-	OrderID int64  `json:"orderId"`
-	Rating  int32  `json:"rating"`
-	Comment string `json:"comment"`
-	Tags    string `json:"tags"`
-}
-
-// SubmitDriverReviewResponse 表示司机评价提交成功后的响应。
-type SubmitDriverReviewResponse struct {
-	ReviewID  int64 `json:"reviewId"`
-	OrderID   int64 `json:"orderId"`
-	DriverID  int64 `json:"driverId"`
-	Rating    int32 `json:"rating"`
-	CreatedAt int64 `json:"createdAt"`
+// ReviewSummaryResponse 返回司机评价概览：能否接收评价、完成单数、评价统计
+// 与由 order_review 表聚合计算的服务平均分。
+type ReviewSummaryResponse struct {
+	CanReceiveReview    bool    `json:"canReceiveReview"`
+	CompletedOrderCount int64   `json:"completedOrderCount"`
+	ReviewCount         int64   `json:"reviewCount"`
+	AvgRating           float64 `json:"avgRating"`
+	ServiceScore        float64 `json:"serviceScore"`
 }

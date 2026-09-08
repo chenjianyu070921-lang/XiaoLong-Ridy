@@ -9,67 +9,75 @@
   >
     <div class="reviews-header">
       <button type="button" class="back" @click="close">返回</button>
-      <van-tabs v-model="activeTab" class="reviews-tabs">
-        <van-tab title="收到的评价" name="received" />
-        <van-tab title="我给出的" name="given" />
-      </van-tabs>
+      <span class="reviews-title">乘客评价</span>
     </div>
 
     <div class="reviews-body">
-      <div v-if="activeTab === 'received'" class="review-list">
-        <p v-if="receivedLoading" class="hint">加载中…</p>
-        <p v-else-if="!receivedList.length" class="hint">暂无乘客评价</p>
-        <div v-for="item in receivedList" :key="'r' + item.orderId" class="review-card">
-          <van-rate :model-value="item.rating" readonly size="14" color="#F59E0B" void-color="#E5E7EB" :count="5" />
-          <p class="review-comment">{{ item.comment || '该乘客未填写文字评价' }}</p>
-          <p v-if="item.tags" class="review-tags">{{ item.tags }}</p>
-          <p class="review-time">{{ formatReviewTime(item.createdAt) }}</p>
-        </div>
-      </div>
+      <div v-if="summaryLoading" class="hint">加载中…</div>
 
-      <div v-else class="review-list">
-        <div class="given-actions">
-          <button type="button" class="primary" @click="showSubmit = !showSubmit">{{ showSubmit ? '收起' : '评价乘客' }}</button>
+      <template v-else-if="summary">
+        <!-- 服务平均分概览（agent 生成） -->
+        <div class="score-card">
+          <div class="score-top">
+            <div class="score-main">
+              <span class="score-label">服务平均分</span>
+              <div class="score-value-row">
+                <b class="score-value">{{ displayScore }}</b>
+                <span class="score-unit">分</span>
+              </div>
+              <van-rate :model-value="displayScore" readonly size="14" color="var(--driver-primary)" void-color="var(--driver-line)" :count="5" allow-half />
+            </div>
+            <div class="score-side">
+              <span class="score-pill" :class="summary.canReceiveReview ? 'ok' : 'lock'">
+                {{ summary.canReceiveReview ? '可接收评价' : '暂未开放' }}
+              </span>
+              <span class="score-meta">完成 {{ summary.completedOrderCount }} 单</span>
+              <span class="score-meta">收到 {{ summary.reviewCount }} 条评价</span>
+            </div>
+          </div>
         </div>
-        <div v-if="showSubmit" class="submit-form">
-          <input v-model="form.orderId" type="number" placeholder="订单ID（已完成且归属于你的订单）" />
-          <van-rate v-model="form.rating" size="28" color="#F59E0B" void-color="#E5E7EB" :count="5" />
-          <textarea v-model="form.comment" placeholder="评价内容（选填）" maxlength="200" rows="3"></textarea>
-          <input v-model="form.tags" placeholder="标签，逗号分隔（选填）" />
-          <button type="button" class="primary" :disabled="submitting" @click="submitReview">{{ submitting ? '提交中…' : '提交评价' }}</button>
+
+        <!-- 未满 5 单：不开放评价列表 -->
+        <div v-if="!summary.canReceiveReview" class="lock-tip">
+          <van-icon name="lock" />
+          <span>完成 <b>{{ summary.completedOrderCount }}/5</b> 单后可接收乘客评价</span>
         </div>
-        <p v-if="givenLoading" class="hint">加载中…</p>
-        <p v-else-if="!givenList.length" class="hint">暂无评价记录</p>
-        <div v-for="item in givenList" :key="'g' + item.orderId" class="review-card">
-          <van-rate :model-value="item.rating" readonly size="14" color="#F59E0B" void-color="#E5E7EB" :count="5" />
-          <p class="review-comment">{{ item.comment || '未填写文字评价' }}</p>
-          <p v-if="item.tags" class="review-tags">{{ item.tags }}</p>
-          <p class="review-time">{{ formatReviewTime(item.createdAt) }}</p>
+
+        <!-- 已满 5 单：展示评价列表 -->
+        <div v-else class="review-list">
+          <p v-if="receivedLoading" class="hint">加载中…</p>
+          <p v-else-if="!receivedList.length" class="hint">暂无乘客评价</p>
+          <div v-for="item in receivedList" :key="'r' + item.orderId" class="review-card">
+            <van-rate :model-value="item.rating" readonly size="14" color="#F59E0B" void-color="var(--driver-line)" :count="5" />
+            <p class="review-comment">{{ item.comment || '该乘客未填写文字评价' }}</p>
+            <p v-if="item.tags" class="review-tags">{{ item.tags }}</p>
+            <p class="review-time">{{ formatReviewTime(item.createdAt) }}</p>
+          </div>
         </div>
-      </div>
+      </template>
     </div>
   </van-popup>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { showToast } from 'vant'
-import { listReceivedReviews, listGivenReviews, submitDriverReview } from '@/api/driver'
+import { getReviewSummary, listReceivedReviews } from '@/api/driver'
 
 const props = defineProps({
-  visible: { type: Boolean, default: false },
-  mode: { type: String, default: 'received' }
+  visible: { type: Boolean, default: false }
 })
 const emit = defineEmits(['update:visible'])
 
-const activeTab = ref(props.mode)
+const summary = ref(null)
+const summaryLoading = ref(false)
 const receivedList = ref([])
-const givenList = ref([])
 const receivedLoading = ref(false)
-const givenLoading = ref(false)
-const showSubmit = ref(false)
-const submitting = ref(false)
-const form = ref({ orderId: '', rating: 0, comment: '', tags: '' })
+
+const displayScore = computed(() => {
+  const raw = Number(summary.value?.serviceScore ?? summary.value?.avgRating ?? 0)
+  return Number.isFinite(raw) ? raw : 0
+})
 
 function close() {
   emit('update:visible', false)
@@ -79,6 +87,18 @@ function formatReviewTime(ts) {
   if (!ts) return ''
   const d = new Date(ts * 1000)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+async function loadSummary() {
+  summaryLoading.value = true
+  try {
+    const res = await getReviewSummary({ silentError: true })
+    summary.value = res
+  } catch (e) {
+    showToast(e?.response?.data?.message || '加载评价概览失败')
+  } finally {
+    summaryLoading.value = false
+  }
 }
 
 async function loadReceived() {
@@ -93,134 +113,164 @@ async function loadReceived() {
   }
 }
 
-async function loadGiven() {
-  givenLoading.value = true
-  try {
-    const res = await listGivenReviews({ page: 1, pageSize: 20 }, { silentError: true })
-    givenList.value = res?.list || []
-  } catch (e) {
-    showToast(e?.response?.data?.message || '加载评价失败')
-  } finally {
-    givenLoading.value = false
-  }
-}
-
-async function submitReview() {
-  const orderId = Number(form.value.orderId)
-  if (!orderId || form.value.rating < 1) {
-    showToast('请填写订单ID并打分')
-    return
-  }
-  submitting.value = true
-  try {
-    await submitDriverReview({
-      orderId,
-      rating: form.value.rating,
-      comment: form.value.comment,
-      tags: form.value.tags
-    }, { silentError: true })
-    showToast('评价已提交')
-    form.value = { orderId: '', rating: 0, comment: '', tags: '' }
-    showSubmit.value = false
-    await loadGiven()
-  } catch (e) {
-    showToast(e?.response?.data?.message || '提交失败')
-  } finally {
-    submitting.value = false
-  }
-}
-
 watch(
   () => props.visible,
   (v) => {
-    if (!v) return
-    activeTab.value = props.mode
-    if (activeTab.value === 'received') loadReceived()
-    else loadGiven()
+    if (v) {
+      loadSummary()
+      loadReceived()
+    }
   }
 )
-watch(activeTab, (tab) => {
-  if (!props.visible) return
-  if (tab === 'received' && !receivedList.value.length) loadReceived()
-  if (tab === 'given' && !givenList.value.length) loadGiven()
-})
+
+// 实时更新：司机端 WS 推送 review.new（乘客新评价导致评分统计变化）时，
+// 评价面板若处于打开状态则自动刷新服务平均分与评价列表，无需手动刷新。
+function onReviewUpdated() {
+  if (props.visible) {
+    loadSummary()
+    loadReceived()
+  }
+}
+onMounted(() => window.addEventListener('driver-review-updated', onReviewUpdated))
+onBeforeUnmount(() => window.removeEventListener('driver-review-updated', onReviewUpdated))
 </script>
 
 <style scoped>
 .reviews-panel {
   display: flex;
   flex-direction: column;
-  background: #f7f8fa;
+  background: var(--driver-soft);
 }
 .reviews-header {
-  background: #fff;
-  border-bottom: 1px solid #ebedf0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--driver-card);
+  border-bottom: 1px solid var(--driver-line);
+  padding: 12px;
 }
 .reviews-header .back {
   border: none;
   background: none;
-  padding: 12px;
-  color: #1989fa;
+  padding: 0;
+  color: var(--driver-primary);
   font-size: 14px;
+}
+.reviews-header .reviews-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--driver-ink);
 }
 .reviews-body {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
 }
+.hint {
+  color: var(--driver-muted);
+  text-align: center;
+  padding: 24px 0;
+}
+
+/* 服务平均分概览卡 */
+.score-card {
+  background: var(--driver-card);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, .05);
+}
+.score-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.score-main {
+  display: grid;
+  gap: 4px;
+}
+.score-label {
+  color: var(--driver-muted);
+  font-size: 12px;
+}
+.score-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.score-value {
+  color: var(--driver-primary);
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.score-unit {
+  color: var(--driver-muted);
+  font-size: 12px;
+}
+.score-side {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+.score-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.score-pill.ok {
+  background: var(--driver-soft);
+  color: var(--driver-primary);
+}
+.score-pill.lock {
+  background: var(--driver-soft);
+  color: var(--driver-muted);
+}
+.score-meta {
+  color: var(--driver-muted);
+  font-size: 12px;
+}
+
+/* 未满 5 单门槛提示 */
+.lock-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 12px;
+  border-radius: 12px;
+  background: var(--driver-card);
+  color: var(--driver-muted);
+  font-size: 13px;
+}
+.lock-tip b {
+  color: var(--driver-primary);
+}
+
+/* 评价列表 */
 .review-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 .review-card {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--driver-card);
+  border-radius: 12px;
   padding: 12px;
 }
 .review-comment {
   margin: 8px 0 4px;
-  color: #333;
+  color: var(--driver-ink);
 }
 .review-tags {
-  color: #1989fa;
+  color: var(--driver-primary);
   font-size: 12px;
 }
 .review-time {
-  color: #999;
+  color: var(--driver-muted);
   font-size: 12px;
   margin-top: 4px;
-}
-.hint {
-  color: #999;
-  text-align: center;
-  padding: 24px 0;
-}
-.submit-form {
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.submit-form input,
-.submit-form textarea {
-  border: 1px solid #ebedf0;
-  border-radius: 6px;
-  padding: 8px;
-  font-size: 14px;
-}
-.submit-form .primary,
-.given-actions .primary {
-  background: #1989fa;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 10px;
-}
-.given-actions {
-  margin-bottom: 12px;
 }
 </style>

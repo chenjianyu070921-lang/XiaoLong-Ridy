@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -963,6 +964,10 @@ func (r *recordingUpdateDriverClient) GetVehicle(context.Context, *driversproto.
 	return nil, nil
 }
 
+func (r *recordingUpdateDriverClient) ListVehicles(context.Context, *driversproto.ListVehiclesRequest) (*driversproto.ListVehiclesResponse, error) {
+	return &driversproto.ListVehiclesResponse{}, nil
+}
+
 func (r *recordingUpdateDriverClient) GetDriverAiScore(context.Context, *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
 	return nil, nil
 }
@@ -1083,6 +1088,99 @@ func TestDriverPushWebSocketForwardsRedisMessages(t *testing.T) {
 	}
 }
 
+// reviewStatsRepository 可控评价统计的假仓储，用于验证 WS 评分实时推送。
+type reviewStatsRepository struct {
+	mu    sync.Mutex
+	count int64
+	avg   float64
+}
+
+func (r *reviewStatsRepository) ListPassengerReviewsByDriver(context.Context, int64, int32, int32) ([]svc.PassengerReview, int64, error) {
+	return nil, 0, nil
+}
+
+func (r *reviewStatsRepository) CountAndAvgRatingByDriver(context.Context, int64) (int64, float64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.count, r.avg, nil
+}
+
+func (r *reviewStatsRepository) set(count int64, avg float64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.count, r.avg = count, avg
+}
+
+// 司机评分实时更新：评价统计变化后 WS 应推送 review.new，供司机端自动刷新评分。
+func TestDriverPushWebSocketPushesReviewUpdateOnChange(t *testing.T) {
+	const signingKey = "driver-ws-review-test-key"
+	reviews := &reviewStatsRepository{count: 2, avg: 4.5}
+	server := httptest.NewServer(newHTTPHandler(&svc.ServiceContext{
+		SigningKey:         signingKey,
+		ReviewRepository:   reviews,
+		ReviewPollInterval: 10 * time.Millisecond,
+	}))
+	defer server.Close()
+
+	token, err := jwtx.SignAccountToken(jwtx.AccountTokenPayload{
+		AccountID:     25,
+		AccountType:   "driver",
+		AccountStatus: 2,
+		TTL:           time.Minute,
+	}, signingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/driver/v1/ws?token=" + token
+	conn, err := websocket.Dial(wsURL, "", server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	var ack struct {
+		Type string `json:"type"`
+	}
+	if err := websocket.JSON.Receive(conn, &ack); err != nil {
+		t.Fatal(err)
+	}
+	if ack.Type != "connected" {
+		t.Fatalf("unexpected ws ack: %+v", ack)
+	}
+
+	// 乘客提交新评价：评价数 2→3，均分 4.5→4.0；再 3→4，均分 4.0→4.5。
+	// 第一次 set 与服务端首个基线 tick 存在竞态（3/4.0 可能被当作基线或成为过渡推送），
+	// 因此用第二次变化作为断言目标，兼容两种时序。
+	reviews.set(3, 4.0)
+	time.Sleep(100 * time.Millisecond)
+	reviews.set(4, 4.5)
+
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	sawTransition := false
+	for {
+		var msg struct {
+			Type        string  `json:"type"`
+			ReviewCount int64   `json:"reviewCount"`
+			AvgRating   float64 `json:"avgRating"`
+		}
+		if err := websocket.JSON.Receive(conn, &msg); err != nil {
+			t.Fatalf("未收到 review.new 推送: %v", err)
+		}
+		if msg.Type != "review.new" {
+			continue // 跳过无关消息（如 ping）
+		}
+		if msg.ReviewCount == 3 && msg.AvgRating == 4.0 && !sawTransition {
+			sawTransition = true // 基线竞态产生的过渡推送，继续等第二次变化
+			continue
+		}
+		if msg.ReviewCount == 4 && msg.AvgRating == 4.5 {
+			break
+		}
+		t.Fatalf("review.new = %+v, want count=4 avg=4.5", msg)
+	}
+}
+
 func TestAuthRateLimitAppliedToPublicEndpoints(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		SigningKey: "rate-limit-test-key",
@@ -1119,4 +1217,25 @@ func TestAuthRateLimitAppliedToPublicEndpoints(t *testing.T) {
 	if limited.Code != http.StatusTooManyRequests {
 		t.Fatalf("11th login status = %d, want 429", limited.Code)
 	}
+}
+
+
+func (r *recordingUpdateDriverClient) BindBankCard(context.Context, *driversproto.BindBankCardRequest) (*driversproto.BindBankCardResponse, error) {
+	return &driversproto.BindBankCardResponse{Id: 1, BankName: "中国工商银行", MaskedCardNo: "622****123", WithdrawPassword: "123456"}, nil
+}
+
+func (r *recordingUpdateDriverClient) ListBankCards(context.Context, *driversproto.ListBankCardsRequest) (*driversproto.ListBankCardsResponse, error) {
+	return &driversproto.ListBankCardsResponse{}, nil
+}
+
+func (r *recordingUpdateDriverClient) DeleteBankCard(context.Context, *driversproto.DeleteBankCardRequest) (*driversproto.CommonResponse, error) {
+	return &driversproto.CommonResponse{}, nil
+}
+
+func (r *recordingUpdateDriverClient) VerifyWithdrawPassword(context.Context, *driversproto.VerifyWithdrawPasswordRequest) (*driversproto.CommonResponse, error) {
+	return &driversproto.CommonResponse{}, nil
+}
+
+func (r *recordingUpdateDriverClient) ResetWithdrawPassword(context.Context, *driversproto.ResetWithdrawPasswordRequest) (*driversproto.ResetWithdrawPasswordResponse, error) {
+	return &driversproto.ResetWithdrawPasswordResponse{WithdrawPassword: "123456"}, nil
 }

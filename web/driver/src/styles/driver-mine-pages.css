@@ -1,8 +1,8 @@
 .mine-page-shell {
   min-height: 100vh;
   padding: 12px 12px 24px;
-  background: #f6f7fb;
-  color: #172033;
+  background: var(--driver-bg);
+  color: var(--driver-ink);
 }
 
 .mine-page-header {
@@ -21,8 +21,8 @@
   height: 36px;
   border: 0;
   border-radius: 50%;
-  background: #fff;
-  color: #344054;
+  background: var(--driver-card);
+  color: var(--driver-ink);
   box-shadow: 0 6px 14px rgba(15, 23, 42, .08);
 }
 
@@ -32,13 +32,13 @@
 
 .page-heading p {
   margin: 0 0 2px;
-  color: #7a8496;
+  color: var(--driver-muted);
   font-size: 12px;
 }
 
 .page-heading h1 {
   margin: 0;
-  color: #172033;
+  color: var(--driver-ink);
   font-size: 18px;
   line-height: 1.2;
 }
@@ -51,7 +51,7 @@
 
 .page-sheet {
   padding: 18px 14px 22px;
-  background: #f6f7fb;
+  background: var(--driver-bg);
 }
 
 .page-sheet h2 {
@@ -67,17 +67,17 @@
 
 .page-switcher button {
   min-height: 40px;
-  border: 1px solid #d7dce5;
+  border: 1px solid var(--driver-line);
   border-radius: 999px;
-  background: #fff;
-  color: #344054;
+  background: var(--driver-card);
+  color: var(--driver-ink);
   font-weight: 800;
 }
 
 .page-switcher button.active {
-  border-color: #5B5CFF;
-  background: #5B5CFF;
-  color: #fff;
+  border-color: var(--driver-primary);
+  background: var(--driver-primary);
+  color: var(--driver-on-primary);
 }
 
 .record-card {
@@ -85,7 +85,7 @@
   gap: 8px;
   padding: 14px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--driver-card);
   box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
 }
 
@@ -105,7 +105,7 @@
 .record-head span,
 .record-meta span,
 .detail-section-head span {
-  color: #6b7280;
+  color: var(--driver-muted);
   font-size: 12px;
 }
 
@@ -117,29 +117,29 @@
   flex: 0 0 auto;
   padding: 4px 8px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--driver-soft);
+  color: var(--driver-muted);
   font-weight: 800;
 }
 
 .withdraw-status.status-1 {
-  background: #fff7ed;
-  color: #c2410c;
+  background: rgba(245, 158, 11, .14);
+  color: #f59e0b;
 }
 
 .withdraw-status.status-2 {
-  background: #ecfdf3;
-  color: #15803d;
+  background: rgba(16, 163, 74, .14);
+  color: #10b981;
 }
 
 .withdraw-status.status-3 {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: rgba(239, 68, 68, .14);
+  color: #ef4444;
 }
 
 .withdraw-remark {
   margin: 0;
-  color: #6b7280;
+  color: var(--driver-muted);
   font-size: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;

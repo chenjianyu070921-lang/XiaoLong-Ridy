@@ -18,6 +18,8 @@ type DriverVehicleRepository interface {
 	GetByID(ctx context.Context, id uint64) (*model.DriverVehicle, error)
 	// GetByDriverID 按司机 ID 查询车辆，用于后台司机详情聚合展示。
 	GetByDriverID(ctx context.Context, driverID uint64) (*model.DriverVehicle, error)
+	// ListByDriverID 按司机 ID 列出其绑定的全部车辆（不含软删），按 id 升序，用于司机端多车辆管理。
+	ListByDriverID(ctx context.Context, driverID uint64) ([]*model.DriverVehicle, error)
 	// Update 按 ID 增量更新车辆字段。
 	Update(ctx context.Context, id uint64, updates map[string]interface{}) error
 	// Delete 软删除指定车辆（设置 deleted_at）。

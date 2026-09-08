@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
   getDriver,
+  listVehicles,
   loginDriverByPassword,
   loginDriverBySMS,
   registerDriver,
@@ -22,11 +23,15 @@ export const useDriverStore = defineStore('driver', () => {
   const driver = ref(readJSON('driverProfile', {}))
   const vehicle = ref(readJSON('driverVehicle', null))
   const vehicleId = ref(Number(localStorage.getItem('driverVehicleId') || vehicle.value?.id || 0))
+  const vehicles = ref(readJSON('driverVehicles', []))
   const certification = ref(readJSON('driverCertification', null))
   const onlineStatus = ref(Number(driver.value?.onlineStatus ?? localStorage.getItem('driverOnlineStatus') ?? 0))
   const currentOrder = ref(readJSON('driverCurrentOrder', null))
   const currentOrderId = ref(localStorage.getItem('driverCurrentOrderId') || '')
   const tripPhase = ref(localStorage.getItem('driverTripPhase') || 'idle')
+  const darkMode = ref(localStorage.getItem('driverDarkMode') === '1')
+  // 启动时回放持久化的夜间模式，避免刷新后回退到亮色（App.vue 的 html.dark 全局样式依赖此 class）。
+  document.documentElement.classList.toggle('dark', darkMode.value)
 
   const isLoggedIn = computed(() => !!token.value)
   const driverId = computed(() => Number(driver.value?.id || driver.value?.driverId || 0))
@@ -112,6 +117,26 @@ export const useDriverStore = defineStore('driver', () => {
     }
   }
 
+  // 拉取该司机绑定的全部车辆（最多 3 辆），并维护单车辆兼容字段（资质等仍依赖 vehicleId）。
+  async function loadVehicles(config = {}) {
+    const res = await listVehicles(config)
+    const list = Array.isArray(res?.vehicles) ? res.vehicles : []
+    vehicles.value = list
+    localStorage.setItem('driverVehicles', JSON.stringify(list))
+    if (list.length) {
+      const latest = list.reduce((a, b) => (Number(b.id) > Number(a.id) ? b : a), list[0])
+      vehicle.value = latest
+      vehicleId.value = Number(latest.id || 0)
+      if (vehicleId.value > 0) localStorage.setItem('driverVehicleId', String(vehicleId.value))
+    }
+    return list
+  }
+
+  function setVehicles(next) {
+    vehicles.value = Array.isArray(next) ? next : []
+    localStorage.setItem('driverVehicles', JSON.stringify(vehicles.value))
+  }
+
   function setCertification(nextCertification) {
     certification.value = nextCertification
     if (nextCertification) {
@@ -140,6 +165,12 @@ export const useDriverStore = defineStore('driver', () => {
       localStorage.removeItem('driverCurrentOrderId')
       localStorage.removeItem('driverCurrentOrder')
     }
+  }
+
+  function setDarkMode(value) {
+    darkMode.value = !!value
+    document.documentElement.classList.toggle('dark', darkMode.value)
+    localStorage.setItem('driverDarkMode', darkMode.value ? '1' : '0')
   }
 
   function logout() {
@@ -175,6 +206,11 @@ export const useDriverStore = defineStore('driver', () => {
     currentOrder,
     currentOrderId,
     tripPhase,
+    darkMode,
+    setDarkMode,
+    vehicles,
+    loadVehicles,
+    setVehicles,
     isLoggedIn,
     driverId,
     displayName,

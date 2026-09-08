@@ -285,6 +285,10 @@ type GetVehicleResponse struct {
 	Vehicle VehicleInfo `json:"vehicle"`
 }
 
+type ListVehiclesResponse struct {
+	Vehicles []VehicleInfo `json:"vehicles"`
+}
+
 type UpdateVehicleRequest struct {
 	ID                int64   `json:"id"`
 	DriverID          *int64  `json:"driverId,omitempty"`
@@ -321,9 +325,12 @@ type CommonResponse struct {
 // ---- Withdraw and income ----
 
 type CreateWithdrawRequest struct {
-	Amount     float64 `json:"amount"`
-	PayeeName  string  `json:"payeeName"`
-	PayAccount string  `json:"payAccount"`
+	Amount           float64 `json:"amount"`
+	BankCardId       int64   `json:"bankCardId"`
+	WithdrawPassword string  `json:"withdrawPassword"`
+	// 兼容旧字段：新流程忽略，收款信息取自所选银行卡。
+	PayeeName  string `json:"payeeName"`
+	PayAccount string `json:"payAccount"`
 }
 
 type CreateWithdrawResponse struct {

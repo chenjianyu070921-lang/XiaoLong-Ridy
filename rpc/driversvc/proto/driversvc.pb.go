@@ -2285,6 +2285,94 @@ func (x *GetVehicleResponse) GetVehicle() *Vehicle {
 	return nil
 }
 
+type ListVehiclesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListVehiclesRequest) Reset() {
+	*x = ListVehiclesRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVehiclesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVehiclesRequest) ProtoMessage() {}
+
+func (x *ListVehiclesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVehiclesRequest.ProtoReflect.Descriptor instead.
+func (*ListVehiclesRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ListVehiclesRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type ListVehiclesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Vehicles      []*Vehicle             `protobuf:"bytes,1,rep,name=vehicles,proto3" json:"vehicles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListVehiclesResponse) Reset() {
+	*x = ListVehiclesResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVehiclesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVehiclesResponse) ProtoMessage() {}
+
+func (x *ListVehiclesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVehiclesResponse.ProtoReflect.Descriptor instead.
+func (*ListVehiclesResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *ListVehiclesResponse) GetVehicles() []*Vehicle {
+	if x != nil {
+		return x.Vehicles
+	}
+	return nil
+}
+
 type ListDriversRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
@@ -2297,7 +2385,7 @@ type ListDriversRequest struct {
 
 func (x *ListDriversRequest) Reset() {
 	*x = ListDriversRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[31]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2309,7 +2397,7 @@ func (x *ListDriversRequest) String() string {
 func (*ListDriversRequest) ProtoMessage() {}
 
 func (x *ListDriversRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[31]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2322,7 +2410,7 @@ func (x *ListDriversRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDriversRequest.ProtoReflect.Descriptor instead.
 func (*ListDriversRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{31}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListDriversRequest) GetPage() int32 {
@@ -2363,7 +2451,7 @@ type ListDriversResponse struct {
 
 func (x *ListDriversResponse) Reset() {
 	*x = ListDriversResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[32]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2375,7 +2463,7 @@ func (x *ListDriversResponse) String() string {
 func (*ListDriversResponse) ProtoMessage() {}
 
 func (x *ListDriversResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[32]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2388,7 +2476,7 @@ func (x *ListDriversResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDriversResponse.ProtoReflect.Descriptor instead.
 func (*ListDriversResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{32}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ListDriversResponse) GetDrivers() []*Driver {
@@ -2415,7 +2503,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[33]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2427,7 +2515,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[33]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2440,7 +2528,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{33}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *LoginRequest) GetPhone() string {
@@ -2468,7 +2556,7 @@ type LoginResponse struct {
 
 func (x *LoginResponse) Reset() {
 	*x = LoginResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[34]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2480,7 +2568,7 @@ func (x *LoginResponse) String() string {
 func (*LoginResponse) ProtoMessage() {}
 
 func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[34]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2493,7 +2581,7 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{34}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *LoginResponse) GetToken() string {
@@ -2526,7 +2614,7 @@ type LoginBySMSRequest struct {
 
 func (x *LoginBySMSRequest) Reset() {
 	*x = LoginBySMSRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[35]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2538,7 +2626,7 @@ func (x *LoginBySMSRequest) String() string {
 func (*LoginBySMSRequest) ProtoMessage() {}
 
 func (x *LoginBySMSRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[35]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2551,7 +2639,7 @@ func (x *LoginBySMSRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginBySMSRequest.ProtoReflect.Descriptor instead.
 func (*LoginBySMSRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{35}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *LoginBySMSRequest) GetPhone() string {
@@ -2573,7 +2661,7 @@ type NearbyDriver struct {
 
 func (x *NearbyDriver) Reset() {
 	*x = NearbyDriver{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[36]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2585,7 +2673,7 @@ func (x *NearbyDriver) String() string {
 func (*NearbyDriver) ProtoMessage() {}
 
 func (x *NearbyDriver) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[36]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2598,7 +2686,7 @@ func (x *NearbyDriver) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NearbyDriver.ProtoReflect.Descriptor instead.
 func (*NearbyDriver) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{36}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *NearbyDriver) GetDriverId() int64 {
@@ -2641,7 +2729,7 @@ type ListNearbyDriversRequest struct {
 
 func (x *ListNearbyDriversRequest) Reset() {
 	*x = ListNearbyDriversRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[37]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2653,7 +2741,7 @@ func (x *ListNearbyDriversRequest) String() string {
 func (*ListNearbyDriversRequest) ProtoMessage() {}
 
 func (x *ListNearbyDriversRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[37]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2666,7 +2754,7 @@ func (x *ListNearbyDriversRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNearbyDriversRequest.ProtoReflect.Descriptor instead.
 func (*ListNearbyDriversRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{37}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ListNearbyDriversRequest) GetLongitude() float64 {
@@ -2706,7 +2794,7 @@ type ListNearbyDriversResponse struct {
 
 func (x *ListNearbyDriversResponse) Reset() {
 	*x = ListNearbyDriversResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[38]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2718,7 +2806,7 @@ func (x *ListNearbyDriversResponse) String() string {
 func (*ListNearbyDriversResponse) ProtoMessage() {}
 
 func (x *ListNearbyDriversResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[38]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2731,7 +2819,7 @@ func (x *ListNearbyDriversResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNearbyDriversResponse.ProtoReflect.Descriptor instead.
 func (*ListNearbyDriversResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{38}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ListNearbyDriversResponse) GetDrivers() []*NearbyDriver {
@@ -2750,7 +2838,7 @@ type GetDriverAiScoreRequest struct {
 
 func (x *GetDriverAiScoreRequest) Reset() {
 	*x = GetDriverAiScoreRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[39]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2762,7 +2850,7 @@ func (x *GetDriverAiScoreRequest) String() string {
 func (*GetDriverAiScoreRequest) ProtoMessage() {}
 
 func (x *GetDriverAiScoreRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[39]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2775,7 +2863,7 @@ func (x *GetDriverAiScoreRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDriverAiScoreRequest.ProtoReflect.Descriptor instead.
 func (*GetDriverAiScoreRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{39}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *GetDriverAiScoreRequest) GetDriverId() int64 {
@@ -2798,7 +2886,7 @@ type AiScoreFactor struct {
 
 func (x *AiScoreFactor) Reset() {
 	*x = AiScoreFactor{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[40]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2810,7 +2898,7 @@ func (x *AiScoreFactor) String() string {
 func (*AiScoreFactor) ProtoMessage() {}
 
 func (x *AiScoreFactor) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[40]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2823,7 +2911,7 @@ func (x *AiScoreFactor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AiScoreFactor.ProtoReflect.Descriptor instead.
 func (*AiScoreFactor) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{40}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *AiScoreFactor) GetKey() string {
@@ -2875,7 +2963,7 @@ type GetDriverAiScoreResponse struct {
 
 func (x *GetDriverAiScoreResponse) Reset() {
 	*x = GetDriverAiScoreResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[41]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2887,7 +2975,7 @@ func (x *GetDriverAiScoreResponse) String() string {
 func (*GetDriverAiScoreResponse) ProtoMessage() {}
 
 func (x *GetDriverAiScoreResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[41]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2900,7 +2988,7 @@ func (x *GetDriverAiScoreResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDriverAiScoreResponse.ProtoReflect.Descriptor instead.
 func (*GetDriverAiScoreResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{41}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GetDriverAiScoreResponse) GetDriverId() int64 {
@@ -2954,7 +3042,7 @@ type RefreshDriverScoreRequest struct {
 
 func (x *RefreshDriverScoreRequest) Reset() {
 	*x = RefreshDriverScoreRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[42]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2966,7 +3054,7 @@ func (x *RefreshDriverScoreRequest) String() string {
 func (*RefreshDriverScoreRequest) ProtoMessage() {}
 
 func (x *RefreshDriverScoreRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[42]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2979,7 +3067,7 @@ func (x *RefreshDriverScoreRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshDriverScoreRequest.ProtoReflect.Descriptor instead.
 func (*RefreshDriverScoreRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{42}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *RefreshDriverScoreRequest) GetDriverId() int64 {
@@ -3003,7 +3091,7 @@ type UploadCertificationRequest struct {
 
 func (x *UploadCertificationRequest) Reset() {
 	*x = UploadCertificationRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[43]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3015,7 +3103,7 @@ func (x *UploadCertificationRequest) String() string {
 func (*UploadCertificationRequest) ProtoMessage() {}
 
 func (x *UploadCertificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[43]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3028,7 +3116,7 @@ func (x *UploadCertificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadCertificationRequest.ProtoReflect.Descriptor instead.
 func (*UploadCertificationRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{43}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UploadCertificationRequest) GetDriverId() int64 {
@@ -3090,7 +3178,7 @@ type CertificationInfo struct {
 
 func (x *CertificationInfo) Reset() {
 	*x = CertificationInfo{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[44]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3102,7 +3190,7 @@ func (x *CertificationInfo) String() string {
 func (*CertificationInfo) ProtoMessage() {}
 
 func (x *CertificationInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[44]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3115,7 +3203,7 @@ func (x *CertificationInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificationInfo.ProtoReflect.Descriptor instead.
 func (*CertificationInfo) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{44}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *CertificationInfo) GetId() int64 {
@@ -3191,7 +3279,7 @@ type UploadCertificationResponse struct {
 
 func (x *UploadCertificationResponse) Reset() {
 	*x = UploadCertificationResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[45]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3203,7 +3291,7 @@ func (x *UploadCertificationResponse) String() string {
 func (*UploadCertificationResponse) ProtoMessage() {}
 
 func (x *UploadCertificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[45]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3216,7 +3304,7 @@ func (x *UploadCertificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadCertificationResponse.ProtoReflect.Descriptor instead.
 func (*UploadCertificationResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{45}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *UploadCertificationResponse) GetId() int64 {
@@ -3242,7 +3330,7 @@ type GetCertificationRequest struct {
 
 func (x *GetCertificationRequest) Reset() {
 	*x = GetCertificationRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[46]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3254,7 +3342,7 @@ func (x *GetCertificationRequest) String() string {
 func (*GetCertificationRequest) ProtoMessage() {}
 
 func (x *GetCertificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[46]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3267,7 +3355,7 @@ func (x *GetCertificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCertificationRequest.ProtoReflect.Descriptor instead.
 func (*GetCertificationRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{46}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetCertificationRequest) GetDriverId() int64 {
@@ -3287,7 +3375,7 @@ type GetCertificationResponse struct {
 
 func (x *GetCertificationResponse) Reset() {
 	*x = GetCertificationResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[47]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3299,7 +3387,7 @@ func (x *GetCertificationResponse) String() string {
 func (*GetCertificationResponse) ProtoMessage() {}
 
 func (x *GetCertificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[47]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3312,7 +3400,7 @@ func (x *GetCertificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCertificationResponse.ProtoReflect.Descriptor instead.
 func (*GetCertificationResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{47}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *GetCertificationResponse) GetCertification() *CertificationInfo {
@@ -3344,7 +3432,7 @@ type AdminListCertificationsRequest struct {
 
 func (x *AdminListCertificationsRequest) Reset() {
 	*x = AdminListCertificationsRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[48]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3356,7 +3444,7 @@ func (x *AdminListCertificationsRequest) String() string {
 func (*AdminListCertificationsRequest) ProtoMessage() {}
 
 func (x *AdminListCertificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[48]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3369,7 +3457,7 @@ func (x *AdminListCertificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListCertificationsRequest.ProtoReflect.Descriptor instead.
 func (*AdminListCertificationsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{48}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *AdminListCertificationsRequest) GetPage() int32 {
@@ -3441,7 +3529,7 @@ type AdminCertification struct {
 
 func (x *AdminCertification) Reset() {
 	*x = AdminCertification{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[49]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3453,7 +3541,7 @@ func (x *AdminCertification) String() string {
 func (*AdminCertification) ProtoMessage() {}
 
 func (x *AdminCertification) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[49]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3466,7 +3554,7 @@ func (x *AdminCertification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminCertification.ProtoReflect.Descriptor instead.
 func (*AdminCertification) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{49}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *AdminCertification) GetId() int64 {
@@ -3608,7 +3696,7 @@ type AdminListCertificationsResponse struct {
 
 func (x *AdminListCertificationsResponse) Reset() {
 	*x = AdminListCertificationsResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[50]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3620,7 +3708,7 @@ func (x *AdminListCertificationsResponse) String() string {
 func (*AdminListCertificationsResponse) ProtoMessage() {}
 
 func (x *AdminListCertificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[50]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3633,7 +3721,7 @@ func (x *AdminListCertificationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListCertificationsResponse.ProtoReflect.Descriptor instead.
 func (*AdminListCertificationsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{50}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *AdminListCertificationsResponse) GetList() []*AdminCertification {
@@ -3674,7 +3762,7 @@ type AdminGetCertificationRequest struct {
 
 func (x *AdminGetCertificationRequest) Reset() {
 	*x = AdminGetCertificationRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[51]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3686,7 +3774,7 @@ func (x *AdminGetCertificationRequest) String() string {
 func (*AdminGetCertificationRequest) ProtoMessage() {}
 
 func (x *AdminGetCertificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[51]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3699,7 +3787,7 @@ func (x *AdminGetCertificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetCertificationRequest.ProtoReflect.Descriptor instead.
 func (*AdminGetCertificationRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{51}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *AdminGetCertificationRequest) GetId() int64 {
@@ -3721,7 +3809,7 @@ type HeartbeatRequest struct {
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[52]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3733,7 +3821,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[52]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3746,7 +3834,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{52}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *HeartbeatRequest) GetDriverId() int64 {
@@ -3788,7 +3876,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[53]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3800,7 +3888,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[53]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3813,7 +3901,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{53}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *HeartbeatResponse) GetOnlineStatus() int32 {
@@ -3849,7 +3937,7 @@ type AuditCertificationRequest struct {
 
 func (x *AuditCertificationRequest) Reset() {
 	*x = AuditCertificationRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[54]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3861,7 +3949,7 @@ func (x *AuditCertificationRequest) String() string {
 func (*AuditCertificationRequest) ProtoMessage() {}
 
 func (x *AuditCertificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[54]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3874,7 +3962,7 @@ func (x *AuditCertificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditCertificationRequest.ProtoReflect.Descriptor instead.
 func (*AuditCertificationRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{54}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *AuditCertificationRequest) GetCertificationId() int64 {
@@ -3914,7 +4002,7 @@ type CommonResponse struct {
 
 func (x *CommonResponse) Reset() {
 	*x = CommonResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[55]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3926,7 +4014,7 @@ func (x *CommonResponse) String() string {
 func (*CommonResponse) ProtoMessage() {}
 
 func (x *CommonResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[55]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3939,7 +4027,7 @@ func (x *CommonResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommonResponse.ProtoReflect.Descriptor instead.
 func (*CommonResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{55}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *CommonResponse) GetMessage() string {
@@ -3950,18 +4038,20 @@ func (x *CommonResponse) GetMessage() string {
 }
 
 type CreateWithdrawRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
-	Amount        float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
-	PayeeName     string                 `protobuf:"bytes,3,opt,name=payee_name,json=payeeName,proto3" json:"payee_name,omitempty"`
-	PayAccount    string                 `protobuf:"bytes,4,opt,name=pay_account,json=payAccount,proto3" json:"pay_account,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	DriverId         int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Amount           float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	PayeeName        string                 `protobuf:"bytes,3,opt,name=payee_name,json=payeeName,proto3" json:"payee_name,omitempty"`
+	PayAccount       string                 `protobuf:"bytes,4,opt,name=pay_account,json=payAccount,proto3" json:"pay_account,omitempty"`
+	BankCardId       int64                  `protobuf:"varint,5,opt,name=bank_card_id,json=bankCardId,proto3" json:"bank_card_id,omitempty"`
+	WithdrawPassword string                 `protobuf:"bytes,6,opt,name=withdraw_password,json=withdrawPassword,proto3" json:"withdraw_password,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateWithdrawRequest) Reset() {
 	*x = CreateWithdrawRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[56]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3973,7 +4063,7 @@ func (x *CreateWithdrawRequest) String() string {
 func (*CreateWithdrawRequest) ProtoMessage() {}
 
 func (x *CreateWithdrawRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[56]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3986,7 +4076,7 @@ func (x *CreateWithdrawRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWithdrawRequest.ProtoReflect.Descriptor instead.
 func (*CreateWithdrawRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{56}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *CreateWithdrawRequest) GetDriverId() int64 {
@@ -4017,6 +4107,20 @@ func (x *CreateWithdrawRequest) GetPayAccount() string {
 	return ""
 }
 
+func (x *CreateWithdrawRequest) GetBankCardId() int64 {
+	if x != nil {
+		return x.BankCardId
+	}
+	return 0
+}
+
+func (x *CreateWithdrawRequest) GetWithdrawPassword() string {
+	if x != nil {
+		return x.WithdrawPassword
+	}
+	return ""
+}
+
 type CreateWithdrawResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -4029,7 +4133,7 @@ type CreateWithdrawResponse struct {
 
 func (x *CreateWithdrawResponse) Reset() {
 	*x = CreateWithdrawResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[57]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4041,7 +4145,7 @@ func (x *CreateWithdrawResponse) String() string {
 func (*CreateWithdrawResponse) ProtoMessage() {}
 
 func (x *CreateWithdrawResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[57]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4054,7 +4158,7 @@ func (x *CreateWithdrawResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWithdrawResponse.ProtoReflect.Descriptor instead.
 func (*CreateWithdrawResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{57}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *CreateWithdrawResponse) GetId() int64 {
@@ -4096,7 +4200,7 @@ type ListWithdrawsRequest struct {
 
 func (x *ListWithdrawsRequest) Reset() {
 	*x = ListWithdrawsRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[58]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4108,7 +4212,7 @@ func (x *ListWithdrawsRequest) String() string {
 func (*ListWithdrawsRequest) ProtoMessage() {}
 
 func (x *ListWithdrawsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[58]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4121,7 +4225,7 @@ func (x *ListWithdrawsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWithdrawsRequest.ProtoReflect.Descriptor instead.
 func (*ListWithdrawsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{58}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ListWithdrawsRequest) GetDriverId() int64 {
@@ -4164,7 +4268,7 @@ type WithdrawRecord struct {
 
 func (x *WithdrawRecord) Reset() {
 	*x = WithdrawRecord{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[59]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4176,7 +4280,7 @@ func (x *WithdrawRecord) String() string {
 func (*WithdrawRecord) ProtoMessage() {}
 
 func (x *WithdrawRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[59]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4189,7 +4293,7 @@ func (x *WithdrawRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawRecord.ProtoReflect.Descriptor instead.
 func (*WithdrawRecord) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{59}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *WithdrawRecord) GetId() int64 {
@@ -4282,7 +4386,7 @@ type AdminListWithdrawsRequest struct {
 
 func (x *AdminListWithdrawsRequest) Reset() {
 	*x = AdminListWithdrawsRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[60]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4294,7 +4398,7 @@ func (x *AdminListWithdrawsRequest) String() string {
 func (*AdminListWithdrawsRequest) ProtoMessage() {}
 
 func (x *AdminListWithdrawsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[60]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4307,7 +4411,7 @@ func (x *AdminListWithdrawsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListWithdrawsRequest.ProtoReflect.Descriptor instead.
 func (*AdminListWithdrawsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{60}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *AdminListWithdrawsRequest) GetPage() int32 {
@@ -4358,7 +4462,7 @@ type AuditWithdrawRequest struct {
 
 func (x *AuditWithdrawRequest) Reset() {
 	*x = AuditWithdrawRequest{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[61]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4370,7 +4474,7 @@ func (x *AuditWithdrawRequest) String() string {
 func (*AuditWithdrawRequest) ProtoMessage() {}
 
 func (x *AuditWithdrawRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[61]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4383,7 +4487,7 @@ func (x *AuditWithdrawRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditWithdrawRequest.ProtoReflect.Descriptor instead.
 func (*AuditWithdrawRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{61}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *AuditWithdrawRequest) GetWithdrawId() int64 {
@@ -4430,7 +4534,7 @@ type AuditWithdrawResponse struct {
 
 func (x *AuditWithdrawResponse) Reset() {
 	*x = AuditWithdrawResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[62]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4442,7 +4546,7 @@ func (x *AuditWithdrawResponse) String() string {
 func (*AuditWithdrawResponse) ProtoMessage() {}
 
 func (x *AuditWithdrawResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[62]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4455,7 +4559,7 @@ func (x *AuditWithdrawResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditWithdrawResponse.ProtoReflect.Descriptor instead.
 func (*AuditWithdrawResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{62}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *AuditWithdrawResponse) GetDriverId() int64 {
@@ -4475,7 +4579,7 @@ type ListWithdrawsResponse struct {
 
 func (x *ListWithdrawsResponse) Reset() {
 	*x = ListWithdrawsResponse{}
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[63]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4487,7 +4591,7 @@ func (x *ListWithdrawsResponse) String() string {
 func (*ListWithdrawsResponse) ProtoMessage() {}
 
 func (x *ListWithdrawsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[63]
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4500,7 +4604,7 @@ func (x *ListWithdrawsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWithdrawsResponse.ProtoReflect.Descriptor instead.
 func (*ListWithdrawsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{63}
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *ListWithdrawsResponse) GetRecords() []*WithdrawRecord {
@@ -4515,6 +4619,546 @@ func (x *ListWithdrawsResponse) GetTotal() int64 {
 		return x.Total
 	}
 	return 0
+}
+
+type BindBankCardRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	BankName      string                 `protobuf:"bytes,2,opt,name=bank_name,json=bankName,proto3" json:"bank_name,omitempty"`
+	CardNo        string                 `protobuf:"bytes,3,opt,name=card_no,json=cardNo,proto3" json:"card_no,omitempty"`
+	HolderName    string                 `protobuf:"bytes,4,opt,name=holder_name,json=holderName,proto3" json:"holder_name,omitempty"`
+	HolderIdCard  string                 `protobuf:"bytes,5,opt,name=holder_id_card,json=holderIdCard,proto3" json:"holder_id_card,omitempty"`
+	ReservedPhone string                 `protobuf:"bytes,6,opt,name=reserved_phone,json=reservedPhone,proto3" json:"reserved_phone,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BindBankCardRequest) Reset() {
+	*x = BindBankCardRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BindBankCardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BindBankCardRequest) ProtoMessage() {}
+
+func (x *BindBankCardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BindBankCardRequest.ProtoReflect.Descriptor instead.
+func (*BindBankCardRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *BindBankCardRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *BindBankCardRequest) GetBankName() string {
+	if x != nil {
+		return x.BankName
+	}
+	return ""
+}
+
+func (x *BindBankCardRequest) GetCardNo() string {
+	if x != nil {
+		return x.CardNo
+	}
+	return ""
+}
+
+func (x *BindBankCardRequest) GetHolderName() string {
+	if x != nil {
+		return x.HolderName
+	}
+	return ""
+}
+
+func (x *BindBankCardRequest) GetHolderIdCard() string {
+	if x != nil {
+		return x.HolderIdCard
+	}
+	return ""
+}
+
+func (x *BindBankCardRequest) GetReservedPhone() string {
+	if x != nil {
+		return x.ReservedPhone
+	}
+	return ""
+}
+
+type BindBankCardResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	BankName         string                 `protobuf:"bytes,2,opt,name=bank_name,json=bankName,proto3" json:"bank_name,omitempty"`
+	MaskedCardNo     string                 `protobuf:"bytes,3,opt,name=masked_card_no,json=maskedCardNo,proto3" json:"masked_card_no,omitempty"`
+	WithdrawPassword string                 `protobuf:"bytes,4,opt,name=withdraw_password,json=withdrawPassword,proto3" json:"withdraw_password,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *BindBankCardResponse) Reset() {
+	*x = BindBankCardResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BindBankCardResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BindBankCardResponse) ProtoMessage() {}
+
+func (x *BindBankCardResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BindBankCardResponse.ProtoReflect.Descriptor instead.
+func (*BindBankCardResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *BindBankCardResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *BindBankCardResponse) GetBankName() string {
+	if x != nil {
+		return x.BankName
+	}
+	return ""
+}
+
+func (x *BindBankCardResponse) GetMaskedCardNo() string {
+	if x != nil {
+		return x.MaskedCardNo
+	}
+	return ""
+}
+
+func (x *BindBankCardResponse) GetWithdrawPassword() string {
+	if x != nil {
+		return x.WithdrawPassword
+	}
+	return ""
+}
+
+type BankCardInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	BankName      string                 `protobuf:"bytes,2,opt,name=bank_name,json=bankName,proto3" json:"bank_name,omitempty"`
+	MaskedCardNo  string                 `protobuf:"bytes,3,opt,name=masked_card_no,json=maskedCardNo,proto3" json:"masked_card_no,omitempty"`
+	HolderName    string                 `protobuf:"bytes,4,opt,name=holder_name,json=holderName,proto3" json:"holder_name,omitempty"`
+	ReservedPhone string                 `protobuf:"bytes,5,opt,name=reserved_phone,json=reservedPhone,proto3" json:"reserved_phone,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BankCardInfo) Reset() {
+	*x = BankCardInfo{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BankCardInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BankCardInfo) ProtoMessage() {}
+
+func (x *BankCardInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BankCardInfo.ProtoReflect.Descriptor instead.
+func (*BankCardInfo) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *BankCardInfo) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *BankCardInfo) GetBankName() string {
+	if x != nil {
+		return x.BankName
+	}
+	return ""
+}
+
+func (x *BankCardInfo) GetMaskedCardNo() string {
+	if x != nil {
+		return x.MaskedCardNo
+	}
+	return ""
+}
+
+func (x *BankCardInfo) GetHolderName() string {
+	if x != nil {
+		return x.HolderName
+	}
+	return ""
+}
+
+func (x *BankCardInfo) GetReservedPhone() string {
+	if x != nil {
+		return x.ReservedPhone
+	}
+	return ""
+}
+
+func (x *BankCardInfo) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type ListBankCardsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBankCardsRequest) Reset() {
+	*x = ListBankCardsRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBankCardsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBankCardsRequest) ProtoMessage() {}
+
+func (x *ListBankCardsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBankCardsRequest.ProtoReflect.Descriptor instead.
+func (*ListBankCardsRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *ListBankCardsRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type ListBankCardsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cards         []*BankCardInfo        `protobuf:"bytes,1,rep,name=cards,proto3" json:"cards,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBankCardsResponse) Reset() {
+	*x = ListBankCardsResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBankCardsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBankCardsResponse) ProtoMessage() {}
+
+func (x *ListBankCardsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBankCardsResponse.ProtoReflect.Descriptor instead.
+func (*ListBankCardsResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *ListBankCardsResponse) GetCards() []*BankCardInfo {
+	if x != nil {
+		return x.Cards
+	}
+	return nil
+}
+
+type DeleteBankCardRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteBankCardRequest) Reset() {
+	*x = DeleteBankCardRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteBankCardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteBankCardRequest) ProtoMessage() {}
+
+func (x *DeleteBankCardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteBankCardRequest.ProtoReflect.Descriptor instead.
+func (*DeleteBankCardRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *DeleteBankCardRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *DeleteBankCardRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type VerifyWithdrawPasswordRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyWithdrawPasswordRequest) Reset() {
+	*x = VerifyWithdrawPasswordRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyWithdrawPasswordRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyWithdrawPasswordRequest) ProtoMessage() {}
+
+func (x *VerifyWithdrawPasswordRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyWithdrawPasswordRequest.ProtoReflect.Descriptor instead.
+func (*VerifyWithdrawPasswordRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *VerifyWithdrawPasswordRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *VerifyWithdrawPasswordRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+type ResetWithdrawPasswordRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      int64                  `protobuf:"varint,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Phone         string                 `protobuf:"bytes,2,opt,name=phone,proto3" json:"phone,omitempty"`
+	IdCardNo      string                 `protobuf:"bytes,3,opt,name=id_card_no,json=idCardNo,proto3" json:"id_card_no,omitempty"`
+	RealName      string                 `protobuf:"bytes,4,opt,name=real_name,json=realName,proto3" json:"real_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResetWithdrawPasswordRequest) Reset() {
+	*x = ResetWithdrawPasswordRequest{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetWithdrawPasswordRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetWithdrawPasswordRequest) ProtoMessage() {}
+
+func (x *ResetWithdrawPasswordRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetWithdrawPasswordRequest.ProtoReflect.Descriptor instead.
+func (*ResetWithdrawPasswordRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *ResetWithdrawPasswordRequest) GetDriverId() int64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *ResetWithdrawPasswordRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *ResetWithdrawPasswordRequest) GetIdCardNo() string {
+	if x != nil {
+		return x.IdCardNo
+	}
+	return ""
+}
+
+func (x *ResetWithdrawPasswordRequest) GetRealName() string {
+	if x != nil {
+		return x.RealName
+	}
+	return ""
+}
+
+type ResetWithdrawPasswordResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	WithdrawPassword string                 `protobuf:"bytes,1,opt,name=withdraw_password,json=withdrawPassword,proto3" json:"withdraw_password,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ResetWithdrawPasswordResponse) Reset() {
+	*x = ResetWithdrawPasswordResponse{}
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetWithdrawPasswordResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetWithdrawPasswordResponse) ProtoMessage() {}
+
+func (x *ResetWithdrawPasswordResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_driversvc_proto_driversvc_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetWithdrawPasswordResponse.ProtoReflect.Descriptor instead.
+func (*ResetWithdrawPasswordResponse) Descriptor() ([]byte, []int) {
+	return file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *ResetWithdrawPasswordResponse) GetWithdrawPassword() string {
+	if x != nil {
+		return x.WithdrawPassword
+	}
+	return ""
 }
 
 var File_rpc_driversvc_proto_driversvc_proto protoreflect.FileDescriptor
@@ -4728,7 +5372,11 @@ const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
 	"\x11GetVehicleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"B\n" +
 	"\x12GetVehicleResponse\x12,\n" +
-	"\avehicle\x18\x01 \x01(\v2\x12.driversvc.VehicleR\avehicle\"\xa0\x01\n" +
+	"\avehicle\x18\x01 \x01(\v2\x12.driversvc.VehicleR\avehicle\"2\n" +
+	"\x13ListVehiclesRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\"F\n" +
+	"\x14ListVehiclesResponse\x12.\n" +
+	"\bvehicles\x18\x01 \x03(\v2\x12.driversvc.VehicleR\bvehicles\"\xa0\x01\n" +
 	"\x12ListDriversRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x124\n" +
@@ -4863,14 +5511,17 @@ const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
 	"operatorId\x12\x0e\n" +
 	"\x02ip\x18\x04 \x01(\tR\x02ip\"*\n" +
 	"\x0eCommonResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\x8c\x01\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\xdb\x01\n" +
 	"\x15CreateWithdrawRequest\x12\x1b\n" +
 	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\x01R\x06amount\x12\x1d\n" +
 	"\n" +
 	"payee_name\x18\x03 \x01(\tR\tpayeeName\x12\x1f\n" +
 	"\vpay_account\x18\x04 \x01(\tR\n" +
-	"payAccount\"\x80\x01\n" +
+	"payAccount\x12 \n" +
+	"\fbank_card_id\x18\x05 \x01(\x03R\n" +
+	"bankCardId\x12+\n" +
+	"\x11withdraw_password\x18\x06 \x01(\tR\x10withdrawPassword\"\x80\x01\n" +
 	"\x16CreateWithdrawResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vwithdraw_no\x18\x02 \x01(\tR\n" +
@@ -4919,7 +5570,47 @@ const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
 	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\"b\n" +
 	"\x15ListWithdrawsResponse\x123\n" +
 	"\arecords\x18\x01 \x03(\v2\x19.driversvc.WithdrawRecordR\arecords\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x03R\x05total*\x99\x01\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\"\xd6\x01\n" +
+	"\x13BindBankCardRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x1b\n" +
+	"\tbank_name\x18\x02 \x01(\tR\bbankName\x12\x17\n" +
+	"\acard_no\x18\x03 \x01(\tR\x06cardNo\x12\x1f\n" +
+	"\vholder_name\x18\x04 \x01(\tR\n" +
+	"holderName\x12$\n" +
+	"\x0eholder_id_card\x18\x05 \x01(\tR\fholderIdCard\x12%\n" +
+	"\x0ereserved_phone\x18\x06 \x01(\tR\rreservedPhone\"\x96\x01\n" +
+	"\x14BindBankCardResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tbank_name\x18\x02 \x01(\tR\bbankName\x12$\n" +
+	"\x0emasked_card_no\x18\x03 \x01(\tR\fmaskedCardNo\x12+\n" +
+	"\x11withdraw_password\x18\x04 \x01(\tR\x10withdrawPassword\"\xc8\x01\n" +
+	"\fBankCardInfo\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tbank_name\x18\x02 \x01(\tR\bbankName\x12$\n" +
+	"\x0emasked_card_no\x18\x03 \x01(\tR\fmaskedCardNo\x12\x1f\n" +
+	"\vholder_name\x18\x04 \x01(\tR\n" +
+	"holderName\x12%\n" +
+	"\x0ereserved_phone\x18\x05 \x01(\tR\rreservedPhone\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\x03R\tcreatedAt\"3\n" +
+	"\x14ListBankCardsRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\"F\n" +
+	"\x15ListBankCardsResponse\x12-\n" +
+	"\x05cards\x18\x01 \x03(\v2\x17.driversvc.BankCardInfoR\x05cards\"D\n" +
+	"\x15DeleteBankCardRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\"X\n" +
+	"\x1dVerifyWithdrawPasswordRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"\x8c\x01\n" +
+	"\x1cResetWithdrawPasswordRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\x03R\bdriverId\x12\x14\n" +
+	"\x05phone\x18\x02 \x01(\tR\x05phone\x12\x1c\n" +
+	"\n" +
+	"id_card_no\x18\x03 \x01(\tR\bidCardNo\x12\x1b\n" +
+	"\treal_name\x18\x04 \x01(\tR\brealName\"L\n" +
+	"\x1dResetWithdrawPasswordResponse\x12+\n" +
+	"\x11withdraw_password\x18\x01 \x01(\tR\x10withdrawPassword*\x99\x01\n" +
 	"\fDriverStatus\x12\x1d\n" +
 	"\x19DRIVER_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15DRIVER_STATUS_PENDING\x10\x01\x12\x18\n" +
@@ -4930,7 +5621,7 @@ const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
 	"\x1aVEHICLE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16VEHICLE_STATUS_PENDING\x10\x01\x12\x19\n" +
 	"\x15VEHICLE_STATUS_NORMAL\x10\x02\x12\x1b\n" +
-	"\x17VEHICLE_STATUS_DISABLED\x10\x032\xe0\x17\n" +
+	"\x17VEHICLE_STATUS_DISABLED\x10\x032\xf0\x1b\n" +
 	"\rDriverService\x12O\n" +
 	"\fCreateDriver\x12\x1e.driversvc.CreateDriverRequest\x1a\x1f.driversvc.CreateDriverResponse\x12Q\n" +
 	"\x0eRegisterDriver\x12\x1e.driversvc.CreateDriverRequest\x1a\x1f.driversvc.CreateDriverResponse\x12O\n" +
@@ -4951,7 +5642,8 @@ const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
 	"\rUpdateVehicle\x12\x1f.driversvc.UpdateVehicleRequest\x1a .driversvc.UpdateVehicleResponse\x12R\n" +
 	"\rDeleteVehicle\x12\x1f.driversvc.DeleteVehicleRequest\x1a .driversvc.DeleteVehicleResponse\x12I\n" +
 	"\n" +
-	"GetVehicle\x12\x1c.driversvc.GetVehicleRequest\x1a\x1d.driversvc.GetVehicleResponse\x12L\n" +
+	"GetVehicle\x12\x1c.driversvc.GetVehicleRequest\x1a\x1d.driversvc.GetVehicleResponse\x12O\n" +
+	"\fListVehicles\x12\x1e.driversvc.ListVehiclesRequest\x1a\x1f.driversvc.ListVehiclesResponse\x12L\n" +
 	"\vListDrivers\x12\x1d.driversvc.ListDriversRequest\x1a\x1e.driversvc.ListDriversResponse\x12:\n" +
 	"\x05Login\x12\x17.driversvc.LoginRequest\x1a\x18.driversvc.LoginResponse\x12D\n" +
 	"\n" +
@@ -4968,7 +5660,12 @@ const file_rpc_driversvc_proto_driversvc_proto_rawDesc = "" +
 	"\x0eCreateWithdraw\x12 .driversvc.CreateWithdrawRequest\x1a!.driversvc.CreateWithdrawResponse\x12R\n" +
 	"\rListWithdraws\x12\x1f.driversvc.ListWithdrawsRequest\x1a .driversvc.ListWithdrawsResponse\x12\\\n" +
 	"\x12AdminListWithdraws\x12$.driversvc.AdminListWithdrawsRequest\x1a .driversvc.ListWithdrawsResponse\x12R\n" +
-	"\rAuditWithdraw\x12\x1f.driversvc.AuditWithdrawRequest\x1a .driversvc.AuditWithdrawResponseB\n" +
+	"\rAuditWithdraw\x12\x1f.driversvc.AuditWithdrawRequest\x1a .driversvc.AuditWithdrawResponse\x12O\n" +
+	"\fBindBankCard\x12\x1e.driversvc.BindBankCardRequest\x1a\x1f.driversvc.BindBankCardResponse\x12R\n" +
+	"\rListBankCards\x12\x1f.driversvc.ListBankCardsRequest\x1a .driversvc.ListBankCardsResponse\x12M\n" +
+	"\x0eDeleteBankCard\x12 .driversvc.DeleteBankCardRequest\x1a\x19.driversvc.CommonResponse\x12]\n" +
+	"\x16VerifyWithdrawPassword\x12(.driversvc.VerifyWithdrawPasswordRequest\x1a\x19.driversvc.CommonResponse\x12j\n" +
+	"\x15ResetWithdrawPassword\x12'.driversvc.ResetWithdrawPasswordRequest\x1a(.driversvc.ResetWithdrawPasswordResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
 var (
@@ -4984,7 +5681,7 @@ func file_rpc_driversvc_proto_driversvc_proto_rawDescGZIP() []byte {
 }
 
 var file_rpc_driversvc_proto_driversvc_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_rpc_driversvc_proto_driversvc_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
+var file_rpc_driversvc_proto_driversvc_proto_msgTypes = make([]protoimpl.MessageInfo, 75)
 var file_rpc_driversvc_proto_driversvc_proto_goTypes = []any{
 	(DriverStatus)(0),                       // 0: driversvc.DriverStatus
 	(VehicleStatus)(0),                      // 1: driversvc.VehicleStatus
@@ -5019,39 +5716,50 @@ var file_rpc_driversvc_proto_driversvc_proto_goTypes = []any{
 	(*DeleteVehicleResponse)(nil),           // 30: driversvc.DeleteVehicleResponse
 	(*GetVehicleRequest)(nil),               // 31: driversvc.GetVehicleRequest
 	(*GetVehicleResponse)(nil),              // 32: driversvc.GetVehicleResponse
-	(*ListDriversRequest)(nil),              // 33: driversvc.ListDriversRequest
-	(*ListDriversResponse)(nil),             // 34: driversvc.ListDriversResponse
-	(*LoginRequest)(nil),                    // 35: driversvc.LoginRequest
-	(*LoginResponse)(nil),                   // 36: driversvc.LoginResponse
-	(*LoginBySMSRequest)(nil),               // 37: driversvc.LoginBySMSRequest
-	(*NearbyDriver)(nil),                    // 38: driversvc.NearbyDriver
-	(*ListNearbyDriversRequest)(nil),        // 39: driversvc.ListNearbyDriversRequest
-	(*ListNearbyDriversResponse)(nil),       // 40: driversvc.ListNearbyDriversResponse
-	(*GetDriverAiScoreRequest)(nil),         // 41: driversvc.GetDriverAiScoreRequest
-	(*AiScoreFactor)(nil),                   // 42: driversvc.AiScoreFactor
-	(*GetDriverAiScoreResponse)(nil),        // 43: driversvc.GetDriverAiScoreResponse
-	(*RefreshDriverScoreRequest)(nil),       // 44: driversvc.RefreshDriverScoreRequest
-	(*UploadCertificationRequest)(nil),      // 45: driversvc.UploadCertificationRequest
-	(*CertificationInfo)(nil),               // 46: driversvc.CertificationInfo
-	(*UploadCertificationResponse)(nil),     // 47: driversvc.UploadCertificationResponse
-	(*GetCertificationRequest)(nil),         // 48: driversvc.GetCertificationRequest
-	(*GetCertificationResponse)(nil),        // 49: driversvc.GetCertificationResponse
-	(*AdminListCertificationsRequest)(nil),  // 50: driversvc.AdminListCertificationsRequest
-	(*AdminCertification)(nil),              // 51: driversvc.AdminCertification
-	(*AdminListCertificationsResponse)(nil), // 52: driversvc.AdminListCertificationsResponse
-	(*AdminGetCertificationRequest)(nil),    // 53: driversvc.AdminGetCertificationRequest
-	(*HeartbeatRequest)(nil),                // 54: driversvc.HeartbeatRequest
-	(*HeartbeatResponse)(nil),               // 55: driversvc.HeartbeatResponse
-	(*AuditCertificationRequest)(nil),       // 56: driversvc.AuditCertificationRequest
-	(*CommonResponse)(nil),                  // 57: driversvc.CommonResponse
-	(*CreateWithdrawRequest)(nil),           // 58: driversvc.CreateWithdrawRequest
-	(*CreateWithdrawResponse)(nil),          // 59: driversvc.CreateWithdrawResponse
-	(*ListWithdrawsRequest)(nil),            // 60: driversvc.ListWithdrawsRequest
-	(*WithdrawRecord)(nil),                  // 61: driversvc.WithdrawRecord
-	(*AdminListWithdrawsRequest)(nil),       // 62: driversvc.AdminListWithdrawsRequest
-	(*AuditWithdrawRequest)(nil),            // 63: driversvc.AuditWithdrawRequest
-	(*AuditWithdrawResponse)(nil),           // 64: driversvc.AuditWithdrawResponse
-	(*ListWithdrawsResponse)(nil),           // 65: driversvc.ListWithdrawsResponse
+	(*ListVehiclesRequest)(nil),             // 33: driversvc.ListVehiclesRequest
+	(*ListVehiclesResponse)(nil),            // 34: driversvc.ListVehiclesResponse
+	(*ListDriversRequest)(nil),              // 35: driversvc.ListDriversRequest
+	(*ListDriversResponse)(nil),             // 36: driversvc.ListDriversResponse
+	(*LoginRequest)(nil),                    // 37: driversvc.LoginRequest
+	(*LoginResponse)(nil),                   // 38: driversvc.LoginResponse
+	(*LoginBySMSRequest)(nil),               // 39: driversvc.LoginBySMSRequest
+	(*NearbyDriver)(nil),                    // 40: driversvc.NearbyDriver
+	(*ListNearbyDriversRequest)(nil),        // 41: driversvc.ListNearbyDriversRequest
+	(*ListNearbyDriversResponse)(nil),       // 42: driversvc.ListNearbyDriversResponse
+	(*GetDriverAiScoreRequest)(nil),         // 43: driversvc.GetDriverAiScoreRequest
+	(*AiScoreFactor)(nil),                   // 44: driversvc.AiScoreFactor
+	(*GetDriverAiScoreResponse)(nil),        // 45: driversvc.GetDriverAiScoreResponse
+	(*RefreshDriverScoreRequest)(nil),       // 46: driversvc.RefreshDriverScoreRequest
+	(*UploadCertificationRequest)(nil),      // 47: driversvc.UploadCertificationRequest
+	(*CertificationInfo)(nil),               // 48: driversvc.CertificationInfo
+	(*UploadCertificationResponse)(nil),     // 49: driversvc.UploadCertificationResponse
+	(*GetCertificationRequest)(nil),         // 50: driversvc.GetCertificationRequest
+	(*GetCertificationResponse)(nil),        // 51: driversvc.GetCertificationResponse
+	(*AdminListCertificationsRequest)(nil),  // 52: driversvc.AdminListCertificationsRequest
+	(*AdminCertification)(nil),              // 53: driversvc.AdminCertification
+	(*AdminListCertificationsResponse)(nil), // 54: driversvc.AdminListCertificationsResponse
+	(*AdminGetCertificationRequest)(nil),    // 55: driversvc.AdminGetCertificationRequest
+	(*HeartbeatRequest)(nil),                // 56: driversvc.HeartbeatRequest
+	(*HeartbeatResponse)(nil),               // 57: driversvc.HeartbeatResponse
+	(*AuditCertificationRequest)(nil),       // 58: driversvc.AuditCertificationRequest
+	(*CommonResponse)(nil),                  // 59: driversvc.CommonResponse
+	(*CreateWithdrawRequest)(nil),           // 60: driversvc.CreateWithdrawRequest
+	(*CreateWithdrawResponse)(nil),          // 61: driversvc.CreateWithdrawResponse
+	(*ListWithdrawsRequest)(nil),            // 62: driversvc.ListWithdrawsRequest
+	(*WithdrawRecord)(nil),                  // 63: driversvc.WithdrawRecord
+	(*AdminListWithdrawsRequest)(nil),       // 64: driversvc.AdminListWithdrawsRequest
+	(*AuditWithdrawRequest)(nil),            // 65: driversvc.AuditWithdrawRequest
+	(*AuditWithdrawResponse)(nil),           // 66: driversvc.AuditWithdrawResponse
+	(*ListWithdrawsResponse)(nil),           // 67: driversvc.ListWithdrawsResponse
+	(*BindBankCardRequest)(nil),             // 68: driversvc.BindBankCardRequest
+	(*BindBankCardResponse)(nil),            // 69: driversvc.BindBankCardResponse
+	(*BankCardInfo)(nil),                    // 70: driversvc.BankCardInfo
+	(*ListBankCardsRequest)(nil),            // 71: driversvc.ListBankCardsRequest
+	(*ListBankCardsResponse)(nil),           // 72: driversvc.ListBankCardsResponse
+	(*DeleteBankCardRequest)(nil),           // 73: driversvc.DeleteBankCardRequest
+	(*VerifyWithdrawPasswordRequest)(nil),   // 74: driversvc.VerifyWithdrawPasswordRequest
+	(*ResetWithdrawPasswordRequest)(nil),    // 75: driversvc.ResetWithdrawPasswordRequest
+	(*ResetWithdrawPasswordResponse)(nil),   // 76: driversvc.ResetWithdrawPasswordResponse
 }
 var file_rpc_driversvc_proto_driversvc_proto_depIdxs = []int32{
 	0,  // 0: driversvc.Driver.status:type_name -> driversvc.DriverStatus
@@ -5065,90 +5773,104 @@ var file_rpc_driversvc_proto_driversvc_proto_depIdxs = []int32{
 	1,  // 8: driversvc.UpdateVehicleRequest.status:type_name -> driversvc.VehicleStatus
 	1,  // 9: driversvc.UpdateVehicleResponse.status:type_name -> driversvc.VehicleStatus
 	24, // 10: driversvc.GetVehicleResponse.vehicle:type_name -> driversvc.Vehicle
-	0,  // 11: driversvc.ListDriversRequest.status:type_name -> driversvc.DriverStatus
-	2,  // 12: driversvc.ListDriversResponse.drivers:type_name -> driversvc.Driver
-	2,  // 13: driversvc.LoginResponse.driver:type_name -> driversvc.Driver
-	38, // 14: driversvc.ListNearbyDriversResponse.drivers:type_name -> driversvc.NearbyDriver
-	42, // 15: driversvc.GetDriverAiScoreResponse.factors:type_name -> driversvc.AiScoreFactor
-	46, // 16: driversvc.UploadCertificationResponse.certification:type_name -> driversvc.CertificationInfo
-	46, // 17: driversvc.GetCertificationResponse.certification:type_name -> driversvc.CertificationInfo
-	51, // 18: driversvc.AdminListCertificationsResponse.list:type_name -> driversvc.AdminCertification
-	61, // 19: driversvc.ListWithdrawsResponse.records:type_name -> driversvc.WithdrawRecord
-	3,  // 20: driversvc.DriverService.CreateDriver:input_type -> driversvc.CreateDriverRequest
-	3,  // 21: driversvc.DriverService.RegisterDriver:input_type -> driversvc.CreateDriverRequest
-	5,  // 22: driversvc.DriverService.UpdateDriver:input_type -> driversvc.UpdateDriverRequest
-	7,  // 23: driversvc.DriverService.DeleteDriver:input_type -> driversvc.DeleteDriverRequest
-	9,  // 24: driversvc.DriverService.GetDriver:input_type -> driversvc.GetDriverRequest
-	22, // 25: driversvc.DriverService.GetDriverByPhone:input_type -> driversvc.GetDriverByPhoneRequest
-	11, // 26: driversvc.DriverService.FreezeDriver:input_type -> driversvc.FreezeDriverRequest
-	12, // 27: driversvc.DriverService.UnfreezeDriver:input_type -> driversvc.UnfreezeDriverRequest
-	13, // 28: driversvc.DriverService.SetDriverOnline:input_type -> driversvc.SetDriverOnlineRequest
-	15, // 29: driversvc.DriverService.SetDriverOffline:input_type -> driversvc.SetDriverOfflineRequest
-	17, // 30: driversvc.DriverService.ReportLocation:input_type -> driversvc.ReportLocationRequest
-	19, // 31: driversvc.DriverService.SetDriverServiceStatus:input_type -> driversvc.SetDriverServiceStatusRequest
-	21, // 32: driversvc.DriverService.ApplyAdminPunishment:input_type -> driversvc.AdminPunishmentRequest
-	21, // 33: driversvc.DriverService.ReverseAdminPunishment:input_type -> driversvc.AdminPunishmentRequest
-	54, // 34: driversvc.DriverService.Heartbeat:input_type -> driversvc.HeartbeatRequest
-	25, // 35: driversvc.DriverService.CreateVehicle:input_type -> driversvc.CreateVehicleRequest
-	27, // 36: driversvc.DriverService.UpdateVehicle:input_type -> driversvc.UpdateVehicleRequest
-	29, // 37: driversvc.DriverService.DeleteVehicle:input_type -> driversvc.DeleteVehicleRequest
-	31, // 38: driversvc.DriverService.GetVehicle:input_type -> driversvc.GetVehicleRequest
-	33, // 39: driversvc.DriverService.ListDrivers:input_type -> driversvc.ListDriversRequest
-	35, // 40: driversvc.DriverService.Login:input_type -> driversvc.LoginRequest
-	37, // 41: driversvc.DriverService.LoginBySms:input_type -> driversvc.LoginBySMSRequest
-	39, // 42: driversvc.DriverService.ListNearbyDrivers:input_type -> driversvc.ListNearbyDriversRequest
-	41, // 43: driversvc.DriverService.GetDriverAiScore:input_type -> driversvc.GetDriverAiScoreRequest
-	44, // 44: driversvc.DriverService.RefreshDriverScore:input_type -> driversvc.RefreshDriverScoreRequest
-	45, // 45: driversvc.DriverService.UploadCertification:input_type -> driversvc.UploadCertificationRequest
-	48, // 46: driversvc.DriverService.GetCertification:input_type -> driversvc.GetCertificationRequest
-	56, // 47: driversvc.DriverService.ApproveCertification:input_type -> driversvc.AuditCertificationRequest
-	56, // 48: driversvc.DriverService.RejectCertification:input_type -> driversvc.AuditCertificationRequest
-	50, // 49: driversvc.DriverService.AdminListCertifications:input_type -> driversvc.AdminListCertificationsRequest
-	53, // 50: driversvc.DriverService.AdminGetCertification:input_type -> driversvc.AdminGetCertificationRequest
-	58, // 51: driversvc.DriverService.CreateWithdraw:input_type -> driversvc.CreateWithdrawRequest
-	60, // 52: driversvc.DriverService.ListWithdraws:input_type -> driversvc.ListWithdrawsRequest
-	62, // 53: driversvc.DriverService.AdminListWithdraws:input_type -> driversvc.AdminListWithdrawsRequest
-	63, // 54: driversvc.DriverService.AuditWithdraw:input_type -> driversvc.AuditWithdrawRequest
-	4,  // 55: driversvc.DriverService.CreateDriver:output_type -> driversvc.CreateDriverResponse
-	4,  // 56: driversvc.DriverService.RegisterDriver:output_type -> driversvc.CreateDriverResponse
-	6,  // 57: driversvc.DriverService.UpdateDriver:output_type -> driversvc.UpdateDriverResponse
-	8,  // 58: driversvc.DriverService.DeleteDriver:output_type -> driversvc.DeleteDriverResponse
-	10, // 59: driversvc.DriverService.GetDriver:output_type -> driversvc.GetDriverResponse
-	23, // 60: driversvc.DriverService.GetDriverByPhone:output_type -> driversvc.GetDriverByPhoneResponse
-	57, // 61: driversvc.DriverService.FreezeDriver:output_type -> driversvc.CommonResponse
-	57, // 62: driversvc.DriverService.UnfreezeDriver:output_type -> driversvc.CommonResponse
-	14, // 63: driversvc.DriverService.SetDriverOnline:output_type -> driversvc.SetDriverOnlineResponse
-	16, // 64: driversvc.DriverService.SetDriverOffline:output_type -> driversvc.SetDriverOfflineResponse
-	18, // 65: driversvc.DriverService.ReportLocation:output_type -> driversvc.ReportLocationResponse
-	20, // 66: driversvc.DriverService.SetDriverServiceStatus:output_type -> driversvc.SetDriverServiceStatusResponse
-	57, // 67: driversvc.DriverService.ApplyAdminPunishment:output_type -> driversvc.CommonResponse
-	57, // 68: driversvc.DriverService.ReverseAdminPunishment:output_type -> driversvc.CommonResponse
-	55, // 69: driversvc.DriverService.Heartbeat:output_type -> driversvc.HeartbeatResponse
-	26, // 70: driversvc.DriverService.CreateVehicle:output_type -> driversvc.CreateVehicleResponse
-	28, // 71: driversvc.DriverService.UpdateVehicle:output_type -> driversvc.UpdateVehicleResponse
-	30, // 72: driversvc.DriverService.DeleteVehicle:output_type -> driversvc.DeleteVehicleResponse
-	32, // 73: driversvc.DriverService.GetVehicle:output_type -> driversvc.GetVehicleResponse
-	34, // 74: driversvc.DriverService.ListDrivers:output_type -> driversvc.ListDriversResponse
-	36, // 75: driversvc.DriverService.Login:output_type -> driversvc.LoginResponse
-	36, // 76: driversvc.DriverService.LoginBySms:output_type -> driversvc.LoginResponse
-	40, // 77: driversvc.DriverService.ListNearbyDrivers:output_type -> driversvc.ListNearbyDriversResponse
-	43, // 78: driversvc.DriverService.GetDriverAiScore:output_type -> driversvc.GetDriverAiScoreResponse
-	43, // 79: driversvc.DriverService.RefreshDriverScore:output_type -> driversvc.GetDriverAiScoreResponse
-	47, // 80: driversvc.DriverService.UploadCertification:output_type -> driversvc.UploadCertificationResponse
-	49, // 81: driversvc.DriverService.GetCertification:output_type -> driversvc.GetCertificationResponse
-	57, // 82: driversvc.DriverService.ApproveCertification:output_type -> driversvc.CommonResponse
-	57, // 83: driversvc.DriverService.RejectCertification:output_type -> driversvc.CommonResponse
-	52, // 84: driversvc.DriverService.AdminListCertifications:output_type -> driversvc.AdminListCertificationsResponse
-	51, // 85: driversvc.DriverService.AdminGetCertification:output_type -> driversvc.AdminCertification
-	59, // 86: driversvc.DriverService.CreateWithdraw:output_type -> driversvc.CreateWithdrawResponse
-	65, // 87: driversvc.DriverService.ListWithdraws:output_type -> driversvc.ListWithdrawsResponse
-	65, // 88: driversvc.DriverService.AdminListWithdraws:output_type -> driversvc.ListWithdrawsResponse
-	64, // 89: driversvc.DriverService.AuditWithdraw:output_type -> driversvc.AuditWithdrawResponse
-	55, // [55:90] is the sub-list for method output_type
-	20, // [20:55] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	24, // 11: driversvc.ListVehiclesResponse.vehicles:type_name -> driversvc.Vehicle
+	0,  // 12: driversvc.ListDriversRequest.status:type_name -> driversvc.DriverStatus
+	2,  // 13: driversvc.ListDriversResponse.drivers:type_name -> driversvc.Driver
+	2,  // 14: driversvc.LoginResponse.driver:type_name -> driversvc.Driver
+	40, // 15: driversvc.ListNearbyDriversResponse.drivers:type_name -> driversvc.NearbyDriver
+	44, // 16: driversvc.GetDriverAiScoreResponse.factors:type_name -> driversvc.AiScoreFactor
+	48, // 17: driversvc.UploadCertificationResponse.certification:type_name -> driversvc.CertificationInfo
+	48, // 18: driversvc.GetCertificationResponse.certification:type_name -> driversvc.CertificationInfo
+	53, // 19: driversvc.AdminListCertificationsResponse.list:type_name -> driversvc.AdminCertification
+	63, // 20: driversvc.ListWithdrawsResponse.records:type_name -> driversvc.WithdrawRecord
+	70, // 21: driversvc.ListBankCardsResponse.cards:type_name -> driversvc.BankCardInfo
+	3,  // 22: driversvc.DriverService.CreateDriver:input_type -> driversvc.CreateDriverRequest
+	3,  // 23: driversvc.DriverService.RegisterDriver:input_type -> driversvc.CreateDriverRequest
+	5,  // 24: driversvc.DriverService.UpdateDriver:input_type -> driversvc.UpdateDriverRequest
+	7,  // 25: driversvc.DriverService.DeleteDriver:input_type -> driversvc.DeleteDriverRequest
+	9,  // 26: driversvc.DriverService.GetDriver:input_type -> driversvc.GetDriverRequest
+	22, // 27: driversvc.DriverService.GetDriverByPhone:input_type -> driversvc.GetDriverByPhoneRequest
+	11, // 28: driversvc.DriverService.FreezeDriver:input_type -> driversvc.FreezeDriverRequest
+	12, // 29: driversvc.DriverService.UnfreezeDriver:input_type -> driversvc.UnfreezeDriverRequest
+	13, // 30: driversvc.DriverService.SetDriverOnline:input_type -> driversvc.SetDriverOnlineRequest
+	15, // 31: driversvc.DriverService.SetDriverOffline:input_type -> driversvc.SetDriverOfflineRequest
+	17, // 32: driversvc.DriverService.ReportLocation:input_type -> driversvc.ReportLocationRequest
+	19, // 33: driversvc.DriverService.SetDriverServiceStatus:input_type -> driversvc.SetDriverServiceStatusRequest
+	21, // 34: driversvc.DriverService.ApplyAdminPunishment:input_type -> driversvc.AdminPunishmentRequest
+	21, // 35: driversvc.DriverService.ReverseAdminPunishment:input_type -> driversvc.AdminPunishmentRequest
+	56, // 36: driversvc.DriverService.Heartbeat:input_type -> driversvc.HeartbeatRequest
+	25, // 37: driversvc.DriverService.CreateVehicle:input_type -> driversvc.CreateVehicleRequest
+	27, // 38: driversvc.DriverService.UpdateVehicle:input_type -> driversvc.UpdateVehicleRequest
+	29, // 39: driversvc.DriverService.DeleteVehicle:input_type -> driversvc.DeleteVehicleRequest
+	31, // 40: driversvc.DriverService.GetVehicle:input_type -> driversvc.GetVehicleRequest
+	33, // 41: driversvc.DriverService.ListVehicles:input_type -> driversvc.ListVehiclesRequest
+	35, // 42: driversvc.DriverService.ListDrivers:input_type -> driversvc.ListDriversRequest
+	37, // 43: driversvc.DriverService.Login:input_type -> driversvc.LoginRequest
+	39, // 44: driversvc.DriverService.LoginBySms:input_type -> driversvc.LoginBySMSRequest
+	41, // 45: driversvc.DriverService.ListNearbyDrivers:input_type -> driversvc.ListNearbyDriversRequest
+	43, // 46: driversvc.DriverService.GetDriverAiScore:input_type -> driversvc.GetDriverAiScoreRequest
+	46, // 47: driversvc.DriverService.RefreshDriverScore:input_type -> driversvc.RefreshDriverScoreRequest
+	47, // 48: driversvc.DriverService.UploadCertification:input_type -> driversvc.UploadCertificationRequest
+	50, // 49: driversvc.DriverService.GetCertification:input_type -> driversvc.GetCertificationRequest
+	58, // 50: driversvc.DriverService.ApproveCertification:input_type -> driversvc.AuditCertificationRequest
+	58, // 51: driversvc.DriverService.RejectCertification:input_type -> driversvc.AuditCertificationRequest
+	52, // 52: driversvc.DriverService.AdminListCertifications:input_type -> driversvc.AdminListCertificationsRequest
+	55, // 53: driversvc.DriverService.AdminGetCertification:input_type -> driversvc.AdminGetCertificationRequest
+	60, // 54: driversvc.DriverService.CreateWithdraw:input_type -> driversvc.CreateWithdrawRequest
+	62, // 55: driversvc.DriverService.ListWithdraws:input_type -> driversvc.ListWithdrawsRequest
+	64, // 56: driversvc.DriverService.AdminListWithdraws:input_type -> driversvc.AdminListWithdrawsRequest
+	65, // 57: driversvc.DriverService.AuditWithdraw:input_type -> driversvc.AuditWithdrawRequest
+	68, // 58: driversvc.DriverService.BindBankCard:input_type -> driversvc.BindBankCardRequest
+	71, // 59: driversvc.DriverService.ListBankCards:input_type -> driversvc.ListBankCardsRequest
+	73, // 60: driversvc.DriverService.DeleteBankCard:input_type -> driversvc.DeleteBankCardRequest
+	74, // 61: driversvc.DriverService.VerifyWithdrawPassword:input_type -> driversvc.VerifyWithdrawPasswordRequest
+	75, // 62: driversvc.DriverService.ResetWithdrawPassword:input_type -> driversvc.ResetWithdrawPasswordRequest
+	4,  // 63: driversvc.DriverService.CreateDriver:output_type -> driversvc.CreateDriverResponse
+	4,  // 64: driversvc.DriverService.RegisterDriver:output_type -> driversvc.CreateDriverResponse
+	6,  // 65: driversvc.DriverService.UpdateDriver:output_type -> driversvc.UpdateDriverResponse
+	8,  // 66: driversvc.DriverService.DeleteDriver:output_type -> driversvc.DeleteDriverResponse
+	10, // 67: driversvc.DriverService.GetDriver:output_type -> driversvc.GetDriverResponse
+	23, // 68: driversvc.DriverService.GetDriverByPhone:output_type -> driversvc.GetDriverByPhoneResponse
+	59, // 69: driversvc.DriverService.FreezeDriver:output_type -> driversvc.CommonResponse
+	59, // 70: driversvc.DriverService.UnfreezeDriver:output_type -> driversvc.CommonResponse
+	14, // 71: driversvc.DriverService.SetDriverOnline:output_type -> driversvc.SetDriverOnlineResponse
+	16, // 72: driversvc.DriverService.SetDriverOffline:output_type -> driversvc.SetDriverOfflineResponse
+	18, // 73: driversvc.DriverService.ReportLocation:output_type -> driversvc.ReportLocationResponse
+	20, // 74: driversvc.DriverService.SetDriverServiceStatus:output_type -> driversvc.SetDriverServiceStatusResponse
+	59, // 75: driversvc.DriverService.ApplyAdminPunishment:output_type -> driversvc.CommonResponse
+	59, // 76: driversvc.DriverService.ReverseAdminPunishment:output_type -> driversvc.CommonResponse
+	57, // 77: driversvc.DriverService.Heartbeat:output_type -> driversvc.HeartbeatResponse
+	26, // 78: driversvc.DriverService.CreateVehicle:output_type -> driversvc.CreateVehicleResponse
+	28, // 79: driversvc.DriverService.UpdateVehicle:output_type -> driversvc.UpdateVehicleResponse
+	30, // 80: driversvc.DriverService.DeleteVehicle:output_type -> driversvc.DeleteVehicleResponse
+	32, // 81: driversvc.DriverService.GetVehicle:output_type -> driversvc.GetVehicleResponse
+	34, // 82: driversvc.DriverService.ListVehicles:output_type -> driversvc.ListVehiclesResponse
+	36, // 83: driversvc.DriverService.ListDrivers:output_type -> driversvc.ListDriversResponse
+	38, // 84: driversvc.DriverService.Login:output_type -> driversvc.LoginResponse
+	38, // 85: driversvc.DriverService.LoginBySms:output_type -> driversvc.LoginResponse
+	42, // 86: driversvc.DriverService.ListNearbyDrivers:output_type -> driversvc.ListNearbyDriversResponse
+	45, // 87: driversvc.DriverService.GetDriverAiScore:output_type -> driversvc.GetDriverAiScoreResponse
+	45, // 88: driversvc.DriverService.RefreshDriverScore:output_type -> driversvc.GetDriverAiScoreResponse
+	49, // 89: driversvc.DriverService.UploadCertification:output_type -> driversvc.UploadCertificationResponse
+	51, // 90: driversvc.DriverService.GetCertification:output_type -> driversvc.GetCertificationResponse
+	59, // 91: driversvc.DriverService.ApproveCertification:output_type -> driversvc.CommonResponse
+	59, // 92: driversvc.DriverService.RejectCertification:output_type -> driversvc.CommonResponse
+	54, // 93: driversvc.DriverService.AdminListCertifications:output_type -> driversvc.AdminListCertificationsResponse
+	53, // 94: driversvc.DriverService.AdminGetCertification:output_type -> driversvc.AdminCertification
+	61, // 95: driversvc.DriverService.CreateWithdraw:output_type -> driversvc.CreateWithdrawResponse
+	67, // 96: driversvc.DriverService.ListWithdraws:output_type -> driversvc.ListWithdrawsResponse
+	67, // 97: driversvc.DriverService.AdminListWithdraws:output_type -> driversvc.ListWithdrawsResponse
+	66, // 98: driversvc.DriverService.AuditWithdraw:output_type -> driversvc.AuditWithdrawResponse
+	69, // 99: driversvc.DriverService.BindBankCard:output_type -> driversvc.BindBankCardResponse
+	72, // 100: driversvc.DriverService.ListBankCards:output_type -> driversvc.ListBankCardsResponse
+	59, // 101: driversvc.DriverService.DeleteBankCard:output_type -> driversvc.CommonResponse
+	59, // 102: driversvc.DriverService.VerifyWithdrawPassword:output_type -> driversvc.CommonResponse
+	76, // 103: driversvc.DriverService.ResetWithdrawPassword:output_type -> driversvc.ResetWithdrawPasswordResponse
+	63, // [63:104] is the sub-list for method output_type
+	22, // [22:63] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_rpc_driversvc_proto_driversvc_proto_init() }
@@ -5160,16 +5882,16 @@ func file_rpc_driversvc_proto_driversvc_proto_init() {
 	file_rpc_driversvc_proto_driversvc_proto_msgTypes[22].OneofWrappers = []any{}
 	file_rpc_driversvc_proto_driversvc_proto_msgTypes[23].OneofWrappers = []any{}
 	file_rpc_driversvc_proto_driversvc_proto_msgTypes[25].OneofWrappers = []any{}
-	file_rpc_driversvc_proto_driversvc_proto_msgTypes[31].OneofWrappers = []any{}
-	file_rpc_driversvc_proto_driversvc_proto_msgTypes[48].OneofWrappers = []any{}
-	file_rpc_driversvc_proto_driversvc_proto_msgTypes[60].OneofWrappers = []any{}
+	file_rpc_driversvc_proto_driversvc_proto_msgTypes[33].OneofWrappers = []any{}
+	file_rpc_driversvc_proto_driversvc_proto_msgTypes[50].OneofWrappers = []any{}
+	file_rpc_driversvc_proto_driversvc_proto_msgTypes[62].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_driversvc_proto_driversvc_proto_rawDesc), len(file_rpc_driversvc_proto_driversvc_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   64,
+			NumMessages:   75,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

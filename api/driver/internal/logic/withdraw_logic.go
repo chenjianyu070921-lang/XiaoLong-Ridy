@@ -32,13 +32,7 @@ func (l *WithdrawLogic) CreateWithdraw(driverID int64, req *types.CreateWithdraw
 	}
 
 	payeeName := strings.TrimSpace(req.PayeeName)
-	if payeeName == "" {
-		return nil, errors.New("payee name is required")
-	}
 	payAccount := strings.TrimSpace(req.PayAccount)
-	if payAccount == "" {
-		return nil, errors.New("pay account is required")
-	}
 
 	client, err := l.driverClient()
 	if err != nil {
@@ -46,10 +40,12 @@ func (l *WithdrawLogic) CreateWithdraw(driverID int64, req *types.CreateWithdraw
 	}
 
 	resp, err := client.CreateWithdraw(l.ctx, &driversproto.CreateWithdrawRequest{
-		DriverId:   driverID,
-		Amount:     normalizeWithdrawAmount(req.Amount),
-		PayeeName:  payeeName,
-		PayAccount: payAccount,
+		DriverId:         driverID,
+		Amount:           normalizeWithdrawAmount(req.Amount),
+		PayeeName:        payeeName,
+		PayAccount:       payAccount,
+		BankCardId:       req.BankCardId,
+		WithdrawPassword: strings.TrimSpace(req.WithdrawPassword),
 	})
 	if err != nil {
 		return nil, err

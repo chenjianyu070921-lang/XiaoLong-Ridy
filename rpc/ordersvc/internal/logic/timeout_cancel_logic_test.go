@@ -6,14 +6,13 @@ import (
 	"testing"
 
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
-	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 )
 
 func TestTimeoutCancelSuccess(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
-	l := NewTimeoutCancelLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewTimeoutCancelLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	resp, err := l.TimeoutCancel(&proto.TimeoutCancelRequest{
 		OrderId: int64(order.Id),
@@ -42,7 +41,7 @@ func TestTimeoutCancelSuccess(t *testing.T) {
 func TestTimeoutCancelDefaultReason(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
-	l := NewTimeoutCancelLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewTimeoutCancelLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	if _, err := l.TimeoutCancel(&proto.TimeoutCancelRequest{OrderId: int64(order.Id), Reason: "  "}); err != nil {
 		t.Fatalf("TimeoutCancel() error = %v", err)
@@ -56,7 +55,7 @@ func TestTimeoutCancelDefaultReason(t *testing.T) {
 func TestTimeoutCancelRejectOnTrip(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 2002, 3)
-	l := NewTimeoutCancelLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewTimeoutCancelLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.TimeoutCancel(&proto.TimeoutCancelRequest{
 		OrderId: int64(order.Id),
@@ -69,7 +68,7 @@ func TestTimeoutCancelRejectOnTrip(t *testing.T) {
 
 func TestTimeoutCancelNotFound(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
-	l := NewTimeoutCancelLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewTimeoutCancelLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.TimeoutCancel(&proto.TimeoutCancelRequest{OrderId: 999, Reason: "超时"})
 	if !errors.Is(err, repository.ErrOrderNotFound) {

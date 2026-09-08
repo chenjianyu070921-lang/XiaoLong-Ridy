@@ -15,7 +15,7 @@
     <section class="mine-orders section-block"><h3>订单概览 <button @click="openMinePage('/mine/orders')">全部订单 <van-icon name="arrow" /></button></h3><div class="order-stats"><span><van-icon name="orders-o" /><b>{{ orderStats.total }}</b><small>全部订单</small></span><span><van-icon name="clock-o" /><b>{{ orderStats.pending }}</b><small>待服务</small></span><span><van-icon name="location-o" /><b>{{ orderStats.serving }}</b><small>服务中</small></span><span><van-icon name="checked" /><b>{{ orderStats.done }}</b><small>已完成</small></span><span><van-icon name="close" /><b>{{ orderStats.cancelled }}</b><small>已取消</small></span></div></section>
     <section class="section-block"><h3>更多服务</h3><div class="tool-grid"><button v-for="tool in moreTools" :key="tool.label" type="button" @click="openTool(tool)"><strong><van-icon :name="tool.icon" /></strong><span>{{ tool.label }}</span></button></div></section>
     <div class="mine-list">
-      <button type="button" @click="showServiceScore">服务分 <span>{{ displayServiceScore }} <i>›</i></span></button>
+      <button type="button" @click="showServiceScore">服务分 <span class="svc-cell"><ServiceScore :score="displayServiceScore" /> <i>›</i></span></button>
       <button type="button" @click="$emit('open-reviews')">乘客评价 <span><i>›</i></span></button>
       <button type="button" @click="$emit('refresh-dashboard')">听单检测 <span><i>›</i></span></button>
       <button type="button" @click="$emit('open-help')">帮助中心 <span><i>›</i></span></button>
@@ -23,12 +23,26 @@
       <button type="button" class="logout-button" @click="$emit('logout')">退出登录 <van-icon name="arrow" /></button>
     </div>
   </section>
+
+  <Teleport to="body">
+    <div v-if="svcPopupVisible" class="svc-dialog-mask" @click.self="svcPopupVisible = false">
+      <div class="svc-dialog">
+        <h3 class="svc-dialog-title">服务分</h3>
+        <div class="svc-dialog-score">
+          <span class="svc-dialog-label">当前服务分</span>
+          <strong class="svc-dialog-value">{{ displayServiceScore }}</strong>
+        </div>
+        <button type="button" class="svc-dialog-close" @click="svcPopupVisible = false">关闭</button>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { showDialog, showToast } from 'vant'
+import { showToast } from 'vant'
+import ServiceScore from '@/components/ServiceScore.vue'
 
 const router = useRouter()
 const props = defineProps({
@@ -47,7 +61,7 @@ const walletTotalIncomeCents = computed(() => props.incomeSummary?.totalIncomeCe
 // 原型图中的工具入口：已接入功能跳独立页面，未接入功能提示暂未开放。
 const moreTools = [
   { label: '车辆管理', icon: 'logistics', action: '/mine/vehicle' }, { label: '收益明细', icon: 'balance-list-o', action: '/mine/income' },
-  { label: '发票中心', icon: 'description' }, { label: '银行卡', icon: 'card' }, { label: '邀请有奖', icon: 'friends-o' }
+  { label: '发票中心', icon: 'description' }, { label: '银行卡', icon: 'card', action: '/mine/bank-cards' }, { label: '邀请有奖', icon: 'friends-o' }
 ]
 
 defineEmits([
@@ -72,28 +86,34 @@ function openTool(tool) {
   openMinePage(tool.action)
 }
 
+const svcPopupVisible = ref(false)
+
 function showServiceScore() {
-  showDialog({
-    title: '服务分',
-    message: `当前服务分：${displayServiceScore.value}`,
-    confirmButtonText: '关闭'
-  }).catch(() => {})
+  svcPopupVisible.value = true
 }
 
 </script>
 
 <style scoped>
 .group-panel { padding: 8px 0 24px; color: var(--driver-ink); }
-.mine-hero { display:flex; align-items:center; gap:12px; padding:16px; border-radius:12px; background:#fff; box-shadow:0 4px 14px rgba(15,23,42,.06); }
-.mine-avatar { width:56px; height:56px; border-radius:50%; background:#e8edff; color:var(--driver-primary); display:grid; place-items:center; font-size:24px; font-weight:800; overflow:hidden; }
+.mine-hero { display:flex; align-items:center; gap:12px; padding:16px; border-radius:12px; background: var(--driver-card); box-shadow:0 4px 14px rgba(15,23,42,.06); }
+.mine-avatar { width:56px; height:56px; border-radius:50%; background: var(--driver-soft); color:var(--driver-primary); display:grid; place-items:center; font-size:24px; font-weight:800; overflow:hidden; }
 .mine-avatar img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
 .mine-identity { flex:1; min-width:0; }.mine-identity h2 { margin:0; font-size:19px; }.mine-identity p { margin:4px 0 5px; color:var(--driver-muted); font-size:12px; }
-.status-badge { display:inline-flex; padding:3px 8px; border-radius:999px; background:#edf8f2; color:#14945b; font-size:11px; }
-.mine-setting { display:grid; width:34px; height:34px; place-items:center; border:0; border-radius:50%; background:#f3f5f9; color:var(--driver-muted); font-size:17px; }
+.status-badge { display:inline-flex; padding:3px 8px; border-radius:999px; background:rgba(16,163,74,.14); color:#10b981; font-size:11px; }
+.mine-setting { display:grid; width:34px; height:34px; place-items:center; border:0; border-radius:50%; background: var(--driver-soft); color:var(--driver-muted); font-size:17px; }
 .income-card { display:flex; justify-content:space-between; align-items:center; margin:12px 0; padding:18px 16px; border-radius:12px; background:#172033; color:#fff; }
-.income-card span,.income-card small { display:block; color:#b9c2d2; font-size:12px; }.income-card strong { display:block; font-size:28px; margin:6px 0; }.income-card button { display:flex; align-items:center; gap:3px; border:0; border-radius:8px; padding:9px 12px; background:#fff; color:#172033; font-weight:700; }
-.section-block { margin:12px 0; padding:16px; border-radius:12px; background:#fff; box-shadow:0 4px 14px rgba(15,23,42,.05); }.section-block h3 { display:flex; justify-content:space-between; align-items:center; margin:0 0 14px; font-size:15px; }.section-block h3 button { display:flex; align-items:center; gap:2px; border:0; background:none; color:var(--driver-muted); font-size:12px; }
+.income-card span,.income-card small { display:block; color:#b9c2d2; font-size:12px; }.income-card strong { display:block; font-size:28px; margin:6px 0; }.income-card button { display:flex; align-items:center; gap:3px; border:0; border-radius:8px; padding:9px 12px; background: var(--driver-card); color: var(--driver-ink); font-weight:700; }
+.section-block { margin:12px 0; padding:16px; border-radius:12px; background: var(--driver-card); box-shadow:0 4px 14px rgba(15,23,42,.05); }.section-block h3 { display:flex; justify-content:space-between; align-items:center; margin:0 0 14px; font-size:15px; }.section-block h3 button { display:flex; align-items:center; gap:2px; border:0; background:none; color:var(--driver-muted); font-size:12px; }
 .order-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }.order-stats span { display:grid; justify-items:center; gap:4px; color:var(--driver-muted); }.order-stats .van-icon { font-size:18px; color:var(--driver-primary); }.order-stats b { color:var(--driver-ink); font-size:17px; }.order-stats small { font-size:10px; white-space:nowrap; }
-.tool-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:15px 5px; }.tool-grid button { display:grid; justify-items:center; gap:6px; border:0; background:none; color:var(--driver-ink); font-size:11px; }.tool-grid strong { display:grid; width:38px; height:38px; place-items:center; border-radius:11px; background:#f1f4ff; color:var(--driver-primary); font-size:20px; }.tool-grid button:active strong { transform:scale(.94); }.mine-list { margin:12px 0; padding:0 16px; border-radius:12px; background:#fff; box-shadow:0 4px 14px rgba(15,23,42,.05); }.mine-list button { width:100%; display:flex; justify-content:space-between; padding:15px 0; border:0; border-bottom:1px solid var(--driver-line); background:transparent; text-align:left; color:var(--driver-ink); }.mine-list button:last-child { border-bottom:0; }.mine-list span { color:var(--driver-muted); }.mine-list i { font-style:normal; font-size:20px; margin-left:8px; }.mine-list .logout-button { margin-top:4px; color:var(--driver-danger); font-weight:700; }.mine-list .logout-button .van-icon { color:inherit; }
+.tool-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:15px 5px; }.tool-grid button { display:grid; justify-items:center; gap:6px; border:0; background:none; color:var(--driver-ink); font-size:11px; }.tool-grid strong { display:grid; width:38px; height:38px; place-items:center; border-radius:11px; background: var(--driver-soft); color:var(--driver-primary); font-size:20px; }.tool-grid button:active strong { transform:scale(.94); }.mine-list { margin:12px 0; padding:0 16px; border-radius:12px; background: var(--driver-card); box-shadow:0 4px 14px rgba(15,23,42,.05); }.mine-list button { width:100%; display:flex; justify-content:space-between; padding:15px 0; border:0; border-bottom:1px solid var(--driver-line); background:transparent; text-align:left; color:var(--driver-ink); }.mine-list button:last-child { border-bottom:0; }.mine-list span { color:var(--driver-muted); }.mine-list i { font-style:normal; font-size:20px; margin-left:8px; }.mine-list .logout-button { margin-top:4px; color:var(--driver-danger); font-weight:700; }.mine-list .logout-button .van-icon { color:inherit; }
+.mine-list .svc-cell { display:inline-flex; align-items:center; gap:6px; }
+.svc-dialog-mask { position:fixed; inset:0; z-index:3000; display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,.55); }
+.svc-dialog { width:280px; padding:26px 22px 20px; border-radius:18px; background: var(--driver-card); text-align:center; box-shadow:0 12px 32px rgba(15,23,42,.18); }
+.svc-dialog-title { margin:0 0 22px; font-size:17px; font-weight:700; color: var(--driver-ink); }
+.svc-dialog-label { display:block; font-size:13px; color: var(--driver-muted); margin-bottom:6px; }
+.svc-dialog-value { display:block; font-size:30px; font-weight:800; color: var(--driver-ink); line-height:1.2; }
+.svc-dialog-close { margin:22px auto 0; display:block; width:132px; height:40px; border:0; border-radius:20px; background:var(--driver-primary); color:var(--driver-on-primary); font-size:15px; font-weight:700; }
+.svc-dialog-close:active { opacity:.85; }
 @media (max-width:360px) { .order-stats small { font-size:9px; } }
 </style>

@@ -134,6 +134,28 @@ func (r *MemoryOrderRepository) TimeoutCancel(_ context.Context, orderID uint64,
 	return true, nil
 }
 
+// TimeoutAccept 内存版：只允许超时任务取消已接单且绑定司机、更新时间早于 before 的订单。
+func (r *MemoryOrderRepository) TimeoutAccept(_ context.Context, orderID uint64, before time.Time, reason string, statusLog *model.OrderStatusLog) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	order, ok := r.orders[orderID]
+	if !ok {
+		return false, ErrOrderNotFound
+	}
+	if order.Status != constants.OrderStatusAccepted || order.DriverId == 0 || order.UpdatedAt.After(before) {
+		return false, nil
+	}
+
+	now := time.Now()
+	order.Status = constants.OrderStatusCancelled
+	order.CancelBy = constants.OperatorSystem
+	order.CancelReason = reason
+	order.UpdatedAt = now
+	r.appendLogLocked(orderID, statusLog, now)
+	return true, nil
+}
+
 // Accept 将待接单订单改为已接单并绑定司机。
 func (r *MemoryOrderRepository) Accept(_ context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error) {
 	r.mu.Lock()
@@ -262,6 +284,42 @@ func (r *MemoryOrderRepository) ListTimeoutOrders(_ context.Context, before time
 			return left.Id < right.Id
 		}
 		return left.CreatedAt.Before(right.CreatedAt)
+	})
+
+	total := int64(len(ids))
+	start := int((page - 1) * pageSize)
+	if start >= len(ids) {
+		return []model.RideOrder{}, total, nil
+	}
+	end := start + int(pageSize)
+	if end > len(ids) {
+		end = len(ids)
+	}
+	out := make([]model.RideOrder, 0, end-start)
+	for _, id := range ids[start:end] {
+		out = append(out, *r.orders[id])
+	}
+	return out, total, nil
+}
+
+// ListAcceptedTimeoutOrders 内存版：查询已接单且绑定司机、更新时间早于 before 的订单，按更新时间升序。
+func (r *MemoryOrderRepository) ListAcceptedTimeoutOrders(_ context.Context, before time.Time, page, pageSize int32) ([]model.RideOrder, int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	ids := make([]uint64, 0, len(r.orders))
+	for id, order := range r.orders {
+		if order.Status == constants.OrderStatusAccepted && order.DriverId != 0 && !order.UpdatedAt.After(before) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		left := r.orders[ids[i]]
+		right := r.orders[ids[j]]
+		if left.UpdatedAt.Equal(right.UpdatedAt) {
+			return left.Id < right.Id
+		}
+		return left.UpdatedAt.Before(right.UpdatedAt)
 	})
 
 	total := int64(len(ids))

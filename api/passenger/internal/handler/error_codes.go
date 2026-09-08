@@ -39,6 +39,8 @@ const (
 	codeCouponReceiveLimit = 41023
 	// codeReviewAlreadyExists 表示订单已评价，不能重复提交评价。
 	codeReviewAlreadyExists = 41031
+	// codeReviewNotQualified 表示司机完成订单数不足，暂不支持评价。
+	codeReviewNotQualified = 41032
 	// codeRealNameVerifyFailed 表示实名认证未通过或第三方核验调用失败。
 	codeRealNameVerifyFailed = 42001
 	// codeInternalError 表示服务内部错误。

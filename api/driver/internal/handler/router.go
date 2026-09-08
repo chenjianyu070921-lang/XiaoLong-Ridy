@@ -48,6 +48,7 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/vehicles/get", protected(methodSwitch("GET", GetVehicleHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/vehicles/update", protected(methodSwitch("POST", UpdateVehicleHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/vehicles/delete", protected(methodSwitch("POST", DeleteVehicleHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/vehicles/list", protected(methodSwitch("GET", ListVehiclesHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/withdraws", protected(methodSwitch("POST", CreateWithdrawHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/withdraws/list", protected(methodSwitch("POST", ListWithdrawsHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/income/summary", protected(methodSwitch("GET", GetIncomeSummaryHandler(svcCtx))))
@@ -69,8 +70,12 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	mux.Handle("/api/driver/v1/orders/finish-trip", protected(methodSwitch("POST", FinishTripHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/ws", DriverPushWSHandler(svcCtx))
 	mux.Handle("/api/driver/v1/reviews/received", protected(methodSwitch("GET", ListReceivedReviewsHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/reviews/submit", protected(methodSwitch("POST", SubmitDriverReviewHandler(svcCtx))))
-	mux.Handle("/api/driver/v1/reviews/given", protected(methodSwitch("POST", ListGivenReviewsHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/reviews/summary", protected(methodSwitch("GET", ReviewSummaryHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/bank-cards/sms-code", protected(methodSwitch("POST", SendBankCardSmsCodeHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/bank-cards", protected(methodSwitch("POST", BindBankCardHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/bank-cards/list", protected(methodSwitch("GET", ListBankCardsHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/bank-cards/delete", protected(methodSwitch("POST", DeleteBankCardHandler(svcCtx))))
+	mux.Handle("/api/driver/v1/bank-cards/reset-password", protected(methodSwitch("POST", ResetWithdrawPasswordHandler(svcCtx))))
 	mux.Handle("/api/driver/v1/agent/chat", internalOrDriverAuth(svcCtx, methodSwitch("POST", AgentChatHandler())))
 	return mux
 }

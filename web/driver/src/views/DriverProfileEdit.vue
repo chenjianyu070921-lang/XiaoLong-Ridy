@@ -31,7 +31,7 @@
       <van-field v-model="profileForm.realName" name="realName" label="姓名" placeholder="请输入姓名" clearable />
       <van-field v-model="profileForm.phone" name="phone" label="手机号" :placeholder="phonePlaceholder" clearable />
       <van-field v-model="profileForm.idCardNo" name="idCardNo" label="身份证号" :placeholder="idCardPlaceholder" clearable />
-      <van-field v-model="profileForm.driverLicenseNo" name="driverLicenseNo" label="驾驶证号" placeholder="请输入驾驶证号" clearable />
+      <van-field v-model="profileForm.driverLicenseNo" name="driverLicenseNo" label="驾驶证号" readonly :placeholder="licensePlaceholder" />
       <button class="primary-action" type="submit" :disabled="submitting">
         {{ submitting ? '保存中...' : '保存资料' }}
       </button>
@@ -70,6 +70,7 @@ const avatarPreview = computed(() => avatarObjectUrl.value || profileForm.avatar
 const avatarChanged = computed(() => Boolean(avatarFile.value))
 const phonePlaceholder = computed(() => driverStore.driver.phone || '未绑定手机号')
 const idCardPlaceholder = computed(() => driverStore.driver.idCardNo || '未绑定身份证号')
+const licensePlaceholder = computed(() => (driverStore.driver.driverLicenseNo ? '' : '未绑定驾驶证号，不可修改'))
 
 onMounted(async () => {
   await driverStore.refreshProfile({ silentError: true }).catch(() => null)
@@ -132,7 +133,6 @@ async function submitProfile() {
       realName: profileForm.realName,
       phone: profileForm.phone,
       idCardNo: profileForm.idCardNo,
-      driverLicenseNo: profileForm.driverLicenseNo,
       avatarUrl: profileForm.avatarUrl
     }), { silentError: true })
     closeToast()
@@ -191,8 +191,8 @@ function formatDriverStatus(status) {
 .driver-profile-edit-page {
   min-height: 100vh;
   padding: 16px 12px calc(24px + env(safe-area-inset-bottom));
-  background: #f6f7fb;
-  color: #172033;
+  background: var(--driver-bg);
+  color: var(--driver-ink);
 }
 
 .edit-header {
@@ -210,14 +210,14 @@ function formatDriverStatus(status) {
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: #fff;
-  color: #172033;
+  background: var(--driver-card);
+  color: var(--driver-ink);
   font-size: 20px;
   box-shadow: 0 4px 14px rgba(15, 23, 42, .08);
 }
 
 .edit-header span {
-  color: #7a8496;
+  color: var(--driver-muted);
   font-size: 12px;
 }
 
@@ -230,7 +230,7 @@ function formatDriverStatus(status) {
 .avatar-edit-panel,
 .profile-status-panel {
   border-radius: 8px;
-  background: #fff;
+  background: var(--driver-card);
   box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
 }
 
@@ -249,7 +249,7 @@ function formatDriverStatus(status) {
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: #eef2ff;
+  background: var(--driver-soft);
 }
 
 .avatar-picker img,
@@ -263,7 +263,7 @@ function formatDriverStatus(status) {
 .avatar-fallback {
   display: grid;
   place-items: center;
-  color: #5b5cff;
+  color: var(--driver-primary);
   font-size: 26px;
   font-weight: 800;
 }
@@ -276,10 +276,10 @@ function formatDriverStatus(status) {
   width: 28px;
   height: 28px;
   place-items: center;
-  border: 2px solid #fff;
+  border: 2px solid var(--driver-line);
   border-radius: 50%;
   background: #ffb72c;
-  color: #fff;
+  color: var(--driver-on-primary);
   font-size: 15px;
 }
 
@@ -291,7 +291,7 @@ function formatDriverStatus(status) {
 
 .avatar-edit-panel p {
   margin: 6px 0 0;
-  color: #7a8496;
+  color: var(--driver-muted);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -305,8 +305,8 @@ function formatDriverStatus(status) {
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
-  background: #5b5cff;
-  color: #fff;
+  background: var(--driver-primary);
+  color: var(--driver-on-primary);
   font-size: 13px;
   font-weight: 800;
 }
@@ -319,7 +319,7 @@ function formatDriverStatus(status) {
   margin-top: 12px;
   overflow: hidden;
   border-radius: 8px;
-  background: #fff;
+  background: var(--driver-card);
   box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
 }
 
@@ -333,8 +333,8 @@ function formatDriverStatus(status) {
   margin: 14px;
   border: 0;
   border-radius: 999px;
-  background: #5b5cff;
-  color: #fff;
+  background: var(--driver-primary);
+  color: var(--driver-on-primary);
   font-size: 16px;
   font-weight: 800;
 }
@@ -351,12 +351,12 @@ function formatDriverStatus(status) {
   justify-content: space-between;
   gap: 12px;
   margin: 0;
-  color: #7a8496;
+  color: var(--driver-muted);
   font-size: 13px;
 }
 
 .profile-status-panel b {
-  color: #172033;
+  color: var(--driver-ink);
 }
 
 .profile-status-panel span {

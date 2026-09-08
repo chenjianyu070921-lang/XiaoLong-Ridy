@@ -118,6 +118,11 @@ func (s *DriverServiceServer) GetVehicle(ctx context.Context, in *__proto.GetVeh
 	return l.GetVehicle(in)
 }
 
+func (s *DriverServiceServer) ListVehicles(ctx context.Context, in *__proto.ListVehiclesRequest) (*__proto.ListVehiclesResponse, error) {
+	l := logic.NewListVehiclesLogic(ctx, s.svcCtx)
+	return l.ListVehicles(in)
+}
+
 func (s *DriverServiceServer) ListDrivers(ctx context.Context, in *__proto.ListDriversRequest) (*__proto.ListDriversResponse, error) {
 	l := logic.NewListDriversLogic(ctx, s.svcCtx)
 	return l.ListDrivers(in)
@@ -201,4 +206,29 @@ func (s *DriverServiceServer) AdminListWithdraws(ctx context.Context, in *__prot
 func (s *DriverServiceServer) AuditWithdraw(ctx context.Context, in *__proto.AuditWithdrawRequest) (*__proto.AuditWithdrawResponse, error) {
 	l := logic.NewAuditWithdrawLogic(ctx, s.svcCtx)
 	return l.AuditWithdraw(in)
+}
+
+func (s *DriverServiceServer) BindBankCard(ctx context.Context, in *__proto.BindBankCardRequest) (*__proto.BindBankCardResponse, error) {
+	l := logic.NewBindBankCardLogic(ctx, s.svcCtx)
+	return l.BindBankCard(in)
+}
+
+func (s *DriverServiceServer) ListBankCards(ctx context.Context, in *__proto.ListBankCardsRequest) (*__proto.ListBankCardsResponse, error) {
+	l := logic.NewListBankCardsLogic(ctx, s.svcCtx)
+	return l.ListBankCards(in)
+}
+
+func (s *DriverServiceServer) DeleteBankCard(ctx context.Context, in *__proto.DeleteBankCardRequest) (*__proto.CommonResponse, error) {
+	l := logic.NewDeleteBankCardLogic(ctx, s.svcCtx)
+	return l.DeleteBankCard(in)
+}
+
+func (s *DriverServiceServer) VerifyWithdrawPassword(ctx context.Context, in *__proto.VerifyWithdrawPasswordRequest) (*__proto.CommonResponse, error) {
+	l := logic.NewVerifyWithdrawPasswordLogic(ctx, s.svcCtx)
+	return l.VerifyWithdrawPassword(in)
+}
+
+func (s *DriverServiceServer) ResetWithdrawPassword(ctx context.Context, in *__proto.ResetWithdrawPasswordRequest) (*__proto.ResetWithdrawPasswordResponse, error) {
+	l := logic.NewResetWithdrawPasswordLogic(ctx, s.svcCtx)
+	return l.ResetWithdrawPassword(in)
 }

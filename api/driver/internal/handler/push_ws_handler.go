@@ -27,8 +27,9 @@ const (
 	pushPingEvery      = 25 * time.Second
 	pushPollEvery      = 3 * time.Second
 	pushPollPageSize   = 20
-	maxSeenOrdersCache = 2000 // seenOrders 容量上限，超过后清空，避免长连接内存泄漏
-	maxWSConnections   = 5000 // 最大并发 WS 连接数，防止资源耗尽
+	reviewPollEvery    = 30 * time.Second // 评价统计低频轮询：乘客新评价后司机端自动刷新评分
+	maxSeenOrdersCache = 2000             // seenOrders 容量上限，超过后清空，避免长连接内存泄漏
+	maxWSConnections   = 5000             // 最大并发 WS 连接数，防止资源耗尽
 )
 
 type wsAuthMessage struct {
@@ -55,6 +56,22 @@ type wsDispatchOrder struct {
 	EstimatedPriceCents int64  `json:"estimatedPriceCents"`
 	CreatedAt           int64  `json:"createdAt"`
 	ServerTime          int64  `json:"serverTime"`
+}
+
+// wsReviewUpdate 乘客评价变化推送：评分统计与上次快照不同时下发，
+// 司机端收到后提示并刷新评价面板（服务平均分实时更新）。
+type wsReviewUpdate struct {
+	Type        string  `json:"type"`
+	ReviewCount int64   `json:"reviewCount"`
+	AvgRating   float64 `json:"avgRating"`
+	ServerTime  int64   `json:"serverTime"`
+}
+
+// reviewSnapshot 记录上次推送的评价统计，用于差量判断。
+type reviewSnapshot struct {
+	initialized bool
+	count       int64
+	avg         float64
 }
 
 func DriverPushWSHandler(svcCtx *svc.ServiceContext) http.Handler {
@@ -128,7 +145,10 @@ func serveDriverPushLoop(conn *websocket.Conn, svcCtx *svc.ServiceContext, drive
 	defer pingTicker.Stop()
 	pollTicker := time.NewTicker(resolvePushPollInterval(svcCtx))
 	defer pollTicker.Stop()
+	reviewTicker := time.NewTicker(resolveReviewPollInterval(svcCtx))
+	defer reviewTicker.Stop()
 	seenOrders := make(map[int64]struct{})
+	var lastReview reviewSnapshot
 
 	if !sendPolledDispatchOrders(conn, svcCtx, driverID, seenOrders) {
 		return
@@ -148,6 +168,10 @@ func serveDriverPushLoop(conn *websocket.Conn, svcCtx *svc.ServiceContext, drive
 			}
 		case <-pollTicker.C:
 			if !sendPolledDispatchOrders(conn, svcCtx, driverID, seenOrders) {
+				return
+			}
+		case <-reviewTicker.C:
+			if !sendReviewUpdateIfChanged(conn, svcCtx, driverID, &lastReview) {
 				return
 			}
 		case <-pingTicker.C:
@@ -280,6 +304,38 @@ func resolvePushPollInterval(svcCtx *svc.ServiceContext) time.Duration {
 		return svcCtx.PushPollInterval
 	}
 	return pushPollEvery
+}
+
+// resolveReviewPollInterval 评价统计轮询间隔：低频差量轮询，避免高频聚合查询压库。
+func resolveReviewPollInterval(svcCtx *svc.ServiceContext) time.Duration {
+	if svcCtx != nil && svcCtx.ReviewPollInterval > 0 {
+		return svcCtx.ReviewPollInterval
+	}
+	return reviewPollEvery
+}
+
+// sendReviewUpdateIfChanged 拉取司机评价统计并与上次快照对比：
+// 首次调用只建立基线（不推送，避免连接建立即弹通知）；此后评价数或均分变化才推 review.new。
+// 统计查询失败只跳过本轮，不中断 WS 主链路。
+func sendReviewUpdateIfChanged(conn *websocket.Conn, svcCtx *svc.ServiceContext, driverID int64, last *reviewSnapshot) bool {
+	if svcCtx == nil || svcCtx.ReviewRepository == nil || driverID <= 0 {
+		return true
+	}
+	count, avg, err := svcCtx.ReviewRepository.CountAndAvgRatingByDriver(conn.Request().Context(), driverID)
+	if err != nil {
+		return true
+	}
+	changed := last.initialized && (count != last.count || avg != last.avg)
+	*last = reviewSnapshot{initialized: true, count: count, avg: avg}
+	if !changed {
+		return true
+	}
+	return sendWSJSON(conn, wsReviewUpdate{
+		Type:        "review.new",
+		ReviewCount: count,
+		AvgRating:   avg,
+		ServerTime:  time.Now().Unix(),
+	}) == nil
 }
 
 func authenticatePushConn(conn *websocket.Conn, svcCtx *svc.ServiceContext) (*jwtx.AccountClaims, error) {

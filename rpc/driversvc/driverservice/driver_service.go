@@ -23,6 +23,9 @@ type (
 	AuditCertificationRequest       = __proto.AuditCertificationRequest
 	AuditWithdrawRequest            = __proto.AuditWithdrawRequest
 	AuditWithdrawResponse           = __proto.AuditWithdrawResponse
+	BankCardInfo                    = __proto.BankCardInfo
+	BindBankCardRequest             = __proto.BindBankCardRequest
+	BindBankCardResponse            = __proto.BindBankCardResponse
 	CertificationInfo               = __proto.CertificationInfo
 	CommonResponse                  = __proto.CommonResponse
 	CreateDriverRequest             = __proto.CreateDriverRequest
@@ -31,6 +34,7 @@ type (
 	CreateVehicleResponse           = __proto.CreateVehicleResponse
 	CreateWithdrawRequest           = __proto.CreateWithdrawRequest
 	CreateWithdrawResponse          = __proto.CreateWithdrawResponse
+	DeleteBankCardRequest           = __proto.DeleteBankCardRequest
 	DeleteDriverRequest             = __proto.DeleteDriverRequest
 	DeleteDriverResponse            = __proto.DeleteDriverResponse
 	DeleteVehicleRequest            = __proto.DeleteVehicleRequest
@@ -49,10 +53,14 @@ type (
 	GetVehicleResponse              = __proto.GetVehicleResponse
 	HeartbeatRequest                = __proto.HeartbeatRequest
 	HeartbeatResponse               = __proto.HeartbeatResponse
+	ListBankCardsRequest            = __proto.ListBankCardsRequest
+	ListBankCardsResponse           = __proto.ListBankCardsResponse
 	ListDriversRequest              = __proto.ListDriversRequest
 	ListDriversResponse             = __proto.ListDriversResponse
 	ListNearbyDriversRequest        = __proto.ListNearbyDriversRequest
 	ListNearbyDriversResponse       = __proto.ListNearbyDriversResponse
+	ListVehiclesRequest             = __proto.ListVehiclesRequest
+	ListVehiclesResponse            = __proto.ListVehiclesResponse
 	ListWithdrawsRequest            = __proto.ListWithdrawsRequest
 	ListWithdrawsResponse           = __proto.ListWithdrawsResponse
 	LoginBySMSRequest               = __proto.LoginBySMSRequest
@@ -62,6 +70,8 @@ type (
 	RefreshDriverScoreRequest       = __proto.RefreshDriverScoreRequest
 	ReportLocationRequest           = __proto.ReportLocationRequest
 	ReportLocationResponse          = __proto.ReportLocationResponse
+	ResetWithdrawPasswordRequest    = __proto.ResetWithdrawPasswordRequest
+	ResetWithdrawPasswordResponse   = __proto.ResetWithdrawPasswordResponse
 	SetDriverOfflineRequest         = __proto.SetDriverOfflineRequest
 	SetDriverOfflineResponse        = __proto.SetDriverOfflineResponse
 	SetDriverOnlineRequest          = __proto.SetDriverOnlineRequest
@@ -76,6 +86,7 @@ type (
 	UploadCertificationRequest      = __proto.UploadCertificationRequest
 	UploadCertificationResponse     = __proto.UploadCertificationResponse
 	Vehicle                         = __proto.Vehicle
+	VerifyWithdrawPasswordRequest   = __proto.VerifyWithdrawPasswordRequest
 	WithdrawRecord                  = __proto.WithdrawRecord
 
 	DriverService interface {
@@ -98,6 +109,7 @@ type (
 		UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error)
 		DeleteVehicle(ctx context.Context, in *DeleteVehicleRequest, opts ...grpc.CallOption) (*DeleteVehicleResponse, error)
 		GetVehicle(ctx context.Context, in *GetVehicleRequest, opts ...grpc.CallOption) (*GetVehicleResponse, error)
+		ListVehicles(ctx context.Context, in *ListVehiclesRequest, opts ...grpc.CallOption) (*ListVehiclesResponse, error)
 		ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error)
 		Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 		LoginBySms(ctx context.Context, in *LoginBySMSRequest, opts ...grpc.CallOption) (*LoginResponse, error)
@@ -119,6 +131,11 @@ type (
 		AdminListWithdraws(ctx context.Context, in *AdminListWithdrawsRequest, opts ...grpc.CallOption) (*ListWithdrawsResponse, error)
 		// 管理后台审核提现申请：approve=true 打款成功（置为状态 2 并写打款时间），approve=false 打款失败（置为状态 3，备注必填）。
 		AuditWithdraw(ctx context.Context, in *AuditWithdrawRequest, opts ...grpc.CallOption) (*AuditWithdrawResponse, error)
+		BindBankCard(ctx context.Context, in *BindBankCardRequest, opts ...grpc.CallOption) (*BindBankCardResponse, error)
+		ListBankCards(ctx context.Context, in *ListBankCardsRequest, opts ...grpc.CallOption) (*ListBankCardsResponse, error)
+		DeleteBankCard(ctx context.Context, in *DeleteBankCardRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		VerifyWithdrawPassword(ctx context.Context, in *VerifyWithdrawPasswordRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+		ResetWithdrawPassword(ctx context.Context, in *ResetWithdrawPasswordRequest, opts ...grpc.CallOption) (*ResetWithdrawPasswordResponse, error)
 	}
 
 	defaultDriverService struct {
@@ -227,6 +244,11 @@ func (m *defaultDriverService) GetVehicle(ctx context.Context, in *GetVehicleReq
 	return client.GetVehicle(ctx, in, opts...)
 }
 
+func (m *defaultDriverService) ListVehicles(ctx context.Context, in *ListVehiclesRequest, opts ...grpc.CallOption) (*ListVehiclesResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.ListVehicles(ctx, in, opts...)
+}
+
 func (m *defaultDriverService) ListDrivers(ctx context.Context, in *ListDriversRequest, opts ...grpc.CallOption) (*ListDriversResponse, error) {
 	client := __proto.NewDriverServiceClient(m.cli.Conn())
 	return client.ListDrivers(ctx, in, opts...)
@@ -310,4 +332,29 @@ func (m *defaultDriverService) AdminListWithdraws(ctx context.Context, in *Admin
 func (m *defaultDriverService) AuditWithdraw(ctx context.Context, in *AuditWithdrawRequest, opts ...grpc.CallOption) (*AuditWithdrawResponse, error) {
 	client := __proto.NewDriverServiceClient(m.cli.Conn())
 	return client.AuditWithdraw(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) BindBankCard(ctx context.Context, in *BindBankCardRequest, opts ...grpc.CallOption) (*BindBankCardResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.BindBankCard(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) ListBankCards(ctx context.Context, in *ListBankCardsRequest, opts ...grpc.CallOption) (*ListBankCardsResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.ListBankCards(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) DeleteBankCard(ctx context.Context, in *DeleteBankCardRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.DeleteBankCard(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) VerifyWithdrawPassword(ctx context.Context, in *VerifyWithdrawPasswordRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.VerifyWithdrawPassword(ctx, in, opts...)
+}
+
+func (m *defaultDriverService) ResetWithdrawPassword(ctx context.Context, in *ResetWithdrawPasswordRequest, opts ...grpc.CallOption) (*ResetWithdrawPasswordResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.ResetWithdrawPassword(ctx, in, opts...)
 }
