@@ -50,6 +50,7 @@ func newTestSvcCtx(db *gorm.DB, oc orderclient.OrderClient, verifier channel.Sig
 // mockOrderClient 测试用订单客户端。
 type mockOrderClient struct {
 	driverId   int64
+	userId     int64
 	err        error
 	confirmed  []*order.ConfirmPaidRequest
 	confirmErr error
@@ -57,6 +58,11 @@ type mockOrderClient struct {
 
 func (m *mockOrderClient) GetDriverId(ctx context.Context, orderId int64) (int64, error) {
 	return m.driverId, m.err
+}
+
+// GetUserId 对齐 orderclient.OrderClient 接口（乘客钱包扣款需要用户ID）。
+func (m *mockOrderClient) GetUserId(ctx context.Context, orderId int64) (int64, error) {
+	return m.userId, m.err
 }
 
 func (m *mockOrderClient) ConfirmPaid(ctx context.Context, in *order.ConfirmPaidRequest) (*order.ConfirmPaidResponse, error) {

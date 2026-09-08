@@ -2,7 +2,7 @@
 
 基于 Go 微服务架构的花小猪打车仿制项目，采用 go-zero/goctl 风格的目录组织，由六位组员按六个模块协作开发。
 
-> 当前状态：六模块主体开发已完成，2026-09-07 订单与派单模块完成 6 个 P0 高危 BUG 修复（优惠券事务原子化、退款链路打通、支付创建失败补偿、派单候选为空重试、geo availability 强制校验），代码可构建、核心单元测试全部通过。主链路「乘客叫车 → 派单 → 司机接单 → 行程 → 支付 → 结算」处于联调收口阶段。历史已知卡点与 2026-09-07 修复明细见「当前开发进度」。
+> 当前状态：六模块主体开发已完成，2026-09-07 订单与派单模块完成 6 个 P0 高危 BUG 修复（优惠券事务原子化、退款链路打通、支付创建失败补偿、派单候选为空重试、geo availability 强制校验）；2026-09-08 完成联动闭环（job 支付重试消费者、三个重试队列成员残留修复、paysvc 测试编译修复），全量 43 个测试包通过。主链路「乘客叫车 → 派单 → 司机接单 → 行程 → 支付 → 结算」处于联调收口阶段。历史已知卡点与修复明细见「当前开发进度」。
 
 ## 技术栈（已落地 / 规划）
 
@@ -85,13 +85,13 @@ XiaoLong-Ridy
 | P0 | ~~CancelOrder 双重释放优惠券~~ | ~~事务内 CancelWithCoupon 已释放，logic 层又调一次 ReleaseCoupon~~ | 成员 4 | ✅ 已修复 09-07 |
 | P0 | ~~geo 引擎 availability nil 绕过~~ | ~~未注入 busy/online 过滤时，忙碌司机也会进派单候选~~ | 成员 4 | ✅ 已修复 09-07 |
 | P0 | ~~Dispatch 候选为空不触发重试~~ | ~~dispatchsvc 返回空列表被 ordersvc 视为成功，订单一直 WaitAccept 直到超时~~ | 成员 4 | ✅ 已修复 09-07 |
-| P0 | job 服务扫描 PaymentRetryQueueKey | enqueuePaymentRetry 已实现入队端，需 job 侧消费者扫描重调 CreatePayment | 成员 6 | ❌ 待开发 |
-| P0 | paysvc 测试 mockOrderClient 缺 GetUserId 方法 | 原有问题，`rpc/paysvc/internal/logic` 测试 build failed | 成员 5 | ❌ 待修复 |
+| P0 | ~~job 服务扫描 PaymentRetryQueueKey~~ | ~~enqueuePaymentRetry 已实现入队端，需 job 侧消费者扫描重调 CreatePayment~~ | 成员 6 | ✅ 已修复 09-08 |
+| P0 | ~~paysvc 测试 mockOrderClient 缺 GetUserId 方法~~ | ~~原有问题，`rpc/paysvc/internal/logic` 测试 build failed~~ | 成员 5 | ✅ 已修复 09-08 |
 | P0 | 支付回调网关缺失 | api 层无 HTTP 回调路由，支付闭环当前依赖 `scripts/e2e/pay_e2e_client.go` 模拟回调 | 成员 5 | ❌ 待开发 |
 | P0 | 定时任务接线待验证 | 订单超时关闭 / 派单重试补偿依赖 `job` 实际运行 | 成员 4 + 成员 6 | ❌ 待联调 |
 | P1 | pushesvc 未接入主流程 | 派单通知实际走 Redis Pub/Sub，推送服务独立可用但未接线 | 成员 6 | ❌ 待接线 |
 | P1 | 司机端 WebSocket 实时接单未端到端验证 | 断连时依赖 `/orders/available` 轮询兜底 | 成员 2 | ❌ 待联调 |
-| P1 | job 扫描 RefundRetryQueueKey / DispatchRetryQueueKey | 订单/退款/支付三个重试队列的消费者待实现 | 成员 6 | ❌ 待开发 |
+| P1 | ~~job 扫描三个重试队列（refund/dispatch/payment）~~ | ~~重试队列消费者待实现~~ | 成员 6 | ✅ 已修复 09-08 |
 
 ## 开发约定
 
@@ -168,7 +168,8 @@ cd scripts/e2e && .\run_pay_e2e.ps1
 5. ✅ 计价与支付：`pricesvc` + `paysvc`（支付 e2e 已通过）
 6. ✅ 管理后台：`adminsvc` + `web/admin`
 7. ✅ 订单与派单 P0 高危 BUG 修复（2026-09-07）：6 项资金/数据一致性问题，详见下方
-8. 🔄 当前阶段：三个重试队列消费者落地 + 支付回调网关 + 定时任务接线 + 前端端到端验证
+8. ✅ P0 修复联动项闭环（2026-09-08）：支付重试消费者落地、三个重试队列成员残留修复、paysvc 测试编译修复，全量 43 个测试包通过
+9. 🔄 当前阶段：支付回调网关 + 定时任务实跑联调 + pushesvc 接线 + 前端端到端验证
 
 ## 订单与派单 P0 修复明细（2026-09-07）
 
@@ -183,11 +184,13 @@ cd scripts/e2e && .\run_pay_e2e.ps1
 | P0-5 | **geo 引擎 availability nil 绕过** | `filterAvailable` 在 `availability == nil` 时直接返回原切片不做过滤，忙碌司机也会进候选 | 改为 panic 而非静默放行——geo 引擎必须注入 Redis busy/online 检查 | `geo_dispatch_engine.go` filterAvailable + 同步更新单元测试验证 panic |
 | P0-6 | **Dispatch 候选为空不触发重试** | dispatchsvc 返回"成功但空列表"被 ordersvc 视为派单成功，订单一直 WaitAccept 直到超时 | dispatchsvc 定义 `ErrNoAvailableDriver`，候选为空时返回此 error；ordersvc 已有 `DispatchOrder error → enqueueDispatchRetry` 链路，自动入队延迟重试 | `errors.go` 加错误定义、`dispatch_order_logic.go` 加候选为空判断 |
 
-### 修复后待联动开发项
+### P0 修复联动项闭环情况（2026-09-08 全部完成）
 
-1. `job` 服务扫描 `PaymentRetryQueueKey` 重调 `CreatePayment`（当前只有入队端）
-2. `job` 服务扫描 `RefundRetryQueueKey` / `DispatchRetryQueueKey` / `PaymentRetryQueueKey` 三个队列统一重试框架
-3. 验证 `order-event-consumer` 已消费 `TopicOrderRefunded` 并调 `paysvc.RefundPayment`
-4. 修复 `rpc/paysvc/internal/logic` 测试 build failed（mockOrderClient 缺 GetUserId）
+1. ✅ `job` 服务扫描 `PaymentRetryQueueKey` 重调 `CreatePayment`——新增 `RetryPendingPayments` 任务（10s 粒度），重试前 `GetOrder` 复核订单仍为待支付，终态订单直接丢弃；指数退避 5s/15s/45s/135s/405s，超限延后 1h 待人工介入
+2. ✅ 三个重试队列消费者全部就位——`dispatch:retry:orders` / `refund:retry:events` 早已存在，本次补齐 `payment:retry:orders`；顺带修复三个队列重排时**旧 member 未删除**导致下轮重复拉取、补偿放大的问题（ZAdd 新条目后补 ZRem 旧条目）
+3. ✅ `order-event-consumer` 核查确认：`handleOrderRefunded` 早已实现 `GetPayment → RefundPayment` 链路，P0-2 发布的 `order.refunded` 事件可被正常消费
+4. ✅ `rpc/paysvc/internal/logic` 测试 build failed 已修复——`mockOrderClient` 补齐 `GetUserId` 方法对齐 `OrderClient` 接口
+
+> 09-08 改动文件：`job/internal/config/config.go`（PayRPC）、`job/internal/svc/servicecontext.go`（PayClient 非阻塞初始化）、`job/internal/task/task.go`（RetryPendingPayments + member 残留修复）、`job/internal/task/compensation_dry_run.go`（预检加 payment 队列）、`job/internal/handler/cleanuphandler.go`、`job/job.go`（10s 定时 + 预检日志）、`job/etc/job.yaml`（payrpc Target）、`rpc/paysvc/internal/logic/test_helper_test.go`（mock 补 GetUserId）。全量 `go build ./...` + `go test ./...`（43 个测试包）全部通过。
 
 
