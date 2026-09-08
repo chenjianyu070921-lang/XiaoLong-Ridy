@@ -22,7 +22,7 @@
     <div class="cert-form">
       <van-field v-model="certificationForm.idCardNo" label="身份证号" placeholder="请输入身份证号" clearable />
       <van-field v-model="certificationForm.realName" label="真实姓名" placeholder="请输入真实姓名" clearable />
-      <van-field v-model="certificationForm.driverLicenseNo" label="驾照编号" placeholder="请输入驾驶证编号" clearable />
+      <van-field v-model="certificationForm.driverLicenseNo" label="驾照编号" :readonly="licenseReadonly" :placeholder="licenseReadonly ? '已绑定，不可修改' : '请输入驾驶证编号'" />
     </div>
     <p class="cert-tip">资质校验以身份证号、真实姓名与驾驶证编号进行，提交后进入人工审核。</p>
     <button class="primary-action cert-submit-btn" :disabled="certSubmitting" type="button" @click="$emit('submit-certification')">
@@ -32,13 +32,17 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   driverStore: { type: Object, required: true },
   certificationForm: { type: Object, required: true },
   certSubmitting: { type: Boolean, required: true },
   certStatusIcon: { type: String, required: true },
   formatCertificationStatus: { type: Function, required: true }
 })
+
+const licenseReadonly = computed(() => Boolean(props.driverStore?.driver?.driverLicenseNo))
 
 defineEmits(['load-certification', 'submit-certification'])
 </script>

@@ -239,23 +239,23 @@ function canViewTrajectory(order) {
 </script>
 
 <style scoped>
-.h5-panel { padding: 10px 0 24px; color: #172033; }
+.h5-panel { padding: 10px 0 24px; color: var(--driver-ink); }
 .section-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 4px 0 10px; }
 .section-title h2 { margin:0; font-size:20px; letter-spacing:0; }
-.section-title button, .section-actions button { min-height:34px; padding:0 12px; border:1px solid #e1e6ef; border-radius:8px; background:#fff; color:#344054; font-size:12px; font-weight:700; }
+.section-title button, .section-actions button { min-height:34px; padding:0 12px; border:1px solid var(--driver-line); border-radius:8px; background: var(--driver-card); color: var(--driver-muted); font-size:12px; font-weight:700; }
 .section-actions { gap:6px; }
 .nearby-order-section, .h5-panel > .section-title, .filter-bar, .h5-panel > .order-card, .h5-panel > .pager { margin-left: 2px; margin-right: 2px; }
-.nearby-order-section { padding:14px; border-radius:14px; background:#fff; box-shadow:0 6px 18px rgba(15,23,42,.06); }
-.home-order-empty, .empty-state { display:grid; min-height:106px; place-items:center; color:#98a2b3; font-size:13px; background:#f8f9fc; border-radius:10px; }
-.filter-bar { margin-bottom:10px; overflow:hidden; border-radius:10px; background:#fff; box-shadow:0 3px 12px rgba(15,23,42,.05); }
+.nearby-order-section { padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.home-order-empty, .empty-state { display:grid; min-height:106px; place-items:center; color: var(--driver-muted); font-size:13px; background: var(--driver-soft); border-radius:10px; }
+.filter-bar { margin-bottom:10px; overflow:hidden; border-radius:10px; background: var(--driver-card); box-shadow:0 3px 12px rgba(15,23,42,.05); }
 .filter-bar :deep(.van-dropdown-menu__bar) { height:44px; box-shadow:none; }
-.order-card { display:grid; gap:10px; margin-bottom:10px; padding:14px; border:1px solid #e9edf4; border-radius:12px; background:#fff; box-shadow:0 5px 16px rgba(15,23,42,.05); }
+.order-card { display:grid; gap:10px; margin-bottom:10px; padding:14px; border:1px solid var(--driver-line); border-radius:12px; background: var(--driver-card); box-shadow:0 5px 16px rgba(15,23,42,.05); }
 .order-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }.order-heading strong { overflow:hidden; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }.order-heading :deep(.van-tag) { border-radius:6px; }
-.route-line { margin:0; color:#344054; font-size:14px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }
-.meta-row { display:flex; justify-content:space-between; gap:8px; color:#98a2b3; font-size:12px; }.meta-row span:first-child { color:#5b5cff; font-size:17px; font-weight:800; }
-.order-actions { display:flex; justify-content:flex-end; gap:7px; padding-top:2px; }.order-actions button { min-height:34px; padding:0 13px; border:1px solid #dfe4ec; border-radius:8px; background:#fff; color:#475467; font-size:12px; font-weight:700; }.order-actions button.primary { border-color:#5b5cff; background:#5b5cff; color:#fff; }
-.pager { display:flex; align-items:center; justify-content:center; gap:12px; margin:14px 0 18px; color:#667085; font-size:13px; }.pager button { min-height:34px; padding:0 12px; border:1px solid #e1e6ef; border-radius:8px; background:#fff; color:#344054; font-size:12px; }.pager button:disabled { opacity:.45; }
-.nearby-order-card { border-left:3px solid #5b5cff; }
+.route-line { margin:0; color: var(--driver-muted); font-size:14px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }
+.meta-row { display:flex; justify-content:space-between; gap:8px; color: var(--driver-muted); font-size:12px; }.meta-row span:first-child { color:var(--driver-primary); font-size:17px; font-weight:800; }
+.order-actions { display:flex; justify-content:flex-end; gap:7px; padding-top:2px; }.order-actions button { min-height:34px; padding:0 13px; border:1px solid var(--driver-line); border-radius:8px; background: var(--driver-card); color: var(--driver-muted); font-size:12px; font-weight:700; }.order-actions button.primary { border-color:var(--driver-primary); background:var(--driver-primary); color:var(--driver-on-primary); }
+.pager { display:flex; align-items:center; justify-content:center; gap:12px; margin:14px 0 18px; color: var(--driver-muted); font-size:13px; }.pager button { min-height:34px; padding:0 12px; border:1px solid var(--driver-line); border-radius:8px; background: var(--driver-card); color: var(--driver-muted); font-size:12px; }.pager button:disabled { opacity:.45; }
+.nearby-order-card { border-left:3px solid var(--driver-primary); }
 .nearby-order-section {
   display: grid;
   gap: 10px;
@@ -295,30 +295,28 @@ function canViewTrajectory(order) {
 }
 
 .status-tag.ongoing {
-  background: #EFF6FF;
-  color: #3B82F6;
+  background: var(--driver-st-ongoing-bg); color: var(--driver-st-ongoing-fg);
 }
 
 .status-tag.completed {
-  background: #ECFDF5;
-  color: #059669;
+  background: var(--driver-st-completed-bg); color: var(--driver-st-completed-fg);
 }
 
 .status-tag.pending {
-  background: #FEF3C7;
-  color: #D97706;
+  background: var(--driver-st-pending-bg); color: var(--driver-st-pending-fg);
 }
 
 .status-tag.cancelled {
-  background: #FEE2E2;
-  color: #DC2626;
+  background: var(--driver-st-cancelled-bg); color: var(--driver-st-cancelled-fg);
 }
 
 .time {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: #9CA3AF;
+  color: var(--driver-muted);
   font-size: 12px;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -338,7 +336,7 @@ function canViewTrajectory(order) {
   gap: 10px;
   min-height: 30px;
   padding: 6px 0;
-  color: #172033;
+  color: var(--driver-ink);
   font-size: 14px;
   font-weight: 600;
 }
@@ -372,7 +370,7 @@ function canViewTrajectory(order) {
   top: 24px;
   bottom: 24px;
   width: 2px;
-  background: #D1D5DB;
+  background: var(--driver-line);
 }
 
 .card-footer {
@@ -381,13 +379,13 @@ function canViewTrajectory(order) {
   justify-content: space-between;
   gap: 12px;
   padding-top: 12px;
-  border-top: 1px solid #F3F4F6;
+  border-top: 1px solid var(--driver-line);
 }
 
 .car-type {
   min-width: 0;
   overflow: hidden;
-  color: #6B7280;
+  color: var(--driver-muted);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -408,7 +406,7 @@ function canViewTrajectory(order) {
   margin-top: 14px;
   padding: 12px 10px;
   border-radius: 10px;
-  background: #F9FAFB;
+  background: var(--driver-soft);
 }
 
 .stat-item {
@@ -421,7 +419,7 @@ function canViewTrajectory(order) {
 
 .stat-item .value {
   overflow: hidden;
-  color: #172033;
+  color: var(--driver-ink);
   font-size: 13px;
   font-weight: 800;
   line-height: 1.15;
@@ -430,14 +428,14 @@ function canViewTrajectory(order) {
 }
 
 .stat-item .label {
-  color: #6B7280;
+  color: var(--driver-muted);
   font-size: 11px;
 }
 
 .stat-divider {
   width: 1px;
   height: 30px;
-  background: #E5E7EB;
+  background: var(--driver-line);
 }
 
 .actions {
@@ -446,7 +444,7 @@ function canViewTrajectory(order) {
   gap: 10px;
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid #F3F4F6;
+  border-top: 1px solid var(--driver-line);
 }
 
 .actions button {
@@ -455,20 +453,18 @@ function canViewTrajectory(order) {
   padding: 0 14px;
   border: 0;
   border-radius: 18px;
-  background: #EFF6FF;
-  color: #3B82F6;
+  background: var(--driver-st-ongoing-bg); color: var(--driver-st-ongoing-fg);
   font-size: 13px;
   font-weight: 800;
 }
 
 .actions .primary {
-  background: linear-gradient(135deg, #7C3AED 0%, #9333EA 100%);
-  color: #fff;
+  background: var(--driver-primary);
+  color: var(--driver-on-primary);
 }
 
 .actions button:not(.primary):nth-child(3) {
-  background: #FEF3C7;
-  color: #D97706;
+  background: var(--driver-st-pending-bg); color: var(--driver-st-pending-fg);
 }
 
 .nearby-order-popup {
@@ -484,7 +480,7 @@ function canViewTrajectory(order) {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100%;
   padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
-  background: #f6f7fb;
+  background: var(--driver-bg);
 }
 
 .nearby-order-popup-list {
@@ -494,5 +490,15 @@ function canViewTrajectory(order) {
 
 .nearby-order-popup-list .order-card {
   margin-bottom: 10px;
+}
+
+/* 覆盖全局 .h5-panel 的白底圆角外壳：订单页内容直接落在页面灰色背景上，
+   让内层订单卡自身提供白色模块；与首页 home-workbench 镜像，
+   做 12px 水平内边距让内容相对屏幕居中。 */
+.h5-panel {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 12px 24px;
 }
 </style>

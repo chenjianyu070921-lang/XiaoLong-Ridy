@@ -41,12 +41,15 @@ service DriverService {
   rpc UpdateVehicle(UpdateVehicleRequest) returns (UpdateVehicleResponse);
   rpc DeleteVehicle(DeleteVehicleRequest) returns (DeleteVehicleResponse);
   rpc GetVehicle(GetVehicleRequest) returns (GetVehicleResponse);
+  rpc ListVehicles(ListVehiclesRequest) returns (ListVehiclesResponse);
 
   rpc ListDrivers(ListDriversRequest) returns (ListDriversResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
   rpc LoginBySms(LoginBySMSRequest) returns (LoginResponse);
   rpc ListNearbyDrivers(ListNearbyDriversRequest) returns (ListNearbyDriversResponse);
   rpc GetDriverAiScore(GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse);
+  // 重新计算并写回司机评分指标（喂数），返回刷新后的评分，供联调与定时任务触发。
+  rpc RefreshDriverScore(RefreshDriverScoreRequest) returns (GetDriverAiScoreResponse);
 
   rpc UploadCertification(UploadCertificationRequest) returns (UploadCertificationResponse);
   rpc GetCertification(GetCertificationRequest) returns (GetCertificationResponse);
@@ -63,6 +66,12 @@ service DriverService {
   rpc AdminListWithdraws(AdminListWithdrawsRequest) returns (ListWithdrawsResponse);
   // 管理后台审核提现申请：approve=true 打款成功（置为状态 2 并写打款时间），approve=false 打款失败（置为状态 3，备注必填）。
   rpc AuditWithdraw(AuditWithdrawRequest) returns (AuditWithdrawResponse);
+
+  rpc BindBankCard(BindBankCardRequest) returns (BindBankCardResponse);
+  rpc ListBankCards(ListBankCardsRequest) returns (ListBankCardsResponse);
+  rpc DeleteBankCard(DeleteBankCardRequest) returns (CommonResponse);
+  rpc VerifyWithdrawPassword(VerifyWithdrawPasswordRequest) returns (CommonResponse);
+  rpc ResetWithdrawPassword(ResetWithdrawPasswordRequest) returns (ResetWithdrawPasswordResponse);
 }
 
 message Driver {
@@ -289,6 +298,14 @@ message GetVehicleResponse {
   Vehicle vehicle = 1;
 }
 
+message ListVehiclesRequest {
+  int64 driver_id = 1;
+}
+
+message ListVehiclesResponse {
+  repeated Vehicle vehicles = 1;
+}
+
 message ListDriversRequest {
   int32 page = 1;
   int32 page_size = 2;
@@ -353,6 +370,10 @@ message GetDriverAiScoreResponse {
   repeated AiScoreFactor factors = 4;
   bool degraded = 5;
   string degrade_reason = 6;
+}
+
+message RefreshDriverScoreRequest {
+  int64 driver_id = 1;
 }
 
 message UploadCertificationRequest {
@@ -464,6 +485,8 @@ message CreateWithdrawRequest {
   double amount = 2;
   string payee_name = 3;
   string pay_account = 4;
+  int64 bank_card_id = 5;
+  string withdraw_password = 6;
 }
 
 message CreateWithdrawResponse {
@@ -516,4 +539,58 @@ message AuditWithdrawResponse {
 message ListWithdrawsResponse {
   repeated WithdrawRecord records = 1;
   int64 total = 2;
+}
+
+message BindBankCardRequest {
+  int64 driver_id = 1;
+  string bank_name = 2;
+  string card_no = 3;
+  string holder_name = 4;
+  string holder_id_card = 5;
+  string reserved_phone = 6;
+}
+
+message BindBankCardResponse {
+  int64 id = 1;
+  string bank_name = 2;
+  string masked_card_no = 3;
+  string withdraw_password = 4;
+}
+
+message BankCardInfo {
+  int64 id = 1;
+  string bank_name = 2;
+  string masked_card_no = 3;
+  string holder_name = 4;
+  string reserved_phone = 5;
+  int64 created_at = 6;
+}
+
+message ListBankCardsRequest {
+  int64 driver_id = 1;
+}
+
+message ListBankCardsResponse {
+  repeated BankCardInfo cards = 1;
+}
+
+message DeleteBankCardRequest {
+  int64 driver_id = 1;
+  int64 id = 2;
+}
+
+message VerifyWithdrawPasswordRequest {
+  int64 driver_id = 1;
+  string password = 2;
+}
+
+message ResetWithdrawPasswordRequest {
+  int64 driver_id = 1;
+  string phone = 2;
+  string id_card_no = 3;
+  string real_name = 4;
+}
+
+message ResetWithdrawPasswordResponse {
+  string withdraw_password = 1;
 }

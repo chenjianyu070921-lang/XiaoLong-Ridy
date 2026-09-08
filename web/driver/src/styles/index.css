@@ -55,7 +55,7 @@ html, body {
 /* 主色调按钮 */
 .btn-primary {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
-  color: white;
+  color: var(--driver-on-primary);
   border: none;
   border-radius: 25px;
   padding: 12px 40px;
@@ -228,3 +228,11 @@ html, body {
 /* 统一触控反馈和键盘焦点，兼顾移动端操作与无障碍使用。 */
 button { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--primary-light); outline-offset: 2px; }
+
+/* 隐藏高德地图 JS API 动态注入的版权/Logo 元素（.amap-mvcode / .amap-copyright / .amap-logo）。
+   这些是 AMap SDK 在地图容器内自动生成的全局 DOM，scoped 样式无法作用；司机端首页/热力图/轨迹弹窗共用同一份底图。 */
+.amap-mvcode,
+.amap-copyright,
+.amap-logo {
+  display: none !important;
+}

@@ -616,6 +616,24 @@ func (c *LocalClient) GetVehicle(_ context.Context, req *driversproto.GetVehicle
 	return &driversproto.GetVehicleResponse{Vehicle: cloneVehicle(vehicle)}, nil
 }
 
+// ListVehicles 按司机 ID 列出其绑定的全部车辆。
+func (c *LocalClient) ListVehicles(_ context.Context, req *driversproto.ListVehiclesRequest) (*driversproto.ListVehiclesResponse, error) {
+	if req == nil || req.GetDriverId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "driver id is required")
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	resp := &driversproto.ListVehiclesResponse{}
+	for _, vehicle := range c.vehicles {
+		if vehicle.GetDriverId() != req.GetDriverId() {
+			continue
+		}
+		resp.Vehicles = append(resp.Vehicles, cloneVehicle(vehicle))
+	}
+	return resp, nil
+}
+
 // ListDrivers 分页查询司机列表。
 func (c *LocalClient) ListDrivers(_ context.Context, req *driversproto.ListDriversRequest) (*driversproto.ListDriversResponse, error) {
 	c.mu.RLock()

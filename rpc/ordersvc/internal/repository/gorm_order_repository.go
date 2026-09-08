@@ -129,6 +129,35 @@ func (r *gormOrderRepository) TimeoutCancel(ctx context.Context, orderID uint64,
 	return true, nil
 }
 
+// TimeoutAccept 原子取消已接单但未开始行程且超过阈值的订单，避免司机运力被长期占用。
+func (r *gormOrderRepository) TimeoutAccept(ctx context.Context, orderID uint64, before time.Time, reason string, statusLog *model.OrderStatusLog) (bool, error) {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&model.RideOrder{}).
+			Where("id = ? AND status = ? AND driver_id <> 0 AND updated_at <= ? AND deleted_at IS NULL", orderID, constants.OrderStatusAccepted, before).
+			Updates(map[string]interface{}{
+				"status":        constants.OrderStatusCancelled,
+				"cancel_by":     constants.OperatorSystem,
+				"cancel_reason": reason,
+				"updated_at":    time.Now(),
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errOrderNotUpdated
+		}
+		statusLog.OrderId = orderID
+		return tx.Create(statusLog).Error
+	})
+	if errors.Is(err, errOrderNotUpdated) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // Accept 条件更新待接单订单为已接单并绑定司机。
 func (r *gormOrderRepository) Accept(ctx context.Context, orderID, driverID uint64, statusLog *model.OrderStatusLog) (bool, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -275,6 +304,24 @@ func (r *gormOrderRepository) ListTimeoutOrders(ctx context.Context, before time
 
 	var list []model.RideOrder
 	err := q.Order("created_at ASC, id ASC").Offset(int((page - 1) * pageSize)).Limit(int(pageSize)).Find(&list).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
+// ListAcceptedTimeoutOrders 查询已接单但未开始行程且更新时间早于 before 的订单，按更新时间升序。
+func (r *gormOrderRepository) ListAcceptedTimeoutOrders(ctx context.Context, before time.Time, page, pageSize int32) ([]model.RideOrder, int64, error) {
+	q := r.db.WithContext(ctx).Model(&model.RideOrder{}).
+		Where("status = ? AND driver_id <> 0 AND updated_at <= ? AND deleted_at IS NULL", constants.OrderStatusAccepted, before)
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var list []model.RideOrder
+	err := q.Order("updated_at ASC, id ASC").Offset(int((page - 1) * pageSize)).Limit(int(pageSize)).Find(&list).Error
 	if err != nil {
 		return nil, 0, err
 	}

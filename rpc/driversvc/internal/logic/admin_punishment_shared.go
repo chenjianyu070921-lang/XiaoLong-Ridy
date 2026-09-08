@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
 	__proto "XiaoLong-Ridy/rpc/driversvc/proto"
 	"google.golang.org/grpc/codes"
@@ -18,7 +19,7 @@ func applyAdminPunishment(ctx context.Context, svcCtx *svc.ServiceContext, in *_
 	if in == nil || in.GetDriverId() <= 0 || strings.TrimSpace(in.GetEventId()) == "" || strings.TrimSpace(in.GetPunishmentNo()) == "" {
 		return nil, status.Error(codes.InvalidArgument, "driver_id、punishment_no和event_id不能为空")
 	}
-	if svcCtx == nil || svcCtx.DB == nil || svcCtx.DriverRepository == nil {
+	if svcCtx == nil || svcCtx.DB == nil || svcCtx.DriverRepository == nil || svcCtx.DriverPunishmentRepository == nil {
 		return nil, status.Error(codes.FailedPrecondition, "driver dependencies not ready")
 	}
 	var actions []string
@@ -28,33 +29,35 @@ func applyAdminPunishment(ctx context.Context, svcCtx *svc.ServiceContext, in *_
 	if _, err := svcCtx.DriverRepository.GetByID(ctx, uint64(in.GetDriverId())); err != nil {
 		return nil, status.Error(codes.NotFound, "driver not found")
 	}
+	driverID := uint64(in.GetDriverId())
 	err := svcCtx.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		punishmentRepo := svcCtx.DriverPunishmentRepository
 		for _, action := range actions {
-			var exists int64
-			if err := tx.Table("driver_punishment_effect").Where("event_id=? AND action_type=?", in.GetEventId(), action).Count(&exists).Error; err != nil {
+			exists, err := punishmentRepo.EffectExists(ctx, tx, in.GetEventId(), action)
+			if err != nil {
 				return err
 			}
-			if exists > 0 {
+			if exists {
 				continue
 			}
 			switch action {
 			case "freeze":
-				value := __proto.DriverStatus_DRIVER_STATUS_FROZEN
+				value := int8(__proto.DriverStatus_DRIVER_STATUS_FROZEN)
 				if reverse {
-					value = __proto.DriverStatus_DRIVER_STATUS_NORMAL
+					value = int8(__proto.DriverStatus_DRIVER_STATUS_NORMAL)
 				}
-				if err := tx.Table("driver").Where("id=?", in.GetDriverId()).Updates(map[string]interface{}{"status": value, "updated_at": time.Now()}).Error; err != nil {
+				if err := punishmentRepo.UpdateStatus(ctx, tx, driverID, value, time.Now()); err != nil {
 					return err
 				}
 			case "no_dispatch":
-				value := 0
+				value := int8(0)
 				if reverse {
 					value = 1
 				}
-				if err := tx.Table("driver").Where("id=?", in.GetDriverId()).Updates(map[string]interface{}{"online_status": value, "updated_at": time.Now()}).Error; err != nil {
+				if err := punishmentRepo.UpdateOnlineStatus(ctx, tx, driverID, value, time.Now()); err != nil {
 					return err
 				}
-				if err := tx.Table("driver_location").Where("driver_id=?", in.GetDriverId()).Updates(map[string]interface{}{"online_status": value}).Error; err != nil {
+				if err := punishmentRepo.UpdateLocationOnlineStatus(ctx, tx, driverID, value); err != nil {
 					return err
 				}
 			case "deduct_score":
@@ -62,22 +65,30 @@ func applyAdminPunishment(ctx context.Context, svcCtx *svc.ServiceContext, in *_
 				if reverse {
 					delta = -delta
 				}
-				if err := tx.Exec("UPDATE driver_score SET score=GREATEST(0, score + ?), updated_at=? WHERE driver_id=?", delta, time.Now(), in.GetDriverId()).Error; err != nil {
+				if err := punishmentRepo.AddScore(ctx, tx, driverID, delta, time.Now()); err != nil {
 					return err
 				}
 			case "downgrade":
-				delta := in.GetPriorityWeightDelta()
+				delta := int8(in.GetPriorityWeightDelta())
 				if reverse {
 					delta = -delta
 				}
-				if err := tx.Exec("UPDATE driver_score SET level=GREATEST(1, level + ?), updated_at=? WHERE driver_id=?", delta, time.Now(), in.GetDriverId()).Error; err != nil {
+				if err := punishmentRepo.AddLevel(ctx, tx, driverID, delta, time.Now()); err != nil {
 					return err
 				}
 			case "fine":
 			default:
 				return status.Error(codes.InvalidArgument, "处罚动作不合法")
 			}
-			if err := tx.Exec("INSERT INTO driver_punishment_effect(event_id,punishment_no,driver_id,action_type,score_delta,priority_weight_delta) VALUES (?,?,?,?,?,?)", in.GetEventId(), in.GetPunishmentNo(), in.GetDriverId(), action, in.GetScoreDelta(), in.GetPriorityWeightDelta()).Error; err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+			effect := &model.DriverPunishmentEffect{
+				EventId:             in.GetEventId(),
+				PunishmentNo:        in.GetPunishmentNo(),
+				DriverId:            driverID,
+				ActionType:          action,
+				ScoreDelta:          in.GetScoreDelta(),
+				PriorityWeightDelta: in.GetPriorityWeightDelta(),
+			}
+			if err := punishmentRepo.RecordEffect(ctx, tx, effect); err != nil {
 				return err
 			}
 		}

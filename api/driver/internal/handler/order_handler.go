@@ -232,6 +232,33 @@ func ListAvailableOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// ListGrabOrdersHandler POST /api/driver/v1/orders/grab-list
+// 抢单池与附近可接单列表同源（均返回 WAIT_ACCEPT 附近订单），实现与 ListAvailableOrdersHandler 一致，
+// 仅 handler 名独立以满足 goctl 一个 @handler 只能绑定一条路由的约束。
+func ListGrabOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		var req types.ListMyOrdersRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		if req.Page < 0 || req.PageSize < 0 {
+			writeError(w, http.StatusBadRequest, 50000, "invalid order query parameters")
+			return
+		}
+		resp, err := logic.NewOrderLogic(r.Context(), svcCtx).ListAvailableOrders(int64(claims.AccountID), req.Page, req.PageSize)
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}
+
 // ListMyOrdersHandler POST /api/driver/v1/orders/list
 // Lists orders assigned to the current driver.
 func ListMyOrdersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {

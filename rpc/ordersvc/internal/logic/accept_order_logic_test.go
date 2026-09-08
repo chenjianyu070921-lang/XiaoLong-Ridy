@@ -9,7 +9,6 @@ import (
 	"XiaoLong-Ridy/common/constants"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
-	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 )
 
@@ -21,7 +20,7 @@ func TestAcceptOrderSuccess(t *testing.T) {
 		DriverId: 2002,
 		Status:   constants.DispatchStatusPending,
 	})
-	l := NewAcceptOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewAcceptOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	resp, err := l.AcceptOrder(&proto.AcceptOrderRequest{
 		OrderId:  int64(order.Id),
@@ -50,7 +49,7 @@ func TestAcceptOrderSuccess(t *testing.T) {
 func TestAcceptOrderRejectAlreadyAccepted(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 2002, 2)
-	l := NewAcceptOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewAcceptOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.AcceptOrder(&proto.AcceptOrderRequest{
 		OrderId:  int64(order.Id),
@@ -63,7 +62,7 @@ func TestAcceptOrderRejectAlreadyAccepted(t *testing.T) {
 
 func TestAcceptOrderRejectInvalidParams(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
-	l := NewAcceptOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewAcceptOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	if _, err := l.AcceptOrder(&proto.AcceptOrderRequest{OrderId: 0, DriverId: 2002}); !errors.Is(err, ErrInvalidOrderParams) {
 		t.Fatalf("AcceptOrder() error = %v, want %v", err, ErrInvalidOrderParams)
@@ -75,7 +74,7 @@ func TestAcceptOrderRejectInvalidParams(t *testing.T) {
 
 func TestAcceptOrderNotFound(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
-	l := NewAcceptOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewAcceptOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.AcceptOrder(&proto.AcceptOrderRequest{OrderId: 999, DriverId: 2002})
 	if !errors.Is(err, repository.ErrOrderNotFound) {
@@ -93,7 +92,7 @@ func TestAcceptCancelConcurrentRace(t *testing.T) {
 		DriverId: 2002,
 		Status:   constants.DispatchStatusPending,
 	})
-	svcCtx := &svc.ServiceContext{OrderRepository: repo}
+	svcCtx := newTestSvcCtx(t, repo)
 
 	var wg sync.WaitGroup
 	var acceptErr, cancelErr error
@@ -146,7 +145,7 @@ func TestTimeoutCancelAndAcceptConcurrentRace(t *testing.T) {
 		DriverId: 2002,
 		Status:   constants.DispatchStatusPending,
 	})
-	svcCtx := &svc.ServiceContext{OrderRepository: repo}
+	svcCtx := newTestSvcCtx(t, repo)
 
 	var wg sync.WaitGroup
 	var acceptErr, timeoutErr error

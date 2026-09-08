@@ -127,6 +127,10 @@ func (f *fakeDriverClient) GetDriverAiScore(context.Context, *driversproto.GetDr
 	return nil, nil
 }
 
+func (f *fakeDriverClient) RefreshDriverScore(context.Context, *driversproto.RefreshDriverScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
+	return nil, nil
+}
+
 func (f *fakeDriverClient) UploadCertification(_ context.Context, req *driversproto.UploadCertificationRequest) (*driversproto.UploadCertificationResponse, error) {
 	f.uploadCertificationRequest = req
 	if f.uploadCertificationResponse != nil {
@@ -252,4 +256,28 @@ func (f *fakeDriverClient) SetDriverServiceStatus(_ context.Context, req *driver
 		OnlineStatus: req.GetOnlineStatus(),
 		UpdatedAt:    123,
 	}, nil
+}
+
+func (f *fakeDriverClient) ListVehicles(_ context.Context, req *driversproto.ListVehiclesRequest) (*driversproto.ListVehiclesResponse, error) {
+	return &driversproto.ListVehiclesResponse{}, nil
+}
+
+func (f *fakeDriverClient) BindBankCard(context.Context, *driversproto.BindBankCardRequest) (*driversproto.BindBankCardResponse, error) {
+	return &driversproto.BindBankCardResponse{Id: 1, BankName: "中国工商银行", MaskedCardNo: "622****123", WithdrawPassword: "123456"}, nil
+}
+
+func (f *fakeDriverClient) ListBankCards(context.Context, *driversproto.ListBankCardsRequest) (*driversproto.ListBankCardsResponse, error) {
+	return &driversproto.ListBankCardsResponse{}, nil
+}
+
+func (f *fakeDriverClient) DeleteBankCard(context.Context, *driversproto.DeleteBankCardRequest) (*driversproto.CommonResponse, error) {
+	return &driversproto.CommonResponse{}, nil
+}
+
+func (f *fakeDriverClient) VerifyWithdrawPassword(context.Context, *driversproto.VerifyWithdrawPasswordRequest) (*driversproto.CommonResponse, error) {
+	return &driversproto.CommonResponse{}, nil
+}
+
+func (f *fakeDriverClient) ResetWithdrawPassword(context.Context, *driversproto.ResetWithdrawPasswordRequest) (*driversproto.ResetWithdrawPasswordResponse, error) {
+	return &driversproto.ResetWithdrawPasswordResponse{WithdrawPassword: "123456"}, nil
 }

@@ -5,6 +5,7 @@ import (
 	"context" // 用于在不同层之间传递请求上下文
 	"errors"  // 用于返回业务校验错误
 
+	"XiaoLong-Ridy/api/driver/internal/middleware"   // 从请求上下文取司机身份 claims
 	"XiaoLong-Ridy/api/driver/internal/svc"          // 服务上下文，提供 driversvc 客户端
 	"XiaoLong-Ridy/api/driver/internal/types"        // API 层使用的请求/响应类型
 	"XiaoLong-Ridy/common/cryptox"                   // 密码哈希工具
@@ -226,6 +227,11 @@ func (l *DriverLogic) GetDriverAiScore(driverID int64) (*types.GetDriverAiScoreR
 	if err != nil {
 		return nil, err
 	}
+	return mapAiScoreResponse(resp), nil
+}
+
+// mapAiScoreResponse 将 driversvc 的评分响应映射为 API 响应，供查询与刷新接口共用。
+func mapAiScoreResponse(resp *driversproto.GetDriverAiScoreResponse) *types.GetDriverAiScoreResponse {
 	factors := make([]types.AiScoreFactor, 0, len(resp.GetFactors()))
 	for _, f := range resp.GetFactors() {
 		factors = append(factors, types.AiScoreFactor{
@@ -243,5 +249,24 @@ func (l *DriverLogic) GetDriverAiScore(driverID int64) (*types.GetDriverAiScoreR
 		Factors:       factors,
 		Degraded:      resp.GetDegraded(),
 		DegradeReason: resp.GetDegradeReason(),
-	}, nil
+	}
+}
+
+// RefreshDriverScore 触发一次司机评分重算（喂数）：从登录态取司机身份，调用 driversvc.RefreshDriverScore。
+// 用于联调与定时任务，解决 driver_score 无数据导致 AI 评分恒降级为距离优先的问题。
+// 签名与 goctl 生成模板保持一致（无请求体路由对应 RefreshDriverScore()），司机身份从 context 取。
+func (l *DriverLogic) RefreshDriverScore() (*types.GetDriverAiScoreResponse, error) {
+	claims := middleware.ClaimsFromContext(l.ctx)
+	if claims == nil {
+		return nil, ErrInvalidParam
+	}
+	client, err := l.driverClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.RefreshDriverScore(l.ctx, &driversproto.RefreshDriverScoreRequest{DriverId: int64(claims.AccountID)})
+	if err != nil {
+		return nil, err
+	}
+	return mapAiScoreResponse(resp), nil
 }

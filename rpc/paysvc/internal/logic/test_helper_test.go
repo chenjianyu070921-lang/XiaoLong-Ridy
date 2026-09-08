@@ -60,7 +60,6 @@ func (m *mockOrderClient) GetDriverId(ctx context.Context, orderId int64) (int64
 	return m.driverId, m.err
 }
 
-// GetUserId 对齐 orderclient.OrderClient 接口（乘客钱包扣款需要用户ID）。
 func (m *mockOrderClient) GetUserId(ctx context.Context, orderId int64) (int64, error) {
 	return m.userId, m.err
 }

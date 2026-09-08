@@ -111,6 +111,13 @@ func (r *updateVehicleRepository) GetByDriverID(context.Context, uint64) (*model
 	return nil, errors.New("not implemented")
 }
 
+func (r *updateVehicleRepository) ListByDriverID(context.Context, uint64) ([]*model.DriverVehicle, error) {
+	if r.vehicle == nil {
+		return nil, nil
+	}
+	return []*model.DriverVehicle{r.vehicle}, nil
+}
+
 func (r *updateVehicleRepository) Update(_ context.Context, id uint64, updates map[string]interface{}) error {
 	if r.vehicle == nil || r.vehicle.Id != id {
 		return errors.New("vehicle not found")
