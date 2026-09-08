@@ -65,6 +65,45 @@ func (l *AiAgentLogic) Ask(in *adminsvc.AiAskRequest) (*adminsvc.AiAnswerRespons
 	return toAiAnswerResponse(answer), nil
 }
 
+// AskStream 流式处理受限运营问答：按 事实 → 增量文本 → 最终/降级 的顺序写入 stream。
+// 权限与审计口径与 Ask 完全一致，避免流式路径绕过鉴权或漏审计。
+func (l *AiAgentLogic) AskStream(in *adminsvc.AiAskRequest, stream adminsvc.AdminService_AskAiAgentStreamServer) error {
+	if err := requireAdminRoles(l.ctx, l.svcCtx, 1, 2, 3); err != nil {
+		return err
+	}
+	admin, err := ValidateAdminTokenFromContext(l.ctx, l.svcCtx)
+	if err != nil {
+		return err
+	}
+	start := time.Now()
+	engine := l.engine()
+	answer, err := engine.AskStream(l.ctx, aiagent.AskRequest{
+		Scene:          aiagent.Scene(in.GetScene()),
+		Question:       in.GetQuestion(),
+		ConversationID: in.GetConversationId(),
+		StartTime:      in.GetStartTime(),
+		EndTime:        in.GetEndTime(),
+		DemoMode:       in.GetDemoMode(),
+		AdminID:        admin.ID,
+	}, func(chunk aiagent.StreamChunk) {
+		out := &adminsvc.AiAnswerChunk{Type: chunk.Type, Text: chunk.Text}
+		if chunk.Answer != nil {
+			out.Answer = toAiAnswerResponse(chunk.Answer)
+			out.ConversationId = chunk.Answer.ConversationID
+			out.TraceId = chunk.Answer.TraceID
+		}
+		if sendErr := stream.Send(out); sendErr != nil {
+			logx.Errorf("aiagent stream send failed: type=%s err=%v", chunk.Type, sendErr)
+		}
+	})
+	durationMs := time.Since(start).Milliseconds()
+	if err != nil {
+		return mapAiAgentErr(err)
+	}
+	l.writeAiAskAudit(admin.ID, in, answer, durationMs)
+	return nil
+}
+
 // Suggestions 返回三个快捷问题。
 func (l *AiAgentLogic) Suggestions(in *adminsvc.AiSuggestionsRequest) (*adminsvc.AiSuggestionsResponse, error) {
 	if _, err := ValidateAdminTokenFromContext(l.ctx, l.svcCtx); err != nil {

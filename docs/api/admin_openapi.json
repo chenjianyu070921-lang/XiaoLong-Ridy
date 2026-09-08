@@ -67,6 +67,26 @@
     {
       "name": "工单",
       "description": "投诉与申诉工单、流转动作、证据索引"
+    },
+    {
+      "name": "司机管理",
+      "description": "司机列表/详情/冻结/解冻/提现审核"
+    },
+    {
+      "name": "退款补偿",
+      "description": "退款补偿任务查询与手动触发"
+    },
+    {
+      "name": "运力地图",
+      "description": "实时运力地图快照"
+    },
+    {
+      "name": "审计补偿",
+      "description": "通知与审计 outbox 查询"
+    },
+    {
+      "name": "AI运营助手",
+      "description": "受限运营问答、快捷问题、会话历史与反馈"
     }
   ],
   "paths": {
@@ -2983,6 +3003,710 @@
           }
         }
       }
+    },
+    "/admin/v1/drivers": {
+      "get": {
+        "tags": [
+          "司机管理"
+        ],
+        "summary": "司机列表",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": { "list": [], "total": 0, "page": 1, "page_size": 20 }
+                }
+              }
+            }
+          },
+          "401": { "description": "token 缺失或失效 40004" },
+          "403": { "description": "无权限 40003" }
+        }
+      }
+    },
+    "/admin/v1/drivers/{id}": {
+      "get": {
+        "tags": [
+          "司机管理"
+        ],
+        "summary": "司机详情（默认脱敏，sensitive=1 超管/运营查看明文）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "sensitive",
+            "in": "query",
+            "schema": { "type": "integer", "enum": [0, 1], "default": 0 }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "404": { "description": "司机不存在 40401" }
+        }
+      }
+    },
+    "/admin/v1/drivers/{id}/freeze": {
+      "post": {
+        "tags": [
+          "司机管理"
+        ],
+        "summary": "冻结司机",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FreezeRequest"
+              },
+              "example": { "reason": "多次违规", "remark": "" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "成功" },
+          "403": { "description": "仅超管 40003" }
+        }
+      }
+    },
+    "/admin/v1/drivers/{id}/unfreeze": {
+      "post": {
+        "tags": [
+          "司机管理"
+        ],
+        "summary": "解冻司机",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FreezeRequest"
+              },
+              "example": { "reason": "复核通过", "remark": "" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "成功" },
+          "403": { "description": "仅超管 40003" }
+        }
+      }
+    },
+    "/admin/v1/driver-withdrawals": {
+      "get": {
+        "tags": [
+          "司机管理"
+        ],
+        "summary": "司机提现申请列表",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "driver_id",
+            "in": "query",
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" }
+        }
+      }
+    },
+    "/admin/v1/driver-withdrawals/{id}/approve": {
+      "post": {
+        "tags": [
+          "司机管理"
+        ],
+        "summary": "提现审核通过（打款成功）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误 40001" }
+        }
+      }
+    },
+    "/admin/v1/driver-withdrawals/{id}/reject": {
+      "post": {
+        "tags": [
+          "司机管理"
+        ],
+        "summary": "提现审核驳回（打款失败）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误 40001" }
+        }
+      }
+    },
+    "/admin/v1/user-coupons": {
+      "get": {
+        "tags": [
+          "优惠券"
+        ],
+        "summary": "用户优惠券全局入口（必须带 user_id）",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "缺少 user_id 40001" }
+        }
+      }
+    },
+    "/admin/v1/orders/{id}/track": {
+      "get": {
+        "tags": [
+          "订单管理"
+        ],
+        "summary": "订单轨迹",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": { "type": "integer", "format": "int64" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1000 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": { "points": [] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/orders/{id}/redispatch": {
+      "post": {
+        "tags": [
+          "订单管理"
+        ],
+        "summary": "人工改派订单",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRedispatchRequest"
+              },
+              "example": { "new_driver_id": 20001, "reason": "原司机无法服务", "request_id": "admin-redispatch-001" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "成功" },
+          "409": { "description": "幂等冲突或状态不允许 40902" }
+        }
+      }
+    },
+    "/admin/v1/orders/{id}/refund": {
+      "post": {
+        "tags": [
+          "订单管理"
+        ],
+        "summary": "订单退款",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRefundRequest"
+              },
+              "example": { "refund_amount_cents": 1850, "reason": "用户投诉成立", "request_id": "admin-refund-001" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "成功" },
+          "409": { "description": "幂等冲突或状态不允许 40902" }
+        }
+      }
+    },
+    "/admin/v1/refund-retry-tasks": {
+      "get": {
+        "tags": [
+          "退款补偿"
+        ],
+        "summary": "退款补偿任务列表",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" }
+        }
+      }
+    },
+    "/admin/v1/refund-retry-tasks/{refund_no}": {
+      "post": {
+        "tags": [
+          "退款补偿"
+        ],
+        "summary": "立即触发指定退款补偿任务",
+        "parameters": [
+          {
+            "name": "refund_no",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "退款单号非法 40001" }
+        }
+      }
+    },
+    "/admin/v1/statistics/drivers": {
+      "get": {
+        "tags": [
+          "数据统计"
+        ],
+        "summary": "司机统计",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "city_code",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "driver_total": 0,
+                    "new_driver_count": 0,
+                    "pending_audit_count": 0,
+                    "approved_driver_count": 0,
+                    "completed_order_count": 0,
+                    "driver_income": "0.00",
+                    "withdraw_pending_amount": "0.00",
+                    "withdraw_success_amount": "0.00",
+                    "withdraw_failed_count": 0,
+                    "average_score": "0.00",
+                    "total_complaint_count": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "传入非空 city_code 40001" }
+        }
+      }
+    },
+    "/admin/v1/statistics/revenue": {
+      "get": {
+        "tags": [
+          "数据统计"
+        ],
+        "summary": "收入统计",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "city_code",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "传入非空 city_code 40001" }
+        }
+      }
+    },
+    "/admin/v1/statistics/users": {
+      "get": {
+        "tags": [
+          "数据统计"
+        ],
+        "summary": "用户统计",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "city_code",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "user_total": 0,
+                    "new_user_count": 0,
+                    "active_user_count": 0,
+                    "order_user_count": 0,
+                    "repeat_order_user_count": 0,
+                    "complaint_user_count": 0,
+                    "risk_user_count": 0,
+                    "reorder_rate": "0.00",
+                    "complaint_rate": "0.00"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "传入非空 city_code 40001" }
+        }
+      }
+    },
+    "/admin/v1/capacity/map": {
+      "get": {
+        "tags": [
+          "运力地图"
+        ],
+        "summary": "实时运力地图快照",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "integer", "description": "业务状态，0 全部" }
+          },
+          {
+            "name": "online_status",
+            "in": "query",
+            "schema": { "type": "integer", "description": "0 全部/1 在线/2 行程中" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 100, "maximum": 200 }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" }
+        }
+      }
+    },
+    "/admin/v1/notification-outbox": {
+      "get": {
+        "tags": [
+          "审计补偿"
+        ],
+        "summary": "通知与审计 outbox 补偿任务列表",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "module",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" }
+        }
+      }
+    },
+    "/admin/v1/ai-agent/ask": {
+      "post": {
+        "tags": [
+          "AI运营助手"
+        ],
+        "summary": "提交受限运营问答",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiAskRequest"
+              },
+              "example": { "scene": "overview", "question": "今日运营情况如何？" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "成功" }
+        }
+      }
+    },
+    "/admin/v1/ai-agent/suggestions": {
+      "get": {
+        "tags": [
+          "AI运营助手"
+        ],
+        "summary": "当前管理员可见快捷问题",
+        "responses": {
+          "200": { "description": "成功" }
+        }
+      }
+    },
+    "/admin/v1/ai-agent/history": {
+      "get": {
+        "tags": [
+          "AI运营助手"
+        ],
+        "summary": "当前管理员 AI 问答会话摘要",
+        "responses": {
+          "200": { "description": "成功" }
+        }
+      }
+    },
+    "/admin/v1/ai-agent/feedback": {
+      "post": {
+        "tags": [
+          "AI运营助手"
+        ],
+        "summary": "记录 AI 回答是否有帮助",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiFeedbackRequest"
+              },
+              "example": { "conversation_id": "c-001", "trace_id": "t-001", "helpful": true }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "成功" }
+        }
+      }
+    },
+    "/admin/v1/ai-agent/conversations/{id}": {
+      "delete": {
+        "tags": [
+          "AI运营助手"
+        ],
+        "summary": "结束并清空指定 AI 会话",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "会话 ID 非法 40001" }
+        }
+      }
     }
   },
   "components": {
@@ -3312,8 +4036,7 @@
           "username",
           "password",
           "real_name",
-          "role",
-          "status"
+          "role"
         ],
         "properties": {
           "username": {
@@ -3328,10 +4051,6 @@
           "role": {
             "type": "integer",
             "description": "1 超管 2 运营 3 客服"
-          },
-          "status": {
-            "type": "integer",
-            "description": "1 正常 2 停用"
           }
         }
       },
@@ -3339,17 +4058,13 @@
         "type": "object",
         "required": [
           "real_name",
-          "role",
-          "status"
+          "role"
         ],
         "properties": {
           "real_name": {
             "type": "string"
           },
           "role": {
-            "type": "integer"
-          },
-          "status": {
             "type": "integer"
           }
         }
@@ -3553,6 +4268,100 @@
           },
           "content": {
             "type": "string"
+          }
+        }
+      },
+      "DriverWithdrawHandleRequest": {
+        "type": "object",
+        "properties": {
+          "remark": {
+            "type": "string",
+            "description": "提现审核备注"
+          }
+        }
+      },
+      "OrderRedispatchRequest": {
+        "type": "object",
+        "required": [
+          "new_driver_id"
+        ],
+        "properties": {
+          "new_driver_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "后台幂等号"
+          }
+        }
+      },
+      "OrderRefundRequest": {
+        "type": "object",
+        "required": [
+          "refund_amount_cents"
+        ],
+        "properties": {
+          "refund_amount_cents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "作为退款单号与幂等号"
+          }
+        }
+      },
+      "AiAskRequest": {
+        "type": "object",
+        "required": [
+          "scene",
+          "question"
+        ],
+        "properties": {
+          "scene": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "abnormal_order",
+              "risk_review"
+            ]
+          },
+          "question": {
+            "type": "string"
+          },
+          "conversation_id": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string"
+          },
+          "end_time": {
+            "type": "string"
+          },
+          "demo_mode": {
+            "type": "boolean",
+            "description": "仅本地/答辩环境允许"
+          }
+        }
+      },
+      "AiFeedbackRequest": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "helpful": {
+            "type": "boolean"
           }
         }
       }

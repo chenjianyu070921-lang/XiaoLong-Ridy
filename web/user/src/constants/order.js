@@ -36,3 +36,27 @@ export function getOrderStatusText(status) {
   }
   return textMap[status] || status
 }
+
+// driverFallbackNamePattern 匹配后端在 driversvc 不可用时生成的兜底称呼（如"司机37师傅"）。
+// 这类文案本身已是乘客可读的称呼，前端不应再按姓氏截取，否则会把数字当成姓氏。
+const driverFallbackNamePattern = /^司机\d+师傅$/
+
+// formatDriverDisplayName 把司机真实姓名转换为乘客侧称呼：姓氏 + 师傅。
+// 这是乘客端统一的脱敏规则——任何页面都不得直接展示司机完整实名。
+// 真实姓名缺失时降级为"司机 #ID"；连司机 ID 都没有时返回加载占位。
+export function formatDriverDisplayName(realName, driverID) {
+  const raw = String(realName || '').trim()
+  if (!raw) {
+    const id = Number(driverID || 0)
+    return id > 0 ? `司机 #${id}` : '司机信息加载中'
+  }
+  if (driverFallbackNamePattern.test(raw)) return raw
+  const surname = raw.slice(0, 1)
+  return surname ? `${surname}师傅` : '司机师傅'
+}
+
+// formatPlateNumber 规范化车牌号展示；后端未返回时统一显示占位文案，禁止留空或伪造。
+export function formatPlateNumber(plateNumber) {
+  const value = String(plateNumber || '').trim()
+  return value || '车牌信息加载中'
+}

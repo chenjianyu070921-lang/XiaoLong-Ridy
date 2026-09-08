@@ -4,9 +4,11 @@
 >
 > 基础路径：`/admin/v1`，服务地址：`http://127.0.0.1:8717`
 >
-> 生成日期：2026-08-20（对齐当前 `api/admin/internal/handler/router.go`、`rpc/adminsvc/admin.proto` 与全量路由冒烟测试）
+> 最近同步：2026-09-05（第三至十六章以当前路由注册与 `rpc/adminsvc/admin.proto` 为准；新增模块见第十七章）
 >
-> 配套文件：[admin_openapi.json](admin_openapi.json)（可直接导入 ApiPost）
+> 配套文件：[admin_openapi.json](admin_openapi.json)（2026-08-20 生成，导入前请对照第十七章补录新增接口）
+>
+> 说明：司机处罚域路由已注册但 `admin.proto` 尚未同步对应 RPC，本版不列示该域接口。
 
 ---
 
@@ -293,8 +295,8 @@ Body 参数：`username`、`password`（必填）。
 以下接口仅允许 `role=1` 超级管理员调用：
 
 - `GET /admin/v1/admins`：管理员分页列表，支持 `keyword`、`role`、`status`、`page`、`page_size`。
-- `POST /admin/v1/admins`：创建管理员，必填 `username`、`password`、`real_name`、`role`、`status`。
-- `PUT /admin/v1/admins/{id}`：编辑 `real_name`、`role`、`status`，密码通过单独接口修改。
+- `POST /admin/v1/admins`：创建管理员，请求体为 `username`、`password`、`real_name`、`role`（不接收 `status`）。
+- `PUT /admin/v1/admins/{id}`：编辑 `real_name`、`role`（不接收 `username`/`password`/`status`），密码通过单独接口修改。
 - `POST /admin/v1/admins/{id}/status`：请求体 `{ "status": 1 }` 启用或 `{ "status": 2 }` 停用。
 - `POST /admin/v1/admins/{id}/reset-password`：请求体 `{ "password": "654321" }` 重置密码。
 
@@ -556,7 +558,7 @@ Body：
 
 前置条件：券状态为启用（2）且未过期。响应 `data`：`task_no`、`total_count`、`success_count`、`fail_count`、`status`。
 
-说明：发券任务依赖 `admin_coupon_issue_task` 和 `user_coupon` 表，联调前需确认业务库已按数据库发布流程应用对应迁移。
+链路：`adminsvc.IssueCoupon -> usersvc.AdminIssueCoupon` 写入 `user_coupon`；adminsvc 本地事务写 `admin_coupon_issue_task`、`admin_coupon_publish_record` 与操作日志，不再直写 `user_coupon`。联调前需确认业务库已按数据库发布流程应用对应迁移。
 
 ### 8.6 发券任务列表
 
@@ -731,8 +733,8 @@ Body：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `export_type` | string | 是 | 当前仅支持 `orders` |
-| `filters` | string | 否 | JSON 字符串；只允许 `status`、`user_id`、`driver_id`、`start_time`、`end_time` |
+| `export_type` | string | 是 | 支持 `users`、`drivers`、`orders`、`operation_logs`、`statistics` 五类 |
+| `filters` | string | 否 | JSON 字符串；筛选字段按导出类型白名单校验 |
 
 ```json
 { "export_type": "orders", "filters": "{\"start_time\":\"2026-08-01 00:00:00\"}" }
@@ -912,5 +914,115 @@ Query：`admin_id`（int64）、`module`、`action`、`target_type`、`target_id
 
 1. **数据库迁移注意**：`admin_coupon_issue_task`、`risk_blacklist_hit_record`、`admin_export_task` 等表需按数据库发布流程应用迁移脚本，代码不会自动修改线上数据库。
 2. **写操作注意**：`freeze/unfreeze`、审核通过/驳回、发券、发布/回滚、拉黑、计价规则新增/编辑/启停等会真实改动业务库并写操作日志，测试时建议使用测试账号/可回滚数据。
-3. **文档规划但未开放的路由**（返回 404）：`GET /dashboard/overview`、旧路径 `GET /statistics/{revenue,drivers,users}`。`GET /user-coupons` 已开放但必须带 `user_id`，链路为 `api/admin -> adminsvc.ListUserCoupons -> usersvc.ListMyCoupons`；`GET /orders/{id}/track` 已开放，链路为 `api/admin -> adminsvc.GetOrderTrack -> locationsvc.GetOrderTrack`；`POST /orders/{id}/redispatch` 已开放，链路为 `api/admin -> adminsvc.RedispatchOrder -> ordersvc.RedispatchOrder`；`POST /orders/{id}/refund` 已开放，链路为 `api/admin -> adminsvc.RefundOrder -> ordersvc.ForceRefundOrder`，其中 `request_id` 作为退款单号和幂等号。司机列表、司机详情和司机冻结已开放，链路为 `api/admin -> adminsvc -> driversvc`，冻结后由 adminsvc 调用 pushsvc 通知司机；司机详情默认脱敏，`sensitive=1` 仅超级管理员和运营角色可查看完整手机号、身份证号和驾驶证号。push 通知或冻结补偿失败会写入 `admin_audit_outbox`，由 `job` 定时重试；退款事件由 order-event-consumer 查询支付单号后调用 paysvc，失败消息进入退款主题 DLQ。
+3. **历史“未开放路由”说明已过期**：当前 `GET /dashboard/overview` 仍未注册（404），实际运营总览为 `GET /statistics/overview`；统计六个子资源 `GET /statistics/{overview,orders,drivers,revenue,coupons,users}` 均已注册，不再存在 `statistics/{revenue,drivers,users}` 404。司机列表/详情/冻结/解冻、司机提现、`GET /user-coupons`（必须带 `user_id`）、`GET /orders/{id}/track`、`POST /orders/{id}/redispatch`、`POST /orders/{id}/refund` 均已开放，链路见各章节；退款失败/待重试项落 `admin_refund_compensation_task`，由 `job.RetryRefundEvents`/`RunRefundCompensation` 消费。
 4. **自动化验证**：当前已通过 `go test ./api/admin/... ./rpc/adminsvc/... ./rpc/pricesvc/... ./rpc/driversvc/...`；路由 smoke 用例需继续补齐管理员管理、用户历史、导出下载和工单接口覆盖。
+
+---
+
+## 十七、2026-09-05 现状修订
+
+> 第三至十六章中凡是与本章冲突的描述，以本章为准。司机处罚域（`/admin/v1/punishment-rules`、`/punishments`、`/punishment-appeals`）路由已注册但 `admin.proto` 尚未同步对应 RPC，本章不列示。
+
+### 17.1 当前完整路由总览（处罚域除外）
+
+| # | 模块 | 方法 | 路由 | 鉴权 |
+| --- | --- | --- | --- | --- |
+| 1 | 基础 | GET | `/healthz` | 否 |
+| 2 | 基础 | GET | `/` | 否 |
+| 3 | 鉴权 | POST | `/admin/v1/auth/register` | 首个免 token |
+| 4 | 鉴权 | POST | `/admin/v1/auth/login` | 否 |
+| 5 | 鉴权 | POST | `/admin/v1/auth/logout` | 是 |
+| 6 | 鉴权 | GET | `/admin/v1/auth/me` | 是 |
+| 7 | 鉴权 | GET | `/admin/v1/menus` | 是 |
+| 8 | 管理员 | GET | `/admin/v1/admins` | 仅超管 |
+| 9 | 管理员 | POST | `/admin/v1/admins` | 仅超管 |
+| 10 | 管理员 | PUT | `/admin/v1/admins/{id}` | 仅超管 |
+| 11 | 管理员 | POST | `/admin/v1/admins/{id}/status` | 仅超管 |
+| 12 | 管理员 | POST | `/admin/v1/admins/{id}/reset-password` | 仅超管 |
+| 13 | 日志 | GET | `/admin/v1/operation-logs` | 是 |
+| 14 | 用户 | GET | `/admin/v1/users` | 是 |
+| 15 | 用户 | GET | `/admin/v1/users/{id}` | 是 |
+| 16 | 用户 | GET | `/admin/v1/users/{id}/orders` | 是 |
+| 17 | 用户 | GET | `/admin/v1/users/{id}/coupons` | 是 |
+| 18 | 用户 | GET | `/admin/v1/user-coupons` | 是，必须带 `user_id` |
+| 19 | 用户 | POST | `/admin/v1/users/{id}/freeze` | 是 |
+| 20 | 用户 | POST | `/admin/v1/users/{id}/unfreeze` | 是 |
+| 21 | 司机 | GET | `/admin/v1/drivers` | 是 |
+| 22 | 司机 | GET | `/admin/v1/drivers/{id}` | 是 |
+| 23 | 司机 | POST | `/admin/v1/drivers/{id}/freeze` | 是 |
+| 24 | 司机 | POST | `/admin/v1/drivers/{id}/unfreeze` | 是 |
+| 25 | 司机 | GET | `/admin/v1/driver-withdrawals` | 是 |
+| 26 | 司机 | POST | `/admin/v1/driver-withdrawals/{id}/approve` | 是 |
+| 27 | 司机 | POST | `/admin/v1/driver-withdrawals/{id}/reject` | 是 |
+| 28 | 司机 | GET | `/admin/v1/driver-certifications` | 是 |
+| 29 | 司机 | GET | `/admin/v1/driver-certifications/{id}` | 是 |
+| 30 | 司机 | POST | `/admin/v1/driver-certifications/{id}/approve` | 是 |
+| 31 | 司机 | POST | `/admin/v1/driver-certifications/{id}/reject` | 是 |
+| 32 | 订单 | GET | `/admin/v1/orders` | 是 |
+| 33 | 订单 | GET | `/admin/v1/orders/abnormal` | 是 |
+| 34 | 订单 | GET | `/admin/v1/orders/{id}` | 是 |
+| 35 | 订单 | GET | `/admin/v1/orders/{id}/track` | 是 |
+| 36 | 订单 | POST | `/admin/v1/orders/{id}/cancel` | 是 |
+| 37 | 订单 | POST | `/admin/v1/orders/{id}/redispatch` | 是 |
+| 38 | 订单 | POST | `/admin/v1/orders/{id}/refund` | 是 |
+| 39 | 退款补偿 | GET | `/admin/v1/refund-retry-tasks` | 是 |
+| 40 | 退款补偿 | POST | `/admin/v1/refund-retry-tasks/{refund_no}` | 是 |
+| 41 | 优惠券 | GET | `/admin/v1/coupons` | 是 |
+| 42 | 优惠券 | POST | `/admin/v1/coupons` | 是 |
+| 43 | 优惠券 | PUT | `/admin/v1/coupons/{id}` | 是 |
+| 44 | 优惠券 | POST | `/admin/v1/coupons/{id}/disable` | 是 |
+| 45 | 优惠券 | POST | `/admin/v1/coupons/{id}/issue` | 是 |
+| 46 | 优惠券 | GET | `/admin/v1/coupon-issue-tasks` | 是 |
+| 47 | 计价 | GET | `/admin/v1/price-rules` | 是 |
+| 48 | 计价 | POST | `/admin/v1/price-rules` | 是 |
+| 49 | 计价 | GET | `/admin/v1/price-rules/{id}` | 是 |
+| 50 | 计价 | PUT | `/admin/v1/price-rules/{id}` | 是 |
+| 51 | 计价 | POST | `/admin/v1/price-rules/{id}/enable` | 是 |
+| 52 | 计价 | POST | `/admin/v1/price-rules/{id}/disable` | 是 |
+| 53 | 营销 | GET | `/admin/v1/promotion-activities` | 是 |
+| 54 | 营销 | POST | `/admin/v1/promotion-activities` | 是 |
+| 55 | 营销 | PUT | `/admin/v1/promotion-activities/{id}` | 是 |
+| 56 | 营销 | POST | `/admin/v1/promotion-activities/{id}/publish` | 是 |
+| 57 | 营销 | POST | `/admin/v1/promotion-activities/{id}/rollback` | 是 |
+| 58 | 统计 | GET | `/admin/v1/statistics/overview` | 是 |
+| 59 | 统计 | GET | `/admin/v1/statistics/orders` | 是 |
+| 60 | 统计 | GET | `/admin/v1/statistics/drivers` | 是 |
+| 61 | 统计 | GET | `/admin/v1/statistics/revenue` | 是 |
+| 62 | 统计 | GET | `/admin/v1/statistics/coupons` | 是 |
+| 63 | 统计 | GET | `/admin/v1/statistics/users` | 是 |
+| 64 | 运力 | GET | `/admin/v1/capacity/map` | 是 |
+| 65 | 导出 | GET | `/admin/v1/export-tasks` | 是 |
+| 66 | 导出 | POST | `/admin/v1/export-tasks` | 是 |
+| 67 | 导出 | GET | `/admin/v1/export-tasks/{task_no}` | 是 |
+| 68 | 导出 | GET | `/admin/v1/export-tasks/{task_no}/download` | 是 |
+| 69 | 工单 | GET | `/admin/v1/work-orders` | 是 |
+| 70 | 工单 | POST | `/admin/v1/work-orders` | 是 |
+| 71 | 工单 | GET | `/admin/v1/work-orders/{id}` | 是 |
+| 72 | 工单 | POST | `/admin/v1/work-orders/{id}/actions` | 是 |
+| 73 | 工单 | POST | `/admin/v1/work-orders/batch-actions` | 是 |
+| 74 | 工单 | GET | `/admin/v1/work-orders/{id}/evidence` | 是 |
+| 75 | 工单 | POST | `/admin/v1/work-orders/{id}/evidence` | 是 |
+| 76 | 风控 | GET | `/admin/v1/blacklist` | 是 |
+| 77 | 风控 | POST | `/admin/v1/blacklist` | 是 |
+| 78 | 风控 | POST/PATCH | `/admin/v1/blacklist/{id}/release` | 是 |
+| 79 | 风控 | GET | `/admin/v1/risk/hit-records` | 是 |
+| 80 | 风控 | POST | `/admin/v1/risk/hit-records/actions` | 是 |
+| 81 | 审计补偿 | GET | `/admin/v1/notification-outbox` | 是 |
+| 82 | AI | POST | `/admin/v1/ai-agent/ask` | 是 |
+| 83 | AI | GET | `/admin/v1/ai-agent/suggestions` | 是 |
+| 84 | AI | GET | `/admin/v1/ai-agent/history` | 是 |
+| 85 | AI | POST | `/admin/v1/ai-agent/feedback` | 是 |
+| 86 | AI | DELETE | `/admin/v1/ai-agent/conversations/{id}` | 是 |
+
+> 第三章表格为 2026-08-20 登记快照（含历史重复编号），当前完整路由以本章为准。
+
+### 17.2 新增模块要点
+
+1. **司机解冻**：`POST /admin/v1/drivers/{id}/unfreeze`，链路 `adminsvc.UnfreezeDriver -> driversvc.UnfreezeDriver`。
+2. **司机提现**：`GET /admin/v1/driver-withdrawals`（链路 `adminsvc.ListDriverWithdrawals -> driversvc.AdminListWithdraws`）；`POST /driver-withdrawals/{id}/approve|reject`（`adminsvc.HandleDriverWithdraw -> driversvc.AuditWithdraw`，approve=打款成功，reject=打款失败）。
+3. **退款补偿**：`GET|POST /admin/v1/refund-retry-tasks(/{refund_no})`，读 `admin_refund_compensation_task`（迁移 `17_admin_domain_closure.sql`），自动补偿由 `job.RetryRefundEvents`/`RunRefundCompensation` 每 10 秒执行。
+4. **运力地图**：`GET /admin/v1/capacity/map`，Query `status`、`online_status`、`limit`；`adminsvc.GetCapacityMap -> driversvc.ListDrivers`。
+5. **审计补偿查询**：`GET /admin/v1/notification-outbox`（`adminsvc.ListAdminAuditOutbox`），实际重试由 `job.RetryAdminAuditOutbox` 每 30 秒执行。
+6. **AI 运营助手**：`ask/suggestions/history/feedback/conversations/{id}` 五个路由；`ask` 的 `scene` 仅 `overview/abnormal_order/risk_review`，回答 `source_mode` 为 `realtime/demo_snapshot/template_fallback`；`Ask/Feedback/DeleteConversation` 写脱敏审计（module=`ai`）。
+7. **发券链路变更**：`POST /admin/v1/coupons/{id}/issue` 实际由 `adminsvc.IssueCoupon -> usersvc.AdminIssueCoupon` 写 `user_coupon`；adminsvc 本地事务写 `admin_coupon_issue_task`、`admin_coupon_publish_record`、操作日志。
+8. **导出**：支持 `users`、`drivers`、`orders`、`operation_logs`、`statistics` 五类；下载走 `GET /export-tasks/{task_no}/download`。

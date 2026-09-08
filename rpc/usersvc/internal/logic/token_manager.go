@@ -10,7 +10,11 @@ import (
 )
 
 const (
-	accessTokenTTL  = 2 * time.Hour
+	// accessTokenTTL 乘客端 Access Token 有效期。
+	// 前端尚未接入静默刷新，过期即登出，因此对齐 adminsvc 的 SessionTTLHours=24 约定，
+	// 避免联调/测试过程中频繁掉登录。
+	accessTokenTTL = 24 * time.Hour
+	// refreshTokenTTL 刷新令牌有效期，用户连续 7 天不活跃后才需要重新登录。
 	refreshTokenTTL = 7 * 24 * time.Hour
 )
 

@@ -2,7 +2,6 @@ package logic
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"XiaoLong-Ridy/api/passenger/internal/svc"
 	"XiaoLong-Ridy/api/passenger/internal/types"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
@@ -21,6 +21,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// trackingStaleAfter 是司机位置被判定为“已过期”的阈值：
+// 超过 15 秒没有新的定位上报时，前端据此把地图车辆标记置灰，避免用过期坐标误导乘客。
 const trackingStaleAfter = 15 * time.Second
 
 // passengerOrderTimeoutSeconds 是乘客状态轮询兜底使用的未接单超时时间。
@@ -28,6 +30,8 @@ const trackingStaleAfter = 15 * time.Second
 const passengerOrderTimeoutSeconds = 300
 
 // OrderLogic 封装乘客端订单相关业务流程。
+// 所有方法都先由 token 经 currentUserID 解析出 userID，再与订单/支付单归属比对，
+// 确保乘客只能访问自己的数据。
 type OrderLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
@@ -192,6 +196,14 @@ func (l *OrderLogic) GetOrder(req *types.GetOrderRequest) (*types.OrderDetail, e
 		return nil, ErrForbidden
 	}
 	detail := toOrderDetail(order)
+	// 订单服务只保存司机 ID，详情页再向 driversvc 查询公开姓名和车牌号。
+	if l.svcCtx.DriverClient != nil && order.GetDriverId() > 0 {
+		if driverResp, driverErr := l.svcCtx.DriverClient.GetDriver(l.ctx, &driverproto.GetDriverRequest{Id: order.GetDriverId()}); driverErr == nil && driverResp.GetDriver() != nil {
+			driver := driverResp.GetDriver()
+			detail.DriverName = driver.GetRealName()
+			detail.PlateNumber = driver.GetPlateNo()
+		}
+	}
 	detail.Rated = l.hasOrderReview(uint64(detail.OrderID))
 	if detail.CouponID > 0 {
 		detail.CouponName = l.findCouponName(userID, uint64(detail.CouponID))
@@ -281,6 +293,7 @@ func (l *OrderLogic) PayOrder(req *types.PayOrderRequest) (*types.PayOrderRespon
 		return nil, ErrForbidden
 	}
 	// 幂等保护：重复点击支付时复用已成功支付单，避免再次扣减钱包余额。
+	// 支付单状态 2 = 已支付（paysvc proto 未导出该状态常量，此处只能以字面量比对）。
 	if existing, getErr := payClient.GetPayment(l.ctx, &payproto.GetPaymentRequest{OrderId: req.OrderID}); getErr == nil && existing.GetStatus() == 2 {
 		// 支付单已成功但订单可能因瞬时 RPC 失败未完成，支付入口负责幂等补偿确认。
 		_, _ = orderClient.ConfirmPaid(l.ctx, &orderproto.ConfirmPaidRequest{OrderId: req.OrderID, PaymentNo: existing.GetPaymentNo(), AmountCents: existing.GetAmountCents(), PaidAt: time.Now().Unix()})
@@ -292,23 +305,6 @@ func (l *OrderLogic) PayOrder(req *types.PayOrderRequest) (*types.PayOrderRespon
 	if order.GetEstimatedPriceCents() <= 0 {
 		return nil, ErrInvalidRequest
 	}
-	// 当前支付仅开放钱包余额，后端强制校验渠道，避免绕过钱包扣款。
-	if channel != payproto.PayChannel_PAY_CHANNEL_BALANCE {
-		return nil, ErrInvalidRequest
-	}
-	amountYuan := float64(order.GetEstimatedPriceCents()) / 100
-	wallet, err := l.svcCtx.UserClient.GetWallet(l.ctx, &userproto.GetWalletRequest{UserId: userID})
-	if err != nil {
-		return nil, err
-	}
-	if wallet.GetBalance() < amountYuan {
-		return nil, errors.New("insufficient wallet balance")
-	}
-	// usersvc 的扣款在单个数据库事务中完成（余额更新 + 流水写入）。
-	if _, err = l.svcCtx.UserClient.WithdrawWallet(l.ctx, &userproto.ChangeWalletRequest{UserId: userID, Amount: amountYuan, OrderId: uint64(req.OrderID), Type: "order_payment", Title: "订单支付"}); err != nil {
-		return nil, err
-	}
-
 	payment, err := payClient.CreatePayment(l.ctx, &payproto.CreatePaymentRequest{
 		OrderId:     req.OrderID,
 		UserId:      int64(userID),
@@ -316,8 +312,6 @@ func (l *OrderLogic) PayOrder(req *types.PayOrderRequest) (*types.PayOrderRespon
 		Channel:     channel,
 	})
 	if err != nil {
-		// 支付单创建失败时补回余额，避免钱包已扣款但没有支付记录。
-		_, _ = l.svcCtx.UserClient.RechargeWallet(l.ctx, &userproto.ChangeWalletRequest{UserId: userID, Amount: amountYuan})
 		return nil, err
 	}
 	return &types.PayOrderResponse{
@@ -416,7 +410,8 @@ func (l *OrderLogic) findCouponName(userID, userCouponID uint64) string {
 		return ""
 	}
 	coupons, err := userClient.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{
-		UserId:   userID,
+		UserId: userID,
+		// Status 传 0 表示不筛选状态：历史订单引用的券可能已被核销或过期，这里只取回券名用于展示。
 		Status:   0,
 		Page:     1,
 		PageSize: 100,
@@ -554,20 +549,9 @@ func toOrderDetail(order *orderproto.GetOrderResponse) *types.OrderDetail {
 	}
 }
 
-// cancelCreatedOrder cancels an order that has been created but cannot finish the coupon flow.
-func cancelCreatedOrder(ctx context.Context, orderClient svc.OrderClient, orderID int64, userID uint64, reason string) {
-	if orderClient == nil || orderID <= 0 || userID == 0 {
-		return
-	}
-	_, _ = orderClient.CancelOrder(ctx, &orderproto.CancelOrderRequest{
-		OrderId:      orderID,
-		OperatorType: "system",
-		OperatorId:   int64(userID),
-		Reason:       reason,
-	})
-}
-
-// findUserCoupon reads the passenger coupon before order creation so discount can be calculated without a fake order ID.
+// findUserCoupon 在创建订单前读取乘客指定的优惠券，使抵扣金额可以在还没有订单号时先算出来。
+// Status 传 1（model.UserCouponStatusUnused）只匹配未使用的券：
+// 已核销(2)、已过期(3)、已被下单锁定(4) 的券一律不可用于下单，避免重复用券。
 func (l *OrderLogic) findUserCoupon(userClient svc.UserClient, userID, userCouponID uint64) (*userproto.CouponInfo, error) {
 	if userClient == nil || userID == 0 || userCouponID == 0 {
 		return nil, ErrInvalidRequest
@@ -587,7 +571,8 @@ func (l *OrderLogic) findUserCoupon(userClient svc.UserClient, userID, userCoupo
 	return nil, userproto.ErrUserCouponNotFound
 }
 
-// PollOrderStatus provides the polling fallback for passenger order status refresh.
+// PollOrderStatus 是乘客端订单状态的轮询接口：一次调用同时返回订单状态、支付状态和派单进展，
+// 用于在 WebSocket 推送不可用（弱网、小程序后台）时兜底刷新页面。
 func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.OrderStatusPollResponse, error) {
 	userID, err := currentUserID(l.svcCtx, l.token)
 	if err != nil {
@@ -607,10 +592,10 @@ func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.
 	if order.GetUserId() != int64(userID) {
 		return nil, ErrForbidden
 	}
-	status := int32(order.GetStatus())
+	OrderStatus := int32(order.GetStatus())
 	// 状态轮询同时承担单订单兜底：订单超过 5 分钟仍未接单时，
 	// 由订单服务执行带状态校验的系统取消，避免 job 未运行导致页面永久等待。
-	if status == int32(orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT) &&
+	if OrderStatus == int32(orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT) &&
 		order.GetDriverId() == 0 && order.GetCreatedAt() > 0 &&
 		time.Now().Unix()-order.GetCreatedAt() >= passengerOrderTimeoutSeconds {
 		if cancelled, cancelErr := orderClient.CancelOrder(l.ctx, &orderproto.CancelOrderRequest{
@@ -618,16 +603,24 @@ func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.
 			OperatorType: "system",
 			Reason:       "超时未接单，系统自动取消",
 		}); cancelErr == nil && cancelled != nil {
-			status = int32(cancelled.GetStatus())
+			OrderStatus = int32(cancelled.GetStatus())
 			order.Status = cancelled.GetStatus()
 		}
 	}
 	resp := &types.OrderStatusPollResponse{
 		OrderID:   order.GetOrderId(),
-		Status:    status,
-		Changed:   req.KnownStatus != status,
+		Status:    OrderStatus,
+		Changed:   req.KnownStatus != OrderStatus,
 		UpdatedAt: order.GetUpdatedAt(),
 		DriverID:  order.GetDriverId(),
+		// DriverName/PlateNumber/CarModel 在下文中通过 driversvc 实时填充，查询失败不会阻断轮询。
+	}
+	if order.GetDriverId() > 0 {
+		// driversvc 不可用或返回异常时，前端按空串降级展示「司机 #ID」；轮询主流程必须继续返回。
+		if name, plate := l.fetchDriverDisplayInfo(l.ctx, order.GetDriverId()); name != "" || plate != "" {
+			resp.DriverName = name
+			resp.PlateNumber = plate
+		}
 	}
 	if payment, err := l.paymentStatusByOrder(order.GetOrderId(), userID); err == nil {
 		resp.Payment = payment
@@ -636,6 +629,21 @@ func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.
 		resp.Dispatch = dispatch
 	}
 	return resp, nil
+}
+
+// fetchDriverDisplayInfo 从 driversvc 拉取司机实名和车牌号，供轮询接口与订单详情复用。
+// Driver proto 仅透传 RealName 与 PlateNo；车型需要额外 GetVehicle 查询，轮询流程不做，避免依赖膨胀。
+// 返回值允许为空字符串：driversvc 不可用时调用方应降级占位，不应把异常向上抛。
+func (l *OrderLogic) fetchDriverDisplayInfo(ctx context.Context, driverID int64) (name, plate string) {
+	if l == nil || l.svcCtx == nil || l.svcCtx.DriverClient == nil || driverID <= 0 {
+		return "", ""
+	}
+	resp, err := l.svcCtx.DriverClient.GetDriver(ctx, &driverproto.GetDriverRequest{Id: driverID})
+	if err != nil || resp == nil || resp.GetDriver() == nil {
+		return "", ""
+	}
+	driver := resp.GetDriver()
+	return strings.TrimSpace(driver.GetRealName()), strings.TrimSpace(driver.GetPlateNo())
 }
 
 // orderCityCode 返回请求城市编码；请求未传时使用 passenger 运行配置中的默认城市。
@@ -647,6 +655,7 @@ func (l *OrderLogic) orderCityCode(cityCode string) string {
 	if l != nil && l.svcCtx != nil && strings.TrimSpace(l.svcCtx.PriceCityCode) != "" {
 		return strings.TrimSpace(l.svcCtx.PriceCityCode)
 	}
+	// 兜底城市为北京（110000），与 svc.defaultPriceCityCode 保持一致。
 	return "110000"
 }
 
@@ -763,14 +772,18 @@ func toDispatchStatusResponse(orderID, orderDriverID int64, resp *dispatchproto.
 	return result
 }
 
-// shouldUseDispatchDriver 判断派单记录是否可作为乘客端展示的当前候选司机。
+// shouldUseDispatchDriver 判断某条派单记录是否可以覆盖乘客端当前展示的司机。
+// 派单状态取值来自 common/constants：1=Pending(已派单待接单)、2=Accepted(司机已接单)、
+// 3=Rejected、4=Timeout、5=Cancelled。
 func shouldUseDispatchDriver(currentDriverID int64, status int32, driverID int64) bool {
 	if driverID <= 0 {
 		return false
 	}
+	// 已接单(Accepted)优先级最高，直接覆盖此前暂存的任何候选司机。
 	if status == 2 {
 		return true
 	}
+	// 只有在还没有候选司机时，才用「已派单待接单」的司机占位。
 	return currentDriverID <= 0 && status == 1
 }
 
@@ -795,6 +808,8 @@ func (l *OrderLogic) GetOrderTracking(req *types.OrderTrackingRequest) (*types.O
 		}
 		return nil, err
 	}
+	// 归属校验失败与「订单尚未分配司机」统一返回 ErrInvalidRequest（而非 ErrForbidden），
+	// 调用方无法据此区分订单是否存在。
 	if order.GetUserId() != int64(userID) || order.GetDriverId() <= 0 {
 		return nil, ErrInvalidRequest
 	}
@@ -808,6 +823,8 @@ func (l *OrderLogic) GetOrderTracking(req *types.OrderTrackingRequest) (*types.O
 			EstimatedPriceCents: order.GetEstimatedPriceCents(),
 		}, nil
 	}
+	// 默认按「司机 -> 订单目的地」规划；但司机刚接单、尚未接到乘客(ACCEPTED)时，
+	// 司机实际驶向上车点，终点必须改为上车点，否则地图路线会画反。
 	destinationLng, destinationLat := order.GetToLongitude(), order.GetToLatitude()
 	if order.GetStatus() == orderproto.OrderStatus_ORDER_STATUS_ACCEPTED {
 		destinationLng, destinationLat = order.GetFromLongitude(), order.GetFromLatitude()
@@ -839,6 +856,8 @@ func (l *OrderLogic) GetOrderTracking(req *types.OrderTrackingRequest) (*types.O
 		}, nil
 	}
 	elapsed := elapsedTrackingSeconds(order.GetCreatedAt())
+	// 已行驶里程用「下单时预估总里程 - 实时剩余里程」推算，是近似值而非车载设备真实里程。
+	// 司机绕路时实时剩余里程可能大于预估总里程，相减为负，此处截断为 0。
 	travelled := order.GetEstimatedDistanceM() - int64(route.GetDistance())
 	if travelled < 0 {
 		travelled = 0

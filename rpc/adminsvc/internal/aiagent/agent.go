@@ -88,6 +88,104 @@ func (e *Engine) Ask(ctx context.Context, req AskRequest) (*Answer, error) {
 	return answer, nil
 }
 
+// 流式分块类型：facts 事实先到 / delta 模型增量文本 / final 校验通过的结果 /
+// fallback 降级模板 / error 失败原因。
+const (
+	ChunkFacts    = "facts"
+	ChunkDelta    = "delta"
+	ChunkFinal    = "final"
+	ChunkFallback = "fallback"
+	ChunkError    = "error"
+)
+
+// StreamChunk 是流式问答推送给调用方（RPC 层）的一个分块。
+type StreamChunk struct {
+	Type   string
+	Text   string
+	Answer *Answer
+}
+
+// AskStream 处理一次流式问答：先推事实让前端立刻渲染数据证据，再推模型增量文本，
+// 最后推校验通过的结构化结果；校验失败或模型不可用时推降级模板答案。
+// 返回最终 Answer，便于调用方落会话与审计。
+func (e *Engine) AskStream(ctx context.Context, req AskRequest, emit func(StreamChunk)) (*Answer, error) {
+	if !req.Scene.Valid() {
+		return nil, ErrOutOfScope
+	}
+	if req.DemoMode && !e.cfg.DemoEnabled {
+		return nil, ErrDemoDenied
+	}
+	if strings.TrimSpace(req.Question) == "" {
+		return nil, errors.New("question required")
+	}
+
+	conv, err := e.loadOrCreate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	f, sourceMode, err := e.collectFacts(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// ① 事实先到：只给证据与可执行入口，不显示模板结论，避免与随后生成的结论冲突。
+	factsAnswer := buildTemplateAnswer(req.Scene, f)
+	factsAnswer.Summary = ""
+	factsAnswer.Priorities = nil
+	factsAnswer.SourceMode = ""
+	factsAnswer.ConversationID = conv.ID
+	emit(StreamChunk{Type: ChunkFacts, Answer: factsAnswer})
+
+	answer := e.generateStream(ctx, req.Scene, f, sourceMode, emit)
+	answer.ConversationID = conv.ID
+	answer.TraceID = uuid.NewString()
+
+	conv.Rounds = appendRound(conv.Rounds, Round{Question: req.Question, Answer: *answer}, e.cfg.Conversation.MaxRounds)
+	conv.UpdatedAt = time.Now().Unix()
+	_ = e.store.Save(ctx, conv)
+	return answer, nil
+}
+
+// generateStream 流式生成：增量文本经 emit 推送，结束后推最终或降级结果。
+func (e *Engine) generateStream(ctx context.Context, scene Scene, f *facts, mode SourceMode, emit func(StreamChunk)) *Answer {
+	gctx := ctx
+	if e.cfg.Model.TimeoutSeconds > 0 {
+		var cancel context.CancelFunc
+		gctx, cancel = context.WithTimeout(ctx, time.Duration(e.cfg.Model.TimeoutSeconds)*time.Second)
+		defer cancel()
+	}
+	if raw, err := e.streamGenerate(gctx, scene, f, emit); err == nil {
+		if a := validateLLMAnswer(scene, raw, f, mode); a != nil {
+			emit(StreamChunk{Type: ChunkFinal, Answer: a})
+			return a
+		}
+		logx.Errorf("aiagent llm stream output rejected: scene=%s raw=%s", scene, truncateForLog(raw, 500))
+	} else {
+		logx.Errorf("aiagent llm stream generate failed: scene=%s err=%v", scene, err)
+	}
+	a := buildTemplateAnswer(scene, f)
+	if mode == SourceDemoSnapshot {
+		a.SourceMode = SourceDemoSnapshot
+	} else {
+		a.SourceMode = SourceTemplateFallback
+	}
+	emit(StreamChunk{Type: ChunkFallback, Answer: a})
+	return a
+}
+
+// streamGenerate 优先使用模型的流式能力；模型不支持流式时退化为一次性生成（不推 delta）。
+func (e *Engine) streamGenerate(ctx context.Context, scene Scene, f *facts, emit func(StreamChunk)) (string, error) {
+	streamer, ok := e.model.(interface {
+		GenerateStream(ctx context.Context, system, user string, onDelta func(string)) (string, error)
+	})
+	if !ok {
+		return e.model.Generate(ctx, systemPrompt, buildUserPrompt(scene, f))
+	}
+	return streamer.GenerateStream(ctx, systemPrompt, buildUserPrompt(scene, f), func(delta string) {
+		emit(StreamChunk{Type: ChunkDelta, Text: delta})
+	})
+}
+
 // Suggestions 返回三个场景的快捷问题。
 func (e *Engine) Suggestions() []Suggestion {
 	return Suggestions()
@@ -212,6 +310,10 @@ func (e *Engine) generate(ctx context.Context, scene Scene, f *facts, mode Sourc
 		if a := validateLLMAnswer(scene, raw, f, mode); a != nil {
 			return a
 		}
+		// 模型返回成功但结构化校验未通过（非法 JSON / 关键字段缺失），记录原始输出便于定位。
+		logx.Errorf("aiagent llm output rejected: scene=%s raw=%s", scene, truncateForLog(raw, 500))
+	} else {
+		logx.Errorf("aiagent llm generate failed: scene=%s err=%v", scene, err)
 	}
 	a := buildTemplateAnswer(scene, f)
 	if mode == SourceDemoSnapshot {
@@ -242,6 +344,15 @@ func validateLLMAnswer(scene Scene, raw string, f *facts, mode SourceMode) *Answ
 	a.Priorities = valid
 	a.SourceMode = mode
 	return &a
+}
+
+// truncateForLog 将文本截断到指定长度，避免过长模型输出刷屏日志。
+func truncateForLog(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "...(truncated)"
 }
 
 // trimJSON 去除模型输出中可能的 markdown 代码块包裹与前后噪声。

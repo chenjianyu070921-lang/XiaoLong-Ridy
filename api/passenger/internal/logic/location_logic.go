@@ -14,12 +14,12 @@ import (
 )
 
 const (
+	// defaultGeocodeRadius 是「地址 -> 坐标」检索的默认半径（米）；
+	// 50 公里足以覆盖同城绝大多数目的地，过大反而会让高德返回跨城同名地点。
 	defaultGeocodeRadius = 50000
-	defaultGeocodeSize   = 10
+	// defaultGeocodeSize 限制一次地理编码最多取回的候选 POI 数量，避免结果里混入大量无关地点。
+	defaultGeocodeSize = 10
 )
-
-// LocationLogic 提供乘客端的位置能力：目的地 POI 关键词搜索（后端代理）、坐标/地址互转
-// 与附近司机查询。统一由后端调用 locationsvc 的高德 key，避开浏览器暴露 key 与类型不匹配的问题。
 
 // NearbyDrivers 查询指定半径内仍在听单的司机，默认限制 5 公里和 50 个结果。
 func (l *LocationLogic) NearbyDrivers(req *types.NearbyDriversRequest) ([]*types.NearbyDriverResponse, error) {
@@ -58,6 +58,8 @@ func (l *LocationLogic) NearbyDrivers(req *types.NearbyDriversRequest) ([]*types
 	}
 	items := make([]*types.NearbyDriverResponse, 0, len(resp.Drivers))
 	for _, d := range resp.Drivers {
+		// 丢弃坐标非法、司机 ID 缺失或距离为 NaN/负数 的脏数据：
+		// 这些记录会让前端地图标记错位，宁可少画一个也不要画错位置。
 		if d == nil || d.DriverId <= 0 || !isValidLongitudeLatitude(d.Lng, d.Lat) || math.IsNaN(d.Distance) || math.IsInf(d.Distance, 0) || d.Distance < 0 {
 			continue
 		}
@@ -66,7 +68,10 @@ func (l *LocationLogic) NearbyDrivers(req *types.NearbyDriversRequest) ([]*types
 	return items, nil
 }
 
-// LocationLogic 封装乘客端定位地址解析流程。
+// LocationLogic 封装乘客端位置能力：目的地 POI 关键词搜索、逆地理编码（坐标转地址）、
+// 地理编码（地址转坐标）与附近司机查询。
+// 高德地图调用统一由后端经 locationsvc 代理完成，这样浏览器既拿不到地图 key，
+// 也不用处理前后端坐标类型不一致的问题。
 type LocationLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
@@ -200,9 +205,12 @@ func (l *LocationLogic) Geocode(req *types.GeocodeRequest) (*types.GeocodeRespon
 			CityCode:  strings.TrimSpace(req.CityCode),
 		}, nil
 	}
+	// 检索无结果、或候选坐标全部非法时统一返回 ErrInvalidRequest，
+	// 前端据此提示乘客换一个更具体的目的地，避免拿到 (0,0) 坐标继续下单。
 	return nil, ErrInvalidRequest
 }
 
+// locationClient 获取位置服务客户端，避免各业务方法重复判断空依赖。
 func (l *LocationLogic) locationClient() (svc.LocationClient, error) {
 	if l.svcCtx == nil || l.svcCtx.LocationClient == nil {
 		return nil, ErrLocationClientNotConfigured

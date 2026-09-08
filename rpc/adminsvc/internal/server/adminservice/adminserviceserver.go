@@ -544,6 +544,11 @@ func (s *AdminServiceServer) AskAiAgent(ctx context.Context, in *adminsvc.AiAskR
 	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).Ask(in)
 }
 
+// AskAiAgentStream 流式问答：使用 stream.Context() 以便客户端断开时取消生成。
+func (s *AdminServiceServer) AskAiAgentStream(in *adminsvc.AiAskRequest, stream adminsvc.AdminService_AskAiAgentStreamServer) error {
+	return adminservicelogic.NewAiAgentLogic(stream.Context(), s.svcCtx).AskStream(in, stream)
+}
+
 // GetAiSuggestions 读取三个快捷问题。
 func (s *AdminServiceServer) GetAiSuggestions(ctx context.Context, in *adminsvc.AiSuggestionsRequest) (*adminsvc.AiSuggestionsResponse, error) {
 	return adminservicelogic.NewAiAgentLogic(ctx, s.svcCtx).Suggestions(in)

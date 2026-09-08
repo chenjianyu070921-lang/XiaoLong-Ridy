@@ -64,6 +64,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
+import { formatDriverDisplayName, formatPlateNumber } from '@/constants/order'
 import { getOrderDetail, submitReview } from '@/api/order'
 
 const router = useRouter()
@@ -90,6 +91,7 @@ const orderId = Number(route.query.orderId)
 const payMethodText = (payMethod) => ({ wechat: '微信支付', alipay: '支付宝', balance: '余额支付' })[payMethod] || '--'
 
 // mapOrderDetail 将后端金额和司机标识转换为页面展示模型，禁止使用演示数据替代真实订单。
+// 司机姓名统一走"姓氏+师傅"脱敏规则，避免在页面暴露完整实名。
 const mapOrderDetail = (data) => ({
   totalPrice: (Number(data?.paidCents || data?.payableCents || data?.estimatedPriceCents || 0) / 100).toFixed(2),
   orderNo: data?.orderNo || '--',
@@ -99,10 +101,8 @@ const mapOrderDetail = (data) => ({
     ? new Date(Number(route.query.paidAt) * 1000).toLocaleString()
     : (data?.paidAt ? new Date(Number(data.paidAt) * 1000).toLocaleString() : (data?.updatedAt ? new Date(Number(data.updatedAt) * 1000).toLocaleString() : '--')),
   driverName: data?.driverName || '',
-  driverDisplayName: data?.driverName
-    ? `${String(data.driverName).replace(/司机|师傅/g, '').slice(0, 1)}师傅`
-    : (data?.driverId ? `司机${data.driverId}师傅` : '司机师傅'),
-  plateNumber: data?.plateNumber || data?.plateNo || '',
+  driverDisplayName: formatDriverDisplayName(data?.driverName, data?.driverId),
+  plateNumber: formatPlateNumber(data?.plateNumber || data?.plateNo),
   driverId: data?.driverId || ''
 })
 

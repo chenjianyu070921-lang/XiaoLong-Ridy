@@ -9,6 +9,8 @@ orderRPCAddr: "127.0.0.1:50051"
 priceRPCAddr: "127.0.0.1:50053"
 payRPCAddr: "127.0.0.1:50054"
 dispatchRPCAddr: "127.0.0.1:50056"
+# 司机服务 RPC 地址；乘客端用于查询司机位置及司机信息。
+driverRPCAddr: "127.0.0.1:50055"
 locationRPCAddr: "127.0.0.1:50057"
 priceCityCode: "110000"
 mysqlDSN: ""

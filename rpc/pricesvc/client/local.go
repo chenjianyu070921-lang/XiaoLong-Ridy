@@ -66,6 +66,11 @@ func NewLocalClient() *LocalClient {
 	return &LocalClient{}
 }
 
+// fallbackSpeedMetersPerMinute 是请求未传预估时长时，用于折算行程时长的兜底平均车速。
+// 取 250 米/分钟 ≈ 15 km/h；DurationS 单位是秒，故折算后需 *60。
+// 该常量与 api/passenger/internal/svc 下的同名兜底保持一致，避免 local 模式与 gRPC 模式算出不同价格。
+const fallbackSpeedMetersPerMinute = 250.0
+
 // EstimatePrice 根据起终点坐标计算一个稳定可复现的预估价格。
 func (c *LocalClient) EstimatePrice(_ context.Context, req *EstimatePriceRequest) (*EstimatePriceResponse, error) {
 	distanceM := req.EstimatedMeters
@@ -78,7 +83,7 @@ func (c *LocalClient) EstimatePrice(_ context.Context, req *EstimatePriceRequest
 
 	durationS := req.EstimatedSecond
 	if durationS <= 0 {
-		durationS = int64(math.Ceil(float64(distanceM) / 250.0))
+		durationS = int64(math.Ceil(float64(distanceM)/fallbackSpeedMetersPerMinute)) * 60
 	}
 	if durationS <= 0 {
 		durationS = 60

@@ -94,6 +94,7 @@ import AMapLoader from '@amap/amap-jsapi-loader'
 import { useRouter } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { useOrderStore } from '@/stores/order'
+import { formatDriverDisplayName, formatPlateNumber } from '@/constants/order'
 import { getOrderTracking, pollOrderStatus } from '@/api/order'
 import { getAmapConfig } from '@/config/amap'
 
@@ -108,6 +109,9 @@ const driverInfo = ref({
   carModel: '车型信息加载中',
   phone: ''
 })
+
+// 司机姓名与车牌号统一使用 constants/order 的脱敏规则：姓名只展示"姓氏+师傅"，
+// 车牌为后端返回值；两者缺失时由共享函数降级为占位文案。
 
 // 行程统计数据
 const tripStats = ref({
@@ -185,12 +189,14 @@ const pollStatus = async () => {
 }
 
 // 司机身份信息只取订单接口真实字段，缺失时显示加载占位，不伪造数据。
+// 司机姓名按"姓氏+师傅"展示，车牌号直接展示后端返回值。
 const syncDriverInfo = (order = {}) => {
-  driverInfo.value.name = order.driverName || (order.driverId ? `司机 #${order.driverId}` : '司机信息加载中')
-  driverInfo.value.plateNumber = order.plateNumber || '车牌信息加载中'
-  driverInfo.value.carModel = order.carModel || '车型信息加载中'
-  driverInfo.value.avatar = order.driverAvatar || ''
-  driverInfo.value.phone = order.driverPhone || ''
+  const driverID = Number(order.driverId || order.driverID || 0)
+  driverInfo.value.name = formatDriverDisplayName(order.driverName, driverID)
+  driverInfo.value.plateNumber = formatPlateNumber(order.plateNumber)
+  driverInfo.value.carModel = (order.carModel || '').trim() || '车型信息加载中'
+  driverInfo.value.avatar = order.driverAvatar || order.avatar || ''
+  driverInfo.value.phone = order.driverPhone || order.phone || ''
 }
 
 // 将秒数格式化为乘客容易阅读的行程时长。

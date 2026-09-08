@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -84,10 +85,12 @@ func (t *Task) DryRunCompensationSummary(ctx context.Context) (*CompensationSumm
 		return nil, err
 	}
 	result.AdminAuditOutbox = OutboxSummary{Pending: pending, Running: running, Failed: failed}
-	var earliest time.Time
+	var earliest sql.NullTime
 	if err := t.svcCtx.Db.WithContext(ctx).Table("admin_audit_outbox").Where("status IN ?", []string{adminOutboxStatusPending, adminOutboxStatusRunning}).Select("MIN(created_at)").Scan(&earliest).Error; err != nil {
 		return nil, err
 	}
-	result.AdminAuditOutbox.EarliestAt = earliest
+	if earliest.Valid {
+		result.AdminAuditOutbox.EarliestAt = earliest.Time
+	}
 	return result, nil
 }

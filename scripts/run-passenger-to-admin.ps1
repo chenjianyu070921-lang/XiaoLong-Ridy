@@ -137,6 +137,8 @@ if ([string]::IsNullOrWhiteSpace($signingKey) -or $signingKey -eq $defaultSignin
 if ([string]::IsNullOrWhiteSpace($signingKey)) { throw "未能确定本地共享令牌签名密钥" }
 
 # 生成 adminsvc 无 etcd 的临时配置，下游 RPC 全部指向本机真实端口并懒连接。
+# 火山方舟推理接入点 ID 从环境变量读取（可选）；未设置时 Name 为空，AI 助手降级到本地模板。
+$arkEndpointId = [Environment]::GetEnvironmentVariable("ARK_ENDPOINT_ID")
 $adminsvcTemplate = @"
 Name: admin.rpc
 ListenOn: 0.0.0.0:8084
@@ -341,6 +343,12 @@ PushRPC:
   target: 127.0.0.1:9002
   nonblock: true
   timeout: 30000
+AiAgent:
+  DemoEnabled: false
+  Model:
+    Endpoint: "https://ark.cn-beijing.volces.com/api/v3"
+    Name: "$arkEndpointId"
+    TimeoutSeconds: 120
 "@
 Set-Content -LiteralPath $adminsvcCfg -Value $adminsvcTemplate -Encoding UTF8
 
