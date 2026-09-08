@@ -14,7 +14,7 @@ var ErrReviewAlreadyExists = errors.New("review already exists")
 // OrderReview 表示乘客对已完成订单的评价记录。
 type OrderReview struct {
 	ID        uint64    `gorm:"primaryKey;column:id"`
-	OrderID   uint64    `gorm:"column:order_id"`
+	OrderID   uint64    `gorm:"column:order_id;uniqueIndex:uk_order_id"`
 	UserID    uint64    `gorm:"column:user_id"`
 	DriverID  uint64    `gorm:"column:driver_id"`
 	Rating    int8      `gorm:"column:rating"`

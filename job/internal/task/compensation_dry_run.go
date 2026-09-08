@@ -15,6 +15,7 @@ type CompensationSummary struct {
 	GeneratedAt      time.Time     `json:"generated_at"`
 	RefundEvents     QueueSummary  `json:"refund_events"`
 	DispatchRetries  QueueSummary  `json:"dispatch_retries"`
+	PaymentRetries   QueueSummary  `json:"payment_retries"`
 	AdminAuditOutbox OutboxSummary `json:"admin_audit_outbox"`
 }
 
@@ -69,6 +70,9 @@ func (t *Task) DryRunCompensationSummary(ctx context.Context) (*CompensationSumm
 		return nil, err
 	}
 	if result.DispatchRetries, err = readQueueSummary(ctx, t.svcCtx.Redis, constants.DispatchRetryQueueKey); err != nil {
+		return nil, err
+	}
+	if result.PaymentRetries, err = readQueueSummary(ctx, t.svcCtx.Redis, constants.PaymentRetryQueueKey); err != nil {
 		return nil, err
 	}
 	if t.svcCtx.Db == nil {

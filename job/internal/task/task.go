@@ -12,6 +12,8 @@ import (
 	"XiaoLong-Ridy/job/internal/svc"
 	dispatch "XiaoLong-Ridy/rpc/dispatchsvc/dispatch"
 	order "XiaoLong-Ridy/rpc/ordersvc/orderclient"
+	pay "XiaoLong-Ridy/rpc/paysvc/pay"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -188,6 +190,8 @@ func (t *Task) RetryRefundEvents(max int) error {
 		_ = t.svcCtx.Redis.ZAdd(ctx, constants.RefundRetryQueueKey, redis.Z{
 			Score: float64(time.Now().Add(delay).Unix()), Member: string(itemPayload),
 		}).Err()
+		// 重排后移除旧 member：旧条目 score 已到期，不移除会在下一轮被重复拉取，造成事件重复投递放大。
+		_ = t.svcCtx.Redis.ZRem(ctx, constants.RefundRetryQueueKey, member).Err()
 	}
 	return nil
 }
@@ -240,6 +244,8 @@ func (t *Task) RetryPendingDispatches(max int) error {
 				_ = t.svcCtx.Redis.ZAdd(ctx, constants.DispatchRetryQueueKey, redis.Z{
 					Score: float64(time.Now().Add(time.Hour).Unix()), Member: string(payload),
 				}).Err()
+				// 移除旧 member，避免已到期的旧条目下轮被重复拉取（补偿放大）。
+				_ = t.svcCtx.Redis.ZRem(ctx, constants.DispatchRetryQueueKey, member).Err()
 				logx.Errorf("派单补偿重试次数耗尽, order_id=%d attempt=%d, 保留队列待人工介入: %v", item.OrderId, next.Attempt, err)
 				continue
 			}
@@ -247,6 +253,8 @@ func (t *Task) RetryPendingDispatches(max int) error {
 			_ = t.svcCtx.Redis.ZAdd(ctx, constants.DispatchRetryQueueKey, redis.Z{
 				Score: float64(time.Now().Add(delay).Unix()), Member: string(payload),
 			}).Err()
+			// 移除旧 member，避免已到期的旧条目下轮被重复拉取（补偿放大）。
+			_ = t.svcCtx.Redis.ZRem(ctx, constants.DispatchRetryQueueKey, member).Err()
 			logx.Errorf("派单补偿重试失败, order_id=%d attempt=%d, 下次 %v 后重试: %v", item.OrderId, next.Attempt, delay, err)
 			continue
 		}
@@ -256,6 +264,114 @@ func (t *Task) RetryPendingDispatches(max int) error {
 	}
 	logx.Infof("派单补偿扫描完成: 拉取 %d 条, 成功 %d 条", len(items), done)
 	return nil
+}
+
+// paymentRetryTask 与 ordersvc 入队结构保持一致（JSON tag 相同）。
+// 序列化格式变更时需同步 rpc/ordersvc/internal/logic/finish_trip_logic.go（P0-3）。
+type paymentRetryTask struct {
+	OrderId      uint64 `json:"order_id"`
+	AmountCents  int64  `json:"amount_cents"`
+	RetryAttempt int    `json:"retry_attempt"`
+}
+
+// RetryPendingPayments 扫描支付单创建失败延迟队列（payment:retry:orders），
+// 对已到期任务复核订单状态后重新调用 paysvc 创建支付单（P0-3）。
+// 行程结束时 FinishTrip 先把订单改为待支付再调 CreatePayment，后者失败则订单卡"待支付但无支付单"，
+// ordersvc 侧已将任务入队，本任务负责补偿消费：成功移除、失败按指数退避（5s/15s/45s）重排。
+// 重试前先 GetOrder 复核：订单已离开待支付（已支付/已取消/已退款）则直接丢弃，避免给终态订单建支付单。
+func (t *Task) RetryPendingPayments(max int) error {
+	if t.svcCtx.Redis == nil {
+		return fmt.Errorf("redis not configured")
+	}
+	if t.svcCtx.PayClient == nil || t.svcCtx.OrderClient == nil {
+		return fmt.Errorf("payment retry dependencies not configured")
+	}
+	if max <= 0 {
+		max = 50
+	}
+	ctx := context.Background()
+	items, err := t.svcCtx.Redis.ZRangeByScore(ctx, constants.PaymentRetryQueueKey, &redis.ZRangeBy{
+		Min:   "-inf",
+		Max:   strconv.FormatInt(time.Now().Unix(), 10),
+		Count: int64(max),
+	}).Result()
+	if err != nil {
+		return fmt.Errorf("读取支付重试队列失败: %w", err)
+	}
+
+	done := 0
+	for _, member := range items {
+		var item paymentRetryTask
+		if err := json.Unmarshal([]byte(member), &item); err != nil {
+			// 脏数据直接移除并告警，避免阻塞队列。
+			_ = t.svcCtx.Redis.ZRem(ctx, constants.PaymentRetryQueueKey, member).Err()
+			logx.Errorf("解析支付重试任务失败，已丢弃: %s err=%v", member, err)
+			continue
+		}
+		// 复核订单：只有待支付订单才需要补建支付单。
+		orderInfo, err := t.svcCtx.OrderClient.GetOrder(ctx, &order.GetOrderRequest{OrderId: int64(item.OrderId)})
+		if err != nil {
+			logx.Errorf("支付补偿查询订单失败, order_id=%d: %v", item.OrderId, err)
+			t.reschedulePaymentRetry(ctx, item, member)
+			continue
+		}
+		if orderInfo == nil || orderInfo.OrderId <= 0 {
+			_ = t.svcCtx.Redis.ZRem(ctx, constants.PaymentRetryQueueKey, member).Err()
+			logx.Errorf("支付补偿订单不存在，已丢弃: order_id=%d", item.OrderId)
+			continue
+		}
+		if orderInfo.Status != constants.OrderStatusWaitPay {
+			// 订单已支付/已取消/已退款：无需再建支付单，直接移除。
+			_ = t.svcCtx.Redis.ZRem(ctx, constants.PaymentRetryQueueKey, member).Err()
+			logx.Infof("支付补偿跳过非待支付订单, order_id=%d status=%d", item.OrderId, orderInfo.Status)
+			continue
+		}
+		if item.AmountCents <= 0 {
+			_ = t.svcCtx.Redis.ZRem(ctx, constants.PaymentRetryQueueKey, member).Err()
+			logx.Errorf("支付补偿金额非法，已丢弃: order_id=%d amount=%d", item.OrderId, item.AmountCents)
+			continue
+		}
+		resp, err := t.svcCtx.PayClient.CreatePayment(ctx, &pay.CreatePaymentRequest{
+			OrderId:     int64(item.OrderId),
+			UserId:      orderInfo.UserId,
+			AmountCents: item.AmountCents,
+			Channel:     payproto.PayChannel(1), // 默认微信，与 FinishTrip createPayment 兜底一致
+		})
+		if err != nil || resp == nil || resp.PaymentNo == "" {
+			logx.Errorf("支付补偿创建支付单失败, order_id=%d attempt=%d: %v", item.OrderId, item.RetryAttempt, err)
+			t.reschedulePaymentRetry(ctx, item, member)
+			continue
+		}
+		_ = t.svcCtx.Redis.ZRem(ctx, constants.PaymentRetryQueueKey, member).Err()
+		done++
+		logx.Infof("支付补偿成功, order_id=%d paymentNo=%s", item.OrderId, resp.PaymentNo)
+	}
+	logx.Infof("支付补偿扫描完成: 拉取 %d 条, 成功 %d 条", len(items), done)
+	return nil
+}
+
+// reschedulePaymentRetry 按指数退避重排支付重试任务（5s/15s/45s/135s/405s）；
+// 超过 MaxPaymentRetryAttempt 后 score 延后 1h 待人工介入。重排后必须移除旧 member，
+// 否则旧条目（score 已到期）会在下一轮被重复拉取，造成补偿放大。
+func (t *Task) reschedulePaymentRetry(ctx context.Context, item paymentRetryTask, oldMember string) {
+	item.RetryAttempt++
+	payload, _ := json.Marshal(item)
+	if item.RetryAttempt > constants.MaxPaymentRetryAttempt {
+		_ = t.svcCtx.Redis.ZAdd(ctx, constants.PaymentRetryQueueKey, redis.Z{
+			Score:  float64(time.Now().Add(time.Hour).Unix()),
+			Member: string(payload),
+		}).Err()
+		_ = t.svcCtx.Redis.ZRem(ctx, constants.PaymentRetryQueueKey, oldMember).Err()
+		logx.Errorf("支付补偿重试次数耗尽, order_id=%d attempt=%d, 保留队列待人工介入", item.OrderId, item.RetryAttempt)
+		return
+	}
+	delay := time.Duration(5*int(math.Pow(3, float64(item.RetryAttempt-1)))) * time.Second
+	_ = t.svcCtx.Redis.ZAdd(ctx, constants.PaymentRetryQueueKey, redis.Z{
+		Score:  float64(time.Now().Add(delay).Unix()),
+		Member: string(payload),
+	}).Err()
+	_ = t.svcCtx.Redis.ZRem(ctx, constants.PaymentRetryQueueKey, oldMember).Err()
+	logx.Errorf("支付补偿重试失败, order_id=%d attempt=%d, 下次 %v 后重试", item.OrderId, item.RetryAttempt, delay)
 }
 
 // DailyReport 每日统计报表（由 job 自管，落库 daily_report 表）
