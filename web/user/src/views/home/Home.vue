@@ -20,6 +20,13 @@
         <div class="fallback-road road-vertical"></div>
         <div class="current-location-marker"><span></span></div>
       </div>
+      <!-- 地图中心固定选点大头针：仅在获取乘客定位后展示；固定屏幕中心，拖动时缩放，停止后弹跳，尖端指示地图中心。 -->
+      <div v-if="hasUserLocation" ref="centerPickerRef" class="center-picker" :class="{ moving: isMapMoving }" aria-hidden="true">
+        <div class="pin-ring"></div>
+        <div class="pin-body"><div class="pin-dot"></div></div>
+        <div class="pin-tail"></div>
+        <div class="pin-shadow"></div>
+      </div>
       <button v-if="locationFailed" type="button" class="relocate-btn" :disabled="locating" @click="locateUser">
         <van-icon name="replay" />{{ locating ? '定位中...' : '重新定位' }}
       </button>
@@ -31,7 +38,12 @@
       <div class="pickup-bar" @click="openLocationSearch('pickup')">
         <div class="pickup-dot"></div>
         <span class="pickup-label">现在</span>
-        <span class="pickup-address">{{ pickupAddress || '请选择上车点' }}</span>
+        <span class="pickup-address">
+          <transition name="addr-fade" mode="out-in">
+            <span v-if="pickupResolving" key="loading" class="addr-loading">正在获取位置...</span>
+            <span v-else :key="pickupAddress || 'empty'" class="addr-text">{{ pickupAddress || '请选择上车点' }}</span>
+          </transition>
+        </span>
         <van-icon name="arrow" size="14" color="#9CA3AF" />
       </div>
       <div class="destination-box" @click="openLocationSearch('destination')">
@@ -168,10 +180,18 @@ const placeSearch = ref(null)
 const geocoder = ref(null)
 const geolocation = ref(null)
 const currentMarker = ref(null)
+// 地图中心固定选点大头针 DOM 引用与拖动状态。
+const centerPickerRef = ref(null)
+const isMapMoving = ref(false)
+// 仅当已获取到乘客定位坐标时才展示选点 Pin，未定位前不出现避免误导。
+const hasUserLocation = computed(() => hasValidCoordinate(currentPoint.value?.lng, currentPoint.value?.lat))
 // 附近司机覆盖物集合，刷新时整体替换，避免离线车辆残留在地图上。
 const nearbyDriverMarkers = ref([])
 let nearbyDriverTimer = null
-const destinationMarker = ref(null)
+// currentPoint 为用户真实 GPS 位置（userLocation）；mapCenter 为地图中心，拖动后变化。两者分离，不混用。
+const mapCenter = ref({ lng: 0, lat: 0 })
+const pickupResolving = ref(false)
+let lastPickedCenter = { lng: 0, lat: 0 }
 const pickupAddress = ref('')
 const destinationAddress = ref('')
 const searchVisible = ref(false)
@@ -377,9 +397,13 @@ async function initMap() {
     AMapSDK.value = AMap
     // 未获取到用户位置时不指定重庆等固定城市，保持地图为通用初始视图，等待定位结果后再居中。
     mapInstance.value = new AMap.Map('map-container', { zoom: 4, viewMode: '2D' })
+    // 地图中心 Pin 选点：拖拽结束或点击地图后，以中心坐标选为上车点。
+    mapInstance.value.on('dragstart', handleDragStart)
+    mapInstance.value.on('dragend', handleDragEnd)
+    mapInstance.value.on('click', handleMapClick)
     configurePlaceSearch()
     geocoder.value = new AMap.Geocoder({ radius: 1000, extensions: 'base' })
-    geolocation.value = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 10000, zoomToAccuracy: true, position: 'RB', offset: [16, 108] })
+    geolocation.value = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 10000, showMarker: false, zoomToAccuracy: true, position: 'RB', offset: [16, 108] })
     mapInstance.value.addControl(geolocation.value)
     mapReady.value = true
     await locateUser()
@@ -465,12 +489,39 @@ function updateCurrentMarker(lng, lat) {
   // 地图异步初始化或页面销毁期间不执行覆盖物操作，避免调用未就绪实例的 add。
   if (!mapReady.value || !mapInstance.value || typeof mapInstance.value.add !== 'function' || !AMapSDK.value) return
   const position = [Number(lng), Number(lat)]
+  // 乘客位置 marker：外层蓝色光晕 + 中心蓝实心圆，无 emoji。
+  const content = '<div style="position:relative;width:46px;height:46px;display:flex;align-items:center;justify-content:center;pointer-events:none">'
+    + '<div style="position:absolute;inset:0;border-radius:50%;background:#3B82F6;opacity:.22"></div>'
+    + '<div style="position:relative;width:16px;height:16px;border-radius:50%;background:#3B82F6;box-shadow:0 2px 6px rgba(15,23,42,.3)"></div>'
+    + '</div>'
   if (currentMarker.value) currentMarker.value.setPosition(position)
   else {
-    currentMarker.value = new AMapSDK.value.Marker({ position, title: '当前位置', anchor: 'center', zIndex: 120 })
+    currentMarker.value = new AMapSDK.value.Marker({ position, content, anchor: 'center', zIndex: 120 })
     mapInstance.value.add(currentMarker.value)
   }
   mapInstance.value.setZoomAndCenter(16, position)
+}
+
+// 地图开始拖拽：大头针缩放。
+function handleDragStart() {
+  isMapMoving.value = true
+}
+
+// 地图拖动结束：恢复缩放、触发大头针弹跳、防抖选点。
+function handleDragEnd() {
+  isMapMoving.value = false
+  triggerBounce()
+  schedulePickup()
+}
+
+// 大头针弹跳动画：移除 bounce 后强制 reflow 再加回，确保可重复触发。
+function triggerBounce() {
+  const el = centerPickerRef.value
+  if (!el) return
+  el.classList.remove('bounce')
+  void el.offsetWidth
+  el.classList.add('bounce')
+  setTimeout(() => el.classList.remove('bounce'), 400)
 }
 
 async function applyCurrentLocation({ lng, lat, address, name, addressComponent }, useAsPickup = true) {
@@ -517,6 +568,13 @@ async function applyCurrentLocation({ lng, lat, address, name, addressComponent 
   if (useAsPickup) {
     const pickupName = name || text
     pickupAddress.value = pickupName
+    orderStore.setPickupLocation({
+      name: pickupName,
+      address: text || '',
+      latitude: normalizedLat,
+      longitude: normalizedLng,
+      city: currentCityName.value || ''
+    })
     orderStore.setOrderParams({ fromLng: normalizedLng, fromLat: normalizedLat, fromAddress: pickupName, cityCode: currentCityCode.value })
   }
   updateCurrentMarker(normalizedLng, normalizedLat)
@@ -848,6 +906,67 @@ function closeLocationSearch() {
   searchSequence += 1
 }
 
+// 地图中心 Pin 选点：用户拖拽地图结束或点击地图后，以中心坐标作为上车点。
+// 只监听 dragend 而非 moveend，避免程序 setCenter/setZoomAndCenter（定位）误触发选点。
+let pickPickupTimer = null
+let pickPickupSequence = 0
+
+function schedulePickup() {
+  clearTimeout(pickPickupTimer)
+  pickPickupTimer = setTimeout(() => { void pickPickupAtCenter() }, 300)
+}
+
+function handleMapClick(event) {
+  if (searchVisible.value) return
+  const point = event?.lnglat
+  if (!point) return
+  const lng = typeof point.getLng === 'function' ? point.getLng() : Number(point.lng)
+  const lat = typeof point.getLat === 'function' ? point.getLat() : Number(point.lat)
+  if (!hasValidCoordinate(lng, lat) || !mapInstance.value) return
+  mapInstance.value.setCenter([lng, lat])
+  triggerBounce()
+  void pickPickupAtCenter()
+}
+
+async function pickPickupAtCenter() {
+  if (searchVisible.value || !mapInstance.value) return
+  const center = mapInstance.value.getCenter()
+  if (!center) return
+  const lng = typeof center.getLng === 'function' ? center.getLng() : Number(center.lng)
+  const lat = typeof center.getLat === 'function' ? center.getLat() : Number(center.lat)
+  if (!hasValidCoordinate(lng, lat)) return
+  // 相同坐标跳过，避免拖动微动产生重复逆地理请求。
+  if (Math.abs(lng - lastPickedCenter.lng) < 1e-6 && Math.abs(lat - lastPickedCenter.lat) < 1e-6) return
+  lastPickedCenter = { lng, lat }
+  mapCenter.value = { lng, lat }
+  const sequence = ++pickPickupSequence
+  pickupResolving.value = true
+  try {
+    const result = await reverseGeocodeLocation({ longitude: lng, latitude: lat })
+    if (sequence !== pickPickupSequence) return
+    // 优先用最近 POI 名作为上车点显示，详细地址存入 Location.address。
+    const poiName = result?.poiName || ''
+    const address = result?.address || ''
+    const name = poiName || address || '地图选点位置'
+    pickupAddress.value = name
+    orderStore.setPickupLocation({
+      name,
+      address: address || name,
+      latitude: lat,
+      longitude: lng,
+      city: result?.cityName || currentCityName.value
+    })
+    orderStore.setOrderParams({ cityCode: cityCodeFromCityName(result?.cityName) || currentCityCode.value })
+  } catch (error) {
+    console.warn('地图选点逆地理失败:', error)
+    if (sequence !== pickPickupSequence) return
+    pickupAddress.value = '地图选点位置'
+    orderStore.setPickupLocation({ name: '地图选点位置', address: '', latitude: lat, longitude: lng, city: currentCityName.value })
+  } finally {
+    if (sequence === pickPickupSequence) pickupResolving.value = false
+  }
+}
+
 async function selectSearchResult(item) {
   if (searchMode.value === 'pickup') {
     // 只有用户在上车点弹层中主动选择地点时才写入历史，避免自动定位污染历史记录。
@@ -859,17 +978,18 @@ async function selectSearchResult(item) {
   }
   const resolvedDestination = await resolveDestinationCity(item)
   destinationAddress.value = resolvedDestination.name
+  orderStore.setDestinationLocation({
+    name: resolvedDestination.name,
+    address: resolvedDestination.displayAddress || resolvedDestination.address || resolvedDestination.name,
+    latitude: resolvedDestination.lat,
+    longitude: resolvedDestination.lng,
+    city: resolvedDestination.cityName || ''
+  })
   orderStore.setOrderParams({ toAddress: resolvedDestination.name, toLat: resolvedDestination.lat, toLng: resolvedDestination.lng, cityCode: resolvedDestination.cityCode || currentCityCode.value })
   rememberDestination(resolvedDestination)
   closeLocationSearch()
-  if (mapInstance.value) {
-    const position = [resolvedDestination.lng, resolvedDestination.lat]
-    if (!destinationMarker.value && AMapSDK.value) {
-      destinationMarker.value = new AMapSDK.value.Marker({ position })
-      if (typeof mapInstance.value.add === 'function') mapInstance.value.add(destinationMarker.value)
-    } else destinationMarker.value?.setPosition(position)
-    mapInstance.value.setCenter(position)
-  }
+  // 选择目的地后直接进入订单预估页；上车点沿用当前定位或地图选点结果。
+  router.push('/order/create')
 }
 
 // selectQuickDestination 将家/公司常用地址复用为目的地，保证下单参数和地图标记走统一入口。
@@ -967,8 +1087,11 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   clearTimeout(searchTimer)
   clearTimeout(nearbyDriverTimer)
+  clearTimeout(pickPickupTimer)
   searchSequence += 1
+  pickPickupSequence += 1
   mapInstance.value?.destroy()
+  currentMarker.value = null
 })
 </script>
 
@@ -993,4 +1116,24 @@ onBeforeUnmount(() => {
 .history-row .history-address{max-width:100%;overflow:hidden;color:#6B7280;font-size:13px;text-overflow:ellipsis;white-space:nowrap}
 .history-row .history-delete{width:32px;height:32px;display:flex;align-items:center;justify-content:center;margin-left:4px;padding:0;color:#9CA3AF}
 
+/* 上车点地址更新淡入动画。 */
+.addr-fade-enter-active,.addr-fade-leave-active{transition:opacity .18s ease}
+.addr-fade-enter-from,.addr-fade-leave-to{opacity:0}
+.addr-loading{color:#7C3AED}
+
+</style>
+
+<style>
+/* 紫色选点大头针：固定屏幕中心，拖动时缩放，停止后弹跳，尖端指示地图中心；尺寸缩小约 80%。 */
+.center-picker{position:absolute;left:50%;top:50%;width:64px;height:80px;transform:translate(-50%,-100%);z-index:100;pointer-events:none;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.center-picker.moving{transform:translate(-50%,-100%) scale(.86)}
+.center-picker.moving .pin-ring{animation-play-state:paused;opacity:.2}
+.center-picker.bounce{animation:pinBounce .38s cubic-bezier(.2,.8,.2,1)}
+.pin-ring{position:absolute;left:50%;top:32px;width:54px;height:54px;transform:translate(-50%,-50%);border-radius:50%;background:rgba(145,45,255,.12);animation:ringPulse 1.8s ease-out infinite}
+.pin-body{position:absolute;left:50%;top:32px;width:37px;height:37px;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(145deg,#a100ff,#7b00ff);box-shadow:0 6px 14px rgba(123,0,255,.28),0 2px 5px rgba(0,0,0,.12);z-index:3;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.pin-dot{position:absolute;left:50%;top:50%;width:13px;height:13px;transform:translate(-50%,-50%);background:#fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.pin-tail{position:absolute;left:50%;top:48px;width:10px;height:22px;transform:translateX(-50%);background:linear-gradient(180deg,#8b00ff,#7300e8);clip-path:polygon(0 0,100% 0,50% 100%);z-index:1}
+.pin-shadow{position:absolute;left:50%;top:58px;width:13px;height:4px;transform:translateX(-50%);background:rgba(80,0,120,.2);border-radius:50%;filter:blur(3px)}
+@keyframes ringPulse{0%{transform:translate(-50%,-50%) scale(.7);opacity:.8}70%{transform:translate(-50%,-50%) scale(1.25);opacity:.15}100%{transform:translate(-50%,-50%) scale(1.35);opacity:0}}
+@keyframes pinBounce{0%{transform:translate(-50%,-100%) translateY(0)}45%{transform:translate(-50%,-100%) translateY(-10px)}75%{transform:translate(-50%,-100%) translateY(3px)}100%{transform:translate(-50%,-100%) translateY(0)}}
 </style>
