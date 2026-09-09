@@ -56,6 +56,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/map/picker',
+    name: 'MapPicker',
+    component: () => import('@/views/MapPicker.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/order/create',
     name: 'OrderCreate',
     component: () => import('@/views/order/OrderCreate.vue'),

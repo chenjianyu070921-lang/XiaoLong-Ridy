@@ -14,6 +14,24 @@ export function estimateOrder(data) {
   return request.post('/orders/estimate', data)
 }
 
+// estimatePrice 是价格预估的统一入口：上车点与目的地齐备后触发。
+// 本次仅做 Location 到后端字段的映射与透传，不改动 /orders/estimate 的价格计算逻辑。
+export function estimatePrice({ pickup, destination, carType, cityCode, estimatedDistanceM, estimatedDurationS, userCouponId }) {
+  return estimateOrder({
+    carType: Number(carType),
+    fromAddress: pickup?.name || '',
+    fromLongitude: Number(pickup?.longitude || 0),
+    fromLatitude: Number(pickup?.latitude || 0),
+    toAddress: destination?.name || '',
+    toLongitude: Number(destination?.longitude || 0),
+    toLatitude: Number(destination?.latitude || 0),
+    cityCode: cityCode || '',
+    estimatedDistanceM: Number(estimatedDistanceM || 0),
+    estimatedDurationS: Number(estimatedDurationS || 0),
+    userCouponId: Number(userCouponId || 0)
+  })
+}
+
 // 创建订单
 export function createOrder(data) {
   return request.post('/orders/create', data)

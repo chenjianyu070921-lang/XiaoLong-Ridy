@@ -127,6 +127,12 @@ func (h *CleanupHandler) RetryPendingDispatches() error {
 	return task.NewTask(h.svcCtx).RetryPendingDispatches(50)
 }
 
+// RetryPendingPayments 扫描支付单创建失败延迟重试队列（payment:retry:orders）并补建支付单（P0-3）。
+// 行程结束 CreatePayment 失败时 ordersvc 入队，本任务负责补偿消费；重试前复核订单仍为待支付。
+func (h *CleanupHandler) RetryPendingPayments() error {
+	return task.NewTask(h.svcCtx).RetryPendingPayments(50)
+}
+
 // RetryRefundEvents 重试订单退款事件投递，避免订单状态已退款但支付消费者未收到事件。
 func (h *CleanupHandler) RetryRefundEvents() error {
 	return task.NewTask(h.svcCtx).RetryRefundEvents(50)

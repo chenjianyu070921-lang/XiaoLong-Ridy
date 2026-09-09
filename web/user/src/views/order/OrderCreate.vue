@@ -22,7 +22,7 @@
         <div class="dot from-dot"></div>
         <div class="address-info">
           <p class="label">上车点</p>
-          <p class="value">{{ orderStore.orderParams.fromAddress || '我的位置' }}</p>
+          <p class="value">{{ (orderStore.pickupLocation?.address || orderStore.pickupLocation?.name) || orderStore.orderParams.fromAddress || '我的位置' }}</p>
         </div>
         <van-icon name="edit" size="16" color="#7C3AED" />
       </button>
@@ -36,7 +36,7 @@
         <div class="dot to-dot"></div>
         <div class="address-info">
           <p class="label">目的地</p>
-          <p class="value">{{ orderStore.orderParams.toAddress || '请选择目的地' }}</p>
+          <p class="value">{{ (orderStore.destinationLocation?.address || orderStore.destinationLocation?.name) || orderStore.orderParams.toAddress || '请选择目的地' }}</p>
         </div>
         <van-icon name="edit" size="16" color="#7C3AED" />
       </button>
@@ -168,8 +168,9 @@ import AMapLoader from '@amap/amap-jsapi-loader'
 import { getAmapConfig } from '@/config/amap'
 import { showToast, showLoadingToast, closeToast } from 'vant'
 import { useOrderStore } from '@/stores/order'
-import { createOrder, estimateOrder, getMyCoupons } from '@/api/order'
+import { createOrder, estimatePrice, getMyCoupons } from '@/api/order'
 import { readSelectedCity } from '@/data/cities'
+import { locationFromOrderParams } from '@/utils/location'
 
 const router = useRouter()
 const currentCityName = ref(readSelectedCity()?.name || '当前城市')
@@ -286,14 +287,10 @@ const refreshEstimate = async () => {
   estimateLoading.value = true
   estimateError.value = ''
   try {
-    const result = await estimateOrder({
+    const result = await estimatePrice({
+      pickup: orderStore.pickupLocation || locationFromOrderParams(params, 'pickup'),
+      destination: orderStore.destinationLocation || locationFromOrderParams(params, 'destination'),
       carType: Number(params.carType),
-      fromAddress: params.fromAddress,
-      fromLongitude: Number(params.fromLng),
-      fromLatitude: Number(params.fromLat),
-      toAddress: params.toAddress,
-      toLongitude: Number(params.toLng),
-      toLatitude: Number(params.toLat),
       cityCode: params.cityCode || readSelectedCity()?.adcode || '',
       estimatedDistanceM: Number(routeDistanceMeters.value || params.estimatedDistanceM || 0),
       estimatedDurationS: Number(routeDurationSeconds.value || params.estimatedDurationS || 0),
@@ -329,9 +326,32 @@ const selectCar = (type) => {
   void refreshEstimate()
 }
 
-// 返回首页并自动打开对应地址的高德搜索弹窗，修改后沿用同一份订单状态。
+// 编辑地址改为打开地图选点页，带上类型、城市限制与当前坐标，选点结果在返回本页时回写。
 const editAddress = (mode) => {
-  router.replace({ path: '/home', query: { edit: mode } })
+  const params = orderStore.orderParams
+  const point = mode === 'destination'
+    ? { lng: Number(params.toLng), lat: Number(params.toLat) }
+    : { lng: Number(params.fromLng), lat: Number(params.fromLat) }
+  router.push({
+    path: '/map/picker',
+    query: {
+      type: mode,
+      city: currentCityName.value,
+      cityCode: params.cityCode || readSelectedCity()?.adcode || '',
+      ...(hasValidCoordinate(point.lng, point.lat) ? { lng: point.lng, lat: point.lat } : {})
+    }
+  })
+}
+
+// 回填地图选点结果：写入统一 Location，随后由 initRouteMap 按新坐标重新规划路线。
+const applyPickedLocation = (picked) => {
+  const loc = picked.location
+  if (!loc || !hasValidCoordinate(loc.latitude, loc.longitude)) return
+  if (picked.type === 'pickup') {
+    orderStore.setPickupLocation(loc)
+    return
+  }
+  orderStore.setDestinationLocation(loc)
 }
 
 const selectDestination = () => {
@@ -416,6 +436,9 @@ const goBack = () => router.back()
 
 // 页面进入时加载当前用户可用优惠券，并补齐车型后规划路线。
 onMounted(async () => {
+  // 从地图选点页返回时优先回填新坐标，再按新坐标规划路线与估价。
+  const picked = orderStore.takePickedLocation()
+  if (picked?.location) applyPickedLocation(picked)
   try {
     const result = await getMyCoupons(1)
     coupons.value = Array.isArray(result?.list) ? result.list : []

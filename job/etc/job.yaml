@@ -22,6 +22,9 @@ driverrpc:
 pushrpc:
   Target: 127.0.0.1:9002
   NonBlock: true
+payrpc:
+  Target: 127.0.0.1:50054
+  NonBlock: true
 kafka:
   brokers:
     - 127.0.0.1:9092

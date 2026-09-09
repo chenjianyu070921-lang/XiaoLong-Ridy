@@ -303,7 +303,8 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		ctx.Reviews = NewGormReviewRepository(db)
 	} else {
 		// 未配置 passenger 专属 DSN 时使用进程内仓储，保证评价接口在联调环境可用；配置 DSN 后自动切换为 MySQL 持久化。
-		logx.Infof("passenger mysqlDSN empty, use memory review repository")
+		// 内存仓储不具备持久性：进程重启后已提交的评价全部丢失，订单列表会重新出现「去评价」入口。
+		logx.Infof("passenger mysqlDSN empty, use memory review repository: 评价数据仅存于进程内存，服务重启后全部丢失，请配置 PASSENGER_MYSQL_DSN 启用持久化")
 		ctx.Reviews = NewMemoryReviewRepository()
 	}
 	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, driverConn, locationConn)

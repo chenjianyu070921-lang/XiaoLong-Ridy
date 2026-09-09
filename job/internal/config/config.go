@@ -28,6 +28,8 @@ type Config struct {
 	DriverRPC zrpc.RpcClientConf `yaml:"driverrpc" json:"driverrpc"`
 	// PushRPC pushsvc 客户端，管理后台 outbox 通知补偿任务使用
 	PushRPC zrpc.RpcClientConf `yaml:"pushrpc" json:"pushrpc"`
+	// PayRPC paysvc 客户端，行程结束创建支付单失败的补偿任务使用（P0-3）
+	PayRPC zrpc.RpcClientConf `yaml:"payrpc" json:"payrpc"`
 	// AdminOutboxMaxRetry 管理后台 outbox 最大补偿次数，0 时默认 5
 	AdminOutboxMaxRetry int `yaml:"adminoutboxmaxretry" json:"adminoutboxmaxretry"`
 }

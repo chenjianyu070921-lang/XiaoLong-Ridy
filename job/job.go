@@ -30,7 +30,7 @@ func main() {
 	if summary, err := h.DryRunCompensationSummary(context.Background()); err != nil {
 		logx.Errorf("补偿任务启动预检失败: %v", err)
 	} else {
-		logx.Infof("补偿任务启动预检: refund=%d dispatch=%d outbox_pending=%d outbox_failed=%d", summary.RefundEvents.Pending, summary.DispatchRetries.Pending, summary.AdminAuditOutbox.Pending, summary.AdminAuditOutbox.Failed)
+		logx.Infof("补偿任务启动预检: refund=%d dispatch=%d payment=%d outbox_pending=%d outbox_failed=%d", summary.RefundEvents.Pending, summary.DispatchRetries.Pending, summary.PaymentRetries.Pending, summary.AdminAuditOutbox.Pending, summary.AdminAuditOutbox.Failed)
 	}
 	if *dryRun {
 		logx.Info("dry-run 完成，未执行任何补偿动作")
@@ -87,11 +87,15 @@ func main() {
 
 	go func() {
 		// 派单失败补偿队列消费：10s 粒度可覆盖 5s/15s/45s 的退避窗口（P1-M4-2）。
+		// 支付单创建失败补偿同粒度消费（P0-3），两者串行执行避免并发扫 Redis。
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
 			if err := h.RetryPendingDispatches(); err != nil {
 				logx.Errorf("RetryPendingDispatches failed: %v", err)
+			}
+			if err := h.RetryPendingPayments(); err != nil {
+				logx.Errorf("RetryPendingPayments failed: %v", err)
 			}
 		}
 	}()
@@ -133,6 +137,7 @@ func main() {
 	logx.Info("定时任务:")
 	logx.Info("  - 每小时: 清理过期位置数据")
 	logx.Info("  - 每10秒: 派单失败补偿重试")
+	logx.Info("  - 每10秒: 支付单创建失败补偿重试")
 	logx.Info("  - 每30秒: 管理后台 outbox 补偿重试")
 	logx.Info("  - 每10秒: 管理后台领域 outbox Kafka 投递")
 	logx.Info("  - 每1分钟: 超时未接单订单自动取消")
