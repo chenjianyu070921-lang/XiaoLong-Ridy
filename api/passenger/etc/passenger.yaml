@@ -12,6 +12,10 @@ dispatchRPCAddr: "127.0.0.1:50056"
 # 司机服务 RPC 地址；乘客端用于查询司机位置及司机信息。
 driverRPCAddr: "127.0.0.1:50055"
 locationRPCAddr: "127.0.0.1:50057"
+# 聊天 WebSocket 依靠 Redis Pub/Sub 跨网关转发；本地默认 127.0.0.1:6379。
+redisAddr: "115.191.16.159:6379"
+# 真实聊天服务 RPC 地址（统一方案 V1.0 的 rpc/chatsvc）。
+chatRPCAddr: "127.0.0.1:50058"
 priceCityCode: "110000"
 mysqlDSN: ""
 # 七牛云配置通过环境变量注入；此处保留空值，避免密钥提交到仓库。

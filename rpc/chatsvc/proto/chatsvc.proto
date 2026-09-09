@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package chatsvc;
+
+option go_package = "./;proto";
+
+// Chat 是司乘聊天（IM）统一服务的 gRPC 契约。
+// 统一方案 V1.0：以方案 B 为实施基线，乘客端 MVP 轮询、司机端复用既有推送通道，
+// 本服务只负责会话/消息的持久化与权限、敏感词、幂等控制。
+service Chat {
+  // GetOrCreateConversation 司机接单后懒创建会话；等待接单阶段返回未开启。
+  rpc GetOrCreateConversation(GetOrCreateConversationRequest) returns (GetOrCreateConversationResponse);
+  // ListMessages 游标分页拉取历史消息，按 create_at 升序返回。
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+  // SendMessage 发送消息，命中敏感词返回 46000，重复 client_msg_id 幂等返回首次结果。
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  // MarkRead 标记当前调用方已读，清零其未读数。
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
+}
+
+message GetOrCreateConversationRequest {
+  int64 order_id = 1;
+  int64 caller_id = 2;
+  string caller_role = 3; // passenger | driver
+}
+
+message PeerInfo {
+  int64 id = 1;
+  string name = 2;
+}
+
+message GetOrCreateConversationResponse {
+  int64 conversation_id = 1;
+  string order_id = 2;
+  int32 status = 3;   // 1进行中 2已归档 3已关闭
+  bool opened = 4;    // 是否可以聊天（司机接单后）
+  string last_msg = 5;
+  int64 last_msg_at = 6;
+  int32 unread = 7;   // 调用方未读数
+  int32 sender_type = 8; // 调用方在会话里的类型：1司机 2乘客
+  PeerInfo peer = 9;  // 对端信息（name 由网关补全）
+}
+
+message ListMessagesRequest {
+  int64 conversation_id = 1;
+  int64 cursor = 2;   // 上一页最小 id，0 表示取最新一页
+  int32 limit = 3;    // 上限 20
+  int64 caller_id = 4;
+  string caller_role = 5; // passenger | driver
+}
+
+message ChatMessage {
+  int64 id = 1;
+  int64 conversation_id = 2;
+  string order_id = 3;
+  int32 sender_type = 4; // 1司机 2乘客
+  int64 sender_id = 5;
+  int32 msg_type = 6;     // 1文本 2快捷短语
+  string content = 7;
+  string client_msg_id = 8;
+  int64 create_at = 9;    // unix 秒
+}
+
+message ListMessagesResponse {
+  repeated ChatMessage messages = 1;
+  int64 next_cursor = 2;
+  bool has_more = 3;
+}
+
+message SendMessageRequest {
+  int64 conversation_id = 1;
+  int32 sender_type = 2; // 1司机 2乘客（由网关按 JWT 注入，不信任客户端）
+  int64 sender_id = 3;
+  int32 msg_type = 4;    // 1文本 2快捷短语
+  string content = 5;
+  string client_msg_id = 6;
+}
+
+message SendMessageResponse {
+  int64 message_id = 1;
+  int64 create_at = 2;
+}
+
+message MarkReadRequest {
+  int64 conversation_id = 1;
+  int64 caller_id = 2;
+  string caller_role = 3; // passenger | driver
+}
+
+message MarkReadResponse {
+  bool ok = 1;
+}

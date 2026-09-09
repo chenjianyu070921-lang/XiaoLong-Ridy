@@ -19,6 +19,7 @@ func NewRouter(svcCtx *svc.ServiceContext) http.Handler {
 	registerCouponRoutes(mux, svcCtx)
 	registerReviewRoutes(mux, svcCtx)
 	registerWalletRoutes(mux, svcCtx)
+	registerChatRoutes(mux, svcCtx)
 	return mux
 }
 
@@ -116,4 +117,13 @@ func registerCouponRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 // registerReviewRoutes 注册乘客评价接口。
 func registerReviewRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
 	mux.HandleFunc("/api/passenger/v1/reviews/submit", handler.SubmitReviewHandler(svcCtx))
+}
+
+// registerChatRoutes 注册乘客端司乘聊天（IM）接口。
+func registerChatRoutes(mux *http.ServeMux, svcCtx *svc.ServiceContext) {
+	mux.HandleFunc("/api/passenger/v1/chat/conversation", handler.ChatConversationHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/chat/messages", handler.ChatMessagesHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/chat/send", handler.ChatSendHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/chat/read", handler.ChatReadHandler(svcCtx))
+	mux.HandleFunc("/api/passenger/v1/chat/phrases", handler.ChatPhrasesHandler(svcCtx))
 }
