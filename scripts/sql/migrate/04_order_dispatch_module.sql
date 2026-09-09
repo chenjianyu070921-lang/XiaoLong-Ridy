@@ -1,5 +1,5 @@
 -- =============================================================
--- 模块四：订单与派单调度（rpc/ordersvc + rpc/dispatchsvc + order-event-consumer）
+-- 模块四：订单与派单调度（rpc/ordersvc + rpc/dispatchsvc + orderclient-event-consumer）
 -- 表清单：ride_order、order_status_log、dispatch_record
 -- =============================================================
 
@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS `dispatch_record` (
   `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1派单中 2已接受 3已拒绝 4超时 5已取消',
   `match_score` DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '匹配分（距离/评分/顺路度加权）',
   `remark` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '备注',
+  `reject_reason` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '拒单原因',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '派单时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),

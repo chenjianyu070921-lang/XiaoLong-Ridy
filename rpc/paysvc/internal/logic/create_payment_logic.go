@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"XiaoLong-Ridy/common/priceutil"
+	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 	"XiaoLong-Ridy/rpc/paysvc/internal/channel"
 	"XiaoLong-Ridy/rpc/paysvc/internal/model"
 	"XiaoLong-Ridy/rpc/paysvc/internal/repository"
 	"XiaoLong-Ridy/rpc/paysvc/internal/svc"
 	"XiaoLong-Ridy/rpc/paysvc/proto"
+	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -52,14 +54,32 @@ func (l *CreatePaymentLogic) CreatePayment(in *proto.CreatePaymentRequest) (*pro
 	paymentNo := genPaymentNo()
 	chName := channelName(in.Channel)
 
-	// 2. 创建支付单（待支付）
+	// 2. 创建支付单（待支付）。余额支付必须先完成钱包原子扣款，成功后才允许标记支付成功。
+	if chName == channel.Balance {
+		if l.svcCtx.UserClient == nil {
+			return nil, fmt.Errorf("wallet client not configured")
+		}
+		if _, err := l.svcCtx.UserClient.WithdrawWallet(l.ctx, &usersvc.ChangeWalletRequest{
+			UserId: uint64(in.UserId), Amount: priceutil.CentsToYuan(in.AmountCents), OrderId: uint64(in.OrderId), Type: "order_payment", Title: "订单支付",
+		}); err != nil {
+			return nil, fmt.Errorf("wallet payment failed: %w", err)
+		}
+	}
+	initialStatus := int8(model.PaymentStatusPending)
+	if chName == channel.Balance {
+		initialStatus = model.PaymentStatusPaid
+	}
 	payment := &model.Payment{
 		PaymentNo: paymentNo,
 		OrderId:   uint64(in.OrderId),
 		UserId:    uint64(in.UserId),
 		Amount:    priceutil.CentsToYuan(in.AmountCents),
 		Channel:   chName,
-		Status:    1, // 待支付
+		Status:    initialStatus,
+	}
+	if initialStatus == model.PaymentStatusPaid {
+		now := time.Now()
+		payment.PaidAt = &now
 	}
 	repo := repository.NewPaymentRepo(l.svcCtx.DB)
 	if err := repo.Create(l.ctx, payment); err != nil {
@@ -78,12 +98,26 @@ func (l *CreatePaymentLogic) CreatePayment(in *proto.CreatePaymentRequest) (*pro
 	if err := repo.Update(l.ctx, payment); err != nil {
 		return nil, err
 	}
+	if initialStatus == model.PaymentStatusPaid && l.svcCtx.OrderClient != nil {
+		// 跨服务不能共享同一数据库事务，因此采用有限重试补偿确认，避免支付成功但订单仍待支付。
+		confirmReq := &orderproto.ConfirmPaidRequest{OrderId: in.OrderId, PaymentNo: paymentNo, AmountCents: in.AmountCents, PaidAt: time.Now().Unix()}
+		var confirmErr error
+		for attempt := 0; attempt < 3; attempt++ {
+			if _, confirmErr = l.svcCtx.OrderClient.ConfirmPaid(l.ctx, confirmReq); confirmErr == nil {
+				break
+			}
+			time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+		}
+		if confirmErr != nil {
+			l.Logger.Errorf("余额支付已成功但订单确认失败，将由后续支付查询补偿: order_id=%d payment_no=%s err=%v", in.OrderId, paymentNo, confirmErr)
+		}
+	}
 
 	return &proto.CreatePaymentResponse{
 		PaymentId:     int64(payment.Id),
 		PaymentNo:     paymentNo,
 		TransactionId: result.TransactionId,
 		PayParams:     result.PayParams,
-		Status:        1,
+		Status:        int32(initialStatus),
 	}, nil
 }

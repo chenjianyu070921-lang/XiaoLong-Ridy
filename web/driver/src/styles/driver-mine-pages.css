@@ -1,0 +1,146 @@
+.mine-page-shell {
+  min-height: 100vh;
+  padding: 12px 12px 24px;
+  background: var(--driver-bg);
+  color: var(--driver-ink);
+}
+
+.mine-page-header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.page-back,
+.page-action {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--driver-card);
+  color: var(--driver-ink);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, .08);
+}
+
+.page-heading {
+  min-width: 0;
+}
+
+.page-heading p {
+  margin: 0 0 2px;
+  color: var(--driver-muted);
+  font-size: 12px;
+}
+
+.page-heading h1 {
+  margin: 0;
+  color: var(--driver-ink);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.page-sheet,
+.page-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.page-sheet {
+  padding: 18px 14px 22px;
+  background: var(--driver-bg);
+}
+
+.page-sheet h2 {
+  margin: 0 0 14px;
+  text-align: center;
+}
+
+.page-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.page-switcher button {
+  min-height: 40px;
+  border: 1px solid var(--driver-line);
+  border-radius: 999px;
+  background: var(--driver-card);
+  color: var(--driver-ink);
+  font-weight: 800;
+}
+
+.page-switcher button.active {
+  border-color: var(--driver-primary);
+  background: var(--driver-primary);
+  color: var(--driver-on-primary);
+}
+
+.record-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--driver-card);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+}
+
+.record-head,
+.record-meta,
+.detail-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.record-head strong {
+  overflow-wrap: anywhere;
+}
+
+.record-head span,
+.record-meta span,
+.detail-section-head span {
+  color: var(--driver-muted);
+  font-size: 12px;
+}
+
+.withdraw-record-section {
+  margin-top: 12px;
+}
+
+.withdraw-status {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--driver-soft);
+  color: var(--driver-muted);
+  font-weight: 800;
+}
+
+.withdraw-status.status-1 {
+  background: rgba(245, 158, 11, .14);
+  color: #f59e0b;
+}
+
+.withdraw-status.status-2 {
+  background: rgba(16, 163, 74, .14);
+  color: #10b981;
+}
+
+.withdraw-status.status-3 {
+  background: rgba(239, 68, 68, .14);
+  color: #ef4444;
+}
+
+.withdraw-remark {
+  margin: 0;
+  color: var(--driver-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

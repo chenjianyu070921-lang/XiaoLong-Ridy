@@ -28,10 +28,11 @@ func TestGetOrderSuccess(t *testing.T) {
 		EstimatedDurationS: 2400,
 		EstimatedPrice:     48.5,
 		Status:             2,
+		CityCode:           "310000",
 	}
 	statusLog := &model.OrderStatusLog{FromStatus: 0, ToStatus: 2, OperatorType: "user", OperatorId: 1001}
 	if err := repo.Create(context.Background(), order, statusLog); err != nil {
-		t.Fatalf("seed order error = %v", err)
+		t.Fatalf("seed orderclient error = %v", err)
 	}
 	l := NewGetOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
 
@@ -43,7 +44,10 @@ func TestGetOrderSuccess(t *testing.T) {
 		t.Fatalf("GetOrder() identity = %+v", resp)
 	}
 	if resp.CarType != 2 || resp.EstimatedDistanceM != 15000 || resp.EstimatedDurationS != 2400 {
-		t.Fatalf("GetOrder() order fields = %+v", resp)
+		t.Fatalf("GetOrder() orderclient fields = %+v", resp)
+	}
+	if resp.CityCode != "310000" {
+		t.Fatalf("GetOrder() city code = %q, want 310000", resp.CityCode)
 	}
 	if resp.EstimatedPriceCents != 4850 {
 		t.Fatalf("GetOrder() price = %d, want 4850", resp.EstimatedPriceCents)

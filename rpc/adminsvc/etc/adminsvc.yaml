@@ -1,0 +1,8 @@
+Name: adminsvc.rpc
+ListenOn: 0.0.0.0:8080
+# 本地联调默认关闭 Etcd 注册，避免未启动 Etcd 时服务初始化 panic。
+# 生产环境如需服务发现，可通过部署配置恢复以下配置。
+# Etcd:
+#   Hosts:
+#   - 127.0.0.1:2379
+#   Key: adminsvc.rpc

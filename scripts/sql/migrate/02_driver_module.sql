@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `driver` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  `online_status` TINYINT NOT NULL DEFAULT 0 COMMENT 'driver online status: 0 offline, 1 online, 2 on trip',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_phone` (`phone`),
   UNIQUE KEY `uk_driver_license_no` (`driver_license_no`)
@@ -81,7 +82,7 @@ CREATE TABLE IF NOT EXISTS `driver_score` (
 -- 司机提现表：保存司机的提现申请和打款结果。
 -- 必须有这张表：司机端收入管理需要查看提现记录，财务需要按状态对账和打款。
 CREATE TABLE IF NOT EXISTS `driver_withdraw` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '提现ID',
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '提现ID', 
   `driver_id` BIGINT UNSIGNED NOT NULL COMMENT '司机ID',
   `withdraw_no` VARCHAR(32) NOT NULL COMMENT '提现单号',
   `amount` DECIMAL(10,2) NOT NULL COMMENT '提现金额',

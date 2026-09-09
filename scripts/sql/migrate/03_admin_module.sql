@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `admin_user` (
 CREATE TABLE IF NOT EXISTS `admin_operation_log` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'log id',
   `admin_id` BIGINT UNSIGNED NOT NULL COMMENT 'admin id',
-  `module` VARCHAR(50) NOT NULL COMMENT 'module: driver/order/coupon/risk',
+  `module` VARCHAR(50) NOT NULL COMMENT 'module: driver/orderclient/coupon/risk',
   `action` VARCHAR(50) NOT NULL COMMENT 'action: audit/ban/change',
   `target_type` VARCHAR(20) NOT NULL DEFAULT '' COMMENT 'target type',
   `target_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'target id',
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS `coupon` (
   `per_user_limit` INT NOT NULL DEFAULT 1 COMMENT 'per user limit',
   `valid_start_at` DATETIME NOT NULL COMMENT 'valid start time',
   `valid_end_at` DATETIME NOT NULL COMMENT 'valid end time',
-  `status` TINYINT NOT NULL DEFAULT 1 COMMENT 'status: 1 enabled, 2 disabled',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT 'status: 1 draft, 2 enabled, 3 disabled',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'updated time',
   PRIMARY KEY (`id`)
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS `user_coupon` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'user coupon id',
   `user_id` BIGINT UNSIGNED NOT NULL COMMENT 'user id',
   `coupon_id` BIGINT UNSIGNED NOT NULL COMMENT 'coupon template id',
-  `order_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'used order id, 0 unused',
+  `order_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'used orderclient id, 0 unused',
   `status` TINYINT NOT NULL DEFAULT 1 COMMENT 'status: 1 unused, 2 used, 3 expired',
   `received_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'received time',
   `used_at` DATETIME DEFAULT NULL COMMENT 'used time',

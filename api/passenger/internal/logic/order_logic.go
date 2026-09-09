@@ -1,0 +1,950 @@
+package logic
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"XiaoLong-Ridy/api/passenger/internal/svc"
+	"XiaoLong-Ridy/api/passenger/internal/types"
+	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
+	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
+	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
+	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
+
+	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+// trackingStaleAfter 是司机位置被判定为“已过期”的阈值：
+// 超过 15 秒没有新的定位上报时，前端据此把地图车辆标记置灰，避免用过期坐标误导乘客。
+const trackingStaleAfter = 15 * time.Second
+
+// passengerOrderTimeoutSeconds 是乘客状态轮询兜底使用的未接单超时时间。
+// 正常情况下由 job 批量扫描；状态接口兜底可处理 job 暂未启动时的当前订单。
+const passengerOrderTimeoutSeconds = 300
+
+// OrderLogic 封装乘客端订单相关业务流程。
+// 所有方法都先由 token 经 currentUserID 解析出 userID，再与订单/支付单归属比对，
+// 确保乘客只能访问自己的数据。
+type OrderLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+	token  string
+}
+
+// NewOrderLogic 创建订单业务逻辑实例。
+func NewOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext, token string) *OrderLogic {
+	return &OrderLogic{ctx: ctx, svcCtx: svcCtx, token: token}
+}
+
+// CreateOrder 完成“预估价格 -> 创建订单”的乘客下单流程。
+func (l *OrderLogic) CreateOrder(req *types.CreateOrderRequest) (*types.CreateOrderResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateCreateOrder(req); err != nil {
+		return nil, err
+	}
+	priceClient, err := l.priceClient()
+	if err != nil {
+		return nil, err
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+
+	price, err := priceClient.EstimatePrice(l.ctx, &priceclient.EstimatePriceRequest{
+		UserID:          int64(userID),
+		CityCode:        l.orderCityCode(req.CityCode),
+		CarType:         req.CarType,
+		FromLongitude:   req.FromLongitude,
+		FromLatitude:    req.FromLatitude,
+		ToLongitude:     req.ToLongitude,
+		ToLatitude:      req.ToLatitude,
+		EstimatedMeters: req.EstimatedDistanceM,
+		EstimatedSecond: req.EstimatedDurationS,
+	})
+	if err != nil {
+		return nil, err
+	}
+	originalPriceCents := price.EstimatedPriceCents
+	discountAmountCents := int64(0)
+	payableAmountCents := originalPriceCents
+	var selectedCoupon *userproto.CouponInfo
+	if hasUserCoupon(req) {
+		userClient, err := l.userClient()
+		if err != nil {
+			return nil, err
+		}
+		selectedCoupon, err = l.findUserCoupon(userClient, userID, req.UserCouponID)
+		if err != nil {
+			return nil, err
+		}
+		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
+			TotalCents: originalPriceCents,
+			Coupon:     toPriceCoupon(selectedCoupon),
+		})
+		if err != nil {
+			return nil, err
+		}
+		discountAmountCents = discount.DiscountAmountCents
+		payableAmountCents = discount.PayableAmountCents
+	}
+
+	order, err := orderClient.CreateOrder(l.ctx, &orderproto.CreateOrderRequest{
+		UserId:              int64(userID),
+		CarType:             req.CarType,
+		FromAddress:         strings.TrimSpace(req.FromAddress),
+		FromLongitude:       req.FromLongitude,
+		FromLatitude:        req.FromLatitude,
+		ToAddress:           strings.TrimSpace(req.ToAddress),
+		ToLongitude:         req.ToLongitude,
+		ToLatitude:          req.ToLatitude,
+		EstimatedDistanceM:  price.EstimatedDistanceM,
+		EstimatedDurationS:  price.EstimatedDurationS,
+		EstimatedPriceCents: originalPriceCents,
+		CityCode:            l.orderCityCode(req.CityCode),
+		CouponId:            int64(req.UserCouponID),
+		DiscountCents:       discountAmountCents,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.CreateOrderResponse{
+		OrderID:             order.GetOrderId(),
+		OrderNo:             order.GetOrderNo(),
+		EstimatedPriceCents: payableAmountCents,
+		OriginalPriceCents:  originalPriceCents,
+		DiscountAmountCents: discountAmountCents,
+		PayableAmountCents:  payableAmountCents,
+		UserCouponID:        req.UserCouponID,
+		Status:              int32(order.GetStatus()),
+		CreatedAt:           order.GetCreatedAt(),
+	}, nil
+}
+
+// ListOrders 查询当前乘客自己的订单列表。
+func (l *OrderLogic) ListOrders(req *types.ListOrdersRequest) (*types.ListOrdersResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateListOrders(req); err != nil {
+		return nil, err
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := orderClient.ListOrders(l.ctx, &orderproto.ListOrdersRequest{
+		UserId:   int64(userID),
+		Status:   orderproto.OrderStatus(req.Status),
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+	list := make([]types.OrderSummary, 0, len(resp.GetList()))
+	for _, item := range resp.GetList() {
+		rated := l.hasOrderReview(uint64(item.GetOrderId()))
+		list = append(list, types.OrderSummary{
+			OrderID:             item.GetOrderId(),
+			OrderNo:             item.GetOrderNo(),
+			FromAddress:         item.GetFromAddress(),
+			ToAddress:           item.GetToAddress(),
+			Status:              int32(item.GetStatus()),
+			EstimatedPriceCents: item.GetEstimatedPriceCents(),
+			CreatedAt:           item.GetCreatedAt(),
+			Rated:               rated,
+		})
+	}
+	return &types.ListOrdersResponse{
+		List:     list,
+		Total:    resp.GetTotal(),
+		Page:     resp.GetPage(),
+		PageSize: resp.GetPageSize(),
+	}, nil
+}
+
+// GetOrder 查询当前乘客自己的订单详情。
+func (l *OrderLogic) GetOrder(req *types.GetOrderRequest) (*types.OrderDetail, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetUserId() != int64(userID) {
+		return nil, ErrForbidden
+	}
+	detail := toOrderDetail(order)
+	// 订单服务只保存司机 ID，详情页再向 driversvc 查询公开姓名和车牌号。
+	if l.svcCtx.DriverClient != nil && order.GetDriverId() > 0 {
+		if driverResp, driverErr := l.svcCtx.DriverClient.GetDriver(l.ctx, &driverproto.GetDriverRequest{Id: order.GetDriverId()}); driverErr == nil && driverResp.GetDriver() != nil {
+			driver := driverResp.GetDriver()
+			detail.DriverName = driver.GetRealName()
+			detail.PlateNumber = driver.GetPlateNo()
+		}
+	}
+	detail.Rated = l.hasOrderReview(uint64(detail.OrderID))
+	if detail.CouponID > 0 {
+		detail.CouponName = l.findCouponName(userID, uint64(detail.CouponID))
+	}
+	return detail, nil
+}
+
+// hasOrderReview 查询订单是否已评价。评价状态是辅助展示信息，仓储瞬时失败不能阻断订单主查询。
+func (l *OrderLogic) hasOrderReview(orderID uint64) bool {
+	if l.svcCtx == nil || l.svcCtx.Reviews == nil || orderID == 0 {
+		return false
+	}
+	rated, err := l.svcCtx.Reviews.HasOrderReview(l.ctx, orderID)
+	if err != nil {
+		logx.WithContext(l.ctx).Errorf("query review status failed, order_id=%d: %v", orderID, err)
+		return false
+	}
+	return rated
+}
+
+// CancelOrder 取消当前乘客自己的订单。
+func (l *OrderLogic) CancelOrder(req *types.CancelOrderRequest) (*types.CancelOrderResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	current, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		return nil, err
+	}
+	if current.GetUserId() != int64(userID) {
+		return nil, ErrForbidden
+	}
+	resp, err := orderClient.CancelOrder(l.ctx, &orderproto.CancelOrderRequest{
+		OrderId:      req.OrderID,
+		OperatorType: "user",
+		OperatorId:   int64(userID),
+		Reason:       strings.TrimSpace(req.Reason),
+	})
+	if err != nil {
+		return nil, err
+	}
+	// 取消成功后释放该订单锁定的优惠券；没有使用优惠券时保持幂等。
+	if userClient, userErr := l.userClient(); userErr == nil {
+		_, _ = userClient.ReleaseUserCoupon(l.ctx, &userproto.ReleaseUserCouponRequest{UserId: userID, OrderId: uint64(req.OrderID)})
+	}
+	return &types.CancelOrderResponse{
+		OrderID: resp.GetOrderId(),
+		Status:  int32(resp.GetStatus()),
+	}, nil
+}
+
+// PayOrder 校验当前乘客订单并调用 paysvc 创建支付单。
+func (l *OrderLogic) PayOrder(req *types.PayOrderRequest) (*types.PayOrderResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	channel, err := toPayChannel(req.Channel)
+	if err != nil {
+		return nil, err
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	payClient, err := l.payClient()
+	if err != nil {
+		return nil, err
+	}
+
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetUserId() != int64(userID) {
+		return nil, ErrForbidden
+	}
+	// 幂等保护：重复点击支付时复用已成功支付单，避免再次扣减钱包余额。
+	// 支付单状态 2 = 已支付（paysvc proto 未导出该状态常量，此处只能以字面量比对）。
+	if existing, getErr := payClient.GetPayment(l.ctx, &payproto.GetPaymentRequest{OrderId: req.OrderID}); getErr == nil && existing.GetStatus() == 2 {
+		// 支付单已成功但订单可能因瞬时 RPC 失败未完成，支付入口负责幂等补偿确认。
+		_, _ = orderClient.ConfirmPaid(l.ctx, &orderproto.ConfirmPaidRequest{OrderId: req.OrderID, PaymentNo: existing.GetPaymentNo(), AmountCents: existing.GetAmountCents(), PaidAt: time.Now().Unix()})
+		return &types.PayOrderResponse{PaymentID: existing.GetPaymentId(), PaymentNo: existing.GetPaymentNo(), TransactionID: existing.GetTransactionId(), Status: existing.GetStatus()}, nil
+	}
+	if order.GetStatus() != orderproto.OrderStatus_ORDER_STATUS_WAIT_PAY {
+		return nil, ErrOrderNotPayable
+	}
+	if order.GetEstimatedPriceCents() <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	payment, err := payClient.CreatePayment(l.ctx, &payproto.CreatePaymentRequest{
+		OrderId:     req.OrderID,
+		UserId:      int64(userID),
+		AmountCents: order.GetEstimatedPriceCents(),
+		Channel:     channel,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.PayOrderResponse{
+		PaymentID:     payment.GetPaymentId(),
+		PaymentNo:     payment.GetPaymentNo(),
+		TransactionID: payment.GetTransactionId(),
+		PayParams:     payment.GetPayParams(),
+		Status:        payment.GetStatus(),
+	}, nil
+}
+
+// GetPaymentStatus 主动查询当前乘客订单对应的支付状态。
+func (l *OrderLogic) GetPaymentStatus(req *types.PaymentStatusRequest) (*types.PaymentStatusResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || (strings.TrimSpace(req.PaymentNo) == "" && req.OrderID <= 0) {
+		return nil, ErrInvalidRequest
+	}
+	payClient, err := l.payClient()
+	if err != nil {
+		return nil, err
+	}
+	payment, err := payClient.GetPayment(l.ctx, &payproto.GetPaymentRequest{
+		PaymentNo: strings.TrimSpace(req.PaymentNo),
+		OrderId:   req.OrderID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if payment.GetOrderId() <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	if err := l.ensureOrderOwner(payment.GetOrderId(), userID); err != nil {
+		return nil, err
+	}
+	return toPaymentStatusResponse(payment), nil
+}
+
+// GetDispatchStatus 主动查询当前乘客订单对应的派单记录。
+func (l *OrderLogic) GetDispatchStatus(req *types.DispatchStatusRequest) (*types.DispatchStatusResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	order, err := l.getOwnedOrder(req.OrderID, userID)
+	if err != nil {
+		return nil, err
+	}
+	dispatchClient, err := l.dispatchClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := dispatchClient.ListDispatchRecords(l.ctx, &dispatchproto.ListDispatchRecordsRequest{
+		OrderId:  req.OrderID,
+		Page:     1,
+		PageSize: 20,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toDispatchStatusResponse(req.OrderID, order.GetDriverId(), resp), nil
+}
+
+// validateCreateOrder 校验下单请求中的必填地址和车型参数。
+func validateCreateOrder(req *types.CreateOrderRequest) error {
+	if req == nil || strings.TrimSpace(req.FromAddress) == "" || strings.TrimSpace(req.ToAddress) == "" {
+		return ErrInvalidRequest
+	}
+	if req.CouponMaxDiscountCents < 0 {
+		return ErrInvalidRequest
+	}
+	if req.CarType < 1 || req.CarType > 3 {
+		return ErrInvalidRequest
+	}
+	if !isValidLongitudeLatitude(req.FromLongitude, req.FromLatitude) ||
+		!isValidLongitudeLatitude(req.ToLongitude, req.ToLatitude) {
+		return ErrInvalidRequest
+	}
+	return nil
+}
+
+// hasUserCoupon 判断本次下单是否使用“用户已领取的券”，不信任前端传入的券模板面额。
+func hasUserCoupon(req *types.CreateOrderRequest) bool {
+	return req != nil && req.UserCouponID > 0
+}
+
+// findCouponName 根据订单保存的用户券实例 ID 查询优惠券名称；查询失败不影响订单详情主流程。
+func (l *OrderLogic) findCouponName(userID, userCouponID uint64) string {
+	userClient, err := l.userClient()
+	if err != nil {
+		return ""
+	}
+	coupons, err := userClient.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{
+		UserId: userID,
+		// Status 传 0 表示不筛选状态：历史订单引用的券可能已被核销或过期，这里只取回券名用于展示。
+		Status:   0,
+		Page:     1,
+		PageSize: 100,
+	})
+	if err != nil {
+		return ""
+	}
+	for _, coupon := range coupons.GetList() {
+		if coupon.GetUserCouponId() == userCouponID {
+			return strings.TrimSpace(coupon.GetName())
+		}
+	}
+	return ""
+}
+
+// toPriceCoupon 将 usersvc 校验后的券信息转换为 pricesvc 抵扣计算参数。
+// 最大抵扣额只应来自后端券模板；当前 usersvc 尚未暴露该字段，因此这里不采信前端透传值。
+func toPriceCoupon(coupon *userproto.CouponInfo) priceclient.Coupon {
+	if coupon == nil {
+		return priceclient.Coupon{}
+	}
+	couponType := coupon.GetType()
+	if couponType == 3 {
+		// usersvc 中的 3 表示新人立减券，pricesvc 使用 1 表示固定金额立减券。
+		couponType = 1
+	}
+	return priceclient.Coupon{
+		CouponID:       int64(coupon.GetCouponId()),
+		Type:           couponType,
+		FaceValueCents: coupon.GetFaceValueCents(),
+		Discount:       coupon.GetDiscount(),
+		ThresholdCents: coupon.GetThresholdCents(),
+	}
+}
+
+// validateListOrders 校验订单列表筛选和分页参数，0 页码/页大小交给下游按默认值归一化。
+func validateListOrders(req *types.ListOrdersRequest) error {
+	if req == nil {
+		return ErrInvalidRequest
+	}
+	if req.Status < 0 || req.Status > int32(orderproto.OrderStatus_ORDER_STATUS_CANCELLED) {
+		return ErrInvalidRequest
+	}
+	if req.Page < 0 || req.PageSize < 0 || req.PageSize > 100 {
+		return ErrInvalidRequest
+	}
+	return nil
+}
+
+// orderClient 获取订单服务客户端，避免业务方法重复判断空依赖。
+func (l *OrderLogic) orderClient() (svc.OrderClient, error) {
+	if l.svcCtx == nil || l.svcCtx.OrderClient == nil {
+		return nil, ErrOrderClientNotConfigured
+	}
+	return l.svcCtx.OrderClient, nil
+}
+
+// priceClient 获取价格服务客户端，供下单前预估价格使用。
+func (l *OrderLogic) priceClient() (svc.PriceClient, error) {
+	if l.svcCtx == nil || l.svcCtx.PriceClient == nil {
+		return nil, ErrPriceClientNotConfigured
+	}
+	return l.svcCtx.PriceClient, nil
+}
+
+// userClient 获取用户服务客户端，供下单前锁定用户券使用。
+func (l *OrderLogic) userClient() (svc.UserClient, error) {
+	if l.svcCtx == nil || l.svcCtx.UserClient == nil {
+		return nil, ErrUserClientNotConfigured
+	}
+	return l.svcCtx.UserClient, nil
+}
+
+// payClient 获取支付服务客户端，供订单支付入口创建支付单使用。
+func (l *OrderLogic) payClient() (svc.PayClient, error) {
+	if l.svcCtx == nil || l.svcCtx.PayClient == nil {
+		return nil, ErrPayClientNotConfigured
+	}
+	return l.svcCtx.PayClient, nil
+}
+
+// dispatchClient 获取派单服务客户端，供乘客主动查询派单进展使用。
+func (l *OrderLogic) dispatchClient() (svc.DispatchClient, error) {
+	if l.svcCtx == nil || l.svcCtx.DispatchClient == nil {
+		return nil, ErrDispatchClientNotConfigured
+	}
+	return l.svcCtx.DispatchClient, nil
+}
+
+// toPayChannel 将乘客端数字渠道转换为 paysvc proto 枚举。
+func toPayChannel(channel int32) (payproto.PayChannel, error) {
+	switch payproto.PayChannel(channel) {
+	case payproto.PayChannel_PAY_CHANNEL_WECHAT,
+		payproto.PayChannel_PAY_CHANNEL_ALIPAY,
+		payproto.PayChannel_PAY_CHANNEL_BALANCE:
+		return payproto.PayChannel(channel), nil
+	default:
+		return payproto.PayChannel_PAY_CHANNEL_UNSPECIFIED, ErrInvalidRequest
+	}
+}
+
+// toOrderDetail 将 ordersvc 的订单详情响应转换为乘客端 API 响应结构。
+func toOrderDetail(order *orderproto.GetOrderResponse) *types.OrderDetail {
+	// ordersvc 当前仅返回司机 ID，先生成稳定的乘客友好称呼；车牌由后续司机资料聚合接口覆盖。
+	driverName := ""
+	if order.GetDriverId() > 0 {
+		driverName = fmt.Sprintf("司机%d师傅", order.GetDriverId())
+	}
+	return &types.OrderDetail{
+		OrderID:             order.GetOrderId(),
+		OrderNo:             order.GetOrderNo(),
+		UserID:              order.GetUserId(),
+		DriverID:            order.GetDriverId(),
+		CarType:             order.GetCarType(),
+		FromAddress:         order.GetFromAddress(),
+		FromLongitude:       order.GetFromLongitude(),
+		FromLatitude:        order.GetFromLatitude(),
+		ToAddress:           order.GetToAddress(),
+		ToLongitude:         order.GetToLongitude(),
+		ToLatitude:          order.GetToLatitude(),
+		EstimatedDistanceM:  order.GetEstimatedDistanceM(),
+		EstimatedDurationS:  order.GetEstimatedDurationS(),
+		EstimatedPriceCents: order.GetEstimatedPriceCents(),
+		CouponID:            order.GetCouponId(),
+		DiscountCents:       order.GetDiscountCents(),
+		PayableCents:        order.GetPayableCents(),
+		PaidCents:           order.GetPaidCents(),
+		RefundCents:         order.GetRefundCents(),
+		Status:              int32(order.GetStatus()),
+		CancelReason:        order.GetCancelReason(),
+		CancelBy:            order.GetCancelBy(),
+		CreatedAt:           order.GetCreatedAt(),
+		UpdatedAt:           order.GetUpdatedAt(),
+		DriverName:          driverName,
+	}
+}
+
+// findUserCoupon 在创建订单前读取乘客指定的优惠券，使抵扣金额可以在还没有订单号时先算出来。
+// Status 传 1（model.UserCouponStatusUnused）只匹配未使用的券：
+// 已核销(2)、已过期(3)、已被下单锁定(4) 的券一律不可用于下单，避免重复用券。
+func (l *OrderLogic) findUserCoupon(userClient svc.UserClient, userID, userCouponID uint64) (*userproto.CouponInfo, error) {
+	if userClient == nil || userID == 0 || userCouponID == 0 {
+		return nil, ErrInvalidRequest
+	}
+	resp, err := userClient.ListMyCoupons(l.ctx, &userproto.ListMyCouponsRequest{
+		UserId: userID,
+		Status: 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range resp.GetList() {
+		if item.GetUserCouponId() == userCouponID {
+			return item, nil
+		}
+	}
+	return nil, userproto.ErrUserCouponNotFound
+}
+
+// PollOrderStatus 是乘客端订单状态的轮询接口：一次调用同时返回订单状态、支付状态和派单进展，
+// 用于在 WebSocket 推送不可用（弱网、小程序后台）时兜底刷新页面。
+func (l *OrderLogic) PollOrderStatus(req *types.OrderStatusPollRequest) (*types.OrderStatusPollResponse, error) {
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.OrderID <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetUserId() != int64(userID) {
+		return nil, ErrForbidden
+	}
+	OrderStatus := int32(order.GetStatus())
+	// 状态轮询同时承担单订单兜底：订单超过 5 分钟仍未接单时，
+	// 由订单服务执行带状态校验的系统取消，避免 job 未运行导致页面永久等待。
+	if OrderStatus == int32(orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT) &&
+		order.GetDriverId() == 0 && order.GetCreatedAt() > 0 &&
+		time.Now().Unix()-order.GetCreatedAt() >= passengerOrderTimeoutSeconds {
+		if cancelled, cancelErr := orderClient.CancelOrder(l.ctx, &orderproto.CancelOrderRequest{
+			OrderId:      order.GetOrderId(),
+			OperatorType: "system",
+			Reason:       "超时未接单，系统自动取消",
+		}); cancelErr == nil && cancelled != nil {
+			OrderStatus = int32(cancelled.GetStatus())
+			order.Status = cancelled.GetStatus()
+		}
+	}
+	resp := &types.OrderStatusPollResponse{
+		OrderID:   order.GetOrderId(),
+		Status:    OrderStatus,
+		Changed:   req.KnownStatus != OrderStatus,
+		UpdatedAt: order.GetUpdatedAt(),
+		DriverID:  order.GetDriverId(),
+		// DriverName/PlateNumber/CarModel 在下文中通过 driversvc 实时填充，查询失败不会阻断轮询。
+	}
+	if order.GetDriverId() > 0 {
+		// driversvc 不可用或返回异常时，前端按空串降级展示「司机 #ID」；轮询主流程必须继续返回。
+		if name, plate := l.fetchDriverDisplayInfo(l.ctx, order.GetDriverId()); name != "" || plate != "" {
+			resp.DriverName = name
+			resp.PlateNumber = plate
+		}
+	}
+	if payment, err := l.paymentStatusByOrder(order.GetOrderId(), userID); err == nil {
+		resp.Payment = payment
+	}
+	if dispatch, err := l.dispatchStatusByOrder(order, userID); err == nil {
+		resp.Dispatch = dispatch
+	}
+	return resp, nil
+}
+
+// fetchDriverDisplayInfo 从 driversvc 拉取司机实名和车牌号，供轮询接口与订单详情复用。
+// Driver proto 仅透传 RealName 与 PlateNo；车型需要额外 GetVehicle 查询，轮询流程不做，避免依赖膨胀。
+// 返回值允许为空字符串：driversvc 不可用时调用方应降级占位，不应把异常向上抛。
+func (l *OrderLogic) fetchDriverDisplayInfo(ctx context.Context, driverID int64) (name, plate string) {
+	if l == nil || l.svcCtx == nil || l.svcCtx.DriverClient == nil || driverID <= 0 {
+		return "", ""
+	}
+	resp, err := l.svcCtx.DriverClient.GetDriver(ctx, &driverproto.GetDriverRequest{Id: driverID})
+	if err != nil || resp == nil || resp.GetDriver() == nil {
+		return "", ""
+	}
+	driver := resp.GetDriver()
+	return strings.TrimSpace(driver.GetRealName()), strings.TrimSpace(driver.GetPlateNo())
+}
+
+// orderCityCode 返回请求城市编码；请求未传时使用 passenger 运行配置中的默认城市。
+func (l *OrderLogic) orderCityCode(cityCode string) string {
+	cityCode = strings.TrimSpace(cityCode)
+	if cityCode != "" {
+		return cityCode
+	}
+	if l != nil && l.svcCtx != nil && strings.TrimSpace(l.svcCtx.PriceCityCode) != "" {
+		return strings.TrimSpace(l.svcCtx.PriceCityCode)
+	}
+	// 兜底城市为北京（110000），与 svc.defaultPriceCityCode 保持一致。
+	return "110000"
+}
+
+// ensureOrderOwner 校验订单归属，防止通过支付单号查询到其他乘客的支付信息。
+func (l *OrderLogic) ensureOrderOwner(orderID int64, userID uint64) error {
+	_, err := l.getOwnedOrder(orderID, userID)
+	return err
+}
+
+// getOwnedOrder 查询订单并校验属于当前乘客。
+func (l *OrderLogic) getOwnedOrder(orderID int64, userID uint64) (*orderproto.GetOrderResponse, error) {
+	if orderID <= 0 || userID == 0 {
+		return nil, ErrInvalidRequest
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: orderID})
+	if err != nil {
+		return nil, err
+	}
+	if order.GetUserId() != int64(userID) {
+		return nil, ErrForbidden
+	}
+	return order, nil
+}
+
+// paymentStatusByOrder 按订单 ID 查询支付状态，供订单轮询接口合并展示。
+func (l *OrderLogic) paymentStatusByOrder(orderID int64, userID uint64) (*types.PaymentStatusResponse, error) {
+	payClient, err := l.payClient()
+	if err != nil {
+		return nil, err
+	}
+	payment, err := payClient.GetPayment(l.ctx, &payproto.GetPaymentRequest{OrderId: orderID})
+	if err != nil {
+		return nil, err
+	}
+	if payment.GetOrderId() <= 0 {
+		return nil, ErrInvalidRequest
+	}
+	if err := l.ensureOrderOwner(payment.GetOrderId(), userID); err != nil {
+		return nil, err
+	}
+	return toPaymentStatusResponse(payment), nil
+}
+
+// dispatchStatusByOrder 查询派单记录，供订单轮询接口在推送断开时兜底展示候选司机。
+func (l *OrderLogic) dispatchStatusByOrder(order *orderproto.GetOrderResponse, userID uint64) (*types.DispatchStatusResponse, error) {
+	if order == nil || order.GetOrderId() <= 0 || order.GetUserId() != int64(userID) {
+		return nil, ErrInvalidRequest
+	}
+	dispatchClient, err := l.dispatchClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := dispatchClient.ListDispatchRecords(l.ctx, &dispatchproto.ListDispatchRecordsRequest{
+		OrderId:  order.GetOrderId(),
+		Page:     1,
+		PageSize: 20,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toDispatchStatusResponse(order.GetOrderId(), order.GetDriverId(), resp), nil
+}
+
+// toPaymentStatusResponse 将 paysvc 支付查询响应转换为乘客端 HTTP 响应。
+func toPaymentStatusResponse(payment *payproto.GetPaymentResponse) *types.PaymentStatusResponse {
+	if payment == nil {
+		return nil
+	}
+	return &types.PaymentStatusResponse{
+		PaymentID:         payment.GetPaymentId(),
+		PaymentNo:         payment.GetPaymentNo(),
+		OrderID:           payment.GetOrderId(),
+		AmountCents:       payment.GetAmountCents(),
+		Channel:           payment.GetChannel(),
+		Status:            payment.GetStatus(),
+		TransactionID:     payment.GetTransactionId(),
+		RefundAmountCents: payment.GetRefundAmountCents(),
+	}
+}
+
+// toDispatchStatusResponse 将 dispatchsvc 派单记录响应转换为乘客端 HTTP 响应。
+func toDispatchStatusResponse(orderID, orderDriverID int64, resp *dispatchproto.ListDispatchRecordsResponse) *types.DispatchStatusResponse {
+	result := &types.DispatchStatusResponse{
+		OrderID:  orderID,
+		DriverID: orderDriverID,
+		Records:  make([]types.DispatchRecord, 0),
+	}
+	if resp == nil {
+		return result
+	}
+	result.Total = resp.GetTotal()
+	for _, item := range resp.GetList() {
+		record := types.DispatchRecord{
+			ID:           item.GetId(),
+			OrderID:      item.GetOrderId(),
+			DriverID:     item.GetDriverId(),
+			DispatchType: item.GetDispatchType(),
+			Status:       item.GetStatus(),
+			MatchScore:   item.GetMatchScore(),
+			Remark:       item.GetRemark(),
+			CreatedAt:    item.GetCreatedAt(),
+			UpdatedAt:    item.GetUpdatedAt(),
+		}
+		result.Records = append(result.Records, record)
+		if shouldUseDispatchDriver(result.DriverID, record.Status, record.DriverID) {
+			result.DriverID = record.DriverID
+			result.DispatchStatus = record.Status
+		}
+	}
+	return result
+}
+
+// shouldUseDispatchDriver 判断某条派单记录是否可以覆盖乘客端当前展示的司机。
+// 派单状态取值来自 common/constants：1=Pending(已派单待接单)、2=Accepted(司机已接单)、
+// 3=Rejected、4=Timeout、5=Cancelled。
+func shouldUseDispatchDriver(currentDriverID int64, status int32, driverID int64) bool {
+	if driverID <= 0 {
+		return false
+	}
+	// 已接单(Accepted)优先级最高，直接覆盖此前暂存的任何候选司机。
+	if status == 2 {
+		return true
+	}
+	// 只有在还没有候选司机时，才用「已派单待接单」的司机占位。
+	return currentDriverID <= 0 && status == 1
+}
+
+// GetOrderTracking 校验订单归属后聚合司机最新位置与剩余路线，供乘客端实时刷新地图。
+func (l *OrderLogic) GetOrderTracking(req *types.OrderTrackingRequest) (*types.OrderTrackingResponse, error) {
+	if req == nil || req.OrderID <= 0 || l.svcCtx.LocationClient == nil {
+		return nil, ErrInvalidRequest
+	}
+	userID, err := currentUserID(l.svcCtx, l.token)
+	if err != nil {
+		return nil, err
+	}
+	orderClient, err := l.orderClient()
+	if err != nil {
+		return nil, err
+	}
+	order, err := orderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: req.OrderID})
+	if err != nil {
+		// 追踪是增强能力；订单服务短暂不可用时返回可重试的空快照，避免前端轮询被 502 刷屏。
+		if code := status.Code(err); code == codes.Unavailable || code == codes.DeadlineExceeded {
+			return &types.OrderTrackingResponse{OrderID: req.OrderID}, nil
+		}
+		return nil, err
+	}
+	// 归属校验失败与「订单尚未分配司机」统一返回 ErrInvalidRequest（而非 ErrForbidden），
+	// 调用方无法据此区分订单是否存在。
+	if order.GetUserId() != int64(userID) || order.GetDriverId() <= 0 {
+		return nil, ErrInvalidRequest
+	}
+
+	location, err := l.svcCtx.LocationClient.GetDriverLocation(l.ctx, &locationproto.GetDriverLocationReq{DriverId: order.GetDriverId()})
+	// 司机接单后尚未上报首个位置，或位置服务暂时不可用，均属于可恢复状态。
+	// 返回无坐标快照让前端继续展示司机信息并等待下一次轮询，不能把实时增强能力升级为 502。
+	if err != nil {
+		return &types.OrderTrackingResponse{
+			OrderID: req.OrderID, DriverID: order.GetDriverId(), Status: int32(order.GetStatus()),
+			EstimatedPriceCents: order.GetEstimatedPriceCents(),
+		}, nil
+	}
+	// 默认按「司机 -> 订单目的地」规划；但司机刚接单、尚未接到乘客(ACCEPTED)时，
+	// 司机实际驶向上车点，终点必须改为上车点，否则地图路线会画反。
+	destinationLng, destinationLat := order.GetToLongitude(), order.GetToLatitude()
+	if order.GetStatus() == orderproto.OrderStatus_ORDER_STATUS_ACCEPTED {
+		destinationLng, destinationLat = order.GetFromLongitude(), order.GetFromLatitude()
+	}
+	// 坐标尚未有效时跳过路径规划，避免高德接口因 0 坐标返回错误。
+	if location.GetLng() == 0 || location.GetLat() == 0 {
+		return &types.OrderTrackingResponse{OrderID: req.OrderID, DriverID: order.GetDriverId(), Status: int32(order.GetStatus()), EstimatedPriceCents: order.GetEstimatedPriceCents()}, nil
+	}
+	route, err := l.svcCtx.LocationClient.RoutePlan(l.ctx, &locationproto.RoutePlanReq{
+		OriginLng: location.GetLng(), OriginLat: location.GetLat(),
+		DestinationLng: destinationLng, DestinationLat: destinationLat,
+	})
+	if err != nil {
+		// 路径规划依赖第三方地图服务，鉴权失效或临时网络故障不应阻断司机位置轮询。
+		// 降级使用订单创建时的预估距离，待下一次轮询地图服务恢复后自动返回精确路线。
+		logx.WithContext(l.ctx).Errorf("订单追踪路径规划失败，降级使用预估距离: order_id=%d, err=%v", req.OrderID, err)
+		estimatedDistance := order.GetEstimatedDistanceM()
+		if estimatedDistance < 0 {
+			estimatedDistance = 0
+		}
+		return &types.OrderTrackingResponse{
+			OrderID: req.OrderID, DriverID: order.GetDriverId(), Status: int32(order.GetStatus()),
+			DriverLongitude: location.GetLng(), DriverLatitude: location.GetLat(), Heading: location.GetHeading(),
+			SpeedKmh: location.GetSpeedKmh(), ReportTime: location.GetReportTime(),
+			Stale:              time.Since(time.Unix(location.GetReportTime(), 0)) > trackingStaleAfter,
+			TravelledDistanceM: 0, ElapsedDurationS: elapsedTrackingSeconds(order.GetCreatedAt()),
+			RemainingDistanceM: estimatedDistance, RemainingDurationS: 0,
+			EstimatedPriceCents: order.GetEstimatedPriceCents(),
+		}, nil
+	}
+	elapsed := elapsedTrackingSeconds(order.GetCreatedAt())
+	// 已行驶里程用「下单时预估总里程 - 实时剩余里程」推算，是近似值而非车载设备真实里程。
+	// 司机绕路时实时剩余里程可能大于预估总里程，相减为负，此处截断为 0。
+	travelled := order.GetEstimatedDistanceM() - int64(route.GetDistance())
+	if travelled < 0 {
+		travelled = 0
+	}
+	return &types.OrderTrackingResponse{
+		OrderID: req.OrderID, DriverID: order.GetDriverId(), Status: int32(order.GetStatus()),
+		DriverLongitude: location.GetLng(), DriverLatitude: location.GetLat(), Heading: location.GetHeading(),
+		SpeedKmh: location.GetSpeedKmh(), ReportTime: location.GetReportTime(),
+		Stale:              time.Since(time.Unix(location.GetReportTime(), 0)) > trackingStaleAfter,
+		TravelledDistanceM: travelled, ElapsedDurationS: elapsed,
+		RemainingDistanceM: int64(route.GetDistance()), RemainingDurationS: int64(route.GetDuration()),
+		EstimatedPriceCents: order.GetEstimatedPriceCents(), Polyline: route.GetPolyline(),
+	}, nil
+}
+
+// elapsedTrackingSeconds 计算订单创建至今的秒数，兼容服务端时间略有偏差的情况。
+func elapsedTrackingSeconds(createdAt int64) int64 {
+	elapsed := time.Now().Unix() - createdAt
+	if elapsed < 0 {
+		return 0
+	}
+	return elapsed
+}
+
+// EstimateOrder 提供下单前实时行程费用预估，不创建订单或占用优惠券。
+func (l *OrderLogic) EstimateOrder(req *types.EstimateOrderRequest) (*types.EstimateOrderResponse, error) {
+	if req == nil || strings.TrimSpace(req.FromAddress) == "" || strings.TrimSpace(req.ToAddress) == "" {
+		return nil, ErrInvalidRequest
+	}
+	if req.CarType < 1 || req.CarType > 3 {
+		return nil, ErrInvalidRequest
+	}
+	if !isValidLongitudeLatitude(req.FromLongitude, req.FromLatitude) ||
+		!isValidLongitudeLatitude(req.ToLongitude, req.ToLatitude) {
+		return nil, ErrInvalidRequest
+	}
+	priceClient, err := l.priceClient()
+	if err != nil {
+		return nil, err
+	}
+	price, err := priceClient.EstimatePrice(l.ctx, &priceclient.EstimatePriceRequest{
+		CityCode:        l.orderCityCode(req.CityCode),
+		CarType:         req.CarType,
+		FromLongitude:   req.FromLongitude,
+		FromLatitude:    req.FromLatitude,
+		ToLongitude:     req.ToLongitude,
+		ToLatitude:      req.ToLatitude,
+		EstimatedMeters: req.EstimatedDistanceM,
+		EstimatedSecond: req.EstimatedDurationS,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	originalPriceCents := price.EstimatedPriceCents
+	discountAmountCents := int64(0)
+	payableAmountCents := originalPriceCents
+	if req.UserCouponID > 0 {
+		userID, err := currentUserID(l.svcCtx, l.token)
+		if err != nil {
+			return nil, err
+		}
+		userClient, err := l.userClient()
+		if err != nil {
+			return nil, err
+		}
+		selectedCoupon, err := l.findUserCoupon(userClient, userID, req.UserCouponID)
+		if err != nil {
+			return nil, err
+		}
+		discount, err := priceClient.CalculateDiscount(l.ctx, &priceclient.CalculateDiscountRequest{
+			TotalCents: originalPriceCents,
+			Coupon:     toPriceCoupon(selectedCoupon),
+		})
+		if err != nil {
+			return nil, err
+		}
+		discountAmountCents = discount.DiscountAmountCents
+		payableAmountCents = discount.PayableAmountCents
+	}
+
+	return &types.EstimateOrderResponse{
+		CarType:             req.CarType,
+		EstimatedDistanceM:  price.EstimatedDistanceM,
+		EstimatedDurationS:  price.EstimatedDurationS,
+		OriginalPriceCents:  originalPriceCents,
+		DiscountAmountCents: discountAmountCents,
+		PayableAmountCents:  payableAmountCents,
+	}, nil
+}

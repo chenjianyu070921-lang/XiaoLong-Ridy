@@ -1,0 +1,228 @@
+import { computed, ref } from 'vue'
+import { defineStore } from 'pinia'
+import {
+  getDriver,
+  listVehicles,
+  loginDriverByPassword,
+  loginDriverBySMS,
+  registerDriver,
+  updateDriver
+} from '@/api/driver'
+import { resolveDriverVehicleId } from '@/utils/vehicle'
+
+function readJSON(key, fallback = null) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+export const useDriverStore = defineStore('driver', () => {
+  const token = ref(localStorage.getItem('driverToken') || '')
+  const driver = ref(readJSON('driverProfile', {}))
+  const vehicle = ref(readJSON('driverVehicle', null))
+  const vehicleId = ref(Number(localStorage.getItem('driverVehicleId') || vehicle.value?.id || 0))
+  const vehicles = ref(readJSON('driverVehicles', []))
+  const certification = ref(readJSON('driverCertification', null))
+  const onlineStatus = ref(Number(driver.value?.onlineStatus ?? localStorage.getItem('driverOnlineStatus') ?? 0))
+  const currentOrder = ref(readJSON('driverCurrentOrder', null))
+  const currentOrderId = ref(localStorage.getItem('driverCurrentOrderId') || '')
+  const tripPhase = ref(localStorage.getItem('driverTripPhase') || 'idle')
+  const darkMode = ref(localStorage.getItem('driverDarkMode') === '1')
+  // 启动时回放持久化的夜间模式，避免刷新后回退到亮色（App.vue 的 html.dark 全局样式依赖此 class）。
+  document.documentElement.classList.toggle('dark', darkMode.value)
+
+  const isLoggedIn = computed(() => !!token.value)
+  const driverId = computed(() => Number(driver.value?.id || driver.value?.driverId || 0))
+  const displayName = computed(() => driver.value?.realName || driver.value?.nickname || '司机')
+
+  // 清理当前司机的订单会话，避免不同司机共用浏览器时串用旧司机的行程状态。
+  function clearCurrentOrderState() {
+    currentOrder.value = null
+    currentOrderId.value = ''
+    tripPhase.value = 'idle'
+    localStorage.removeItem('driverCurrentOrderId')
+    localStorage.removeItem('driverCurrentOrder')
+    localStorage.removeItem('driverTripPhase')
+  }
+
+  function persistSession(data = {}) {
+    const nextDriver = data.driver || driver.value || {}
+    // 登录建立新会话，旧会话的订单和阶段不能作为当前司机的事实来源。
+    clearCurrentOrderState()
+    token.value = data.token || token.value
+    driver.value = nextDriver
+    onlineStatus.value = Number(driver.value?.onlineStatus ?? onlineStatus.value ?? 0)
+    vehicleId.value = resolveDriverVehicleId(driver.value, vehicle.value)
+    if (token.value) localStorage.setItem('driverToken', token.value)
+    localStorage.setItem('driverProfile', JSON.stringify(driver.value))
+    localStorage.setItem('driverOnlineStatus', String(onlineStatus.value))
+    if (vehicleId.value > 0) localStorage.setItem('driverVehicleId', String(vehicleId.value))
+  }
+
+  async function loginPassword(phone, password, config = {}) {
+    const res = await loginDriverByPassword(phone, password, config)
+    persistSession(res)
+    return res
+  }
+
+  async function loginSMS(phone, code, config = {}) {
+    const res = await loginDriverBySMS(phone, code, config)
+    persistSession(res)
+    return res
+  }
+
+  async function register(data, config = {}) {
+    return registerDriver(data, config)
+  }
+
+  async function refreshProfile(config = {}) {
+    const res = await getDriver(config)
+    driver.value = res.driver || res
+    onlineStatus.value = Number(driver.value?.onlineStatus ?? onlineStatus.value ?? 0)
+    vehicleId.value = resolveDriverVehicleId(driver.value, vehicle.value)
+    localStorage.setItem('driverProfile', JSON.stringify(driver.value))
+    localStorage.setItem('driverOnlineStatus', String(onlineStatus.value))
+    if (vehicleId.value > 0) localStorage.setItem('driverVehicleId', String(vehicleId.value))
+    return res
+  }
+
+  async function saveProfile(payload, config = {}) {
+    if (!driverId.value) {
+      throw new Error('请先重新登录后再保存资料')
+    }
+    const body = { ...payload, id: driverId.value }
+    const res = await updateDriver(body, config)
+    driver.value = { ...(driver.value || {}), ...payload }
+    localStorage.setItem('driverProfile', JSON.stringify(driver.value))
+    try {
+      // 静默：刷新资料只是保存后的补偿动作，失败不打扰用户（提示由调用方负责）
+      await refreshProfile({ silentError: true })
+    } catch {
+      // keep locally updated profile when refresh is unavailable
+    }
+    return res
+  }
+
+  function setVehicle(nextVehicle) {
+    vehicle.value = nextVehicle
+    vehicleId.value = Number(nextVehicle?.id || 0)
+    if (nextVehicle) {
+      localStorage.setItem('driverVehicle', JSON.stringify(nextVehicle))
+      localStorage.setItem('driverVehicleId', String(vehicleId.value))
+    } else {
+      localStorage.removeItem('driverVehicle')
+      localStorage.removeItem('driverVehicleId')
+    }
+  }
+
+  // 拉取该司机绑定的全部车辆（最多 3 辆），并维护单车辆兼容字段（资质等仍依赖 vehicleId）。
+  async function loadVehicles(config = {}) {
+    const res = await listVehicles(config)
+    const list = Array.isArray(res?.vehicles) ? res.vehicles : []
+    vehicles.value = list
+    localStorage.setItem('driverVehicles', JSON.stringify(list))
+    if (list.length) {
+      const latest = list.reduce((a, b) => (Number(b.id) > Number(a.id) ? b : a), list[0])
+      vehicle.value = latest
+      vehicleId.value = Number(latest.id || 0)
+      if (vehicleId.value > 0) localStorage.setItem('driverVehicleId', String(vehicleId.value))
+    }
+    return list
+  }
+
+  function setVehicles(next) {
+    vehicles.value = Array.isArray(next) ? next : []
+    localStorage.setItem('driverVehicles', JSON.stringify(vehicles.value))
+  }
+
+  function setCertification(nextCertification) {
+    certification.value = nextCertification
+    if (nextCertification) {
+      localStorage.setItem('driverCertification', JSON.stringify(nextCertification))
+    } else {
+      localStorage.removeItem('driverCertification')
+    }
+  }
+
+  function setWorkState(status) {
+    onlineStatus.value = Number(status || 0)
+    driver.value = { ...(driver.value || {}), onlineStatus: onlineStatus.value }
+    localStorage.setItem('driverOnlineStatus', String(onlineStatus.value))
+    localStorage.setItem('driverProfile', JSON.stringify(driver.value))
+  }
+
+  function setCurrentOrder(order, phase = tripPhase.value) {
+    currentOrder.value = order || null
+    currentOrderId.value = order?.orderId ? String(order.orderId) : ''
+    tripPhase.value = phase || 'idle'
+    localStorage.setItem('driverTripPhase', tripPhase.value)
+    if (currentOrder.value && currentOrderId.value) {
+      localStorage.setItem('driverCurrentOrderId', currentOrderId.value)
+      localStorage.setItem('driverCurrentOrder', JSON.stringify(currentOrder.value))
+    } else {
+      localStorage.removeItem('driverCurrentOrderId')
+      localStorage.removeItem('driverCurrentOrder')
+    }
+  }
+
+  function setDarkMode(value) {
+    darkMode.value = !!value
+    document.documentElement.classList.toggle('dark', darkMode.value)
+    localStorage.setItem('driverDarkMode', darkMode.value ? '1' : '0')
+  }
+
+  function logout() {
+    token.value = ''
+    driver.value = {}
+    vehicle.value = null
+    vehicleId.value = 0
+    certification.value = null
+    onlineStatus.value = 0
+    clearCurrentOrderState()
+    for (const key of [
+      'driverToken',
+      'driverProfile',
+      'driverOnlineStatus',
+      'driverVehicle',
+      'driverVehicleId',
+      'driverCertification',
+      'driverCurrentOrder',
+      'driverCurrentOrderId',
+      'driverTripPhase'
+    ]) {
+      localStorage.removeItem(key)
+    }
+  }
+
+  return {
+    token,
+    driver,
+    vehicle,
+    vehicleId,
+    certification,
+    onlineStatus,
+    currentOrder,
+    currentOrderId,
+    tripPhase,
+    darkMode,
+    setDarkMode,
+    vehicles,
+    loadVehicles,
+    setVehicles,
+    isLoggedIn,
+    driverId,
+    displayName,
+    loginPassword,
+    loginSMS,
+    register,
+    refreshProfile,
+    saveProfile,
+    setVehicle,
+    setCertification,
+    setWorkState,
+    setCurrentOrder,
+    logout
+  }
+})

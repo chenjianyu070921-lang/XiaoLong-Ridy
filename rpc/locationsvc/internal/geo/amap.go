@@ -36,20 +36,20 @@ type AmapPoiResponse struct {
 	Info   string `json:"info"`   // 提示信息
 	Count  string `json:"count"`  // 结果总数（高德返回的是字符串）
 	Pois   []struct {
-		Name     string `json:"name"`
-		Address  string `json:"address"`
-		Location string `json:"location"` // "经度,纬度"
-		Type     string `json:"type"`     // 分类，如"商务住宅;楼宇"
-		Distance string `json:"distance"` // 距离（米）
+		Name     string      `json:"name"`
+		Address  string      `json:"address"`
+		Location string      `json:"location"` // "经度,纬度"
+		Type     string      `json:"type"`     // 分类，如"商务住宅;楼宇"
+		// distance 在 place/around 是字符串（如 "1234"），在 place/text 是数组（[]），
+		// 用 interface{} 兼容两种响应。当前 POISearch 流程仅消费 lat/lng，无需解析 distance。
+		Distance interface{} `json:"distance"`
 	} `json:"pois"`
 }
 
-// SearchPoi 调用高德"周边搜索"（place/around）接口
-func (c *Client) SearchPoi(keyword string, lat, lng float64, radius, page, size int32) (*AmapPoiResponse, error) {
+// SearchPoi 统一处理 POI 检索：传入了有效经纬度时走 place/around（周边搜索），
+// 未传入经纬度时走 place/text（关键词+城市检索），避免在 lat=0/lng=0 时搜到大西洋。
+func (c *Client) SearchPoi(keyword, city string, lat, lng float64, radius, page, size int32) (*AmapPoiResponse, error) {
 	// 参数兜底：防止空值传到高德
-	if radius <= 0 {
-		radius = 5000
-	}
 	if page <= 0 {
 		page = 1
 	}
@@ -60,14 +60,28 @@ func (c *Client) SearchPoi(keyword string, lat, lng float64, radius, page, size 
 	params := url.Values{}
 	params.Set("key", c.apiKey)
 	params.Set("keywords", keyword)
-	params.Set("location", fmt.Sprintf("%.6f,%.6f", lng, lat))
-	params.Set("radius", strconv.Itoa(int(radius)))
 	params.Set("page", strconv.Itoa(int(page)))
 	params.Set("offset", strconv.Itoa(int(size)))
 	params.Set("extensions", "base")
 	params.Set("output", "json")
 
-	reqURL := fmt.Sprintf("%s/place/around?%s", c.baseURL, params.Encode())
+	endpoint := "place/text"
+	if lat != 0 || lng != 0 {
+		// 传入有效经纬度：使用周边搜索接口，按 location+radius 限定范围。
+		endpoint = "place/around"
+		if radius <= 0 {
+			radius = 5000
+		}
+		params.Set("location", fmt.Sprintf("%.6f,%.6f", lng, lat))
+		params.Set("radius", strconv.Itoa(int(radius)))
+	}
+	if city != "" {
+		// 使用 adcode/citycode 和 citylimit=true，将关键字搜索限制在当前城市。
+		params.Set("city", city)
+		params.Set("citylimit", "true")
+	}
+
+	reqURL := fmt.Sprintf("%s/%s?%s", c.baseURL, endpoint, params.Encode())
 
 	httpResp, err := c.httpCli.Get(reqURL)
 	if err != nil {
@@ -78,6 +92,9 @@ func (c *Client) SearchPoi(keyword string, lat, lng float64, radius, page, size 
 	body, err := io.ReadAll(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("读取高德响应失败: %w", err)
+	}
+	if httpResp.StatusCode < http.StatusOK || httpResp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("高德逆地理编码HTTP错误: status=%d", httpResp.StatusCode)
 	}
 
 	var result AmapPoiResponse
@@ -99,7 +116,7 @@ func (r *AmapPoiResponse) ToPoiModels() []model.Poi {
 		if err != nil {
 			continue // 坐标解析失败的直接跳过，不阻塞整体
 		}
-		distance, _ := strconv.Atoi(p.Distance)
+		distance := parseAmapDistance(p.Distance)
 		list = append(list, model.Poi{
 			Name:      p.Name,
 			Address:   p.Address,
@@ -121,8 +138,8 @@ func (r *AmapPoiResponse) Total() int32 {
 
 // AmapRegeoResponse 高德逆地理编码（regeo）响应结构
 type AmapRegeoResponse struct {
-	Status string `json:"status"` // 1=成功
-	Info   string `json:"info"`   // 提示信息
+	Status    string `json:"status"` // 1=成功
+	Info      string `json:"info"`   // 提示信息
 	Regeocode struct {
 		FormattedAddress json.RawMessage `json:"formatted_address"` // 结构化地址（境外坐标会返回空数组）
 		AddressComponent struct {
@@ -194,6 +211,111 @@ func (r *AmapRegeoResponse) CityStr() string {
 		return ""
 	}
 	return city
+}
+
+// AmapRouteResponse 高德驾车路径规划（direction/driving）响应结构
+type AmapRouteResponse struct {
+	Status string `json:"status"` // 1=成功
+	Info   string `json:"info"`   // 提示信息
+	Route  struct {
+		Origin      string `json:"origin"`
+		Destination string `json:"destination"`
+		Paths       []struct {
+			Distance string `json:"distance"` // 距离（米）
+			Duration string `json:"duration"` // 预计时间（秒）
+			Strategy string `json:"strategy"`
+			Steps    []struct {
+				Instruction string `json:"instruction"`
+				Polyline    string `json:"polyline"` // 路线点串 "lng,lat;lng,lat;..."
+			} `json:"steps"`
+		} `json:"paths"`
+	} `json:"route"`
+}
+
+// RoutePlan 调用高德"驾车路径规划"（direction/driving）接口，返回真实可行驶路线
+func (c *Client) RoutePlan(originLat, originLng, destLat, destLng float64) (*AmapRouteResponse, error) {
+	params := url.Values{}
+	params.Set("key", c.apiKey)
+	params.Set("origin", fmt.Sprintf("%.6f,%.6f", originLng, originLat))
+	params.Set("destination", fmt.Sprintf("%.6f,%.6f", destLng, destLat))
+	params.Set("extensions", "all") // all 才能拿到路线点串 polyline
+	params.Set("output", "json")
+
+	reqURL := fmt.Sprintf("%s/direction/driving?%s", c.baseURL, params.Encode())
+
+	httpResp, err := c.httpCli.Get(reqURL)
+	if err != nil {
+		return nil, fmt.Errorf("请求高德驾车路径规划失败: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	body, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取高德响应失败: %w", err)
+	}
+
+	var result AmapRouteResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析高德驾车路径规划响应失败: %w", err)
+	}
+	if result.Status != "1" {
+		return nil, fmt.Errorf("高德API返回错误: %s", result.Info)
+	}
+	if len(result.Route.Paths) == 0 {
+		return nil, fmt.Errorf("高德未返回可行路线")
+	}
+
+	return &result, nil
+}
+
+// Distance 返回第一条规划路线的距离（米）
+func (r *AmapRouteResponse) Distance() int32 {
+	if len(r.Route.Paths) == 0 {
+		return 0
+	}
+	n, _ := strconv.Atoi(r.Route.Paths[0].Distance)
+	return int32(n)
+}
+
+// Duration 返回第一条规划路线的预计时间（秒）
+func (r *AmapRouteResponse) Duration() int32 {
+	if len(r.Route.Paths) == 0 {
+		return 0
+	}
+	n, _ := strconv.Atoi(r.Route.Paths[0].Duration)
+	return int32(n)
+}
+
+// Polyline 把第一条路线各 step 的路线点串拼成完整的一条
+func (r *AmapRouteResponse) Polyline() string {
+	if len(r.Route.Paths) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, step := range r.Route.Paths[0].Steps {
+		if p := strings.Trim(step.Polyline, ";"); p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return strings.Join(parts, ";")
+}
+
+// parseAmapDistance 将高德距离字段（place/around 字符串、place/text 数组）统一为整数米。
+// 文本检索不返回距离，函数返回 0。
+func parseAmapDistance(v interface{}) int {
+	switch val := v.(type) {
+	case string:
+		n, _ := strconv.Atoi(val)
+		return n
+	case float64:
+		return int(val)
+	case []interface{}:
+		return 0
+	case nil:
+		return 0
+	default:
+		return 0
+	}
 }
 
 // parseLocation 解析高德坐标串 "经度,纬度"

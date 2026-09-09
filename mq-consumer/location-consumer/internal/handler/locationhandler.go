@@ -3,7 +3,12 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strconv"
 
+	"XiaoLong-Ridy/common/constants"
+
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -21,23 +26,43 @@ type LocationMessage struct {
 // LocationHandler 位置消息处理器
 type LocationHandler struct {
 	logx.Logger
+	rdb      *redis.Client
+	cityCode string
 }
 
-func NewLocationHandler() *LocationHandler {
+// NewLocationHandler 创建位置处理器，并注入默认城市编码。
+func NewLocationHandler(rdb *redis.Client, cityCode string) *LocationHandler {
+	if cityCode == "" {
+		cityCode = "default"
+	}
 	return &LocationHandler{
-		Logger: logx.WithContext(context.Background()),
+		Logger:   logx.WithContext(context.Background()),
+		rdb:      rdb,
+		cityCode: cityCode,
 	}
 }
 
-// Consume 处理位置消息
-func (h *LocationHandler) Consume(ctx context.Context, key, value string) error {
+// Consume 处理位置消息并写入 Redis GEO，供派单引擎检索。
+func (h *LocationHandler) Consume(ctx context.Context, _ string, value []byte) error {
 	var msg LocationMessage
-	if err := json.Unmarshal([]byte(value), &msg); err != nil {
+	if err := json.Unmarshal(value, &msg); err != nil {
 		h.Errorf("unmarshal location message failed: %v", err)
 		return err
 	}
 
-	h.Infof("收到司机位置: driverId=%d, lat=%.6f, lng=%.6f, speed=%.1f, orderId=%d",
+	geoKey := fmt.Sprintf(constants.RedisDriverGeo, h.cityCode)
+	_, err := h.rdb.GeoAdd(ctx, geoKey, &redis.GeoLocation{
+		Name:      strconv.FormatInt(msg.DriverID, 10),
+		Longitude: msg.Lng,
+		Latitude:  msg.Lat,
+	}).Result()
+	if err != nil {
+		h.Errorf("write driver geo failed: %v", err)
+		return err
+	}
+	_, _ = h.rdb.SAdd(ctx, constants.RedisDriverOnline, strconv.FormatInt(msg.DriverID, 10)).Result()
+
+	h.Infof("收到司机位置并写入 GEO: driverId=%d, lat=%.6f, lng=%.6f, speed=%.1f, orderId=%d",
 		msg.DriverID, msg.Lat, msg.Lng, msg.Speed, msg.OrderID)
 	return nil
 }

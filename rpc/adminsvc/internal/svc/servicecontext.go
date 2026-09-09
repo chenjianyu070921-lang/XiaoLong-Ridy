@@ -5,20 +5,52 @@ import (
 	"database/sql"
 	"time"
 
+	"XiaoLong-Ridy/rpc/adminsvc/internal/aiagent"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/config"
+	dispatchsvcproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	driversvcproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	locationsvcproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
+	ordersvcproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	paysvcproto "XiaoLong-Ridy/rpc/paysvc/proto"
+	pricesvcproto "XiaoLong-Ridy/rpc/pricesvc/price"
+	pushsvcproto "XiaoLong-Ridy/rpc/pushesvc/pushesvc"
+	usersvcproto "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/zrpc"
 )
 
-// ServiceContext 是 RPC 逻辑层的依赖容器。
+// ServiceContext 是 RPC 逻辑层共享的依赖容器。
 type ServiceContext struct {
 	Config config.Config
 	MySQL  *sql.DB
 	Redis  *redis.Client
+
+	OrdersRPCClient    zrpc.Client
+	OrdersSvc          ordersvcproto.OrderClient
+	DispatchRPCClient  zrpc.Client
+	DispatchSvc        dispatchsvcproto.DispatchClient
+	UsersRPCClient     zrpc.Client
+	UsersSvc           usersvcproto.UserClient
+	DriversRPCClient   zrpc.Client
+	DriverSvc          driversvcproto.DriverServiceClient
+	LocationsRPCClient zrpc.Client
+	LocationSvc        locationsvcproto.LocationServiceClient
+	PricesRPCClient    zrpc.Client
+	PricesSvc          pricesvcproto.Price
+	PaysRPCClient      zrpc.Client
+	PaySvc             paysvcproto.PayClient
+	PushRPCClient      zrpc.Client
+	PushSvc            pushsvcproto.PushServiceClient
+
+	// AI 运营助手依赖：会话存储共享，模型默认禁用（走本地模板降级）。
+	AiAgentStore aiagent.SessionStore
+	AiAgentCfg   aiagent.Config
+	AiAgentModel aiagent.ModelClient
 }
 
-// NewServiceContext 初始化 MySQL 和 Redis 连接。
+// NewServiceContext 初始化 MySQL、Redis 以及下游 RPC 客户端。
 func NewServiceContext(c config.Config) *ServiceContext {
 	db, err := sql.Open("mysql", c.MySQL.DSN)
 	if err != nil {
@@ -29,19 +61,208 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	db.SetMaxOpenConns(20)
 
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     c.Redis.Addr,
-		Password: c.Redis.Password,
-		DB:       c.Redis.DB,
+		Addr:     c.Cache.Host,
+		Password: c.Cache.Password,
+		DB:       c.Cache.DB,
 	})
-	if c.Auth.SessionTTLHours <= 0 {
-		c.Auth.SessionTTLHours = 24
+	if c.Session.SessionTTLHours <= 0 {
+		c.Session.SessionTTLHours = 24
 	}
-	if c.Auth.TokenPrefix == "" {
-		c.Auth.TokenPrefix = "admin:sess:"
+	if c.Session.TokenPrefix == "" {
+		c.Session.TokenPrefix = "admin:sess:"
 	}
+
+	var ordersClient, dispatchClient, usersClient, driversClient, locationsClient, pricesClient, paysClient, pushClient zrpc.Client
+	var ordersSvc ordersvcproto.OrderClient
+	var dispatchSvc dispatchsvcproto.DispatchClient
+	var usersSvc usersvcproto.UserClient
+	var driversSvc driversvcproto.DriverServiceClient
+	var locationsSvc locationsvcproto.LocationServiceClient
+	var pricesSvc pricesvcproto.Price
+	var paysSvc paysvcproto.PayClient
+	var pushSvc pushsvcproto.PushServiceClient
+	// 本地最小服务集无需预建不可达下游连接；默认配置仍完整初始化全部下游 RPC 客户端。
+	if !c.DisableDownstreamRPC {
+		ordersClient, ordersSvc, err = newOrdersRPCClient(c.OrdersRPC)
+		if err != nil {
+			panic(err)
+		}
+		dispatchClient, dispatchSvc, err = newDispatchRPCClient(c.DispatchRPC)
+		if err != nil {
+			panic(err)
+		}
+		usersClient, usersSvc, err = newUsersRPCClient(c.UsersRPC)
+		if err != nil {
+			panic(err)
+		}
+		driversClient, driversSvc, err = newDriversRPCClient(c.DriversRPC)
+		if err != nil {
+			panic(err)
+		}
+		locationsClient, locationsSvc, err = newLocationsRPCClient(c.LocationsRPC)
+		if err != nil {
+			panic(err)
+		}
+		pricesClient, pricesSvc, err = newPricesRPCClient(c.PricesRPC)
+		if err != nil {
+			panic(err)
+		}
+		paysClient, paysSvc, err = newPaysRPCClient(c.PaysRPC)
+		if err != nil {
+			panic(err)
+		}
+		pushClient, pushSvc, err = newPushRPCClient(c.PushRPC)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return &ServiceContext{
-		Config: c,
-		MySQL:  db,
-		Redis:  redisClient,
+		Config:             c,
+		MySQL:              db,
+		Redis:              redisClient,
+		OrdersRPCClient:    ordersClient,
+		OrdersSvc:          ordersSvc,
+		DispatchRPCClient:  dispatchClient,
+		DispatchSvc:        dispatchSvc,
+		UsersRPCClient:     usersClient,
+		UsersSvc:           usersSvc,
+		DriversRPCClient:   driversClient,
+		DriverSvc:          driversSvc,
+		LocationsRPCClient: locationsClient,
+		LocationSvc:        locationsSvc,
+		PricesRPCClient:    pricesClient,
+		PricesSvc:          pricesSvc,
+		PaysRPCClient:      paysClient,
+		PaySvc:             paysSvc,
+		PushRPCClient:      pushClient,
+		PushSvc:            pushSvc,
+		// AI 运营助手：默认无外部模型，会话用进程内存储（单实例）。
+		AiAgentStore: aiagent.NewInMemoryStore(),
+		AiAgentCfg: aiagent.Config{
+			DemoEnabled: c.AiAgent.DemoEnabled,
+			Model: aiagent.ModelConfig{
+				Endpoint:       c.AiAgent.Model.Endpoint,
+				Name:           c.AiAgent.Model.Name,
+				TimeoutSeconds: c.AiAgent.Model.TimeoutSeconds,
+			},
+			Conversation: aiagent.ConversationConfig{
+				TTLSeconds: c.AiAgent.Conversation.TTLSeconds,
+				MaxRounds:  c.AiAgent.Conversation.MaxRounds,
+				KeyPrefix:  c.AiAgent.Conversation.KeyPrefix,
+			},
+		},
+		// AI 运营助手模型：接入火山方舟；未配置 Model.Name 或缺少 ARK_API_KEY 时自动降级到本地模板。
+		AiAgentModel: aiagent.NewArkModel(aiagent.ModelConfig{
+			Endpoint:       c.AiAgent.Model.Endpoint,
+			Name:           c.AiAgent.Model.Name,
+			TimeoutSeconds: c.AiAgent.Model.TimeoutSeconds,
+		}),
 	}
+}
+
+// newLocationsRPCClient 初始化 locationsvc 客户端，供后台订单详情轨迹回放查询。
+func newLocationsRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, locationsvcproto.LocationServiceClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50057"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, locationsvcproto.NewLocationServiceClient(client.Conn()), nil
+}
+
+// newDispatchRPCClient 初始化 dispatchsvc 客户端，供后台订单详情查询真实派单记录。
+func newDispatchRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, dispatchsvcproto.DispatchClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50056"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, dispatchsvcproto.NewDispatchClient(client.Conn()), nil
+}
+
+// newUsersRPCClient 初始化 usersvc 客户端，供后台只读查询用户优惠券历史。
+func newUsersRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, usersvcproto.UserClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50052"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, usersvcproto.NewUserClient(client.Conn()), nil
+}
+
+// Close 关闭 RPC 服务依赖。
+func (s *ServiceContext) Close() {
+	if s.Redis != nil {
+		_ = s.Redis.Close()
+	}
+	if s.MySQL != nil {
+		_ = s.MySQL.Close()
+	}
+}
+
+// newOrdersRPCClient 初始化 ordersvc 客户端。
+func newOrdersRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, ordersvcproto.OrderClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50051"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, ordersvcproto.NewOrderClient(client.Conn()), nil
+}
+
+// newDriversRPCClient 初始化 driversvc 客户端。
+func newDriversRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, driversvcproto.DriverServiceClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50055"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, driversvcproto.NewDriverServiceClient(client.Conn()), nil
+}
+
+// newPricesRPCClient 初始化 pricesvc 客户端。
+func newPricesRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, pricesvcproto.Price, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50053"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, pricesvcproto.NewPrice(client), nil
+}
+
+// newPaysRPCClient 初始化 paysvc 客户端，供后台订单详情查询支付与结算记录。
+func newPaysRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, paysvcproto.PayClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:50054"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, paysvcproto.NewPayClient(client.Conn()), nil
+}
+
+// newPushRPCClient 初始化 pushsvc 客户端，供后台跨服务操作后通知司机端。
+func newPushRPCClient(cfg zrpc.RpcClientConf) (zrpc.Client, pushsvcproto.PushServiceClient, error) {
+	if len(cfg.Endpoints) == 0 && cfg.Target == "" {
+		cfg.Target = "127.0.0.1:9002"
+	}
+	client, err := zrpc.NewClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, pushsvcproto.NewPushServiceClient(client.Conn()), nil
 }

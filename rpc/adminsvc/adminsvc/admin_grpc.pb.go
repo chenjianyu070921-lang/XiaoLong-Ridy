@@ -19,20 +19,102 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	AdminService_Register_FullMethodName                   = "/adminsvc.AdminService/Register"
-	AdminService_Login_FullMethodName                      = "/adminsvc.AdminService/Login"
-	AdminService_Logout_FullMethodName                     = "/adminsvc.AdminService/Logout"
-	AdminService_Me_FullMethodName                         = "/adminsvc.AdminService/Me"
-	AdminService_Menus_FullMethodName                      = "/adminsvc.AdminService/Menus"
-	AdminService_ListOperationLogs_FullMethodName          = "/adminsvc.AdminService/ListOperationLogs"
-	AdminService_ListUsers_FullMethodName                  = "/adminsvc.AdminService/ListUsers"
-	AdminService_GetUser_FullMethodName                    = "/adminsvc.AdminService/GetUser"
-	AdminService_ListDriverCertifications_FullMethodName   = "/adminsvc.AdminService/ListDriverCertifications"
-	AdminService_GetDriverCertification_FullMethodName     = "/adminsvc.AdminService/GetDriverCertification"
-	AdminService_ApproveDriverCertification_FullMethodName = "/adminsvc.AdminService/ApproveDriverCertification"
-	AdminService_RejectDriverCertification_FullMethodName  = "/adminsvc.AdminService/RejectDriverCertification"
-	AdminService_ListOrders_FullMethodName                 = "/adminsvc.AdminService/ListOrders"
-	AdminService_GetOrder_FullMethodName                   = "/adminsvc.AdminService/GetOrder"
+	AdminService_Register_FullMethodName                      = "/adminsvc.AdminService/Register"
+	AdminService_Login_FullMethodName                         = "/adminsvc.AdminService/Login"
+	AdminService_Logout_FullMethodName                        = "/adminsvc.AdminService/Logout"
+	AdminService_ValidateSession_FullMethodName               = "/adminsvc.AdminService/ValidateSession"
+	AdminService_Me_FullMethodName                            = "/adminsvc.AdminService/Me"
+	AdminService_Menus_FullMethodName                         = "/adminsvc.AdminService/Menus"
+	AdminService_ListAdmins_FullMethodName                    = "/adminsvc.AdminService/ListAdmins"
+	AdminService_CreateAdmin_FullMethodName                   = "/adminsvc.AdminService/CreateAdmin"
+	AdminService_UpdateAdmin_FullMethodName                   = "/adminsvc.AdminService/UpdateAdmin"
+	AdminService_SetAdminStatus_FullMethodName                = "/adminsvc.AdminService/SetAdminStatus"
+	AdminService_ResetAdminPassword_FullMethodName            = "/adminsvc.AdminService/ResetAdminPassword"
+	AdminService_ListOperationLogs_FullMethodName             = "/adminsvc.AdminService/ListOperationLogs"
+	AdminService_ListUsers_FullMethodName                     = "/adminsvc.AdminService/ListUsers"
+	AdminService_GetUser_FullMethodName                       = "/adminsvc.AdminService/GetUser"
+	AdminService_ListUserOrders_FullMethodName                = "/adminsvc.AdminService/ListUserOrders"
+	AdminService_ListUserCoupons_FullMethodName               = "/adminsvc.AdminService/ListUserCoupons"
+	AdminService_FreezeUser_FullMethodName                    = "/adminsvc.AdminService/FreezeUser"
+	AdminService_UnfreezeUser_FullMethodName                  = "/adminsvc.AdminService/UnfreezeUser"
+	AdminService_ListDrivers_FullMethodName                   = "/adminsvc.AdminService/ListDrivers"
+	AdminService_GetDriver_FullMethodName                     = "/adminsvc.AdminService/GetDriver"
+	AdminService_FreezeDriver_FullMethodName                  = "/adminsvc.AdminService/FreezeDriver"
+	AdminService_UnfreezeDriver_FullMethodName                = "/adminsvc.AdminService/UnfreezeDriver"
+	AdminService_ListDriverCertifications_FullMethodName      = "/adminsvc.AdminService/ListDriverCertifications"
+	AdminService_GetDriverCertification_FullMethodName        = "/adminsvc.AdminService/GetDriverCertification"
+	AdminService_ApproveDriverCertification_FullMethodName    = "/adminsvc.AdminService/ApproveDriverCertification"
+	AdminService_RejectDriverCertification_FullMethodName     = "/adminsvc.AdminService/RejectDriverCertification"
+	AdminService_ListDriverWithdrawals_FullMethodName         = "/adminsvc.AdminService/ListDriverWithdrawals"
+	AdminService_HandleDriverWithdraw_FullMethodName          = "/adminsvc.AdminService/HandleDriverWithdraw"
+	AdminService_ListOrders_FullMethodName                    = "/adminsvc.AdminService/ListOrders"
+	AdminService_GetOrder_FullMethodName                      = "/adminsvc.AdminService/GetOrder"
+	AdminService_GetOrderTrack_FullMethodName                 = "/adminsvc.AdminService/GetOrderTrack"
+	AdminService_CancelOrder_FullMethodName                   = "/adminsvc.AdminService/CancelOrder"
+	AdminService_RedispatchOrder_FullMethodName               = "/adminsvc.AdminService/RedispatchOrder"
+	AdminService_RefundOrder_FullMethodName                   = "/adminsvc.AdminService/RefundOrder"
+	AdminService_ListRefundRetryTasks_FullMethodName          = "/adminsvc.AdminService/ListRefundRetryTasks"
+	AdminService_RetryRefundTask_FullMethodName               = "/adminsvc.AdminService/RetryRefundTask"
+	AdminService_ListAbnormalOrders_FullMethodName            = "/adminsvc.AdminService/ListAbnormalOrders"
+	AdminService_ListCoupons_FullMethodName                   = "/adminsvc.AdminService/ListCoupons"
+	AdminService_CreateCoupon_FullMethodName                  = "/adminsvc.AdminService/CreateCoupon"
+	AdminService_UpdateCoupon_FullMethodName                  = "/adminsvc.AdminService/UpdateCoupon"
+	AdminService_DisableCoupon_FullMethodName                 = "/adminsvc.AdminService/DisableCoupon"
+	AdminService_IssueCoupon_FullMethodName                   = "/adminsvc.AdminService/IssueCoupon"
+	AdminService_ListCouponIssueTasks_FullMethodName          = "/adminsvc.AdminService/ListCouponIssueTasks"
+	AdminService_ListPriceRules_FullMethodName                = "/adminsvc.AdminService/ListPriceRules"
+	AdminService_GetPriceRule_FullMethodName                  = "/adminsvc.AdminService/GetPriceRule"
+	AdminService_CreatePriceRule_FullMethodName               = "/adminsvc.AdminService/CreatePriceRule"
+	AdminService_UpdatePriceRule_FullMethodName               = "/adminsvc.AdminService/UpdatePriceRule"
+	AdminService_EnablePriceRule_FullMethodName               = "/adminsvc.AdminService/EnablePriceRule"
+	AdminService_DisablePriceRule_FullMethodName              = "/adminsvc.AdminService/DisablePriceRule"
+	AdminService_ListPromotionActivities_FullMethodName       = "/adminsvc.AdminService/ListPromotionActivities"
+	AdminService_CreatePromotionActivity_FullMethodName       = "/adminsvc.AdminService/CreatePromotionActivity"
+	AdminService_UpdatePromotionActivity_FullMethodName       = "/adminsvc.AdminService/UpdatePromotionActivity"
+	AdminService_PublishPromotionActivity_FullMethodName      = "/adminsvc.AdminService/PublishPromotionActivity"
+	AdminService_RollbackPromotionActivity_FullMethodName     = "/adminsvc.AdminService/RollbackPromotionActivity"
+	AdminService_ListDriverPunishmentRules_FullMethodName     = "/adminsvc.AdminService/ListDriverPunishmentRules"
+	AdminService_CreateDriverPunishmentRule_FullMethodName    = "/adminsvc.AdminService/CreateDriverPunishmentRule"
+	AdminService_UpdateDriverPunishmentRule_FullMethodName    = "/adminsvc.AdminService/UpdateDriverPunishmentRule"
+	AdminService_SetDriverPunishmentRuleStatus_FullMethodName = "/adminsvc.AdminService/SetDriverPunishmentRuleStatus"
+	AdminService_ListDriverPunishments_FullMethodName         = "/adminsvc.AdminService/ListDriverPunishments"
+	AdminService_GetDriverPunishment_FullMethodName           = "/adminsvc.AdminService/GetDriverPunishment"
+	AdminService_CreateDriverPunishment_FullMethodName        = "/adminsvc.AdminService/CreateDriverPunishment"
+	AdminService_CancelDriverPunishment_FullMethodName        = "/adminsvc.AdminService/CancelDriverPunishment"
+	AdminService_ListPunishmentAppeals_FullMethodName         = "/adminsvc.AdminService/ListPunishmentAppeals"
+	AdminService_CreatePunishmentAppeal_FullMethodName        = "/adminsvc.AdminService/CreatePunishmentAppeal"
+	AdminService_ReviewPunishmentAppeal_FullMethodName        = "/adminsvc.AdminService/ReviewPunishmentAppeal"
+	AdminService_GetStatisticsOverview_FullMethodName         = "/adminsvc.AdminService/GetStatisticsOverview"
+	AdminService_GetOrderStatistics_FullMethodName            = "/adminsvc.AdminService/GetOrderStatistics"
+	AdminService_GetDriverStatistics_FullMethodName           = "/adminsvc.AdminService/GetDriverStatistics"
+	AdminService_GetFinanceStatistics_FullMethodName          = "/adminsvc.AdminService/GetFinanceStatistics"
+	AdminService_GetCouponStatistics_FullMethodName           = "/adminsvc.AdminService/GetCouponStatistics"
+	AdminService_GetUserStatistics_FullMethodName             = "/adminsvc.AdminService/GetUserStatistics"
+	AdminService_GetCapacityMap_FullMethodName                = "/adminsvc.AdminService/GetCapacityMap"
+	AdminService_CreateExportTask_FullMethodName              = "/adminsvc.AdminService/CreateExportTask"
+	AdminService_ListExportTasks_FullMethodName               = "/adminsvc.AdminService/ListExportTasks"
+	AdminService_GetExportTask_FullMethodName                 = "/adminsvc.AdminService/GetExportTask"
+	AdminService_GetExportDownload_FullMethodName             = "/adminsvc.AdminService/GetExportDownload"
+	AdminService_DownloadExport_FullMethodName                = "/adminsvc.AdminService/DownloadExport"
+	AdminService_CreateWorkOrder_FullMethodName               = "/adminsvc.AdminService/CreateWorkOrder"
+	AdminService_ListWorkOrders_FullMethodName                = "/adminsvc.AdminService/ListWorkOrders"
+	AdminService_GetWorkOrder_FullMethodName                  = "/adminsvc.AdminService/GetWorkOrder"
+	AdminService_ActWorkOrder_FullMethodName                  = "/adminsvc.AdminService/ActWorkOrder"
+	AdminService_BatchActWorkOrders_FullMethodName            = "/adminsvc.AdminService/BatchActWorkOrders"
+	AdminService_AddWorkOrderEvidence_FullMethodName          = "/adminsvc.AdminService/AddWorkOrderEvidence"
+	AdminService_ListWorkOrderEvidence_FullMethodName         = "/adminsvc.AdminService/ListWorkOrderEvidence"
+	AdminService_ListBlacklists_FullMethodName                = "/adminsvc.AdminService/ListBlacklists"
+	AdminService_AddBlacklist_FullMethodName                  = "/adminsvc.AdminService/AddBlacklist"
+	AdminService_ReleaseBlacklist_FullMethodName              = "/adminsvc.AdminService/ReleaseBlacklist"
+	AdminService_ListRiskHitRecords_FullMethodName            = "/adminsvc.AdminService/ListRiskHitRecords"
+	AdminService_HandleRiskHitRecords_FullMethodName          = "/adminsvc.AdminService/HandleRiskHitRecords"
+	AdminService_ListAdminAuditOutbox_FullMethodName          = "/adminsvc.AdminService/ListAdminAuditOutbox"
+	AdminService_AskAiAgent_FullMethodName                    = "/adminsvc.AdminService/AskAiAgent"
+	AdminService_AskAiAgentStream_FullMethodName              = "/adminsvc.AdminService/AskAiAgentStream"
+	AdminService_GetAiSuggestions_FullMethodName              = "/adminsvc.AdminService/GetAiSuggestions"
+	AdminService_GetAiHistory_FullMethodName                  = "/adminsvc.AdminService/GetAiHistory"
+	AdminService_AiFeedback_FullMethodName                    = "/adminsvc.AdminService/AiFeedback"
+	AdminService_DeleteAiConversation_FullMethodName          = "/adminsvc.AdminService/DeleteAiConversation"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -48,16 +130,44 @@ type AdminServiceClient interface {
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 	// 管理员退出登录。
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 校验管理员登录会话。
+	ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error)
 	// 查询当前管理员信息。
 	Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
 	// 查询角色菜单。
 	Menus(ctx context.Context, in *MenusRequest, opts ...grpc.CallOption) (*MenusResponse, error)
+	// 查询管理员列表，仅超级管理员可访问。
+	ListAdmins(ctx context.Context, in *AdminListRequest, opts ...grpc.CallOption) (*AdminListResponse, error)
+	// 新增管理员，仅超级管理员可访问。
+	CreateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error)
+	// 编辑管理员资料和角色，仅超级管理员可访问。
+	UpdateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error)
+	// 启用或停用管理员，仅超级管理员可访问。
+	SetAdminStatus(ctx context.Context, in *AdminStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 重置管理员密码，仅超级管理员可访问。
+	ResetAdminPassword(ctx context.Context, in *AdminPasswordResetRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询操作日志。
 	ListOperationLogs(ctx context.Context, in *OperationLogListRequest, opts ...grpc.CallOption) (*OperationLogListResponse, error)
 	// 查询用户列表。
 	ListUsers(ctx context.Context, in *UserListRequest, opts ...grpc.CallOption) (*UserListResponse, error)
 	// 查询用户详情。
 	GetUser(ctx context.Context, in *UserDetailRequest, opts ...grpc.CallOption) (*User, error)
+	// 查询指定用户的订单历史。
+	ListUserOrders(ctx context.Context, in *UserHistoryRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
+	// 查询指定用户的优惠券历史。
+	ListUserCoupons(ctx context.Context, in *UserCouponHistoryRequest, opts ...grpc.CallOption) (*UserCouponHistoryResponse, error)
+	// 冻结用户。
+	FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 解封用户。
+	UnfreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询司机基础资料列表。
+	ListDrivers(ctx context.Context, in *DriverListRequest, opts ...grpc.CallOption) (*DriverListResponse, error)
+	// 查询司机基础资料详情。
+	GetDriver(ctx context.Context, in *DriverDetailRequest, opts ...grpc.CallOption) (*Driver, error)
+	// 冻结司机。
+	FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 解冻司机。
+	UnfreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询司机审核列表。
 	ListDriverCertifications(ctx context.Context, in *DriverCertificationListRequest, opts ...grpc.CallOption) (*DriverCertificationListResponse, error)
 	// 查询司机审核详情。
@@ -66,10 +176,146 @@ type AdminServiceClient interface {
 	ApproveDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 驳回司机认证。
 	RejectDriverCertification(ctx context.Context, in *AuditDriverCertificationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询司机提现申请列表。
+	ListDriverWithdrawals(ctx context.Context, in *DriverWithdrawListRequest, opts ...grpc.CallOption) (*DriverWithdrawListResponse, error)
+	// 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+	HandleDriverWithdraw(ctx context.Context, in *DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	// 查询订单列表。
 	ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
 	// 查询订单详情。
 	GetOrder(ctx context.Context, in *OrderDetailRequest, opts ...grpc.CallOption) (*OrderDetail, error)
+	// 查询订单轨迹。
+	GetOrderTrack(ctx context.Context, in *OrderTrackRequest, opts ...grpc.CallOption) (*OrderTrackResponse, error)
+	// 后台取消订单。
+	CancelOrder(ctx context.Context, in *AdminCancelOrderRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 后台人工改派订单。
+	RedispatchOrder(ctx context.Context, in *AdminRedispatchOrderRequest, opts ...grpc.CallOption) (*AdminRedispatchOrderResponse, error)
+	// 后台发起订单退款。
+	RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error)
+	// 查询退款事件补偿队列。
+	ListRefundRetryTasks(ctx context.Context, in *RefundRetryTaskListRequest, opts ...grpc.CallOption) (*RefundRetryTaskListResponse, error)
+	// 立即触发指定退款事件补偿任务。
+	RetryRefundTask(ctx context.Context, in *RefundRetryTaskRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询异常订单列表。
+	ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error)
+	// 查询优惠券模板列表。
+	ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error)
+	// 创建优惠券模板。
+	CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CreateCouponResponse, error)
+	// 更新优惠券模板。
+	UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 下架优惠券模板。
+	DisableCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 创建优惠券发放任务并同步发放用户券。
+	IssueCoupon(ctx context.Context, in *CouponIssueRequest, opts ...grpc.CallOption) (*CouponIssueResponse, error)
+	// 查询优惠券发放任务列表。
+	ListCouponIssueTasks(ctx context.Context, in *CouponIssueTaskListRequest, opts ...grpc.CallOption) (*CouponIssueTaskListResponse, error)
+	// 查询计价规则列表。
+	ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error)
+	// 查询计价规则详情。
+	GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error)
+	// 创建计价规则。
+	CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error)
+	// 更新计价规则。
+	UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 启用计价规则。
+	EnablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 停用计价规则。
+	DisablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询活动配置列表。
+	ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error)
+	// 创建活动配置。
+	CreatePromotionActivity(ctx context.Context, in *PromotionActivityRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 更新活动配置。
+	UpdatePromotionActivity(ctx context.Context, in *PromotionActivityRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 发布活动配置。
+	PublishPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 回滚活动配置。
+	RollbackPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询司机处罚规则。
+	ListDriverPunishmentRules(ctx context.Context, in *DriverPunishmentRuleListRequest, opts ...grpc.CallOption) (*DriverPunishmentRuleListResponse, error)
+	// 创建司机处罚规则。
+	CreateDriverPunishmentRule(ctx context.Context, in *DriverPunishmentRuleRequest, opts ...grpc.CallOption) (*DriverPunishmentRule, error)
+	// 更新司机处罚规则。
+	UpdateDriverPunishmentRule(ctx context.Context, in *DriverPunishmentRuleRequest, opts ...grpc.CallOption) (*DriverPunishmentRule, error)
+	// 启用或停用司机处罚规则。
+	SetDriverPunishmentRuleStatus(ctx context.Context, in *DriverPunishmentRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询司机处罚单。
+	ListDriverPunishments(ctx context.Context, in *DriverPunishmentListRequest, opts ...grpc.CallOption) (*DriverPunishmentListResponse, error)
+	// 查询司机处罚单详情。
+	GetDriverPunishment(ctx context.Context, in *DriverPunishmentDetailRequest, opts ...grpc.CallOption) (*DriverPunishment, error)
+	// 创建司机处罚单。
+	CreateDriverPunishment(ctx context.Context, in *DriverPunishmentRequest, opts ...grpc.CallOption) (*DriverPunishment, error)
+	// 撤销尚未完成下游执行的司机处罚单。
+	CancelDriverPunishment(ctx context.Context, in *DriverPunishmentActionRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询司机处罚申诉。
+	ListPunishmentAppeals(ctx context.Context, in *PunishmentAppealListRequest, opts ...grpc.CallOption) (*PunishmentAppealListResponse, error)
+	// 创建司机处罚申诉。
+	CreatePunishmentAppeal(ctx context.Context, in *PunishmentAppealRequest, opts ...grpc.CallOption) (*PunishmentAppeal, error)
+	// 审核司机处罚申诉。
+	ReviewPunishmentAppeal(ctx context.Context, in *PunishmentAppealReviewRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询运营总览统计。
+	GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error)
+	// 查询订单统计。
+	GetOrderStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*OrderStatisticsResponse, error)
+	// 查询司机统计。
+	GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error)
+	// 查询财务统计。
+	GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error)
+	// 查询优惠券统计。
+	GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error)
+	// 查询用户统计。
+	GetUserStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*UserStatisticsResponse, error)
+	// 查询实时运力地图快照。
+	GetCapacityMap(ctx context.Context, in *CapacityMapRequest, opts ...grpc.CallOption) (*CapacityMapResponse, error)
+	// 创建导出任务。
+	CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error)
+	// 查询导出任务列表。
+	ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error)
+	// 查询导出任务详情。
+	GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error)
+	// 查询已授权下载的导出任务文件元数据。
+	GetExportDownload(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (*ExportDownloadResponse, error)
+	// 流式下载已授权的导出文件内容。
+	DownloadExport(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (AdminService_DownloadExportClient, error)
+	// 创建后台投诉或申诉工单。
+	CreateWorkOrder(ctx context.Context, in *WorkOrderRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+	// 查询后台工单列表。
+	ListWorkOrders(ctx context.Context, in *WorkOrderListRequest, opts ...grpc.CallOption) (*WorkOrderListResponse, error)
+	// 查询后台工单详情。
+	GetWorkOrder(ctx context.Context, in *WorkOrderDetailRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+	// 执行后台工单流转动作。
+	ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error)
+	// 批量执行后台工单流转动作。
+	BatchActWorkOrders(ctx context.Context, in *WorkOrderBatchActionRequest, opts ...grpc.CallOption) (*WorkOrderBatchActionResponse, error)
+	// 新增工单证据索引。
+	AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error)
+	// 查询工单证据列表。
+	ListWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceListRequest, opts ...grpc.CallOption) (*WorkOrderEvidenceListResponse, error)
+	// 查询风控黑名单列表。
+	ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error)
+	// 新增风控黑名单。
+	AddBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 解除风控黑名单。
+	ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 查询风控命中记录。
+	ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error)
+	// 处置风控命中记录，action 支持 review_pass/add_blacklist/create_work_order/freeze。
+	HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error)
+	// 查询管理后台通知与审计补偿任务。
+	ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error)
+	// 提交受限运营问答并返回结构化回答（AI 运营助手）。
+	AskAiAgent(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (*AiAnswerResponse, error)
+	// 提交受限运营问答并以流式分块返回，供网关 SSE 逐步渲染（先事实、后逐字结论）。
+	AskAiAgentStream(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (AdminService_AskAiAgentStreamClient, error)
+	// 读取当前管理员可见的三个快捷问题。
+	GetAiSuggestions(ctx context.Context, in *AiSuggestionsRequest, opts ...grpc.CallOption) (*AiSuggestionsResponse, error)
+	// 查询当前管理员自己的 AI 问答会话摘要。
+	GetAiHistory(ctx context.Context, in *AiHistoryRequest, opts ...grpc.CallOption) (*AiHistoryResponse, error)
+	// 记录 AI 回答是否有帮助。
+	AiFeedback(ctx context.Context, in *AiFeedbackRequest, opts ...grpc.CallOption) (*CommonResponse, error)
+	// 结束并清空指定 AI 会话。
+	DeleteAiConversation(ctx context.Context, in *AiConversationRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 }
 
 type adminServiceClient struct {
@@ -110,6 +356,16 @@ func (c *adminServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts
 	return out, nil
 }
 
+func (c *adminServiceClient) ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValidateSessionResponse)
+	err := c.cc.Invoke(ctx, AdminService_ValidateSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(MeResponse)
@@ -124,6 +380,56 @@ func (c *adminServiceClient) Menus(ctx context.Context, in *MenusRequest, opts .
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(MenusResponse)
 	err := c.cc.Invoke(ctx, AdminService_Menus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListAdmins(ctx context.Context, in *AdminListRequest, opts ...grpc.CallOption) (*AdminListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListAdmins_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Admin)
+	err := c.cc.Invoke(ctx, AdminService_CreateAdmin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdateAdmin(ctx context.Context, in *AdminSaveRequest, opts ...grpc.CallOption) (*Admin, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Admin)
+	err := c.cc.Invoke(ctx, AdminService_UpdateAdmin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) SetAdminStatus(ctx context.Context, in *AdminStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_SetAdminStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ResetAdminPassword(ctx context.Context, in *AdminPasswordResetRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_ResetAdminPassword_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +460,86 @@ func (c *adminServiceClient) GetUser(ctx context.Context, in *UserDetailRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(User)
 	err := c.cc.Invoke(ctx, AdminService_GetUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListUserOrders(ctx context.Context, in *UserHistoryRequest, opts ...grpc.CallOption) (*OrderListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OrderListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListUserOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListUserCoupons(ctx context.Context, in *UserCouponHistoryRequest, opts ...grpc.CallOption) (*UserCouponHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserCouponHistoryResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListUserCoupons_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) FreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_FreezeUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UnfreezeUser(ctx context.Context, in *ChangeUserStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UnfreezeUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListDrivers(ctx context.Context, in *DriverListRequest, opts ...grpc.CallOption) (*DriverListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListDrivers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetDriver(ctx context.Context, in *DriverDetailRequest, opts ...grpc.CallOption) (*Driver, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Driver)
+	err := c.cc.Invoke(ctx, AdminService_GetDriver_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) FreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_FreezeDriver_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UnfreezeDriver(ctx context.Context, in *FreezeDriverRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UnfreezeDriver_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -200,6 +586,26 @@ func (c *adminServiceClient) RejectDriverCertification(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *adminServiceClient) ListDriverWithdrawals(ctx context.Context, in *DriverWithdrawListRequest, opts ...grpc.CallOption) (*DriverWithdrawListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverWithdrawListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListDriverWithdrawals_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) HandleDriverWithdraw(ctx context.Context, in *DriverWithdrawHandleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_HandleDriverWithdraw_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *adminServiceClient) ListOrders(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OrderListResponse)
@@ -220,6 +626,712 @@ func (c *adminServiceClient) GetOrder(ctx context.Context, in *OrderDetailReques
 	return out, nil
 }
 
+func (c *adminServiceClient) GetOrderTrack(ctx context.Context, in *OrderTrackRequest, opts ...grpc.CallOption) (*OrderTrackResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OrderTrackResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetOrderTrack_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CancelOrder(ctx context.Context, in *AdminCancelOrderRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_CancelOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) RedispatchOrder(ctx context.Context, in *AdminRedispatchOrderRequest, opts ...grpc.CallOption) (*AdminRedispatchOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminRedispatchOrderResponse)
+	err := c.cc.Invoke(ctx, AdminService_RedispatchOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) RefundOrder(ctx context.Context, in *AdminRefundOrderRequest, opts ...grpc.CallOption) (*AdminRefundOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminRefundOrderResponse)
+	err := c.cc.Invoke(ctx, AdminService_RefundOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListRefundRetryTasks(ctx context.Context, in *RefundRetryTaskListRequest, opts ...grpc.CallOption) (*RefundRetryTaskListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefundRetryTaskListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListRefundRetryTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) RetryRefundTask(ctx context.Context, in *RefundRetryTaskRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_RetryRefundTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListAbnormalOrders(ctx context.Context, in *AbnormalOrderListRequest, opts ...grpc.CallOption) (*AbnormalOrderListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AbnormalOrderListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListAbnormalOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListCoupons(ctx context.Context, in *CouponListRequest, opts ...grpc.CallOption) (*CouponListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CouponListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListCoupons_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CreateCouponResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateCouponResponse)
+	err := c.cc.Invoke(ctx, AdminService_CreateCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdateCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UpdateCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) DisableCoupon(ctx context.Context, in *CouponRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_DisableCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) IssueCoupon(ctx context.Context, in *CouponIssueRequest, opts ...grpc.CallOption) (*CouponIssueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CouponIssueResponse)
+	err := c.cc.Invoke(ctx, AdminService_IssueCoupon_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListCouponIssueTasks(ctx context.Context, in *CouponIssueTaskListRequest, opts ...grpc.CallOption) (*CouponIssueTaskListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CouponIssueTaskListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListCouponIssueTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListPriceRules(ctx context.Context, in *PriceRuleListRequest, opts ...grpc.CallOption) (*PriceRuleListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PriceRuleListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListPriceRules_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetPriceRule(ctx context.Context, in *PriceRuleDetailRequest, opts ...grpc.CallOption) (*PriceRule, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PriceRule)
+	err := c.cc.Invoke(ctx, AdminService_GetPriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CreatePriceRuleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreatePriceRuleResponse)
+	err := c.cc.Invoke(ctx, AdminService_CreatePriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdatePriceRule(ctx context.Context, in *PriceRuleRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UpdatePriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) EnablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_EnablePriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) DisablePriceRule(ctx context.Context, in *PriceRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_DisablePriceRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListPromotionActivities(ctx context.Context, in *PromotionActivityListRequest, opts ...grpc.CallOption) (*PromotionActivityListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PromotionActivityListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListPromotionActivities_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreatePromotionActivity(ctx context.Context, in *PromotionActivityRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_CreatePromotionActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdatePromotionActivity(ctx context.Context, in *PromotionActivityRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_UpdatePromotionActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) PublishPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_PublishPromotionActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) RollbackPromotionActivity(ctx context.Context, in *PromotionActivityActionRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_RollbackPromotionActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListDriverPunishmentRules(ctx context.Context, in *DriverPunishmentRuleListRequest, opts ...grpc.CallOption) (*DriverPunishmentRuleListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverPunishmentRuleListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListDriverPunishmentRules_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreateDriverPunishmentRule(ctx context.Context, in *DriverPunishmentRuleRequest, opts ...grpc.CallOption) (*DriverPunishmentRule, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverPunishmentRule)
+	err := c.cc.Invoke(ctx, AdminService_CreateDriverPunishmentRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) UpdateDriverPunishmentRule(ctx context.Context, in *DriverPunishmentRuleRequest, opts ...grpc.CallOption) (*DriverPunishmentRule, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverPunishmentRule)
+	err := c.cc.Invoke(ctx, AdminService_UpdateDriverPunishmentRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) SetDriverPunishmentRuleStatus(ctx context.Context, in *DriverPunishmentRuleStatusRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_SetDriverPunishmentRuleStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListDriverPunishments(ctx context.Context, in *DriverPunishmentListRequest, opts ...grpc.CallOption) (*DriverPunishmentListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverPunishmentListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListDriverPunishments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetDriverPunishment(ctx context.Context, in *DriverPunishmentDetailRequest, opts ...grpc.CallOption) (*DriverPunishment, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverPunishment)
+	err := c.cc.Invoke(ctx, AdminService_GetDriverPunishment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreateDriverPunishment(ctx context.Context, in *DriverPunishmentRequest, opts ...grpc.CallOption) (*DriverPunishment, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverPunishment)
+	err := c.cc.Invoke(ctx, AdminService_CreateDriverPunishment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CancelDriverPunishment(ctx context.Context, in *DriverPunishmentActionRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_CancelDriverPunishment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListPunishmentAppeals(ctx context.Context, in *PunishmentAppealListRequest, opts ...grpc.CallOption) (*PunishmentAppealListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PunishmentAppealListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListPunishmentAppeals_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreatePunishmentAppeal(ctx context.Context, in *PunishmentAppealRequest, opts ...grpc.CallOption) (*PunishmentAppeal, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PunishmentAppeal)
+	err := c.cc.Invoke(ctx, AdminService_CreatePunishmentAppeal_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ReviewPunishmentAppeal(ctx context.Context, in *PunishmentAppealReviewRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_ReviewPunishmentAppeal_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetStatisticsOverview(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*StatisticsOverviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StatisticsOverviewResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetStatisticsOverview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetOrderStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*OrderStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OrderStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetOrderStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetDriverStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*DriverStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetDriverStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetFinanceStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*FinanceStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FinanceStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetFinanceStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetCouponStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*CouponStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CouponStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetCouponStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetUserStatistics(ctx context.Context, in *StatisticsRequest, opts ...grpc.CallOption) (*UserStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserStatisticsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetUserStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetCapacityMap(ctx context.Context, in *CapacityMapRequest, opts ...grpc.CallOption) (*CapacityMapResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CapacityMapResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetCapacityMap_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) CreateExportTask(ctx context.Context, in *ExportTaskRequest, opts ...grpc.CallOption) (*ExportTaskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportTaskResponse)
+	err := c.cc.Invoke(ctx, AdminService_CreateExportTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListExportTasks(ctx context.Context, in *ExportTaskListRequest, opts ...grpc.CallOption) (*ExportTaskListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportTaskListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListExportTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetExportTask(ctx context.Context, in *ExportTaskDetailRequest, opts ...grpc.CallOption) (*ExportTask, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportTask)
+	err := c.cc.Invoke(ctx, AdminService_GetExportTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetExportDownload(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (*ExportDownloadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportDownloadResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetExportDownload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) DownloadExport(ctx context.Context, in *ExportDownloadRequest, opts ...grpc.CallOption) (AdminService_DownloadExportClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AdminService_ServiceDesc.Streams[0], AdminService_DownloadExport_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &adminServiceDownloadExportClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type AdminService_DownloadExportClient interface {
+	Recv() (*ExportDownloadChunk, error)
+	grpc.ClientStream
+}
+
+type adminServiceDownloadExportClient struct {
+	grpc.ClientStream
+}
+
+func (x *adminServiceDownloadExportClient) Recv() (*ExportDownloadChunk, error) {
+	m := new(ExportDownloadChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *adminServiceClient) CreateWorkOrder(ctx context.Context, in *WorkOrderRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrder)
+	err := c.cc.Invoke(ctx, AdminService_CreateWorkOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListWorkOrders(ctx context.Context, in *WorkOrderListRequest, opts ...grpc.CallOption) (*WorkOrderListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrderListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListWorkOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetWorkOrder(ctx context.Context, in *WorkOrderDetailRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrder)
+	err := c.cc.Invoke(ctx, AdminService_GetWorkOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ActWorkOrder(ctx context.Context, in *WorkOrderActionRequest, opts ...grpc.CallOption) (*WorkOrder, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrder)
+	err := c.cc.Invoke(ctx, AdminService_ActWorkOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) BatchActWorkOrders(ctx context.Context, in *WorkOrderBatchActionRequest, opts ...grpc.CallOption) (*WorkOrderBatchActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrderBatchActionResponse)
+	err := c.cc.Invoke(ctx, AdminService_BatchActWorkOrders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) AddWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceRequest, opts ...grpc.CallOption) (*WorkOrderEvidence, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrderEvidence)
+	err := c.cc.Invoke(ctx, AdminService_AddWorkOrderEvidence_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListWorkOrderEvidence(ctx context.Context, in *WorkOrderEvidenceListRequest, opts ...grpc.CallOption) (*WorkOrderEvidenceListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WorkOrderEvidenceListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListWorkOrderEvidence_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListBlacklists(ctx context.Context, in *BlacklistListRequest, opts ...grpc.CallOption) (*BlacklistListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BlacklistListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListBlacklists_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) AddBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_AddBlacklist_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ReleaseBlacklist(ctx context.Context, in *BlacklistRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_ReleaseBlacklist_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListRiskHitRecords(ctx context.Context, in *RiskHitRecordListRequest, opts ...grpc.CallOption) (*RiskHitRecordListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RiskHitRecordListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListRiskHitRecords_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) HandleRiskHitRecords(ctx context.Context, in *RiskHitActionRequest, opts ...grpc.CallOption) (*RiskHitActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RiskHitActionResponse)
+	err := c.cc.Invoke(ctx, AdminService_HandleRiskHitRecords_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListAdminAuditOutbox(ctx context.Context, in *AdminAuditOutboxListRequest, opts ...grpc.CallOption) (*AdminAuditOutboxListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdminAuditOutboxListResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListAdminAuditOutbox_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) AskAiAgent(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (*AiAnswerResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AiAnswerResponse)
+	err := c.cc.Invoke(ctx, AdminService_AskAiAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) AskAiAgentStream(ctx context.Context, in *AiAskRequest, opts ...grpc.CallOption) (AdminService_AskAiAgentStreamClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AdminService_ServiceDesc.Streams[1], AdminService_AskAiAgentStream_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &adminServiceAskAiAgentStreamClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type AdminService_AskAiAgentStreamClient interface {
+	Recv() (*AiAnswerChunk, error)
+	grpc.ClientStream
+}
+
+type adminServiceAskAiAgentStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *adminServiceAskAiAgentStreamClient) Recv() (*AiAnswerChunk, error) {
+	m := new(AiAnswerChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *adminServiceClient) GetAiSuggestions(ctx context.Context, in *AiSuggestionsRequest, opts ...grpc.CallOption) (*AiSuggestionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AiSuggestionsResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetAiSuggestions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetAiHistory(ctx context.Context, in *AiHistoryRequest, opts ...grpc.CallOption) (*AiHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AiHistoryResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetAiHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) AiFeedback(ctx context.Context, in *AiFeedbackRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_AiFeedback_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) DeleteAiConversation(ctx context.Context, in *AiConversationRequest, opts ...grpc.CallOption) (*CommonResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommonResponse)
+	err := c.cc.Invoke(ctx, AdminService_DeleteAiConversation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AdminServiceServer is the server API for AdminService service.
 // All implementations must embed UnimplementedAdminServiceServer
 // for forward compatibility
@@ -233,16 +1345,44 @@ type AdminServiceServer interface {
 	Login(context.Context, *LoginRequest) (*AuthResponse, error)
 	// 管理员退出登录。
 	Logout(context.Context, *LogoutRequest) (*CommonResponse, error)
+	// 校验管理员登录会话。
+	ValidateSession(context.Context, *ValidateSessionRequest) (*ValidateSessionResponse, error)
 	// 查询当前管理员信息。
 	Me(context.Context, *MeRequest) (*MeResponse, error)
 	// 查询角色菜单。
 	Menus(context.Context, *MenusRequest) (*MenusResponse, error)
+	// 查询管理员列表，仅超级管理员可访问。
+	ListAdmins(context.Context, *AdminListRequest) (*AdminListResponse, error)
+	// 新增管理员，仅超级管理员可访问。
+	CreateAdmin(context.Context, *AdminSaveRequest) (*Admin, error)
+	// 编辑管理员资料和角色，仅超级管理员可访问。
+	UpdateAdmin(context.Context, *AdminSaveRequest) (*Admin, error)
+	// 启用或停用管理员，仅超级管理员可访问。
+	SetAdminStatus(context.Context, *AdminStatusRequest) (*CommonResponse, error)
+	// 重置管理员密码，仅超级管理员可访问。
+	ResetAdminPassword(context.Context, *AdminPasswordResetRequest) (*CommonResponse, error)
 	// 查询操作日志。
 	ListOperationLogs(context.Context, *OperationLogListRequest) (*OperationLogListResponse, error)
 	// 查询用户列表。
 	ListUsers(context.Context, *UserListRequest) (*UserListResponse, error)
 	// 查询用户详情。
 	GetUser(context.Context, *UserDetailRequest) (*User, error)
+	// 查询指定用户的订单历史。
+	ListUserOrders(context.Context, *UserHistoryRequest) (*OrderListResponse, error)
+	// 查询指定用户的优惠券历史。
+	ListUserCoupons(context.Context, *UserCouponHistoryRequest) (*UserCouponHistoryResponse, error)
+	// 冻结用户。
+	FreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error)
+	// 解封用户。
+	UnfreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error)
+	// 查询司机基础资料列表。
+	ListDrivers(context.Context, *DriverListRequest) (*DriverListResponse, error)
+	// 查询司机基础资料详情。
+	GetDriver(context.Context, *DriverDetailRequest) (*Driver, error)
+	// 冻结司机。
+	FreezeDriver(context.Context, *FreezeDriverRequest) (*CommonResponse, error)
+	// 解冻司机。
+	UnfreezeDriver(context.Context, *FreezeDriverRequest) (*CommonResponse, error)
 	// 查询司机审核列表。
 	ListDriverCertifications(context.Context, *DriverCertificationListRequest) (*DriverCertificationListResponse, error)
 	// 查询司机审核详情。
@@ -251,10 +1391,146 @@ type AdminServiceServer interface {
 	ApproveDriverCertification(context.Context, *AuditDriverCertificationRequest) (*CommonResponse, error)
 	// 驳回司机认证。
 	RejectDriverCertification(context.Context, *AuditDriverCertificationRequest) (*CommonResponse, error)
+	// 查询司机提现申请列表。
+	ListDriverWithdrawals(context.Context, *DriverWithdrawListRequest) (*DriverWithdrawListResponse, error)
+	// 审核司机提现申请：approve=true 打款成功，approve=false 打款失败。
+	HandleDriverWithdraw(context.Context, *DriverWithdrawHandleRequest) (*CommonResponse, error)
 	// 查询订单列表。
 	ListOrders(context.Context, *OrderListRequest) (*OrderListResponse, error)
 	// 查询订单详情。
 	GetOrder(context.Context, *OrderDetailRequest) (*OrderDetail, error)
+	// 查询订单轨迹。
+	GetOrderTrack(context.Context, *OrderTrackRequest) (*OrderTrackResponse, error)
+	// 后台取消订单。
+	CancelOrder(context.Context, *AdminCancelOrderRequest) (*CommonResponse, error)
+	// 后台人工改派订单。
+	RedispatchOrder(context.Context, *AdminRedispatchOrderRequest) (*AdminRedispatchOrderResponse, error)
+	// 后台发起订单退款。
+	RefundOrder(context.Context, *AdminRefundOrderRequest) (*AdminRefundOrderResponse, error)
+	// 查询退款事件补偿队列。
+	ListRefundRetryTasks(context.Context, *RefundRetryTaskListRequest) (*RefundRetryTaskListResponse, error)
+	// 立即触发指定退款事件补偿任务。
+	RetryRefundTask(context.Context, *RefundRetryTaskRequest) (*CommonResponse, error)
+	// 查询异常订单列表。
+	ListAbnormalOrders(context.Context, *AbnormalOrderListRequest) (*AbnormalOrderListResponse, error)
+	// 查询优惠券模板列表。
+	ListCoupons(context.Context, *CouponListRequest) (*CouponListResponse, error)
+	// 创建优惠券模板。
+	CreateCoupon(context.Context, *CouponRequest) (*CreateCouponResponse, error)
+	// 更新优惠券模板。
+	UpdateCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
+	// 下架优惠券模板。
+	DisableCoupon(context.Context, *CouponRequest) (*CommonResponse, error)
+	// 创建优惠券发放任务并同步发放用户券。
+	IssueCoupon(context.Context, *CouponIssueRequest) (*CouponIssueResponse, error)
+	// 查询优惠券发放任务列表。
+	ListCouponIssueTasks(context.Context, *CouponIssueTaskListRequest) (*CouponIssueTaskListResponse, error)
+	// 查询计价规则列表。
+	ListPriceRules(context.Context, *PriceRuleListRequest) (*PriceRuleListResponse, error)
+	// 查询计价规则详情。
+	GetPriceRule(context.Context, *PriceRuleDetailRequest) (*PriceRule, error)
+	// 创建计价规则。
+	CreatePriceRule(context.Context, *PriceRuleRequest) (*CreatePriceRuleResponse, error)
+	// 更新计价规则。
+	UpdatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error)
+	// 启用计价规则。
+	EnablePriceRule(context.Context, *PriceRuleStatusRequest) (*CommonResponse, error)
+	// 停用计价规则。
+	DisablePriceRule(context.Context, *PriceRuleStatusRequest) (*CommonResponse, error)
+	// 查询活动配置列表。
+	ListPromotionActivities(context.Context, *PromotionActivityListRequest) (*PromotionActivityListResponse, error)
+	// 创建活动配置。
+	CreatePromotionActivity(context.Context, *PromotionActivityRequest) (*CommonResponse, error)
+	// 更新活动配置。
+	UpdatePromotionActivity(context.Context, *PromotionActivityRequest) (*CommonResponse, error)
+	// 发布活动配置。
+	PublishPromotionActivity(context.Context, *PromotionActivityActionRequest) (*CommonResponse, error)
+	// 回滚活动配置。
+	RollbackPromotionActivity(context.Context, *PromotionActivityActionRequest) (*CommonResponse, error)
+	// 查询司机处罚规则。
+	ListDriverPunishmentRules(context.Context, *DriverPunishmentRuleListRequest) (*DriverPunishmentRuleListResponse, error)
+	// 创建司机处罚规则。
+	CreateDriverPunishmentRule(context.Context, *DriverPunishmentRuleRequest) (*DriverPunishmentRule, error)
+	// 更新司机处罚规则。
+	UpdateDriverPunishmentRule(context.Context, *DriverPunishmentRuleRequest) (*DriverPunishmentRule, error)
+	// 启用或停用司机处罚规则。
+	SetDriverPunishmentRuleStatus(context.Context, *DriverPunishmentRuleStatusRequest) (*CommonResponse, error)
+	// 查询司机处罚单。
+	ListDriverPunishments(context.Context, *DriverPunishmentListRequest) (*DriverPunishmentListResponse, error)
+	// 查询司机处罚单详情。
+	GetDriverPunishment(context.Context, *DriverPunishmentDetailRequest) (*DriverPunishment, error)
+	// 创建司机处罚单。
+	CreateDriverPunishment(context.Context, *DriverPunishmentRequest) (*DriverPunishment, error)
+	// 撤销尚未完成下游执行的司机处罚单。
+	CancelDriverPunishment(context.Context, *DriverPunishmentActionRequest) (*CommonResponse, error)
+	// 查询司机处罚申诉。
+	ListPunishmentAppeals(context.Context, *PunishmentAppealListRequest) (*PunishmentAppealListResponse, error)
+	// 创建司机处罚申诉。
+	CreatePunishmentAppeal(context.Context, *PunishmentAppealRequest) (*PunishmentAppeal, error)
+	// 审核司机处罚申诉。
+	ReviewPunishmentAppeal(context.Context, *PunishmentAppealReviewRequest) (*CommonResponse, error)
+	// 查询运营总览统计。
+	GetStatisticsOverview(context.Context, *StatisticsRequest) (*StatisticsOverviewResponse, error)
+	// 查询订单统计。
+	GetOrderStatistics(context.Context, *StatisticsRequest) (*OrderStatisticsResponse, error)
+	// 查询司机统计。
+	GetDriverStatistics(context.Context, *StatisticsRequest) (*DriverStatisticsResponse, error)
+	// 查询财务统计。
+	GetFinanceStatistics(context.Context, *StatisticsRequest) (*FinanceStatisticsResponse, error)
+	// 查询优惠券统计。
+	GetCouponStatistics(context.Context, *StatisticsRequest) (*CouponStatisticsResponse, error)
+	// 查询用户统计。
+	GetUserStatistics(context.Context, *StatisticsRequest) (*UserStatisticsResponse, error)
+	// 查询实时运力地图快照。
+	GetCapacityMap(context.Context, *CapacityMapRequest) (*CapacityMapResponse, error)
+	// 创建导出任务。
+	CreateExportTask(context.Context, *ExportTaskRequest) (*ExportTaskResponse, error)
+	// 查询导出任务列表。
+	ListExportTasks(context.Context, *ExportTaskListRequest) (*ExportTaskListResponse, error)
+	// 查询导出任务详情。
+	GetExportTask(context.Context, *ExportTaskDetailRequest) (*ExportTask, error)
+	// 查询已授权下载的导出任务文件元数据。
+	GetExportDownload(context.Context, *ExportDownloadRequest) (*ExportDownloadResponse, error)
+	// 流式下载已授权的导出文件内容。
+	DownloadExport(*ExportDownloadRequest, AdminService_DownloadExportServer) error
+	// 创建后台投诉或申诉工单。
+	CreateWorkOrder(context.Context, *WorkOrderRequest) (*WorkOrder, error)
+	// 查询后台工单列表。
+	ListWorkOrders(context.Context, *WorkOrderListRequest) (*WorkOrderListResponse, error)
+	// 查询后台工单详情。
+	GetWorkOrder(context.Context, *WorkOrderDetailRequest) (*WorkOrder, error)
+	// 执行后台工单流转动作。
+	ActWorkOrder(context.Context, *WorkOrderActionRequest) (*WorkOrder, error)
+	// 批量执行后台工单流转动作。
+	BatchActWorkOrders(context.Context, *WorkOrderBatchActionRequest) (*WorkOrderBatchActionResponse, error)
+	// 新增工单证据索引。
+	AddWorkOrderEvidence(context.Context, *WorkOrderEvidenceRequest) (*WorkOrderEvidence, error)
+	// 查询工单证据列表。
+	ListWorkOrderEvidence(context.Context, *WorkOrderEvidenceListRequest) (*WorkOrderEvidenceListResponse, error)
+	// 查询风控黑名单列表。
+	ListBlacklists(context.Context, *BlacklistListRequest) (*BlacklistListResponse, error)
+	// 新增风控黑名单。
+	AddBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error)
+	// 解除风控黑名单。
+	ReleaseBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error)
+	// 查询风控命中记录。
+	ListRiskHitRecords(context.Context, *RiskHitRecordListRequest) (*RiskHitRecordListResponse, error)
+	// 处置风控命中记录，action 支持 review_pass/add_blacklist/create_work_order/freeze。
+	HandleRiskHitRecords(context.Context, *RiskHitActionRequest) (*RiskHitActionResponse, error)
+	// 查询管理后台通知与审计补偿任务。
+	ListAdminAuditOutbox(context.Context, *AdminAuditOutboxListRequest) (*AdminAuditOutboxListResponse, error)
+	// 提交受限运营问答并返回结构化回答（AI 运营助手）。
+	AskAiAgent(context.Context, *AiAskRequest) (*AiAnswerResponse, error)
+	// 提交受限运营问答并以流式分块返回，供网关 SSE 逐步渲染（先事实、后逐字结论）。
+	AskAiAgentStream(*AiAskRequest, AdminService_AskAiAgentStreamServer) error
+	// 读取当前管理员可见的三个快捷问题。
+	GetAiSuggestions(context.Context, *AiSuggestionsRequest) (*AiSuggestionsResponse, error)
+	// 查询当前管理员自己的 AI 问答会话摘要。
+	GetAiHistory(context.Context, *AiHistoryRequest) (*AiHistoryResponse, error)
+	// 记录 AI 回答是否有帮助。
+	AiFeedback(context.Context, *AiFeedbackRequest) (*CommonResponse, error)
+	// 结束并清空指定 AI 会话。
+	DeleteAiConversation(context.Context, *AiConversationRequest) (*CommonResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -271,11 +1547,29 @@ func (UnimplementedAdminServiceServer) Login(context.Context, *LoginRequest) (*A
 func (UnimplementedAdminServiceServer) Logout(context.Context, *LogoutRequest) (*CommonResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
 }
+func (UnimplementedAdminServiceServer) ValidateSession(context.Context, *ValidateSessionRequest) (*ValidateSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateSession not implemented")
+}
 func (UnimplementedAdminServiceServer) Me(context.Context, *MeRequest) (*MeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Me not implemented")
 }
 func (UnimplementedAdminServiceServer) Menus(context.Context, *MenusRequest) (*MenusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Menus not implemented")
+}
+func (UnimplementedAdminServiceServer) ListAdmins(context.Context, *AdminListRequest) (*AdminListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAdmins not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateAdmin(context.Context, *AdminSaveRequest) (*Admin, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateAdmin not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdateAdmin(context.Context, *AdminSaveRequest) (*Admin, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAdmin not implemented")
+}
+func (UnimplementedAdminServiceServer) SetAdminStatus(context.Context, *AdminStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetAdminStatus not implemented")
+}
+func (UnimplementedAdminServiceServer) ResetAdminPassword(context.Context, *AdminPasswordResetRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetAdminPassword not implemented")
 }
 func (UnimplementedAdminServiceServer) ListOperationLogs(context.Context, *OperationLogListRequest) (*OperationLogListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListOperationLogs not implemented")
@@ -285,6 +1579,30 @@ func (UnimplementedAdminServiceServer) ListUsers(context.Context, *UserListReque
 }
 func (UnimplementedAdminServiceServer) GetUser(context.Context, *UserDetailRequest) (*User, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
+}
+func (UnimplementedAdminServiceServer) ListUserOrders(context.Context, *UserHistoryRequest) (*OrderListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListUserOrders not implemented")
+}
+func (UnimplementedAdminServiceServer) ListUserCoupons(context.Context, *UserCouponHistoryRequest) (*UserCouponHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListUserCoupons not implemented")
+}
+func (UnimplementedAdminServiceServer) FreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FreezeUser not implemented")
+}
+func (UnimplementedAdminServiceServer) UnfreezeUser(context.Context, *ChangeUserStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnfreezeUser not implemented")
+}
+func (UnimplementedAdminServiceServer) ListDrivers(context.Context, *DriverListRequest) (*DriverListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListDrivers not implemented")
+}
+func (UnimplementedAdminServiceServer) GetDriver(context.Context, *DriverDetailRequest) (*Driver, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDriver not implemented")
+}
+func (UnimplementedAdminServiceServer) FreezeDriver(context.Context, *FreezeDriverRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FreezeDriver not implemented")
+}
+func (UnimplementedAdminServiceServer) UnfreezeDriver(context.Context, *FreezeDriverRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnfreezeDriver not implemented")
 }
 func (UnimplementedAdminServiceServer) ListDriverCertifications(context.Context, *DriverCertificationListRequest) (*DriverCertificationListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListDriverCertifications not implemented")
@@ -298,11 +1616,215 @@ func (UnimplementedAdminServiceServer) ApproveDriverCertification(context.Contex
 func (UnimplementedAdminServiceServer) RejectDriverCertification(context.Context, *AuditDriverCertificationRequest) (*CommonResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RejectDriverCertification not implemented")
 }
+func (UnimplementedAdminServiceServer) ListDriverWithdrawals(context.Context, *DriverWithdrawListRequest) (*DriverWithdrawListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListDriverWithdrawals not implemented")
+}
+func (UnimplementedAdminServiceServer) HandleDriverWithdraw(context.Context, *DriverWithdrawHandleRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HandleDriverWithdraw not implemented")
+}
 func (UnimplementedAdminServiceServer) ListOrders(context.Context, *OrderListRequest) (*OrderListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListOrders not implemented")
 }
 func (UnimplementedAdminServiceServer) GetOrder(context.Context, *OrderDetailRequest) (*OrderDetail, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) GetOrderTrack(context.Context, *OrderTrackRequest) (*OrderTrackResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderTrack not implemented")
+}
+func (UnimplementedAdminServiceServer) CancelOrder(context.Context, *AdminCancelOrderRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) RedispatchOrder(context.Context, *AdminRedispatchOrderRequest) (*AdminRedispatchOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RedispatchOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) RefundOrder(context.Context, *AdminRefundOrderRequest) (*AdminRefundOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RefundOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) ListRefundRetryTasks(context.Context, *RefundRetryTaskListRequest) (*RefundRetryTaskListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRefundRetryTasks not implemented")
+}
+func (UnimplementedAdminServiceServer) RetryRefundTask(context.Context, *RefundRetryTaskRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RetryRefundTask not implemented")
+}
+func (UnimplementedAdminServiceServer) ListAbnormalOrders(context.Context, *AbnormalOrderListRequest) (*AbnormalOrderListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAbnormalOrders not implemented")
+}
+func (UnimplementedAdminServiceServer) ListCoupons(context.Context, *CouponListRequest) (*CouponListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListCoupons not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateCoupon(context.Context, *CouponRequest) (*CreateCouponResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateCoupon not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdateCoupon(context.Context, *CouponRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateCoupon not implemented")
+}
+func (UnimplementedAdminServiceServer) DisableCoupon(context.Context, *CouponRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DisableCoupon not implemented")
+}
+func (UnimplementedAdminServiceServer) IssueCoupon(context.Context, *CouponIssueRequest) (*CouponIssueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IssueCoupon not implemented")
+}
+func (UnimplementedAdminServiceServer) ListCouponIssueTasks(context.Context, *CouponIssueTaskListRequest) (*CouponIssueTaskListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListCouponIssueTasks not implemented")
+}
+func (UnimplementedAdminServiceServer) ListPriceRules(context.Context, *PriceRuleListRequest) (*PriceRuleListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPriceRules not implemented")
+}
+func (UnimplementedAdminServiceServer) GetPriceRule(context.Context, *PriceRuleDetailRequest) (*PriceRule, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) CreatePriceRule(context.Context, *PriceRuleRequest) (*CreatePriceRuleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdatePriceRule(context.Context, *PriceRuleRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) EnablePriceRule(context.Context, *PriceRuleStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnablePriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) DisablePriceRule(context.Context, *PriceRuleStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DisablePriceRule not implemented")
+}
+func (UnimplementedAdminServiceServer) ListPromotionActivities(context.Context, *PromotionActivityListRequest) (*PromotionActivityListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPromotionActivities not implemented")
+}
+func (UnimplementedAdminServiceServer) CreatePromotionActivity(context.Context, *PromotionActivityRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePromotionActivity not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdatePromotionActivity(context.Context, *PromotionActivityRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePromotionActivity not implemented")
+}
+func (UnimplementedAdminServiceServer) PublishPromotionActivity(context.Context, *PromotionActivityActionRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PublishPromotionActivity not implemented")
+}
+func (UnimplementedAdminServiceServer) RollbackPromotionActivity(context.Context, *PromotionActivityActionRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RollbackPromotionActivity not implemented")
+}
+func (UnimplementedAdminServiceServer) ListDriverPunishmentRules(context.Context, *DriverPunishmentRuleListRequest) (*DriverPunishmentRuleListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListDriverPunishmentRules not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateDriverPunishmentRule(context.Context, *DriverPunishmentRuleRequest) (*DriverPunishmentRule, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateDriverPunishmentRule not implemented")
+}
+func (UnimplementedAdminServiceServer) UpdateDriverPunishmentRule(context.Context, *DriverPunishmentRuleRequest) (*DriverPunishmentRule, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateDriverPunishmentRule not implemented")
+}
+func (UnimplementedAdminServiceServer) SetDriverPunishmentRuleStatus(context.Context, *DriverPunishmentRuleStatusRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetDriverPunishmentRuleStatus not implemented")
+}
+func (UnimplementedAdminServiceServer) ListDriverPunishments(context.Context, *DriverPunishmentListRequest) (*DriverPunishmentListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListDriverPunishments not implemented")
+}
+func (UnimplementedAdminServiceServer) GetDriverPunishment(context.Context, *DriverPunishmentDetailRequest) (*DriverPunishment, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDriverPunishment not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateDriverPunishment(context.Context, *DriverPunishmentRequest) (*DriverPunishment, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateDriverPunishment not implemented")
+}
+func (UnimplementedAdminServiceServer) CancelDriverPunishment(context.Context, *DriverPunishmentActionRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelDriverPunishment not implemented")
+}
+func (UnimplementedAdminServiceServer) ListPunishmentAppeals(context.Context, *PunishmentAppealListRequest) (*PunishmentAppealListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPunishmentAppeals not implemented")
+}
+func (UnimplementedAdminServiceServer) CreatePunishmentAppeal(context.Context, *PunishmentAppealRequest) (*PunishmentAppeal, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePunishmentAppeal not implemented")
+}
+func (UnimplementedAdminServiceServer) ReviewPunishmentAppeal(context.Context, *PunishmentAppealReviewRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReviewPunishmentAppeal not implemented")
+}
+func (UnimplementedAdminServiceServer) GetStatisticsOverview(context.Context, *StatisticsRequest) (*StatisticsOverviewResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStatisticsOverview not implemented")
+}
+func (UnimplementedAdminServiceServer) GetOrderStatistics(context.Context, *StatisticsRequest) (*OrderStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) GetDriverStatistics(context.Context, *StatisticsRequest) (*DriverStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDriverStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) GetFinanceStatistics(context.Context, *StatisticsRequest) (*FinanceStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFinanceStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) GetCouponStatistics(context.Context, *StatisticsRequest) (*CouponStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCouponStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) GetUserStatistics(context.Context, *StatisticsRequest) (*UserStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserStatistics not implemented")
+}
+func (UnimplementedAdminServiceServer) GetCapacityMap(context.Context, *CapacityMapRequest) (*CapacityMapResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCapacityMap not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateExportTask(context.Context, *ExportTaskRequest) (*ExportTaskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateExportTask not implemented")
+}
+func (UnimplementedAdminServiceServer) ListExportTasks(context.Context, *ExportTaskListRequest) (*ExportTaskListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListExportTasks not implemented")
+}
+func (UnimplementedAdminServiceServer) GetExportTask(context.Context, *ExportTaskDetailRequest) (*ExportTask, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExportTask not implemented")
+}
+func (UnimplementedAdminServiceServer) GetExportDownload(context.Context, *ExportDownloadRequest) (*ExportDownloadResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExportDownload not implemented")
+}
+func (UnimplementedAdminServiceServer) DownloadExport(*ExportDownloadRequest, AdminService_DownloadExportServer) error {
+	return status.Errorf(codes.Unimplemented, "method DownloadExport not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateWorkOrder(context.Context, *WorkOrderRequest) (*WorkOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateWorkOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) ListWorkOrders(context.Context, *WorkOrderListRequest) (*WorkOrderListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListWorkOrders not implemented")
+}
+func (UnimplementedAdminServiceServer) GetWorkOrder(context.Context, *WorkOrderDetailRequest) (*WorkOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetWorkOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) ActWorkOrder(context.Context, *WorkOrderActionRequest) (*WorkOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ActWorkOrder not implemented")
+}
+func (UnimplementedAdminServiceServer) BatchActWorkOrders(context.Context, *WorkOrderBatchActionRequest) (*WorkOrderBatchActionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BatchActWorkOrders not implemented")
+}
+func (UnimplementedAdminServiceServer) AddWorkOrderEvidence(context.Context, *WorkOrderEvidenceRequest) (*WorkOrderEvidence, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddWorkOrderEvidence not implemented")
+}
+func (UnimplementedAdminServiceServer) ListWorkOrderEvidence(context.Context, *WorkOrderEvidenceListRequest) (*WorkOrderEvidenceListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListWorkOrderEvidence not implemented")
+}
+func (UnimplementedAdminServiceServer) ListBlacklists(context.Context, *BlacklistListRequest) (*BlacklistListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBlacklists not implemented")
+}
+func (UnimplementedAdminServiceServer) AddBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddBlacklist not implemented")
+}
+func (UnimplementedAdminServiceServer) ReleaseBlacklist(context.Context, *BlacklistRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReleaseBlacklist not implemented")
+}
+func (UnimplementedAdminServiceServer) ListRiskHitRecords(context.Context, *RiskHitRecordListRequest) (*RiskHitRecordListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRiskHitRecords not implemented")
+}
+func (UnimplementedAdminServiceServer) HandleRiskHitRecords(context.Context, *RiskHitActionRequest) (*RiskHitActionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HandleRiskHitRecords not implemented")
+}
+func (UnimplementedAdminServiceServer) ListAdminAuditOutbox(context.Context, *AdminAuditOutboxListRequest) (*AdminAuditOutboxListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAdminAuditOutbox not implemented")
+}
+func (UnimplementedAdminServiceServer) AskAiAgent(context.Context, *AiAskRequest) (*AiAnswerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AskAiAgent not implemented")
+}
+func (UnimplementedAdminServiceServer) AskAiAgentStream(*AiAskRequest, AdminService_AskAiAgentStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method AskAiAgentStream not implemented")
+}
+func (UnimplementedAdminServiceServer) GetAiSuggestions(context.Context, *AiSuggestionsRequest) (*AiSuggestionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAiSuggestions not implemented")
+}
+func (UnimplementedAdminServiceServer) GetAiHistory(context.Context, *AiHistoryRequest) (*AiHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAiHistory not implemented")
+}
+func (UnimplementedAdminServiceServer) AiFeedback(context.Context, *AiFeedbackRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AiFeedback not implemented")
+}
+func (UnimplementedAdminServiceServer) DeleteAiConversation(context.Context, *AiConversationRequest) (*CommonResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteAiConversation not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 
@@ -371,6 +1893,24 @@ func _AdminService_Logout_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_ValidateSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ValidateSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ValidateSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ValidateSession(ctx, req.(*ValidateSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_Me_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(MeRequest)
 	if err := dec(in); err != nil {
@@ -403,6 +1943,96 @@ func _AdminService_Menus_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AdminServiceServer).Menus(ctx, req.(*MenusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListAdmins_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListAdmins(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListAdmins_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListAdmins(ctx, req.(*AdminListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreateAdmin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminSaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateAdmin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateAdmin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateAdmin(ctx, req.(*AdminSaveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdateAdmin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminSaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdateAdmin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdateAdmin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdateAdmin(ctx, req.(*AdminSaveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_SetAdminStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).SetAdminStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_SetAdminStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).SetAdminStatus(ctx, req.(*AdminStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ResetAdminPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminPasswordResetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ResetAdminPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ResetAdminPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ResetAdminPassword(ctx, req.(*AdminPasswordResetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -457,6 +2087,150 @@ func _AdminService_GetUser_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AdminServiceServer).GetUser(ctx, req.(*UserDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListUserOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListUserOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListUserOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListUserOrders(ctx, req.(*UserHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListUserCoupons_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserCouponHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListUserCoupons(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListUserCoupons_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListUserCoupons(ctx, req.(*UserCouponHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_FreezeUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeUserStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).FreezeUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_FreezeUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).FreezeUser(ctx, req.(*ChangeUserStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UnfreezeUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeUserStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UnfreezeUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UnfreezeUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UnfreezeUser(ctx, req.(*ChangeUserStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListDrivers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListDrivers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListDrivers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListDrivers(ctx, req.(*DriverListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetDriver_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetDriver(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetDriver_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetDriver(ctx, req.(*DriverDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_FreezeDriver_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FreezeDriverRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).FreezeDriver(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_FreezeDriver_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).FreezeDriver(ctx, req.(*FreezeDriverRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UnfreezeDriver_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FreezeDriverRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UnfreezeDriver(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UnfreezeDriver_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UnfreezeDriver(ctx, req.(*FreezeDriverRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -533,6 +2307,42 @@ func _AdminService_RejectDriverCertification_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_ListDriverWithdrawals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverWithdrawListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListDriverWithdrawals(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListDriverWithdrawals_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListDriverWithdrawals(ctx, req.(*DriverWithdrawListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_HandleDriverWithdraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverWithdrawHandleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).HandleDriverWithdraw(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_HandleDriverWithdraw_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).HandleDriverWithdraw(ctx, req.(*DriverWithdrawHandleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AdminService_ListOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(OrderListRequest)
 	if err := dec(in); err != nil {
@@ -569,6 +2379,1200 @@ func _AdminService_GetOrder_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_GetOrderTrack_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OrderTrackRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetOrderTrack(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetOrderTrack_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetOrderTrack(ctx, req.(*OrderTrackRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CancelOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminCancelOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CancelOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CancelOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CancelOrder(ctx, req.(*AdminCancelOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_RedispatchOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminRedispatchOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).RedispatchOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_RedispatchOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).RedispatchOrder(ctx, req.(*AdminRedispatchOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_RefundOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminRefundOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).RefundOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_RefundOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).RefundOrder(ctx, req.(*AdminRefundOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListRefundRetryTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundRetryTaskListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListRefundRetryTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListRefundRetryTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListRefundRetryTasks(ctx, req.(*RefundRetryTaskListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_RetryRefundTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundRetryTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).RetryRefundTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_RetryRefundTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).RetryRefundTask(ctx, req.(*RefundRetryTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListAbnormalOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AbnormalOrderListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListAbnormalOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListAbnormalOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListAbnormalOrders(ctx, req.(*AbnormalOrderListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListCoupons_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListCoupons(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListCoupons_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListCoupons(ctx, req.(*CouponListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreateCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateCoupon(ctx, req.(*CouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdateCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdateCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdateCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdateCoupon(ctx, req.(*CouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_DisableCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).DisableCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_DisableCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).DisableCoupon(ctx, req.(*CouponRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_IssueCoupon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponIssueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).IssueCoupon(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_IssueCoupon_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).IssueCoupon(ctx, req.(*CouponIssueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListCouponIssueTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CouponIssueTaskListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListCouponIssueTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListCouponIssueTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListCouponIssueTasks(ctx, req.(*CouponIssueTaskListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListPriceRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListPriceRules(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListPriceRules_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListPriceRules(ctx, req.(*PriceRuleListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetPriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetPriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetPriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetPriceRule(ctx, req.(*PriceRuleDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreatePriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreatePriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreatePriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreatePriceRule(ctx, req.(*PriceRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdatePriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdatePriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdatePriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdatePriceRule(ctx, req.(*PriceRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_EnablePriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).EnablePriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_EnablePriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).EnablePriceRule(ctx, req.(*PriceRuleStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_DisablePriceRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PriceRuleStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).DisablePriceRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_DisablePriceRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).DisablePriceRule(ctx, req.(*PriceRuleStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListPromotionActivities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListPromotionActivities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListPromotionActivities_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListPromotionActivities(ctx, req.(*PromotionActivityListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreatePromotionActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreatePromotionActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreatePromotionActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreatePromotionActivity(ctx, req.(*PromotionActivityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdatePromotionActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdatePromotionActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdatePromotionActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdatePromotionActivity(ctx, req.(*PromotionActivityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_PublishPromotionActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).PublishPromotionActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_PublishPromotionActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).PublishPromotionActivity(ctx, req.(*PromotionActivityActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_RollbackPromotionActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PromotionActivityActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).RollbackPromotionActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_RollbackPromotionActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).RollbackPromotionActivity(ctx, req.(*PromotionActivityActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListDriverPunishmentRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverPunishmentRuleListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListDriverPunishmentRules(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListDriverPunishmentRules_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListDriverPunishmentRules(ctx, req.(*DriverPunishmentRuleListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreateDriverPunishmentRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverPunishmentRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateDriverPunishmentRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateDriverPunishmentRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateDriverPunishmentRule(ctx, req.(*DriverPunishmentRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_UpdateDriverPunishmentRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverPunishmentRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).UpdateDriverPunishmentRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_UpdateDriverPunishmentRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).UpdateDriverPunishmentRule(ctx, req.(*DriverPunishmentRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_SetDriverPunishmentRuleStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverPunishmentRuleStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).SetDriverPunishmentRuleStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_SetDriverPunishmentRuleStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).SetDriverPunishmentRuleStatus(ctx, req.(*DriverPunishmentRuleStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListDriverPunishments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverPunishmentListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListDriverPunishments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListDriverPunishments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListDriverPunishments(ctx, req.(*DriverPunishmentListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetDriverPunishment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverPunishmentDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetDriverPunishment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetDriverPunishment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetDriverPunishment(ctx, req.(*DriverPunishmentDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreateDriverPunishment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverPunishmentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateDriverPunishment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateDriverPunishment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateDriverPunishment(ctx, req.(*DriverPunishmentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CancelDriverPunishment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverPunishmentActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CancelDriverPunishment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CancelDriverPunishment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CancelDriverPunishment(ctx, req.(*DriverPunishmentActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListPunishmentAppeals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PunishmentAppealListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListPunishmentAppeals(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListPunishmentAppeals_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListPunishmentAppeals(ctx, req.(*PunishmentAppealListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreatePunishmentAppeal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PunishmentAppealRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreatePunishmentAppeal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreatePunishmentAppeal_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreatePunishmentAppeal(ctx, req.(*PunishmentAppealRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ReviewPunishmentAppeal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PunishmentAppealReviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ReviewPunishmentAppeal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ReviewPunishmentAppeal_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ReviewPunishmentAppeal(ctx, req.(*PunishmentAppealReviewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetStatisticsOverview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetStatisticsOverview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetStatisticsOverview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetStatisticsOverview(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetOrderStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetOrderStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetOrderStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetOrderStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetDriverStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetDriverStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetDriverStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetDriverStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetFinanceStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetFinanceStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetFinanceStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetFinanceStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetCouponStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetCouponStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetCouponStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetCouponStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetUserStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetUserStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetUserStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetUserStatistics(ctx, req.(*StatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetCapacityMap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CapacityMapRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetCapacityMap(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetCapacityMap_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetCapacityMap(ctx, req.(*CapacityMapRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_CreateExportTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateExportTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateExportTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateExportTask(ctx, req.(*ExportTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListExportTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportTaskListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListExportTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListExportTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListExportTasks(ctx, req.(*ExportTaskListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetExportTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportTaskDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetExportTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetExportTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetExportTask(ctx, req.(*ExportTaskDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetExportDownload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportDownloadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetExportDownload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetExportDownload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetExportDownload(ctx, req.(*ExportDownloadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_DownloadExport_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ExportDownloadRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AdminServiceServer).DownloadExport(m, &adminServiceDownloadExportServer{ServerStream: stream})
+}
+
+type AdminService_DownloadExportServer interface {
+	Send(*ExportDownloadChunk) error
+	grpc.ServerStream
+}
+
+type adminServiceDownloadExportServer struct {
+	grpc.ServerStream
+}
+
+func (x *adminServiceDownloadExportServer) Send(m *ExportDownloadChunk) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _AdminService_CreateWorkOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateWorkOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateWorkOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateWorkOrder(ctx, req.(*WorkOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListWorkOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListWorkOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListWorkOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListWorkOrders(ctx, req.(*WorkOrderListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetWorkOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetWorkOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetWorkOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetWorkOrder(ctx, req.(*WorkOrderDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ActWorkOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ActWorkOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ActWorkOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ActWorkOrder(ctx, req.(*WorkOrderActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_BatchActWorkOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderBatchActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).BatchActWorkOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_BatchActWorkOrders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).BatchActWorkOrders(ctx, req.(*WorkOrderBatchActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_AddWorkOrderEvidence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderEvidenceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).AddWorkOrderEvidence(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_AddWorkOrderEvidence_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).AddWorkOrderEvidence(ctx, req.(*WorkOrderEvidenceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListWorkOrderEvidence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkOrderEvidenceListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListWorkOrderEvidence(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListWorkOrderEvidence_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListWorkOrderEvidence(ctx, req.(*WorkOrderEvidenceListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListBlacklists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlacklistListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListBlacklists(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListBlacklists_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListBlacklists(ctx, req.(*BlacklistListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_AddBlacklist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlacklistRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).AddBlacklist(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_AddBlacklist_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).AddBlacklist(ctx, req.(*BlacklistRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ReleaseBlacklist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlacklistRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ReleaseBlacklist(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ReleaseBlacklist_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ReleaseBlacklist(ctx, req.(*BlacklistRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListRiskHitRecords_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RiskHitRecordListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListRiskHitRecords(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListRiskHitRecords_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListRiskHitRecords(ctx, req.(*RiskHitRecordListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_HandleRiskHitRecords_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RiskHitActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).HandleRiskHitRecords(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_HandleRiskHitRecords_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).HandleRiskHitRecords(ctx, req.(*RiskHitActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ListAdminAuditOutbox_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminAuditOutboxListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListAdminAuditOutbox(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListAdminAuditOutbox_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListAdminAuditOutbox(ctx, req.(*AdminAuditOutboxListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_AskAiAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AiAskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).AskAiAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_AskAiAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).AskAiAgent(ctx, req.(*AiAskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_AskAiAgentStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(AiAskRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AdminServiceServer).AskAiAgentStream(m, &adminServiceAskAiAgentStreamServer{ServerStream: stream})
+}
+
+type AdminService_AskAiAgentStreamServer interface {
+	Send(*AiAnswerChunk) error
+	grpc.ServerStream
+}
+
+type adminServiceAskAiAgentStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *adminServiceAskAiAgentStreamServer) Send(m *AiAnswerChunk) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _AdminService_GetAiSuggestions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AiSuggestionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetAiSuggestions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetAiSuggestions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetAiSuggestions(ctx, req.(*AiSuggestionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetAiHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AiHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetAiHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetAiHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetAiHistory(ctx, req.(*AiHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_AiFeedback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AiFeedbackRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).AiFeedback(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_AiFeedback_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).AiFeedback(ctx, req.(*AiFeedbackRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_DeleteAiConversation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AiConversationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).DeleteAiConversation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_DeleteAiConversation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).DeleteAiConversation(ctx, req.(*AiConversationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AdminService_ServiceDesc is the grpc.ServiceDesc for AdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -589,12 +3593,36 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_Logout_Handler,
 		},
 		{
+			MethodName: "ValidateSession",
+			Handler:    _AdminService_ValidateSession_Handler,
+		},
+		{
 			MethodName: "Me",
 			Handler:    _AdminService_Me_Handler,
 		},
 		{
 			MethodName: "Menus",
 			Handler:    _AdminService_Menus_Handler,
+		},
+		{
+			MethodName: "ListAdmins",
+			Handler:    _AdminService_ListAdmins_Handler,
+		},
+		{
+			MethodName: "CreateAdmin",
+			Handler:    _AdminService_CreateAdmin_Handler,
+		},
+		{
+			MethodName: "UpdateAdmin",
+			Handler:    _AdminService_UpdateAdmin_Handler,
+		},
+		{
+			MethodName: "SetAdminStatus",
+			Handler:    _AdminService_SetAdminStatus_Handler,
+		},
+		{
+			MethodName: "ResetAdminPassword",
+			Handler:    _AdminService_ResetAdminPassword_Handler,
 		},
 		{
 			MethodName: "ListOperationLogs",
@@ -607,6 +3635,38 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUser",
 			Handler:    _AdminService_GetUser_Handler,
+		},
+		{
+			MethodName: "ListUserOrders",
+			Handler:    _AdminService_ListUserOrders_Handler,
+		},
+		{
+			MethodName: "ListUserCoupons",
+			Handler:    _AdminService_ListUserCoupons_Handler,
+		},
+		{
+			MethodName: "FreezeUser",
+			Handler:    _AdminService_FreezeUser_Handler,
+		},
+		{
+			MethodName: "UnfreezeUser",
+			Handler:    _AdminService_UnfreezeUser_Handler,
+		},
+		{
+			MethodName: "ListDrivers",
+			Handler:    _AdminService_ListDrivers_Handler,
+		},
+		{
+			MethodName: "GetDriver",
+			Handler:    _AdminService_GetDriver_Handler,
+		},
+		{
+			MethodName: "FreezeDriver",
+			Handler:    _AdminService_FreezeDriver_Handler,
+		},
+		{
+			MethodName: "UnfreezeDriver",
+			Handler:    _AdminService_UnfreezeDriver_Handler,
 		},
 		{
 			MethodName: "ListDriverCertifications",
@@ -625,6 +3685,14 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_RejectDriverCertification_Handler,
 		},
 		{
+			MethodName: "ListDriverWithdrawals",
+			Handler:    _AdminService_ListDriverWithdrawals_Handler,
+		},
+		{
+			MethodName: "HandleDriverWithdraw",
+			Handler:    _AdminService_HandleDriverWithdraw_Handler,
+		},
+		{
 			MethodName: "ListOrders",
 			Handler:    _AdminService_ListOrders_Handler,
 		},
@@ -632,7 +3700,274 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetOrder",
 			Handler:    _AdminService_GetOrder_Handler,
 		},
+		{
+			MethodName: "GetOrderTrack",
+			Handler:    _AdminService_GetOrderTrack_Handler,
+		},
+		{
+			MethodName: "CancelOrder",
+			Handler:    _AdminService_CancelOrder_Handler,
+		},
+		{
+			MethodName: "RedispatchOrder",
+			Handler:    _AdminService_RedispatchOrder_Handler,
+		},
+		{
+			MethodName: "RefundOrder",
+			Handler:    _AdminService_RefundOrder_Handler,
+		},
+		{
+			MethodName: "ListRefundRetryTasks",
+			Handler:    _AdminService_ListRefundRetryTasks_Handler,
+		},
+		{
+			MethodName: "RetryRefundTask",
+			Handler:    _AdminService_RetryRefundTask_Handler,
+		},
+		{
+			MethodName: "ListAbnormalOrders",
+			Handler:    _AdminService_ListAbnormalOrders_Handler,
+		},
+		{
+			MethodName: "ListCoupons",
+			Handler:    _AdminService_ListCoupons_Handler,
+		},
+		{
+			MethodName: "CreateCoupon",
+			Handler:    _AdminService_CreateCoupon_Handler,
+		},
+		{
+			MethodName: "UpdateCoupon",
+			Handler:    _AdminService_UpdateCoupon_Handler,
+		},
+		{
+			MethodName: "DisableCoupon",
+			Handler:    _AdminService_DisableCoupon_Handler,
+		},
+		{
+			MethodName: "IssueCoupon",
+			Handler:    _AdminService_IssueCoupon_Handler,
+		},
+		{
+			MethodName: "ListCouponIssueTasks",
+			Handler:    _AdminService_ListCouponIssueTasks_Handler,
+		},
+		{
+			MethodName: "ListPriceRules",
+			Handler:    _AdminService_ListPriceRules_Handler,
+		},
+		{
+			MethodName: "GetPriceRule",
+			Handler:    _AdminService_GetPriceRule_Handler,
+		},
+		{
+			MethodName: "CreatePriceRule",
+			Handler:    _AdminService_CreatePriceRule_Handler,
+		},
+		{
+			MethodName: "UpdatePriceRule",
+			Handler:    _AdminService_UpdatePriceRule_Handler,
+		},
+		{
+			MethodName: "EnablePriceRule",
+			Handler:    _AdminService_EnablePriceRule_Handler,
+		},
+		{
+			MethodName: "DisablePriceRule",
+			Handler:    _AdminService_DisablePriceRule_Handler,
+		},
+		{
+			MethodName: "ListPromotionActivities",
+			Handler:    _AdminService_ListPromotionActivities_Handler,
+		},
+		{
+			MethodName: "CreatePromotionActivity",
+			Handler:    _AdminService_CreatePromotionActivity_Handler,
+		},
+		{
+			MethodName: "UpdatePromotionActivity",
+			Handler:    _AdminService_UpdatePromotionActivity_Handler,
+		},
+		{
+			MethodName: "PublishPromotionActivity",
+			Handler:    _AdminService_PublishPromotionActivity_Handler,
+		},
+		{
+			MethodName: "RollbackPromotionActivity",
+			Handler:    _AdminService_RollbackPromotionActivity_Handler,
+		},
+		{
+			MethodName: "ListDriverPunishmentRules",
+			Handler:    _AdminService_ListDriverPunishmentRules_Handler,
+		},
+		{
+			MethodName: "CreateDriverPunishmentRule",
+			Handler:    _AdminService_CreateDriverPunishmentRule_Handler,
+		},
+		{
+			MethodName: "UpdateDriverPunishmentRule",
+			Handler:    _AdminService_UpdateDriverPunishmentRule_Handler,
+		},
+		{
+			MethodName: "SetDriverPunishmentRuleStatus",
+			Handler:    _AdminService_SetDriverPunishmentRuleStatus_Handler,
+		},
+		{
+			MethodName: "ListDriverPunishments",
+			Handler:    _AdminService_ListDriverPunishments_Handler,
+		},
+		{
+			MethodName: "GetDriverPunishment",
+			Handler:    _AdminService_GetDriverPunishment_Handler,
+		},
+		{
+			MethodName: "CreateDriverPunishment",
+			Handler:    _AdminService_CreateDriverPunishment_Handler,
+		},
+		{
+			MethodName: "CancelDriverPunishment",
+			Handler:    _AdminService_CancelDriverPunishment_Handler,
+		},
+		{
+			MethodName: "ListPunishmentAppeals",
+			Handler:    _AdminService_ListPunishmentAppeals_Handler,
+		},
+		{
+			MethodName: "CreatePunishmentAppeal",
+			Handler:    _AdminService_CreatePunishmentAppeal_Handler,
+		},
+		{
+			MethodName: "ReviewPunishmentAppeal",
+			Handler:    _AdminService_ReviewPunishmentAppeal_Handler,
+		},
+		{
+			MethodName: "GetStatisticsOverview",
+			Handler:    _AdminService_GetStatisticsOverview_Handler,
+		},
+		{
+			MethodName: "GetOrderStatistics",
+			Handler:    _AdminService_GetOrderStatistics_Handler,
+		},
+		{
+			MethodName: "GetDriverStatistics",
+			Handler:    _AdminService_GetDriverStatistics_Handler,
+		},
+		{
+			MethodName: "GetFinanceStatistics",
+			Handler:    _AdminService_GetFinanceStatistics_Handler,
+		},
+		{
+			MethodName: "GetCouponStatistics",
+			Handler:    _AdminService_GetCouponStatistics_Handler,
+		},
+		{
+			MethodName: "GetUserStatistics",
+			Handler:    _AdminService_GetUserStatistics_Handler,
+		},
+		{
+			MethodName: "GetCapacityMap",
+			Handler:    _AdminService_GetCapacityMap_Handler,
+		},
+		{
+			MethodName: "CreateExportTask",
+			Handler:    _AdminService_CreateExportTask_Handler,
+		},
+		{
+			MethodName: "ListExportTasks",
+			Handler:    _AdminService_ListExportTasks_Handler,
+		},
+		{
+			MethodName: "GetExportTask",
+			Handler:    _AdminService_GetExportTask_Handler,
+		},
+		{
+			MethodName: "GetExportDownload",
+			Handler:    _AdminService_GetExportDownload_Handler,
+		},
+		{
+			MethodName: "CreateWorkOrder",
+			Handler:    _AdminService_CreateWorkOrder_Handler,
+		},
+		{
+			MethodName: "ListWorkOrders",
+			Handler:    _AdminService_ListWorkOrders_Handler,
+		},
+		{
+			MethodName: "GetWorkOrder",
+			Handler:    _AdminService_GetWorkOrder_Handler,
+		},
+		{
+			MethodName: "ActWorkOrder",
+			Handler:    _AdminService_ActWorkOrder_Handler,
+		},
+		{
+			MethodName: "BatchActWorkOrders",
+			Handler:    _AdminService_BatchActWorkOrders_Handler,
+		},
+		{
+			MethodName: "AddWorkOrderEvidence",
+			Handler:    _AdminService_AddWorkOrderEvidence_Handler,
+		},
+		{
+			MethodName: "ListWorkOrderEvidence",
+			Handler:    _AdminService_ListWorkOrderEvidence_Handler,
+		},
+		{
+			MethodName: "ListBlacklists",
+			Handler:    _AdminService_ListBlacklists_Handler,
+		},
+		{
+			MethodName: "AddBlacklist",
+			Handler:    _AdminService_AddBlacklist_Handler,
+		},
+		{
+			MethodName: "ReleaseBlacklist",
+			Handler:    _AdminService_ReleaseBlacklist_Handler,
+		},
+		{
+			MethodName: "ListRiskHitRecords",
+			Handler:    _AdminService_ListRiskHitRecords_Handler,
+		},
+		{
+			MethodName: "HandleRiskHitRecords",
+			Handler:    _AdminService_HandleRiskHitRecords_Handler,
+		},
+		{
+			MethodName: "ListAdminAuditOutbox",
+			Handler:    _AdminService_ListAdminAuditOutbox_Handler,
+		},
+		{
+			MethodName: "AskAiAgent",
+			Handler:    _AdminService_AskAiAgent_Handler,
+		},
+		{
+			MethodName: "GetAiSuggestions",
+			Handler:    _AdminService_GetAiSuggestions_Handler,
+		},
+		{
+			MethodName: "GetAiHistory",
+			Handler:    _AdminService_GetAiHistory_Handler,
+		},
+		{
+			MethodName: "AiFeedback",
+			Handler:    _AdminService_AiFeedback_Handler,
+		},
+		{
+			MethodName: "DeleteAiConversation",
+			Handler:    _AdminService_DeleteAiConversation_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "DownloadExport",
+			Handler:       _AdminService_DownloadExport_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "AskAiAgentStream",
+			Handler:       _AdminService_AskAiAgentStream_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "admin.proto",
 }

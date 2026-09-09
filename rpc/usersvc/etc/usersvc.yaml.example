@@ -1,0 +1,40 @@
+# usersvc 配置示例（复制为 usersvc.yaml 并修改实际值）
+
+# RPC 服务配置
+ListenOn: 0.0.0.0:50052
+Mode: dev
+
+# MySQL 数据库
+mysql:
+  dsn: "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
+  maxOpenConn: 200
+  maxIdleConn: 30
+  maxLifeTime: 3600
+
+# Redis 缓存
+cacheRedis:
+  host: "115.191.16.159:6379"
+  pass: ""
+  db: 0
+  poolSize: 20
+
+# 短信服务（可选，不配置则使用本地日志模式）
+sms:
+  provider: "tencent"  # tencent / local
+  region: "ap-beijing"
+  secretId: "${TENCENTCLOUD_SECRET_ID}"
+  secretKey: "${TENCENTCLOUD_SECRET_KEY}"
+  smsSdkAppId: "your-sms-sdk-app-id"
+  signName: "您的签名"
+  templateId: "your-template-id"
+
+# JWT 令牌签名密钥
+tokenAuth:
+  signingKey: "your-jwt-signing-key"
+
+# 腾讯云统一配置（实名认证使用）
+# 注意：secretId 和 secretKey 建议通过环境变量 TENCENTCLOUD_SECRET_ID / TENCENTCLOUD_SECRET_KEY 注入
+tencentCloud:
+  secretId: ""      # 腾讯云 API 密钥 ID（留空则跳过实名核验）
+  secretKey: ""     # 腾讯云 API 密钥 Key（留空则跳过实名核验）
+  region: "ap-beijing"  # 地域：ap-beijing / ap-guangzhou / ap-shanghai 等

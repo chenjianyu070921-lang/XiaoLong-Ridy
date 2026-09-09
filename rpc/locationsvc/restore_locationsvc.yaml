@@ -1,0 +1,30 @@
+Name: locationsvc.rpc
+ListenOn: 0.0.0.0:50057
+
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: locationsvc.rpc
+
+Mysql:
+  Dsn: "root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local"
+  MaxOpenConn: 100
+  MaxIdleConn: 10
+  MaxLifeTime: 3600
+
+RedisConf:
+  Host: "115.191.16.159:6379"
+  Pass: "4ay1nkal3u8ed77y"
+  Db: 0
+  PoolSize: 10
+
+# 地图服务配置。ApiKey 与 etc/locationsvc.yaml 保持一致（f945 为仓库统一高德 key）。
+MapService:
+  ApiKey: "f94510299d67fe4e4a904a726936795a"
+  Provider: "amap"
+  BaseUrl: "https://restapi.amap.com/v3"
+
+Log:
+  ServiceName: locationsvc
+  Mode: console
+  Level: info

@@ -8,7 +8,6 @@ import (
 
 	"XiaoLong-Ridy/rpc/ordersvc/internal/model"
 	"XiaoLong-Ridy/rpc/ordersvc/internal/repository"
-	"XiaoLong-Ridy/rpc/ordersvc/internal/svc"
 	"XiaoLong-Ridy/rpc/ordersvc/proto"
 )
 
@@ -42,7 +41,7 @@ func seedOrder(t *testing.T, repo *repository.MemoryOrderRepository, userID, dri
 		Remark:       "seed",
 	}
 	if err := repo.Create(context.Background(), order, statusLog); err != nil {
-		t.Fatalf("seed order error = %v", err)
+		t.Fatalf("seed orderclient error = %v", err)
 	}
 	return order
 }
@@ -50,7 +49,7 @@ func seedOrder(t *testing.T, repo *repository.MemoryOrderRepository, userID, dri
 func TestCancelOrderSuccessByUser(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	resp, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -70,7 +69,7 @@ func TestCancelOrderSuccessByUser(t *testing.T) {
 		t.Fatalf("GetByID() error = %v", err)
 	}
 	if fresh.Status != 6 || fresh.CancelBy != "user" || fresh.CancelReason != "行程有变" {
-		t.Fatalf("cancelled order = %+v", fresh)
+		t.Fatalf("cancelled orderclient = %+v", fresh)
 	}
 	logs := repo.StatusLogs(order.Id)
 	if len(logs) != 2 || logs[1].FromStatus != 1 || logs[1].ToStatus != 6 || logs[1].OperatorType != "user" {
@@ -81,7 +80,7 @@ func TestCancelOrderSuccessByUser(t *testing.T) {
 func TestCancelOrderSuccessByDriver(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 2002, 2)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	resp, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -100,7 +99,7 @@ func TestCancelOrderSuccessByDriver(t *testing.T) {
 func TestCancelOrderSuccessBySystem(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	resp, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -119,7 +118,7 @@ func TestCancelOrderSuccessBySystem(t *testing.T) {
 func TestCancelOrderRejectNonOwnerUser(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -135,7 +134,7 @@ func TestCancelOrderRejectNonOwnerUser(t *testing.T) {
 func TestCancelOrderRejectDriverNotAssigned(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 2002, 2)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -151,7 +150,7 @@ func TestCancelOrderRejectDriverNotAssigned(t *testing.T) {
 func TestCancelOrderRejectDriverOnWaitAccept(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -167,7 +166,7 @@ func TestCancelOrderRejectDriverOnWaitAccept(t *testing.T) {
 func TestCancelOrderRejectOnTrip(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 2002, 3)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -183,7 +182,7 @@ func TestCancelOrderRejectOnTrip(t *testing.T) {
 func TestCancelOrderRejectAlreadyCancelled(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 6)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -199,7 +198,7 @@ func TestCancelOrderRejectAlreadyCancelled(t *testing.T) {
 func TestCancelOrderRejectEmptyReason(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -215,7 +214,7 @@ func TestCancelOrderRejectEmptyReason(t *testing.T) {
 func TestCancelOrderRejectInvalidOperator(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	order := seedOrder(t, repo, 1001, 0, 1)
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      int64(order.Id),
@@ -230,7 +229,7 @@ func TestCancelOrderRejectInvalidOperator(t *testing.T) {
 
 func TestCancelOrderNotFound(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
-	l := NewCancelOrderLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+	l := NewCancelOrderLogic(context.Background(), newTestSvcCtx(t, repo))
 
 	_, err := l.CancelOrder(&proto.CancelOrderRequest{
 		OrderId:      999,

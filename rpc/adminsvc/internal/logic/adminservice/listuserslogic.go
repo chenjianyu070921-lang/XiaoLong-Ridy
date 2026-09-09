@@ -8,8 +8,11 @@ import (
 
 	"XiaoLong-Ridy/rpc/adminsvc/adminsvc"
 	"XiaoLong-Ridy/rpc/adminsvc/internal/svc"
+	usersvc "XiaoLong-Ridy/rpc/usersvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ListUsersLogic 处理用户列表查询 RPC。
@@ -30,6 +33,12 @@ func NewListUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListUse
 
 // ListUsers 按分页和筛选条件查询乘客用户列表。
 func (l *ListUsersLogic) ListUsers(in *adminsvc.UserListRequest) (*adminsvc.UserListResponse, error) {
+	canViewSensitive := canViewUserSensitive(l.ctx, l.svcCtx)
+	// usersvc 当前支持状态分页查询；关键字和时间范围继续走兼容查询，避免丢失后台筛选能力。
+	if l.svcCtx != nil && l.svcCtx.UsersSvc != nil && userListCanUseUsersRPC(in) {
+		return l.listUsersFromRPC(in, canViewSensitive)
+	}
+
 	where, args := buildUserWhere(in)
 	var total int64
 	if err := l.svcCtx.MySQL.QueryRowContext(l.ctx, `SELECT COUNT(1) FROM user `+where, args...).Scan(&total); err != nil {
@@ -55,9 +64,126 @@ func (l *ListUsersLogic) ListUsers(in *adminsvc.UserListRequest) (*adminsvc.User
 		if err != nil {
 			return nil, err
 		}
-		list = append(list, item)
+		list = append(list, filterAdminUserSensitive(item, canViewSensitive))
 	}
 	return &adminsvc.UserListResponse{List: list, Total: total, Page: normalizePage(in.GetPage()), PageSize: limit}, rows.Err()
+}
+
+// userListCanUseUsersRPC 判断筛选条件是否可由 usersvc.AdminListUsers 表达。
+func userListCanUseUsersRPC(in *adminsvc.UserListRequest) bool {
+	if in == nil {
+		return false
+	}
+	return strings.TrimSpace(in.GetKeyword()) == "" && strings.TrimSpace(in.GetStartTime()) == "" && strings.TrimSpace(in.GetEndTime()) == ""
+}
+
+// listUsersFromRPC 通过 usersvc 查询真实用户列表并转换为后台协议结构。
+func (l *ListUsersLogic) listUsersFromRPC(in *adminsvc.UserListRequest, canViewSensitive bool) (*adminsvc.UserListResponse, error) {
+	resp, err := l.svcCtx.UsersSvc.AdminListUsers(l.ctx, &usersvc.AdminUserListRequest{Page: in.GetPage(), PageSize: in.GetPageSize(), Status: in.GetStatus()})
+	if err != nil {
+		return nil, err
+	}
+	list := make([]*adminsvc.User, 0, len(resp.GetList()))
+	for _, item := range resp.GetList() {
+		list = append(list, filterAdminUserSensitive(adminUserFromUsersRPC(item), canViewSensitive))
+	}
+	return &adminsvc.UserListResponse{List: list, Total: resp.GetTotal(), Page: resp.GetPage(), PageSize: resp.GetPageSize()}, nil
+}
+
+// adminUserFromUsersRPC 将 usersvc 后台用户对象转换为 adminsvc 响应对象。
+// adminsvc 是后台聚合边界，统一在这里做协议转换，敏感字段是否脱敏由调用入口根据管理员会话决定。
+func adminUserFromUsersRPC(item *usersvc.AdminUser) *adminsvc.User {
+	if item == nil {
+		return nil
+	}
+	return &adminsvc.User{
+		Id:             int64(item.GetId()),
+		Phone:          item.GetPhone(),
+		Nickname:       item.GetNickname(),
+		AvatarUrl:      item.GetAvatarUrl(),
+		Gender:         item.GetGender(),
+		RealName:       item.GetRealName(),
+		IdCardNo:       item.GetIdCardNo(),
+		RegisterSource: item.GetRegisterSource(),
+		Status:         item.GetStatus(),
+		CreatedAt:      unixText(item.GetCreatedAt()),
+		UpdatedAt:      unixText(item.GetUpdatedAt()),
+	}
+}
+
+// canViewUserSensitive 根据管理员真实会话判断是否允许查看完整手机号和身份证号。
+// 列表接口不支持显式查看明文，当前统一返回脱敏值，避免批量泄露敏感信息。
+func canViewUserSensitive(ctx context.Context, svcCtx *svc.ServiceContext) bool {
+	return canViewSensitiveFields(ctx, svcCtx, false)
+}
+
+// canViewSensitiveFields 判断当前管理员是否允许查看完整敏感字段。
+// reveal 表示调用方是否显式申请明文；未申请时即使具备权限也返回 false，保证详情接口默认脱敏。
+// 权限设计当前固定角色为 1=超级管理员、2=运营、3=客服；只有超管和运营可在显式申请时查看完整敏感信息。
+// 若调用方缺少 token、会话失效、Redis 不可用或账号状态异常，统一按无权限处理，保证读接口不会泄露明文。
+func canViewSensitiveFields(ctx context.Context, svcCtx *svc.ServiceContext, reveal bool) bool {
+	_, ok := sensitiveFieldAdmin(ctx, svcCtx, reveal)
+	return ok
+}
+
+// sensitiveFieldAdmin 返回允许查看完整敏感字段的管理员会话。
+// 该函数只信任 Redis 中的真实后台会话，不信任客户端传入角色，避免伪造参数越权查看明文。
+func sensitiveFieldAdmin(ctx context.Context, svcCtx *svc.ServiceContext, reveal bool) (*adminRow, bool) {
+	if !reveal {
+		return nil, false
+	}
+	if svcCtx == nil || svcCtx.Redis == nil || svcCtx.MySQL == nil {
+		return nil, false
+	}
+	admin, err := ValidateAdminTokenFromContext(ctx, svcCtx)
+	if err != nil || admin == nil {
+		return nil, false
+	}
+	if admin.Role != 1 && admin.Role != 2 {
+		return nil, false
+	}
+	return admin, true
+}
+
+// requireSensitiveFieldPermission 校验显式查看敏感字段的后台权限。
+// 只有超级管理员和运营角色可通过；客服或无有效会话时返回 PermissionDenied。
+func requireSensitiveFieldPermission(ctx context.Context, svcCtx *svc.ServiceContext) (*adminRow, error) {
+	if admin, ok := sensitiveFieldAdmin(ctx, svcCtx, true); ok {
+		return admin, nil
+	}
+	return nil, status.Error(codes.PermissionDenied, "当前管理员无权查看完整敏感信息")
+}
+
+// filterAdminUserSensitive 按管理员权限裁剪后台用户敏感信息。
+// canViewSensitive 为 true 时保留 usersvc 或兼容 SQL 返回的完整值；否则返回服务端脱敏值。
+func filterAdminUserSensitive(item *adminsvc.User, canViewSensitive bool) *adminsvc.User {
+	if item == nil {
+		return nil
+	}
+	if canViewSensitive {
+		return item
+	}
+	item.Phone = maskPhone(item.Phone)
+	item.IdCardNo = maskIDCard(item.IdCardNo)
+	return item
+}
+
+// maskPhone 脱敏中国大陆手机号，保留前三后四位便于客服核对。
+func maskPhone(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if len(phone) < 7 {
+		return phone
+	}
+	return phone[:3] + "****" + phone[len(phone)-4:]
+}
+
+// maskIDCard 脱敏身份证号，保留前六后四位用于人工识别。
+func maskIDCard(idCardNo string) string {
+	idCardNo = strings.TrimSpace(idCardNo)
+	if len(idCardNo) <= 10 {
+		return idCardNo
+	}
+	return idCardNo[:6] + strings.Repeat("*", len(idCardNo)-10) + idCardNo[len(idCardNo)-4:]
 }
 
 // buildUserWhere 组装用户列表筛选条件。

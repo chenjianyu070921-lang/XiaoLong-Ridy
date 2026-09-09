@@ -33,6 +33,9 @@ func TestListOrdersFiltersAndPagination(t *testing.T) {
 	if resp.List[0].Status != proto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT {
 		t.Fatalf("ListOrders() item = %+v", resp.List[0])
 	}
+	if got := resp.List[0]; got.UserId != 1001 || got.CarType != 1 || got.FromLongitude == 0 || got.UpdatedAt == 0 {
+		t.Fatalf("ListOrders() full item fields = %+v", got)
+	}
 }
 
 func TestListOrdersDefaults(t *testing.T) {
@@ -55,8 +58,20 @@ func TestListOrdersRejectsInvalidStatus(t *testing.T) {
 	repo := repository.NewMemoryOrderRepository()
 	l := NewListOrdersLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
 
-	_, err := l.ListOrders(&proto.ListOrdersRequest{Status: proto.OrderStatus(7)})
+	// 7 = REFUNDED 是合法订单状态（已退款订单必须可被筛选，否则对账查不到），
+	// 因此越界值取 8 而非 7。
+	_, err := l.ListOrders(&proto.ListOrdersRequest{Status: proto.OrderStatus(8)})
 	if !errors.Is(err, ErrInvalidOrderParams) {
 		t.Fatalf("ListOrders() error = %v, want %v", err, ErrInvalidOrderParams)
+	}
+}
+
+// TestListOrdersAcceptsRefunded 已退款订单（status=7）必须可被筛选，否则对账与后台查不到。
+func TestListOrdersAcceptsRefunded(t *testing.T) {
+	repo := repository.NewMemoryOrderRepository()
+	l := NewListOrdersLogic(context.Background(), &svc.ServiceContext{OrderRepository: repo})
+
+	if _, err := l.ListOrders(&proto.ListOrdersRequest{Status: proto.OrderStatus(7)}); err != nil {
+		t.Fatalf("ListOrders(status=7) error = %v, want nil", err)
 	}
 }

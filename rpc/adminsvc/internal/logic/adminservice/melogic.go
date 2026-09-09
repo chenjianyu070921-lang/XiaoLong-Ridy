@@ -29,6 +29,13 @@ func NewMeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MeLogic {
 
 // Me 根据管理员 ID 查询有效管理员信息。
 func (l *MeLogic) Me(in *adminsvc.MeRequest) (*adminsvc.MeResponse, error) {
+	if in.GetToken() != "" {
+		admin, err := validateSession(l.ctx, l.svcCtx, in.GetToken())
+		if err != nil {
+			return nil, err
+		}
+		return &adminsvc.MeResponse{Admin: toAdminPB(admin)}, nil
+	}
 	if in.GetAdminId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "管理员ID不能为空")
 	}

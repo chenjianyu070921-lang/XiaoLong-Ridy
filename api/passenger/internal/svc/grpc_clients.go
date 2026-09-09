@@ -1,0 +1,307 @@
+package svc
+
+import (
+	"context"
+	"math"
+	"strings"
+	"time"
+
+	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
+	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
+	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
+	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
+	priceproto "XiaoLong-Ridy/rpc/pricesvc/proto"
+	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+// grpcUserClient 将 usersvc 生成的 gRPC 客户端适配为 passenger 的 UserClient 接口。
+type grpcUserClient struct {
+	cli userproto.UserClient
+}
+
+// newGRPCUserClient 创建 usersvc gRPC adapter。
+func newGRPCUserClient(cli userproto.UserClient) *grpcUserClient {
+	return &grpcUserClient{cli: cli}
+}
+
+func (c *grpcUserClient) SendSMSCode(ctx context.Context, req *userproto.SendSMSCodeRequest) (*userproto.SendSMSCodeResponse, error) {
+	return c.cli.SendSMSCode(ctx, req)
+}
+
+func (c *grpcUserClient) LoginBySMS(ctx context.Context, req *userproto.LoginBySMSRequest) (*userproto.LoginBySMSResponse, error) {
+	return c.cli.LoginBySMS(ctx, req)
+}
+
+// LoginByPassword 调用 usersvc 手机号密码登录 RPC。
+func (c *grpcUserClient) LoginByPassword(ctx context.Context, req *userproto.LoginByPasswordRequest) (*userproto.LoginBySMSResponse, error) {
+	return c.cli.LoginByPassword(ctx, req)
+}
+
+// SetPassword 调用 usersvc 设置或修改当前乘客密码。
+func (c *grpcUserClient) SetPassword(ctx context.Context, req *userproto.SetPasswordRequest) (*userproto.SetPasswordResponse, error) {
+	return c.cli.SetPassword(ctx, req)
+}
+
+func (c *grpcUserClient) RefreshToken(ctx context.Context, req *userproto.RefreshTokenRequest) (*userproto.RefreshTokenResponse, error) {
+	return c.cli.RefreshToken(ctx, req)
+}
+
+func (c *grpcUserClient) Logout(ctx context.Context, req *userproto.LogoutRequest) (*userproto.LogoutResponse, error) {
+	return c.cli.Logout(ctx, req)
+}
+
+func (c *grpcUserClient) GetProfile(ctx context.Context, req *userproto.GetProfileRequest) (*userproto.GetProfileResponse, error) {
+	return c.cli.GetProfile(ctx, req)
+}
+
+func (c *grpcUserClient) SubmitRealName(ctx context.Context, req *userproto.SubmitRealNameRequest) (*userproto.SubmitRealNameResponse, error) {
+	return c.cli.SubmitRealName(ctx, req)
+}
+
+func (c *grpcUserClient) UpdateProfile(ctx context.Context, req *userproto.UpdateProfileRequest) (*userproto.UpdateProfileResponse, error) {
+	return c.cli.UpdateProfile(ctx, req)
+}
+
+func (c *grpcUserClient) CreateAddress(ctx context.Context, req *userproto.CreateAddressRequest) (*userproto.AddressInfo, error) {
+	return c.cli.CreateAddress(ctx, req)
+}
+
+func (c *grpcUserClient) ListAddresses(ctx context.Context, req *userproto.ListAddressesRequest) (*userproto.ListAddressesResponse, error) {
+	return c.cli.ListAddresses(ctx, req)
+}
+
+func (c *grpcUserClient) UpdateAddress(ctx context.Context, req *userproto.UpdateAddressRequest) (*userproto.AddressInfo, error) {
+	return c.cli.UpdateAddress(ctx, req)
+}
+
+func (c *grpcUserClient) DeleteAddress(ctx context.Context, req *userproto.DeleteAddressRequest) (*userproto.DeleteAddressResponse, error) {
+	return c.cli.DeleteAddress(ctx, req)
+}
+
+func (c *grpcUserClient) ClaimCoupon(ctx context.Context, req *userproto.ClaimCouponRequest) (*userproto.ClaimCouponResponse, error) {
+	return c.cli.ClaimCoupon(ctx, req)
+}
+
+func (c *grpcUserClient) ListMyCoupons(ctx context.Context, req *userproto.ListMyCouponsRequest) (*userproto.ListMyCouponsResponse, error) {
+	return c.cli.ListMyCoupons(ctx, req)
+}
+
+// LockUserCoupon 调用 usersvc 锁定用户券，供下单前状态校验和防重复使用。
+func (c *grpcUserClient) LockUserCoupon(ctx context.Context, req *userproto.LockUserCouponRequest) (*userproto.LockUserCouponResponse, error) {
+	return c.cli.LockUserCoupon(ctx, req)
+}
+
+// ReleaseUserCoupon 调用 usersvc 释放下单失败时已锁定的用户券。
+func (c *grpcUserClient) ReleaseUserCoupon(ctx context.Context, req *userproto.ReleaseUserCouponRequest) (*userproto.ReleaseUserCouponResponse, error) {
+	return c.cli.ReleaseUserCoupon(ctx, req)
+}
+
+func (c *grpcUserClient) GetWallet(ctx context.Context, req *userproto.GetWalletRequest) (*userproto.GetWalletResponse, error) {
+	return c.cli.GetWallet(ctx, req)
+}
+
+func (c *grpcUserClient) RechargeWallet(ctx context.Context, req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
+	return c.cli.RechargeWallet(ctx, req)
+}
+
+func (c *grpcUserClient) WithdrawWallet(ctx context.Context, req *userproto.ChangeWalletRequest) (*userproto.ChangeWalletResponse, error) {
+	return c.cli.WithdrawWallet(ctx, req)
+}
+
+// grpcOrderClient 将 ordersvc 生成的 gRPC 客户端适配为 passenger 的 OrderClient 接口。
+type grpcOrderClient struct {
+	cli orderproto.OrderClient
+}
+
+// grpcDriverClient 将 driversvc 客户端适配为 passenger 的查询契约。
+type grpcDriverClient struct {
+	cli driverproto.DriverServiceClient
+}
+
+func newGRPCDriverClient(cli driverproto.DriverServiceClient) DriverClient {
+	return &grpcDriverClient{cli: cli}
+}
+
+func (c *grpcDriverClient) GetDriver(ctx context.Context, req *driverproto.GetDriverRequest) (*driverproto.GetDriverResponse, error) {
+	return c.cli.GetDriver(ctx, req)
+}
+
+// newGRPCOrderClient 创建 ordersvc gRPC adapter。
+func newGRPCOrderClient(cli orderproto.OrderClient) *grpcOrderClient {
+	return &grpcOrderClient{cli: cli}
+}
+
+func (c *grpcOrderClient) CreateOrder(ctx context.Context, req *orderproto.CreateOrderRequest) (*orderproto.CreateOrderResponse, error) {
+	return c.cli.CreateOrder(ctx, req)
+}
+
+func (c *grpcOrderClient) CancelOrder(ctx context.Context, req *orderproto.CancelOrderRequest) (*orderproto.CancelOrderResponse, error) {
+	return c.cli.CancelOrder(ctx, req)
+}
+
+func (c *grpcOrderClient) GetOrder(ctx context.Context, req *orderproto.GetOrderRequest) (*orderproto.GetOrderResponse, error) {
+	return c.cli.GetOrder(ctx, req)
+}
+
+// ConfirmPaid 补偿确认已成功支付的订单，确保支付表与订单表最终一致。
+func (c *grpcOrderClient) ConfirmPaid(ctx context.Context, req *orderproto.ConfirmPaidRequest) (*orderproto.ConfirmPaidResponse, error) {
+	return c.cli.ConfirmPaid(ctx, req)
+}
+
+func (c *grpcOrderClient) ListOrders(ctx context.Context, req *orderproto.ListOrdersRequest) (*orderproto.ListOrdersResponse, error) {
+	return c.cli.ListOrders(ctx, req)
+}
+
+// grpcPayClient 将 paysvc 生成的 gRPC 客户端适配为 passenger 的 PayClient 接口。
+type grpcPayClient struct {
+	cli payproto.PayClient
+}
+
+// newGRPCPayClient 创建 paysvc gRPC adapter。
+func newGRPCPayClient(cli payproto.PayClient) *grpcPayClient {
+	return &grpcPayClient{cli: cli}
+}
+
+// CreatePayment 调用 paysvc 创建支付单。
+func (c *grpcPayClient) CreatePayment(ctx context.Context, req *payproto.CreatePaymentRequest) (*payproto.CreatePaymentResponse, error) {
+	return c.cli.CreatePayment(ctx, req)
+}
+
+// GetPayment 调用 paysvc 查询支付单状态，供乘客端主动刷新支付结果。
+func (c *grpcPayClient) GetPayment(ctx context.Context, req *payproto.GetPaymentRequest) (*payproto.GetPaymentResponse, error) {
+	return c.cli.GetPayment(ctx, req)
+}
+
+// grpcDispatchClient 将 dispatchsvc 生成的 gRPC 客户端适配为 passenger 的 DispatchClient 接口。
+type grpcDispatchClient struct {
+	cli dispatchproto.DispatchClient
+}
+
+// newGRPCDispatchClient 创建 dispatchsvc gRPC adapter。
+func newGRPCDispatchClient(cli dispatchproto.DispatchClient) *grpcDispatchClient {
+	return &grpcDispatchClient{cli: cli}
+}
+
+// ListDispatchRecords 调用 dispatchsvc 查询订单维度的派单记录。
+func (c *grpcDispatchClient) ListDispatchRecords(ctx context.Context, req *dispatchproto.ListDispatchRecordsRequest) (*dispatchproto.ListDispatchRecordsResponse, error) {
+	return c.cli.ListDispatchRecords(ctx, req)
+}
+
+// grpcPriceClient 将 pricesvc proto 客户端适配为 passenger 当前的价格预估接口。
+type grpcPriceClient struct {
+	cli      priceproto.PriceClient
+	cityCode string
+}
+
+// newGRPCPriceClient 创建 pricesvc gRPC adapter。
+func newGRPCPriceClient(conn grpc.ClientConnInterface, cityCode string) *grpcPriceClient {
+	return newGRPCPriceClientFromProto(priceproto.NewPriceClient(conn), cityCode)
+}
+
+// newGRPCPriceClientFromProto 使用已生成的 pricesvc proto client 创建 adapter，便于单元测试注入假客户端。
+func newGRPCPriceClientFromProto(cli priceproto.PriceClient, cityCode string) *grpcPriceClient {
+	cityCode = strings.TrimSpace(cityCode)
+	if cityCode == "" {
+		cityCode = defaultPriceCityCode
+	}
+	return &grpcPriceClient{
+		cli:      cli,
+		cityCode: cityCode,
+	}
+}
+
+// fallbackSpeedMetersPerMinute 是前端未传预估时长时，用于折算行程时长的兜底平均车速。
+// 取 250 米/分钟 ≈ 15 km/h，接近城市拥堵路况；pricesvc 的 duration_s 单位是秒，故折算后需 *60。
+const fallbackSpeedMetersPerMinute = 250.0
+
+// EstimatePrice 将 passenger 的坐标预估请求转换成 pricesvc 需要的里程、时长和城市编码。
+func (c *grpcPriceClient) EstimatePrice(ctx context.Context, req *priceclient.EstimatePriceRequest) (*priceclient.EstimatePriceResponse, error) {
+	// 里程兜底链：优先用前端传入的预估里程 -> 缺失时用 haversine 直线距离 ->
+	// 仍为 0（起终点相同或坐标非法）则兜底 1000 米，避免把 0 里程传给计价服务。
+	distanceM := req.EstimatedMeters
+	if distanceM <= 0 {
+		distanceM = haversineMeters(req.FromLatitude, req.FromLongitude, req.ToLatitude, req.ToLongitude)
+	}
+	if distanceM <= 0 {
+		distanceM = 1000
+	}
+
+	// 时长兜底链：优先用前端传入的预估时长 -> 缺失时按兜底均速折算（米/分钟换算成秒）-> 兜底 60 秒。
+	durationS := req.EstimatedSecond
+	if durationS <= 0 {
+		durationS = int64(math.Ceil(float64(distanceM)/fallbackSpeedMetersPerMinute)) * 60
+	}
+	if durationS <= 0 {
+		durationS = 60
+	}
+
+	cityCode := strings.TrimSpace(req.CityCode)
+	if cityCode == "" {
+		cityCode = c.cityCode
+	}
+	resp, err := c.cli.EstimatePrice(ctx, &priceproto.EstimatePriceRequest{
+		UserId:    req.UserID,
+		CityCode:  cityCode,
+		CarType:   req.CarType,
+		DistanceM: distanceM,
+		DurationS: durationS,
+		Timestamp: time.Now().Unix(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &priceclient.EstimatePriceResponse{
+		EstimatedPriceCents: resp.GetTotalCents(),
+		EstimatedDistanceM:  distanceM,
+		EstimatedDurationS:  durationS,
+	}, nil
+}
+
+// CalculateDiscount 将 passenger 的优惠券参数转发给真实 pricesvc 计算抵扣金额。
+func (c *grpcPriceClient) CalculateDiscount(ctx context.Context, req *priceclient.CalculateDiscountRequest) (*priceclient.CalculateDiscountResponse, error) {
+	resp, err := c.cli.CalculateDiscount(ctx, &priceproto.CalculateDiscountRequest{
+		OrderId:    req.OrderID,
+		TotalCents: req.TotalCents,
+		Coupon: &priceproto.Coupon{
+			CouponId:         req.Coupon.CouponID,
+			Type:             priceproto.CouponType(req.Coupon.Type),
+			FaceValueCents:   req.Coupon.FaceValueCents,
+			Discount:         req.Coupon.Discount,
+			ThresholdCents:   req.Coupon.ThresholdCents,
+			MaxDiscountCents: req.Coupon.MaxDiscountCents,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &priceclient.CalculateDiscountResponse{
+		DiscountAmountCents:  resp.GetDiscountAmountCents(),
+		PlatformSubsidyCents: resp.GetPlatformSubsidyCents(),
+		PayableAmountCents:   resp.GetPayableAmountCents(),
+	}, nil
+}
+
+// newInsecureGRPCConn 创建本地/内网联调用的明文 gRPC 连接。
+func newInsecureGRPCConn(addr string) (*grpc.ClientConn, error) {
+	return grpc.NewClient(strings.TrimSpace(addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
+}
+
+// haversineMeters 使用球面距离公式估算两组经纬度之间的直线距离。
+func haversineMeters(lat1, lon1, lat2, lon2 float64) int64 {
+	const earthRadius = 6371000.0
+	lat1Rad := lat1 * math.Pi / 180
+	lon1Rad := lon1 * math.Pi / 180
+	lat2Rad := lat2 * math.Pi / 180
+	lon2Rad := lon2 * math.Pi / 180
+
+	dLat := lat2Rad - lat1Rad
+	dLon := lon2Rad - lon1Rad
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1Rad)*math.Cos(lat2Rad)*math.Sin(dLon/2)*math.Sin(dLon/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	return int64(math.Round(earthRadius * c))
+}

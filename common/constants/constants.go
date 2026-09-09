@@ -1,32 +1,83 @@
 package constants
 
-// 订单状态
 const (
-	OrderStatusWaitAccept = 1 // 待接单
-	OrderStatusAccepted   = 2 // 已接单
-	OrderStatusOnTrip     = 3 // 行程中
-	OrderStatusWaitPay    = 4 // 待支付
-	OrderStatusCompleted  = 5 // 已完成
-	OrderStatusCancelled  = 6 // 已取消
+	OrderTypeRealtime    = 1
+	OrderTypeReservation = 2
 )
 
-// 订单操作方
 const (
-	OperatorUser   = "user"
-	OperatorDriver = "driver"
-	OperatorSystem = "system"
-	OperatorAdmin  = "admin"
+	OrderStatusWaitAccept = 1
+	OrderStatusAccepted   = 2
+	OrderStatusOnTrip     = 3
+	OrderStatusWaitPay    = 4
+	OrderStatusCompleted  = 5
+	OrderStatusCancelled  = 6
+	OrderStatusRefunded   = 7
 )
 
-// Redis Key 模板（用的时候 fmt.Sprintf 填入 ID）
 const (
-	RedisDriverPos = "driver:pos:%d" // 司机位置
-	RedisOrderInfo = "order:info:%d" // 订单信息
-	RedisSmsCode   = "sms:code:%s"   // 验证码
+	DispatchTypeAuto = 1
 )
 
-// Kafka 消息主题
 const (
-	TopicLocation = "location-report" // 司机位置上报
-	TopicOrder    = "order-event"     // 订单事件
+	DispatchStatusPending   = 1
+	DispatchStatusAccepted  = 2
+	DispatchStatusRejected  = 3
+	DispatchStatusTimeout   = 4
+	DispatchStatusCancelled = 5
+)
+
+const (
+	OperatorUser               = "user"
+	OperatorDriver             = "driver"
+	OperatorSystem             = "system"
+	OperatorAdmin              = "admin"
+	RedisDriverPos             = "driver:pos:%d"
+	RedisOrderInfo             = "order:info:%d"
+	RedisSmsCode               = "sms:code:%s"
+	RedisOrderLock             = "r:lock:order:%d"
+	RedisDriverGeo             = "driver:geo:%s"
+	RedisDriverOnline          = "driver:online"
+	RedisDriverBusy            = "driver:busy"
+	RedisDriverAvailable       = "driver:available:%d" // 派给司机的待接单集合（90s TTL）
+	RedisDriverHome            = "driver:home:%d"      // 司机回家目的地与顺路模式缓存（lng/lat/open/max_detour_ratio）
+	RedisDriverPush            = "driver:push:%d"
+	RedisDriverPrefRealtime    = "driver:pref:realtime"
+	RedisDriverPrefReservation = "driver:pref:reservation"
+	// RedisChatOnline 聊天相关 Redis key：跨网关 Pub/Sub 转发核心。
+	RedisChatOnline      = "chat:online:user:%d"  // 用户在线 / 所在 WS 实例
+	RedisChatRoomMembers = "chat:room:%d:members" // 聊天室成员
+	RedisChatPub         = "chat:pub:%d"          // 实时消息 Pub/Sub 频道（roomId=orderId）
+)
+
+const (
+	TopicLocation           = "location-report"
+	TopicOrder              = "order-event"
+	TopicOrderCreated       = "order.created"
+	TopicOrderStatusChanged = "order.status.changed"
+	TopicOrderCancelled     = "order.canceled"
+	TopicDispatchNew        = "dispatch.new"
+	TopicDispatchResult     = "dispatch.result"
+	TopicOrderPaid          = "order.paid"
+	TopicOrderRefunded      = "order.refunded" // 退款成功
+	// TopicAdminDomain 承载管理后台领域可靠事件，消费者按事件体中的 event_type 分发具体业务动作。
+	TopicAdminDomain = "admin.domain"
+	// TopicChatMessage 聊天消息落库后的异步事件，供重试 / 死信（chat.message.dlq）消费。
+	TopicChatMessage = "chat.message"
+)
+
+const (
+	OrderEventStream     = "order:event:stream"
+	DriverLocationStream = "driver:location:stream"
+)
+
+const (
+	DispatchRetryQueueKey   = "dispatch:retry:orders"
+	MaxDispatchRetryAttempt = 3
+	RefundRetryQueueKey     = "refund:retry:events"
+	MaxRefundRetryAttempt   = 5
+	// PaymentRetryQueueKey 行程结束后创建支付单失败的重试队列。
+	// P0-3 修复：FinishTrip 先把订单状态改成 WaitPay 再调 createPayment，后者失败时无补偿会导致订单永久卡 WaitPay。
+	PaymentRetryQueueKey   = "payment:retry:orders"
+	MaxPaymentRetryAttempt = 5
 )
