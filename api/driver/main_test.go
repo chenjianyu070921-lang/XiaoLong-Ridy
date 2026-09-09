@@ -968,6 +968,18 @@ func (r *recordingUpdateDriverClient) ListVehicles(context.Context, *driversprot
 	return &driversproto.ListVehiclesResponse{}, nil
 }
 
+func (r *recordingUpdateDriverClient) SetHomeDestination(context.Context, *driversproto.SetHomeDestinationRequest) (*driversproto.HomeDestinationResponse, error) {
+	return &driversproto.HomeDestinationResponse{}, nil
+}
+
+func (r *recordingUpdateDriverClient) GetHomeDestination(context.Context, *driversproto.GetHomeDestinationRequest) (*driversproto.HomeDestinationResponse, error) {
+	return &driversproto.HomeDestinationResponse{}, nil
+}
+
+func (r *recordingUpdateDriverClient) SetHomeMode(context.Context, *driversproto.SetHomeModeRequest) (*driversproto.HomeDestinationResponse, error) {
+	return &driversproto.HomeDestinationResponse{}, nil
+}
+
 func (r *recordingUpdateDriverClient) GetDriverAiScore(context.Context, *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {
 	return nil, nil
 }

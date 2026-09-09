@@ -18,6 +18,13 @@ const routes = [
     meta: { requiresDriverAuth: true }
   },
   {
+    // 独立私信页：与某订单乘客沟通（仅本订单司机与乘客可见，后端 40301 守门）
+    path: '/chat/:orderId',
+    name: 'DriverOrderChat',
+    component: () => import('@/views/DriverOrderChatPage.vue'),
+    meta: { requiresDriverAuth: true }
+  },
+  {
     path: '/profile/edit',
     name: 'DriverProfileEdit',
     component: () => import('@/views/DriverProfileEdit.vue'),

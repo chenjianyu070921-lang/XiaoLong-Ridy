@@ -262,6 +262,30 @@ func (f *fakeDriverClient) ListVehicles(_ context.Context, req *driversproto.Lis
 	return &driversproto.ListVehiclesResponse{}, nil
 }
 
+func (f *fakeDriverClient) SetHomeDestination(_ context.Context, req *driversproto.SetHomeDestinationRequest) (*driversproto.HomeDestinationResponse, error) {
+	return &driversproto.HomeDestinationResponse{
+		HasSetting:      true,
+		DriverId:        req.GetDriverId(),
+		HomeAddr:        req.GetHomeAddr(),
+		HomeLng:         req.GetHomeLng(),
+		HomeLat:         req.GetHomeLat(),
+		IsHomeModeOpen:  req.GetOpen(),
+		MaxDetourRatio:  req.GetMaxDetourRatio(),
+	}, nil
+}
+
+func (f *fakeDriverClient) GetHomeDestination(_ context.Context, req *driversproto.GetHomeDestinationRequest) (*driversproto.HomeDestinationResponse, error) {
+	return &driversproto.HomeDestinationResponse{HasSetting: false, DriverId: req.GetDriverId()}, nil
+}
+
+func (f *fakeDriverClient) SetHomeMode(_ context.Context, req *driversproto.SetHomeModeRequest) (*driversproto.HomeDestinationResponse, error) {
+	return &driversproto.HomeDestinationResponse{
+		HasSetting:     true,
+		DriverId:       req.GetDriverId(),
+		IsHomeModeOpen: req.GetOpen(),
+	}, nil
+}
+
 func (f *fakeDriverClient) BindBankCard(context.Context, *driversproto.BindBankCardRequest) (*driversproto.BindBankCardResponse, error) {
 	return &driversproto.BindBankCardResponse{Id: 1, BankName: "中国工商银行", MaskedCardNo: "622****123", WithdrawPassword: "123456"}, nil
 }

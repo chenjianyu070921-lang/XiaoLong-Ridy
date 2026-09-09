@@ -3,7 +3,11 @@
     <div id="driver-home-popups"></div>
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
-        <component :is="Component" />
+        <!-- 仅缓存 DriverHome：进入独立私信页 /chat/:orderId 时不卸载首页，
+             其司机 WS / 心跳 / 定位 / 派单等实时连接随司机会话全程存活，聊天不随切页断开。 -->
+        <keep-alive include="DriverHome">
+          <component :is="Component" />
+        </keep-alive>
       </transition>
     </router-view>
   </div>

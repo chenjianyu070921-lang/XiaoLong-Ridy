@@ -1,7 +1,7 @@
 # ============================================================
 # start-local.ps1 - Start all local services with LATEST code
-#   - 4 gRPC services (driversvc/ordersvc/dispatchsvc/locationsvc)
-#   - api/driver (reads api/driver/etc/driver.yaml -> local gRPC)
+#   - 5 gRPC services (driversvc/ordersvc/dispatchsvc/locationsvc/chatsvc)
+#   - api/driver + api/chat (HTTP 网关；chat 供司机端/乘客端共用对接)
 #   - frontend is expected to run separately on localhost:5175
 #
 # Usage:
@@ -52,26 +52,32 @@ $grpc = @(
     @{ Name="driversvc";   Pkg="rpc/driversvc";   Yaml="rpc/driversvc/etc/driversvc.yaml";   Port=50055; WD=$Root },
     @{ Name="ordersvc";    Pkg="rpc/ordersvc";    Yaml="rpc/ordersvc/etc/ordersvc.yaml";     Port=50051; WD=$Root },
     @{ Name="dispatchsvc"; Pkg="rpc/dispatchsvc"; Yaml="rpc/dispatchsvc/etc/dispatchsvc.yaml"; Port=50056; WD=$Root },
-    @{ Name="locationsvc"; Pkg="rpc/locationsvc"; Yaml="rpc/locationsvc/etc/locationsvc.yaml"; Port=50057;  WD=$Root }
+    @{ Name="locationsvc"; Pkg="rpc/locationsvc"; Yaml="rpc/locationsvc/etc/locationsvc.yaml"; Port=50057;  WD=$Root },
+    @{ Name="chatsvc";     Pkg="rpc/chatsvc";     Yaml="rpc/chatsvc/etc/chatsvc.yaml";       Port=8084;  WD=$Root }
 )
 foreach ($s in $grpc) {
     $exe = Build-Service $s.Name $s.Pkg
     if ($exe) { Start-Svc $s.Name $exe (Join-Path $Root $s.Yaml) $s.WD | Out-Null }
 }
 
-# ---------- 2. build & start api/driver ----------
+# ---------- 2. build & start api/driver + api/chat ----------
 $apiExe = Build-Service "api-driver" "api/driver"
 if ($apiExe) {
     $apiWd = Join-Path $Root "api\driver"
     Start-Svc "api-driver" $apiExe (Join-Path $apiWd "etc\driver.yaml") $apiWd | Out-Null
 }
+$chatApiExe = Build-Service "api-chat" "api/chat"
+if ($chatApiExe) {
+    $chatWd = Join-Path $Root "api\chat"
+    Start-Svc "api-chat" $chatApiExe (Join-Path $chatWd "etc\chat.yaml") $chatWd | Out-Null
+}
 
 # ---------- 3. wait for ports ----------
 Write-Host ""
 Write-Host "Waiting for ports..."
-$ports = @{ 50055="driversvc"; 50051="ordersvc"; 50056="dispatchsvc"; 50057="locationsvc"; 8082="api/driver" }
+$ports = @{ 50055="driversvc"; 50051="ordersvc"; 50056="dispatchsvc"; 50057="locationsvc"; 8084="chatsvc"; 8082="api/driver"; 18090="api/chat" }
 foreach ($kv in $ports.GetEnumerator()) { Wait-Port $kv.Key $kv.Value }
 Write-Host ""
-Write-Host "Done. Frontend localhost:5175 should now work."
+Write-Host "Done. Frontend localhost:5175 should now work; chat gateway on :18090."
 Write-Host "Logs: $logs"
 Write-Host "Stop: scripts/stop-local.ps1"

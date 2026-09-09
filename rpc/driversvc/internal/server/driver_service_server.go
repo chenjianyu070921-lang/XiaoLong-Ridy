@@ -232,3 +232,21 @@ func (s *DriverServiceServer) ResetWithdrawPassword(ctx context.Context, in *__p
 	l := logic.NewResetWithdrawPasswordLogic(ctx, s.svcCtx)
 	return l.ResetWithdrawPassword(in)
 }
+
+// 保存/更新司机回家目的地；open=true 时保存后立即开启回家顺路模式。
+func (s *DriverServiceServer) SetHomeDestination(ctx context.Context, in *__proto.SetHomeDestinationRequest) (*__proto.HomeDestinationResponse, error) {
+	l := logic.NewSetHomeDestinationLogic(ctx, s.svcCtx)
+	return l.SetHomeDestination(in)
+}
+
+// 查询司机回家目的地与回家顺路模式状态；未设置过返回 has_setting=false。
+func (s *DriverServiceServer) GetHomeDestination(ctx context.Context, in *__proto.GetHomeDestinationRequest) (*__proto.HomeDestinationResponse, error) {
+	l := logic.NewGetHomeDestinationLogic(ctx, s.svcCtx)
+	return l.GetHomeDestination(in)
+}
+
+// 仅切换回家顺路模式开关（已设置目的地的司机）；设置目的地不等于自动开启听单过滤。
+func (s *DriverServiceServer) SetHomeMode(ctx context.Context, in *__proto.SetHomeModeRequest) (*__proto.HomeDestinationResponse, error) {
+	l := logic.NewSetHomeModeLogic(ctx, s.svcCtx)
+	return l.SetHomeMode(in)
+}

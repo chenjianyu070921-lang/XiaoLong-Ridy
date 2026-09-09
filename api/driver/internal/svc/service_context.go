@@ -85,6 +85,9 @@ type DriverClient interface {
 	DeleteBankCard(ctx context.Context, req *driversproto.DeleteBankCardRequest) (*driversproto.CommonResponse, error)
 	VerifyWithdrawPassword(ctx context.Context, req *driversproto.VerifyWithdrawPasswordRequest) (*driversproto.CommonResponse, error)
 	ResetWithdrawPassword(ctx context.Context, req *driversproto.ResetWithdrawPasswordRequest) (*driversproto.ResetWithdrawPasswordResponse, error)
+	SetHomeDestination(ctx context.Context, req *driversproto.SetHomeDestinationRequest) (*driversproto.HomeDestinationResponse, error)
+	GetHomeDestination(ctx context.Context, req *driversproto.GetHomeDestinationRequest) (*driversproto.HomeDestinationResponse, error)
+	SetHomeMode(ctx context.Context, req *driversproto.SetHomeModeRequest) (*driversproto.HomeDestinationResponse, error)
 }
 
 type grpcClient struct {
@@ -197,6 +200,24 @@ func (g *grpcClient) ListVehicles(ctx context.Context, req *driversproto.ListVeh
 	ctx, cancel := RPCContext(ctx)
 	defer cancel()
 	return g.cli.ListVehicles(ctx, req)
+}
+
+func (g *grpcClient) SetHomeDestination(ctx context.Context, req *driversproto.SetHomeDestinationRequest) (*driversproto.HomeDestinationResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.SetHomeDestination(ctx, req)
+}
+
+func (g *grpcClient) GetHomeDestination(ctx context.Context, req *driversproto.GetHomeDestinationRequest) (*driversproto.HomeDestinationResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.GetHomeDestination(ctx, req)
+}
+
+func (g *grpcClient) SetHomeMode(ctx context.Context, req *driversproto.SetHomeModeRequest) (*driversproto.HomeDestinationResponse, error) {
+	ctx, cancel := RPCContext(ctx)
+	defer cancel()
+	return g.cli.SetHomeMode(ctx, req)
 }
 
 func (g *grpcClient) GetDriverAiScore(ctx context.Context, req *driversproto.GetDriverAiScoreRequest) (*driversproto.GetDriverAiScoreResponse, error) {

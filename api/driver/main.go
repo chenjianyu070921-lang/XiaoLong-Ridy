@@ -23,7 +23,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const defaultHTTPAddress = ":8082"
+// defaultHTTPAddress 与前端 vite 代理、司机端 H5 的固定联调端口保持一致：
+// 8082 在部分 Windows 机器上会被 QQ 等客户端抢注，导致服务只能 bind 到 IPv6，
+// 前端走 127.0.0.1:18082 时打到占用进程返回 404，因此这里默认也必须是 18082。
+const defaultHTTPAddress = ":18082"
 
 // Driver-side backend services are expected to run locally (localhost) in dev;
 // override via env (DRIVER_GRPC_ADDR etc.) or etc/driver.yaml to point at a remote instance.
@@ -40,6 +43,12 @@ const defaultDispatchGRPCAddr = "127.0.0.1:50056"
 const defaultLocationGRPCAddr = "127.0.0.1:50057"
 
 const defaultRedisAddr = ""
+
+// defaultConfigPath 是 -f 未指定时使用的配置文件路径；
+// 找不到时按顺序回退 extraConfigPaths，兼容从仓库根目录或 api/driver 目录启动。
+const defaultConfigPath = "etc/driver.yaml"
+
+var extraConfigPaths = []string{"api/driver/etc/driver.yaml"}
 
 type driverConfig struct {
 	HTTPAddr           string                 `yaml:"httpAddr"`
@@ -66,7 +75,7 @@ type driverConfig struct {
 }
 
 func main() {
-	configPath := flag.String("f", "etc/driver.yaml", "driver api config file")
+	configPath := flag.String("f", defaultConfigPath, "driver api config file")
 	flag.Parse()
 
 	cfg, err := loadDriverConfig(*configPath)
@@ -183,16 +192,34 @@ func loadDriverConfig(path string) (driverConfig, error) {
 		LocationGRPCAddr: defaultLocationGRPCAddr,
 		RedisAddr:        defaultRedisAddr,
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return cfg, nil
+	// 按候选路径依次尝试；使用默认路径时补充回退路径，避免不同 CWD 下静默降级到默认值。
+	candidates := []string{path}
+	if path == defaultConfigPath {
+		candidates = append(candidates, extraConfigPaths...)
+	}
+	for _, candidate := range candidates {
+		data, err := os.ReadFile(candidate)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return cfg, err
 		}
-		return cfg, err
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
+			return cfg, fmt.Errorf("decode driver api config %s: %w", candidate, err)
+		}
+		applyDriverConfigDefaults(&cfg)
+		return cfg, nil
 	}
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return cfg, err
-	}
+	// 配置文件缺失必须显式告警：否则服务会静默使用默认地址/默认 Redis，
+	// 表现为前端代理端口连不上且排查困难。
+	log.Printf("driver api config file not found (tried: %s), fall back to defaults: http=%s redis=%q",
+		strings.Join(candidates, ", "), cfg.HTTPAddr, cfg.RedisAddr)
+	return cfg, nil
+}
+
+// applyDriverConfigDefaults 为配置中留空的字段补齐默认值。
+func applyDriverConfigDefaults(cfg *driverConfig) {
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = defaultHTTPAddress
 	}
@@ -214,7 +241,6 @@ func loadDriverConfig(path string) (driverConfig, error) {
 	if cfg.LocationGRPCAddr == "" {
 		cfg.LocationGRPCAddr = defaultLocationGRPCAddr
 	}
-	return cfg, nil
 }
 
 func envOr(key, fallback string) string {
