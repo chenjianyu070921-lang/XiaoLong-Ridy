@@ -44,6 +44,10 @@ const (
 	RedisDriverPush            = "driver:push:%d"
 	RedisDriverPrefRealtime    = "driver:pref:realtime"
 	RedisDriverPrefReservation = "driver:pref:reservation"
+	// RedisChatOnline 聊天相关 Redis key：跨网关 Pub/Sub 转发核心。
+	RedisChatOnline      = "chat:online:user:%d"  // 用户在线 / 所在 WS 实例
+	RedisChatRoomMembers = "chat:room:%d:members" // 聊天室成员
+	RedisChatPub         = "chat:pub:%d"          // 实时消息 Pub/Sub 频道（roomId=orderId）
 )
 
 const (
@@ -58,6 +62,8 @@ const (
 	TopicOrderRefunded      = "order.refunded" // 退款成功
 	// TopicAdminDomain 承载管理后台领域可靠事件，消费者按事件体中的 event_type 分发具体业务动作。
 	TopicAdminDomain = "admin.domain"
+	// TopicChatMessage 聊天消息落库后的异步事件，供重试 / 死信（chat.message.dlq）消费。
+	TopicChatMessage = "chat.message"
 )
 
 const (

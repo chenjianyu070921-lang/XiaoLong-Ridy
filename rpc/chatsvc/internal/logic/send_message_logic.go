@@ -2,15 +2,14 @@ package logic
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"errors"
 	"strings"
 	"time"
 
-	"XiaoLong-Ridy/common/constants"
-	__proto "XiaoLong-Ridy/rpc/chatsvc/proto"
 	"XiaoLong-Ridy/rpc/chatsvc/internal/model"
+	"XiaoLong-Ridy/rpc/chatsvc/internal/sensitive"
 	"XiaoLong-Ridy/rpc/chatsvc/internal/svc"
+	chatproto "XiaoLong-Ridy/rpc/chatsvc/proto"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc/codes"
@@ -18,116 +17,90 @@ import (
 	"gorm.io/gorm"
 )
 
+// SendMessageLogic 处理消息发送：敏感词拦截 + 幂等 + 未读累加。
 type SendMessageLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logx.Logger
 }
 
+// NewSendMessageLogic 创建逻辑实例。
 func NewSendMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendMessageLogic {
-	return &SendMessageLogic{
-		ctx:    ctx,
-		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
-	}
+	return &SendMessageLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
 }
 
-// chatPushPayload 是经 Redis Pub/Sub 推送给司机 WS（driver:push:%d）的负载。
-type chatPushPayload struct {
-	Type           string          `json:"type"` // 固定 "chat.message"
-	ConversationId int64           `json:"conversationId"`
-	OrderId        int64           `json:"orderId"`
-	OrderNo        string          `json:"orderNo"`
-	Message        chatPushMessage `json:"message"`
-}
-
-type chatPushMessage struct {
-	Id          int64  `json:"id"`
-	SenderType  int32  `json:"senderType"`
-	SenderId    int64  `json:"senderId"`
-	MsgType     int32  `json:"msgType"`
-	Content     string `json:"content"`
-	ClientMsgId string `json:"clientMsgId"`
-	CreateAt    int64  `json:"createAt"`
-}
-
-// SendMessage 发送消息：权限校验 → 状态闸门 → 敏感词拦截 → 幂等(client_msg_id) → 落库 → 实时推送。
-func (l *SendMessageLogic) SendMessage(in *__proto.SendMessageRequest) (*__proto.SendMessageResponse, error) {
-	var conv model.IMConversation
-	if err := l.svcCtx.DB.Where("id = ?", in.ConversationId).First(&conv).Error; err != nil {
-		return nil, status.Errorf(codes.NotFound, "会话不存在")
+// SendMessage 发送一条消息。命中敏感词返回 InvalidArgument（网关映射为 46000），
+// 重复 client_msg_id 幂等返回首次结果。
+func (l *SendMessageLogic) SendMessage(in *chatproto.SendMessageRequest) (*chatproto.SendMessageResponse, error) {
+	if in.ConversationId <= 0 || in.SenderId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "invalid params")
 	}
-	if conv.Status != 1 {
-		return nil, status.Errorf(codes.FailedPrecondition, "当前会话不可发送消息（已归档或已关闭）")
+	if strings.TrimSpace(in.Content) == "" || strings.TrimSpace(in.ClientMsgId) == "" {
+		return nil, status.Error(codes.InvalidArgument, "content and client_msg_id required")
+	}
+	if in.MsgType != MsgTypeText && in.MsgType != MsgTypeQuick {
+		return nil, status.Error(codes.InvalidArgument, "unsupported msg_type")
+	}
+	if sensitive.Contains(in.Content) {
+		return nil, status.Error(codes.InvalidArgument, "命中敏感词，消息已拦截")
 	}
 
-	isDriver := in.SenderType == 1
-	if (isDriver && in.SenderId != conv.DriverId) || (!isDriver && in.SenderId != conv.PassengerId) {
-		return nil, status.Errorf(codes.PermissionDenied, "无权限向该会话发送消息")
+	var conv model.Conversation
+	if err := l.svcCtx.DB.First(&conv, "id = ?", in.ConversationId).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, status.Error(codes.NotFound, "conversation not found")
+		}
+		return nil, status.Error(codes.Internal, "query conversation failed")
 	}
 
-	content := strings.TrimSpace(in.Content)
-	if content == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "消息内容不能为空")
+	senderType := SenderTypeDriver
+	switch {
+	case int64(conv.PassengerId) == in.SenderId:
+		senderType = SenderTypePassenger
+	case int64(conv.DriverId) == in.SenderId:
+		senderType = SenderTypeDriver
+	default:
+		return nil, status.Error(codes.PermissionDenied, "forbidden: not participant")
 	}
-	if len([]rune(content)) > 500 {
-		content = string([]rune(content)[:500])
-	}
-	if l.svcCtx.ContainsSensitive(content) {
-		return nil, status.Errorf(codes.InvalidArgument, "消息包含敏感词，禁止线下交易或交换联系方式")
+	if conv.Status == int8(ConvStatusArchived) || conv.Status == int8(ConvStatusClosed) {
+		return nil, status.Error(codes.FailedPrecondition, "会话已结束，不可发送")
 	}
 
-	// 幂等：同一 client_msg_id 只落一条，重复提交返回首次结果。
-	var existing model.IMMessage
+	// 幂等：client_msg_id 重复则直接返回首次结果。
+	var existing model.Message
 	if err := l.svcCtx.DB.Where("client_msg_id = ?", in.ClientMsgId).First(&existing).Error; err == nil {
-		return &__proto.SendMessageResponse{MessageId: existing.Id, CreateAt: existing.CreatedAt.Unix()}, nil
+		return &chatproto.SendMessageResponse{MessageId: int64(existing.Id), CreateAt: existing.CreateAt.Unix()}, nil
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, status.Error(codes.Internal, "query message failed")
 	}
 
 	now := time.Now()
-	msg := model.IMMessage{
-		ConversationId: conv.Id,
+	msg := model.Message{
+		ConversationId: int64(conv.Id),
 		OrderId:        conv.OrderId,
-		SenderType:     int8(in.SenderType),
+		SenderType:     int8(senderType),
 		SenderId:       in.SenderId,
 		MsgType:        int8(in.MsgType),
-		Content:        content,
+		Content:        in.Content,
 		ClientMsgId:    in.ClientMsgId,
-		CreatedAt:      now,
+		CreateAt:       now,
 	}
 	if err := l.svcCtx.DB.Create(&msg).Error; err != nil {
-		return nil, status.Errorf(codes.Internal, "保存消息失败: %v", err)
+		// 并发插入触发唯一键冲突时回查首次结果。
+		var dup model.Message
+		if e2 := l.svcCtx.DB.Where("client_msg_id = ?", in.ClientMsgId).First(&dup).Error; e2 == nil {
+			return &chatproto.SendMessageResponse{MessageId: int64(dup.Id), CreateAt: dup.CreateAt.Unix()}, nil
+		}
+		return nil, status.Error(codes.Internal, "insert message failed")
 	}
 
-	update := map[string]interface{}{
-		"last_msg":    content,
-		"last_msg_at": now,
-	}
-	if isDriver {
-		update["unread_passenger"] = gorm.Expr("unread_passenger + 1")
+	updates := map[string]any{"last_msg": in.Content, "last_msg_at": now}
+	if senderType == SenderTypeDriver {
+		updates["unread_passenger"] = gorm.Expr("unread_passenger + 1")
 	} else {
-		update["unread_driver"] = gorm.Expr("unread_driver + 1")
+		updates["unread_driver"] = gorm.Expr("unread_driver + 1")
 	}
-	_ = l.svcCtx.DB.Model(&model.IMConversation{}).Where("id = ?", conv.Id).Updates(update)
+	l.svcCtx.DB.Model(&conv).Updates(updates)
 
-	// 实时转发：发布到司机端 WS 频道 driver:push:{driverId}。
-	payload := chatPushPayload{
-		Type:           "chat.message",
-		ConversationId: conv.Id,
-		OrderId:        conv.OrderId,
-		OrderNo:        conv.OrderNo,
-		Message: chatPushMessage{
-			Id:          msg.Id,
-			SenderType:  int32(msg.SenderType),
-			SenderId:    msg.SenderId,
-			MsgType:     int32(msg.MsgType),
-			Content:     msg.Content,
-			ClientMsgId: msg.ClientMsgId,
-			CreateAt:    msg.CreatedAt.Unix(),
-		},
-	}
-	if data, e := json.Marshal(payload); e == nil {
-		l.svcCtx.RedisClient.Publish(context.Background(), fmt.Sprintf(constants.RedisDriverPush, conv.DriverId), string(data))
-	}
-
-	return &__proto.SendMessageResponse{MessageId: msg.Id, CreateAt: now.Unix()}, nil
+	return &chatproto.SendMessageResponse{MessageId: int64(msg.Id), CreateAt: now.Unix()}, nil
 }

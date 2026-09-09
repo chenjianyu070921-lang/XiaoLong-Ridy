@@ -1,65 +1,55 @@
 package svc
 
 import (
-	"strings"
+	"time"
 
+	cfg "XiaoLong-Ridy/common/config"
+	"XiaoLong-Ridy/common/datasource"
 	"XiaoLong-Ridy/rpc/chatsvc/internal/config"
 	"XiaoLong-Ridy/rpc/chatsvc/internal/model"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
-	"github.com/redis/go-redis/v9"
-	"github.com/zeromicro/go-zero/zrpc"
-	"gorm.io/driver/mysql"
+	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/gorm"
 )
 
-// ServiceContext 承载 chatsvc 的依赖：gorm 库、司机推送 Redis、ordersvc 客户端、敏感词集合。
+// ServiceContext 持有 chatsvc 运行时依赖。
 type ServiceContext struct {
-	Config       config.Config
-	DB           *gorm.DB
-	RedisClient  *redis.Client
-	OrderClient  orderproto.OrderClient
-	SensitiveSet map[string]struct{}
+	Config      config.Config
+	DB          *gorm.DB
+	OrderClient orderproto.OrderClient
 }
 
+// NewServiceContext 初始化 MySQL、自动建表并连接 ordersvc。
 func NewServiceContext(c config.Config) *ServiceContext {
-	db, err := gorm.Open(mysql.Open(c.Mysql.DSN), &gorm.Config{})
+	client, err := datasource.NewMysqlClient(cfg.MysqlConf{
+		Dsn:         c.Mysql.Dsn,
+		MaxOpenConn: 50,
+		MaxIdleConn: 10,
+		MaxLifeTime: int((time.Minute * 30).Seconds()),
+	})
 	if err != nil {
 		panic(err)
 	}
-
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     c.DriverRedis.Host,
-		Password: c.DriverRedis.Password,
-		DB:       c.DriverRedis.DB,
-	})
-
-	orderClient := orderproto.NewOrderClient(zrpc.MustNewClient(c.OrderRpc).Conn())
-
-	set := make(map[string]struct{}, len(c.SensitiveWords))
-	for _, w := range c.SensitiveWords {
-		if w = strings.TrimSpace(w); w != "" {
-			set[w] = struct{}{}
-		}
+	// 自动建表：开发环境免去手动执行 scripts/chat.sql；生产以 SQL 脚本为准。
+	if err := client.AutoMigrate(&model.Conversation{}, &model.Message{}); err != nil {
+		logx.Errorf("chatsvc automigrate failed: %v", err)
 	}
 
-	return &ServiceContext{
-		Config:       c,
-		DB:           db,
-		RedisClient:  rdb,
-		OrderClient:  orderClient,
-		SensitiveSet: set,
+	orderAddr := c.OrderRPCAddr
+	if orderAddr == "" {
+		orderAddr = "127.0.0.1:50051"
 	}
+	conn, err := grpc.NewClient(orderAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logx.Errorf("chatsvc connect ordersvc failed: %v", err)
+	}
+
+	svc := &ServiceContext{Config: c, DB: client}
+	if conn != nil {
+		svc.OrderClient = orderproto.NewOrderClient(conn)
+	}
+	return svc
 }
-
-// ContainsSensitive 判断消息是否命中敏感词（线下交易/联系方式等）。
-func (s *ServiceContext) ContainsSensitive(content string) bool {
-	for w := range s.SensitiveSet {
-		if w != "" && strings.Contains(content, w) {
-			return true
-		}
-	}
-	return false
-}
-
-var _ = model.IMConversation{}

@@ -1,25 +1,18 @@
 package config
 
-import "github.com/zeromicro/go-zero/zrpc"
+import (
+	cfg "XiaoLong-Ridy/common/config"
 
-// Config maps rpc/chatsvc/etc/chatsvc.yaml.
+	"github.com/zeromicro/go-zero/zrpc"
+)
+
+// Config 是 chatsvc 的运行配置。
+// 统一方案 V1.0：chatsvc 仅依赖 MySQL（会话/消息持久化）与 ordersvc（订单归属与状态）。
 type Config struct {
 	zrpc.RpcServerConf
 
-	Mysql         MysqlConf         `yaml:"mysql" json:"mysql"`
-	DriverRedis   DriverRedisConf   `yaml:"driverRedis" json:"driverRedis"`
-	OrderRpc      zrpc.RpcClientConf `yaml:"orderRpc" json:"orderRpc"`
-	SensitiveWords []string         `yaml:"sensitiveWords" json:"sensitiveWords"`
-}
-
-// MysqlConf describes the MySQL datasource.
-type MysqlConf struct {
-	DSN string `yaml:"dsn" json:"dsn"`
-}
-
-// DriverRedisConf describes the Redis instance used for driver push (driver:push:%d).
-type DriverRedisConf struct {
-	Host     string `yaml:"host" json:"host"`
-	Password string `yaml:"password" json:"password"`
-	DB       int    `yaml:"db" json:"db"`
+	// Mysql 司乘聊天库，与业务库同实例不同表（im_conversation / im_message）。
+	Mysql cfg.MysqlConf `yaml:"mysql" json:"mysql"`
+	// OrderRPCAddr 订单服务 gRPC 地址，用于读取订单归属与状态。
+	OrderRPCAddr string `yaml:"orderRpcAddr" json:"orderRpcAddr"`
 }

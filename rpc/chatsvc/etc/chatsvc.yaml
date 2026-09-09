@@ -1,35 +1,8 @@
 Name: chatsvc.rpc
-ListenOn: 0.0.0.0:8084
-Etcd:
-  Hosts:
-  - 127.0.0.1:2379
-  Key: chatsvc.rpc
-
-Mysql:
-  dsn: 'root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=true&loc=Local'
-
-# 司机端推送 Redis（driver:push:%d）；与 driversvc 共用同一实例。
-DriverRedis:
-  host: 115.191.16.159:6379
-  password: 4ay1nkal3u8ed77y
-  db: 0
-
-# 经 etcd 发现 ordersvc 失败（本机已有 ordersvc 跑在 50051 但未注册到本地 etcd），
-# 本地 E2E 改为直连已在运行的 ordersvc，用于会话权限与状态闸门校验。
-OrderRpc:
-  Target: 127.0.0.1:50051
-
-# 敏感词：命中即拦截（禁止线下交易/交换联系方式）。
-SensitiveWords:
-  - 微信
-  - wx
-  - 加我微信
-  - 支付宝
-  - 私聊
-  - 线下
-  - 现金
-  - 转账
-  - 电话
-  - 手机号
-  - 银行卡号
-  - qq
+ListenOn: 0.0.0.0:50058
+# 服务端处理超时（毫秒），与 ordersvc 对齐放宽到 30s。
+Timeout: 30000
+mysql:
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+# 订单服务 gRPC 地址，用于读取订单归属与状态。
+orderRpcAddr: "127.0.0.1:50051"

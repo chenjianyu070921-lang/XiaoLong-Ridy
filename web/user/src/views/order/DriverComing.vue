@@ -27,6 +27,10 @@
             <van-icon name="phone-o" size="20" />
             <span>联系司机</span>
           </button>
+          <button class="action-btn chat" @click="goToChat">
+            <van-icon name="chat-o" size="20" />
+            <span>发消息</span>
+          </button>
         </div>
       </div>
 
@@ -172,6 +176,16 @@ const callDriver = () => {
     // 实际项目中这里会调用系统拨号功能
     window.location.href = `tel:${driverInfo.value.phone.replace(/\*/g, '')}`
   }).catch(() => {})
+}
+
+// 进入与司机的聊天室
+const goToChat = () => {
+  const orderId = orderStore.currentOrder?.orderId
+  if (!orderId) {
+    showToast('订单信息不存在')
+    return
+  }
+  router.push(`/chat/${orderId}`)
 }
 
 // 分享行程
@@ -375,8 +389,9 @@ const initDriverMap = async () => {
 
 .actions {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 
 .action-btn {
@@ -385,6 +400,7 @@ const initDriverMap = async () => {
   align-items: center;
   gap: 4px;
   padding: 8px 12px;
+  border: none;
   border-radius: 8px;
   cursor: pointer;
   font-size: 11px;
@@ -394,6 +410,11 @@ const initDriverMap = async () => {
 .action-btn.call {
   background: #EFF6FF;
   color: #3B82F6;
+}
+
+.action-btn.chat {
+  background: #F5F3FF;
+  color: #7C3AED;
 }
 
 .action-btn span {
