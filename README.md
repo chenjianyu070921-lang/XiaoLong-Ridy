@@ -111,22 +111,6 @@ XiaoLong-Ridy
 管理后台模块单独启动：`.\scripts\admin-local\start.ps1`
 （需先设置环境变量 `ADMINSVC_MYSQL_DSN` 与 `ADMINSVC_REDIS_PASSWORD`）。
 
-**本机全链路一键启动（推荐）**：`powershell -ExecutionPolicy Bypass -File .\scripts\run-passenger-to-admin.ps1`
-（构建并启动乘客端 → 管理后台 → 司机端全链路 14 个服务；`-SkipBuild` 跳过编译，`-Stop` 停止。日志与 PID 记录在 `.gotmp/runtime-logs/`）。
-
-### 配置与密钥注入约定
-
-> 项目约定密钥不得写入 `etc/*.yaml` 提交仓库。`rpc/usersvc/etc/usersvc.yaml` 为本地共享 DSN/Redis/令牌签名密钥的**提取源**，一键脚本仅从中读取并注入各进程环境变量。
-
-| 服务 | 密钥项 | 注入方式 |
-| --- | --- | --- |
-| `rpc/adminsvc` | MySQL DSN、Redis 密码 | 环境变量 `ADMINSVC_MYSQL_DSN`、`ADMINSVC_REDIS_PASSWORD`（admin-local 脚本注入） |
-| `api/passenger` | JWT 签名密钥、七牛 AK/SK | 环境变量 `PASSENGER_TOKEN_SIGNING_KEY`、`PASSENGER_QINIU_ACCESS_KEY`/`PASSENGER_QINIU_SECRET_KEY`/`PASSENGER_QINIU_BUCKET`/`PASSENGER_QINIU_DOMAIN`/`PASSENGER_QINIU_UPLOAD_URL`；启动时自动加载 `api/passenger/etc/.env`（已 gitignore） |
-| `rpc/driversvc` / `api/driver` | 令牌签名密钥 | 拒绝占位值 `local-development-signing-key`；本地脚本回退到持久密钥文件 `.gotmp/runtime-logs/local-signing.key` |
-| `job` | MySQL/Redis/下游 RPC 地址 | `job/etc/job.yaml`（driverrpc 指向 50055；下游均 `NonBlock: true`，pushesvc 9002 不可达时不影响启动） |
-
-数据库迁移必须按发布流程显式执行 `scripts/sql/migrate/*.sql`，代码不会自动改库。管理后台二期表（`admin_domain_outbox`、`admin_refund_compensation_task` 等）位于 `17_admin_domain_closure.sql`，未执行前 `job` 的领域 outbox/退款补偿任务会报“表不存在”。
-
 手动多服务启动参考：
 
 ```bash
