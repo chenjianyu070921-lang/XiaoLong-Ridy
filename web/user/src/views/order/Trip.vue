@@ -25,8 +25,11 @@
           <span class="name">{{ driverInfo.name }}</span>
           <span class="car">{{ driverInfo.plateNumber }} · {{ driverInfo.carModel }}</span>
         </div>
-        <button class="call-btn" @click="callDriver">
+        <button class="action-btn call-btn" @click="callDriver">
           <van-icon name="phone-o" size="18" color="#3B82F6" />
+        </button>
+        <button class="action-btn chat-btn" @click="goToChat">
+          <van-icon name="chat-o" size="18" color="#7C3AED" />
         </button>
       </div>
 
@@ -140,6 +143,16 @@ const callDriver = () => {
   }).then(() => {
     window.location.href = `tel:${driverInfo.value.phone.replace(/\*/g, '')}`
   }).catch(() => {})
+}
+
+// 进入与司机的聊天室
+const goToChat = () => {
+  const orderId = orderStore.currentOrder?.orderId
+  if (!orderId) {
+    showToast('订单信息不存在')
+    return
+  }
+  router.push(`/chat/${orderId}`)
 }
 
 // 分享行程
@@ -414,10 +427,9 @@ const initMap = async () => {
   margin-top: 2px;
 }
 
-.call-btn {
+.action-btn {
   width: 40px;
   height: 40px;
-  background: #EFF6FF;
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -427,8 +439,16 @@ const initMap = async () => {
   transition: all 0.2s;
 }
 
-.call-btn:active {
+.action-btn:active {
   transform: scale(0.95);
+}
+
+.call-btn {
+  background: #EFF6FF;
+}
+
+.chat-btn {
+  background: #F5F3FF;
 }
 
 .trip-stats {
