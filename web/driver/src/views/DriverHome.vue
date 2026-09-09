@@ -48,9 +48,6 @@
           <button type="button" aria-label="打开热力图详情" @click="openHeatmap">
             <van-icon name="fire-o" />
           </button>
-          <button type="button" aria-label="听单检测" @click="diagnosticsPanelVisible = true">
-            <van-icon name="chart-trend-o" />
-          </button>
         </div>
       </section>
 
@@ -108,9 +105,21 @@
               <van-switch v-model="listenModeEnabled" size="22px" />
             </label>
           </div>
-          <button type="button" class="home-route-button" @click="navigateHomeRoute">
+          <!-- 回家顺路模式三态：未设置→设置弹窗；已设置未开启→开启；已开启→显示目的地并可关闭 -->
+          <button
+            v-if="!homeDestination || !homeDestination.isHomeModeOpen"
+            type="button"
+            class="home-route-button"
+            :class="{ 'home-route-set': homeDestination && homeDestination.hasSetting }"
+            @click="onHomeRouteClick"
+          >
             <van-icon name="wap-home-o" />
             <span>{{ homeRouteLabel }}</span>
+          </button>
+          <button v-else type="button" class="home-route-button home-route-on" @click="onHomeRouteClick">
+            <van-icon name="wap-home-o" />
+            <span>{{ homeRouteLabel }}</span>
+            <van-icon name="cross" />
           </button>
         </template>
       </section>
@@ -137,18 +146,55 @@
         @edit-profile="openProfileEdit"
         @open-settings="openSettings"
         @logout="logoutDriver"
-      />
-      <DriverReviewsPanel v-model:visible="reviewsPanelVisible" />
-      <DriverListenDiagnosticsPanel
-        v-model:visible="diagnosticsPanelVisible"
-        :samples="dispatchSamples"
-        :ws-connected="wsConnected"
+        @open-diagnostics="diagnosticsPanelVisible = true"
+        @open-income-detail="incomeDetailPanelVisible = true"
       />
     </section>
 
     <van-tabbar v-model="activeTab" class="driver-tabbar" fixed safe-area-inset-bottom>
       <van-tabbar-item v-for="item in tabItems" :key="item.title" :icon="item.icon">{{ item.title }}</van-tabbar-item>
     </van-tabbar>
+
+    <DriverHomeDestinationPanel
+      v-model:visible="homeDestinationPanelVisible"
+      :setting="homeDestination"
+      @saved="onHomeDestinationSaved"
+    />
+
+    <DriverListenDiagnosticsPanel
+      v-model:visible="diagnosticsPanelVisible"
+      :samples="dispatchSamples"
+      :ws-connected="wsConnected"
+    />
+
+    <DriverIncomeDetailPanel v-model:visible="incomeDetailPanelVisible" />
+
+    <DriverOrderDetailPanel
+      v-model:visible="orderDetailPanelVisible"
+      :order="orderDetailPanelOrder"
+      :navigate-to-pickup="navigateToPickup"
+      :contact-passenger="contactPassenger"
+      :has-unread="!!chatUnread[orderDetailPanelOrder?.orderId]"
+      @open-chat="openChat"
+    />
+
+    <DriverChatPanel
+      ref="chatPanelRef"
+      v-model:visible="chatPanelVisible"
+      :order="chatPanelOrder"
+    />
+
+    <!-- 联系乘客下拉（电话 / 私信），两端联系乘客按钮共用 -->
+    <van-action-sheet
+      v-model:show="contactSheetVisible"
+      teleport="#driver-home-popups"
+      :actions="contactActions"
+      cancel-text="取消"
+      description="请选择联系方式"
+      @select="onContactSelect"
+    />
+
+    <DriverReviewsPanel v-model:visible="reviewsPanelVisible" />
 
     <van-popup v-model:show="finishVisible" round position="bottom" teleport="#driver-home-popups">
       <section class="finish-panel">
@@ -216,6 +262,9 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { closeToast, showDialog, showLoadingToast, showToast } from 'vant'
+import { useDriverChatStore } from '@/stores/driverChat'
+
+defineOptions({ name: 'DriverHome' })
 import {
   acceptOrder,
   confirmArrive,
@@ -250,7 +299,11 @@ import DriverOrdersPanel from '@/components/driver-home/DriverOrdersPanel.vue'
 import DriverMinePanel from '@/components/driver-home/DriverMinePanel.vue'
 import DriverReviewsPanel from '@/components/driver-home/DriverReviewsPanel.vue'
 import DriverListenDiagnosticsPanel from '@/components/driver-home/DriverListenDiagnosticsPanel.vue'
+import DriverIncomeDetailPanel from '@/components/driver-home/DriverIncomeDetailPanel.vue'
+import DriverHomeDestinationPanel from '@/components/driver-home/DriverHomeDestinationPanel.vue'
 import DriverTrajectoryPanel from '@/components/driver-home/DriverTrajectoryPanel.vue'
+import DriverOrderDetailPanel from '@/components/driver-home/DriverOrderDetailPanel.vue'
+import DriverChatPanel from '@/components/driver-home/DriverChatPanel.vue'
 import { loadDriverAmap } from '@/config/amap'
 import { normalizeBrowserLocationForAmap } from '@/utils/geo'
 import { apiErrorMessage, safeApiCall } from '@/utils/safe-request'
@@ -259,6 +312,7 @@ import '@/styles/driver-home-panels.css'
 const router = useRouter()
 const route = useRoute()
 const driverStore = useDriverStore()
+const driverChat = useDriverChatStore()
 
 const tabItems = [
   { title: '首页', icon: 'wap-home-o' },
@@ -380,7 +434,9 @@ const heatmapMapReady = ref(false)
 const heatmapMapError = ref('')
 const listenModeEnabled = ref(localStorage.getItem('driverListenModeEnabled') !== '0')
 const previewOrder = ref(null)
-const homeRouteAddress = ref(localStorage.getItem('driverHomeRouteAddress') || '')
+// 回家顺路模式：当前司机的回家目的地与模式状态（来自后端，非 localStorage）。
+const homeDestination = ref(null)
+const homeDestinationPanelVisible = ref(false)
 const realtimeFare = ref(null)
 const realtimeFareLoading = ref(false)
 const realtimeFareError = ref('')
@@ -503,7 +559,12 @@ const homeMapStatusText = computed(() => {
   if (!heatmapPoints.value.length && driverStore.onlineStatus === 1) return '附近暂无线索，继续听单'
   return ''
 })
-const homeRouteLabel = computed(() => homeRouteAddress.value ? '回家顺路: ' + homeRouteAddress.value : '设置回家顺路模式')
+const homeRouteLabel = computed(() => {
+  const d = homeDestination.value
+  if (d && d.isHomeModeOpen) return '回家: ' + (d.homeAddr || '顺路听单中')
+  if (d && d.hasSetting) return '开启回家顺路模式'
+  return '设置回家顺路模式'
+})
 const heatmapStatusText = computed(() => {
   if (heatmapMapError.value) return heatmapMapError.value
   if (!heatmapMapReady.value) return '地图加载中...'
@@ -524,6 +585,7 @@ onMounted(async () => {
   window.addEventListener('pageshow', resumeRealtimeWorkOnForeground)
   document.addEventListener('visibilitychange', handleVisibilityChange)
   await loadDashboardData()
+  await loadHomeDestination()
   await ensureHomeMap()
   await refreshHomeWorkbench()
   if (driverStore.onlineStatus > 0) startRealtimeWork()
@@ -1327,6 +1389,7 @@ function connectPushChannel() {
   socket.onopen = () => {
     reconnectAttempts = 0
     wsConnected.value = true
+    driverChat.realtimeActive = true
     pushLastMessageAt = Date.now()
   }
   socket.onmessage = (event) => {
@@ -1335,6 +1398,7 @@ function connectPushChannel() {
   }
   socket.onclose = () => {
     wsConnected.value = false
+    driverChat.realtimeActive = false
     // 仅当关闭的是当前连接时才清理，避免误清重连后的新连接
     if (pushSocket === socket) pushSocket = null
     scheduleReconnect()
@@ -1370,6 +1434,19 @@ function handlePushMessage(raw) {
       window.dispatchEvent(new CustomEvent('driver-review-updated', { detail: payload }))
     } else if (payload.type === 'auth_failed') {
       handlePushAuthFailed()
+    } else if (payload.type === 'chat.message') {
+      // 司乘聊天实时消息：统一收口到共享 store（首页面板与独立私信页共用同一数据源）
+      const orderId = payload.orderId
+      const msg = payload.message
+      driverChat.appendMessage(msg)
+      // 已在独立私信页展示该订单，无需首页提示
+      if (driverChat.activeOrderId === orderId) return
+      if (chatPanelVisible.value && chatPanelOrder.value && Number(chatPanelOrder.value.orderId) === Number(orderId)) {
+        chatPanelRef.value?.appendMessage(msg)
+      } else {
+        chatUnread.value[orderId] = true
+        showToast('收到乘客新消息')
+      }
     }
   } catch {
     // Push messages are best-effort; malformed messages should not block the H5 page.
@@ -1380,6 +1457,7 @@ function handlePushMessage(raw) {
 // 停止重连并回登录页让司机重新获取 token。
 function handlePushAuthFailed() {
   pushAuthFailed = true
+  driverChat.realtimeActive = false
   if (reconnectTimer) {
     window.clearTimeout(reconnectTimer)
     reconnectTimer = null
@@ -1625,10 +1703,9 @@ async function loadOrderDetail(orderId) {
   if ([2, 3].includes(status)) {
     driverStore.setCurrentOrder(order, status === 3 ? 'trip' : 'pickup')
   }
-  showDialog({
-    title: order.orderNo || '订单 ' + order.orderId,
-    message: (order.fromAddress || '--') + '\n到\n' + (order.toAddress || '--') + '\n' + formatPrice(order.estimatedPriceCents)
-  })
+  // 订单详情弹窗：交给 DriverOrderDetailPanel 渲染，状态/路线/价格/操作完整呈现
+  orderDetailPanelOrder.value = order
+  orderDetailPanelVisible.value = true
 }
 
 async function openTrajectoryPanel(order) {
@@ -1693,23 +1770,80 @@ function navigateToPickup(order) {
   window.open(url, '_blank')
 }
 
-function navigateHomeRoute() {
-  if (!homeRouteAddress.value) {
-    const value = window.prompt('请输入回家顺路目的地', '')
-    if (!value) return
-    homeRouteAddress.value = value.trim()
-    localStorage.setItem('driverHomeRouteAddress', homeRouteAddress.value)
-  }
-  showToast('已开启回家顺路 ' + homeRouteAddress.value)
-}
-
-function contactPassenger(order) {
-  const phone = order?.passengerPhone || order?.userPhone || order?.phone || ''
-  if (!phone) {
-    showToast('暂无乘客联系方式')
+// 回家顺路模式入口：三态流转（设置 / 开启 / 关闭）。
+function onHomeRouteClick() {
+  const d = homeDestination.value
+  if (d && d.hasSetting && !d.isHomeModeOpen) {
+    // 已设置目的地但未开启 → 开启回家顺路模式（只改听单过滤规则，不自动结束听单）。
+    void setHomeMode({ open: true })
+      .then(onHomeDestinationSaved)
+      .catch((e) => showToast(e?.response?.data?.message || '开启失败'))
     return
   }
-  window.location.href = 'tel:' + phone
+  if (d && d.isHomeModeOpen) {
+    // 已开启 → 关闭回家模式，恢复全域听单。
+    void setHomeMode({ open: false })
+      .then(onHomeDestinationSaved)
+      .catch((e) => showToast(e?.response?.data?.message || '关闭失败'))
+    return
+  }
+  // 未设置目的地 → 打开 POI 联想弹窗。
+  homeDestinationPanelVisible.value = true
+}
+
+// 拉取当前司机回家目的地与模式状态。
+async function loadHomeDestination() {
+  try {
+    const res = await getHomeDestination({ silentError: true })
+    homeDestination.value = res?.data || null
+  } catch (e) {
+    homeDestination.value = null
+  }
+}
+
+// 保存/开关回调：刷新本地状态，使按钮即时流转。
+function onHomeDestinationSaved(saved) {
+  if (saved) homeDestination.value = saved
+  else loadHomeDestination()
+}
+
+// 联系乘客：弹出电话/私信下拉，具体动作交给 onContactSelect
+// 仅在订单活跃期开放私信，与 DriverOrderDetailPanel.canChat 一致；电话项按是否拿到号码启用
+const contactSheetOrder = ref(null)
+const contactSheetVisible = ref(false)
+
+function contactPassenger(order) {
+  if (!order) return
+  contactSheetOrder.value = order
+  contactSheetVisible.value = true
+}
+
+const contactActions = computed(() => {
+  const o = contactSheetOrder.value
+  const phone = o?.passengerPhone || o?.userPhone || o?.phone || ''
+  const s = Number(o?.status || 0)
+  const canMsg = s === 2 || s === 3 || s === 4
+  return [
+    { name: '电话联系乘客', disabled: !phone },
+    { name: '发送私信', disabled: !canMsg }
+  ]
+})
+
+function onContactSelect(action, index) {
+  const order = contactSheetOrder.value
+  contactSheetVisible.value = false
+  if (!order) return
+  if (index === 0) {
+    const phone = order?.passengerPhone || order?.userPhone || order?.phone || ''
+    if (!phone) {
+      showToast('暂无乘客联系方式')
+      return
+    }
+    window.location.href = 'tel:' + phone
+  } else if (index === 1) {
+    // 跳转到独立私信页（/chat/:orderId），仅本订单司机与乘客可见，后端 40301 守门
+    router.push('/chat/' + order.orderId)
+  }
 }
 
 function reportAbnormal() {
@@ -1774,8 +1908,26 @@ function openPassengerReviews() {
   reviewsPanelVisible.value = true
 }
 
+// 订单详情弹窗：替换原 showDialog 单行文本
+const orderDetailPanelVisible = ref(false)
+const orderDetailPanelOrder = ref(null)
+
+// 司乘聊天面板：仅司机端，乘客端后续直连 api/chat 网关即可对接
+const chatPanelVisible = ref(false)
+const chatPanelOrder = ref(null)
+const chatPanelRef = ref(null)
+const chatUnread = ref({})
+
+function openChat(order) {
+  if (!order) return
+  chatUnread.value[order.orderId] = false
+  chatPanelOrder.value = order
+  chatPanelVisible.value = true
+}
+
 // ── 听单检测：WS 连接状态与派单推送延迟样本 ──
 const diagnosticsPanelVisible = ref(false)
+const incomeDetailPanelVisible = ref(false)
 const wsConnected = ref(false)
 const dispatchSamples = ref([])
 const MAX_DISPATCH_SAMPLES = 20
@@ -1874,6 +2026,9 @@ function deviceId() {
 .idle-controls { grid-template-columns: minmax(0, 1fr) 92px; align-items: center; }
 .listen-switch { display: grid; justify-items: center; gap: 6px; color: var(--driver-muted); font-size: 12px; font-weight: 800; }
 .home-route-button { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.home-route-button.home-route-set { border-color: var(--driver-primary); color: var(--driver-primary); }
+.home-route-button.home-route-on { border-color: var(--driver-primary); background: var(--driver-primary); color: var(--driver-on-primary); }
+.home-route-button.home-route-on .van-icon:last-child { margin-left: 4px; }
 .driver-avatar-button { width: 52px; height: 52px; flex: 0 0 52px; padding: 0; border: 0; border-radius: 50%; background: transparent; }
 .driver-avatar-button img, .avatar-fallback { width: 52px; height: 52px; flex: 0 0 52px; border: 2px solid rgba(255,255,255,.72); border-radius: 50%; background: rgba(255,255,255,.22); object-fit: cover; }
 .avatar-fallback { display: grid; place-items: center; color: #fff; font-size: 22px; font-weight: 800; }

@@ -72,6 +72,44 @@ service DriverService {
   rpc DeleteBankCard(DeleteBankCardRequest) returns (CommonResponse);
   rpc VerifyWithdrawPassword(VerifyWithdrawPasswordRequest) returns (CommonResponse);
   rpc ResetWithdrawPassword(ResetWithdrawPasswordRequest) returns (ResetWithdrawPasswordResponse);
+
+  // 保存/更新司机回家目的地；open=true 时保存后立即开启回家顺路模式。
+  rpc SetHomeDestination(SetHomeDestinationRequest) returns (HomeDestinationResponse);
+  // 查询司机回家目的地与回家顺路模式状态；未设置过返回 has_setting=false。
+  rpc GetHomeDestination(GetHomeDestinationRequest) returns (HomeDestinationResponse);
+  // 仅切换回家顺路模式开关（已设置目的地的司机）；设置目的地不等于自动开启听单过滤。
+  rpc SetHomeMode(SetHomeModeRequest) returns (HomeDestinationResponse);
+}
+
+// 回家目的地设置响应：has_setting=false 表示司机从未设置过回家目的地。
+message HomeDestinationResponse {
+  bool has_setting = 1;
+  int64 driver_id = 2;
+  string home_addr = 3;
+  double home_lng = 4;
+  double home_lat = 5;
+  bool is_home_mode_open = 6;
+  double max_detour_ratio = 7;
+}
+
+message SetHomeDestinationRequest {
+  int64 driver_id = 1;
+  string home_addr = 2;
+  double home_lng = 3;
+  double home_lat = 4;
+  // open 为 true 时保存后同时开启回家顺路模式；false 表示仅保存地址不改开关。
+  bool open = 5;
+  // max_detour_ratio 顺路判定允许的最大绕路比例（相对直达回家的路程），<=0 时使用默认值。
+  double max_detour_ratio = 6;
+}
+
+message GetHomeDestinationRequest {
+  int64 driver_id = 1;
+}
+
+message SetHomeModeRequest {
+  int64 driver_id = 1;
+  bool open = 2;
 }
 
 message Driver {

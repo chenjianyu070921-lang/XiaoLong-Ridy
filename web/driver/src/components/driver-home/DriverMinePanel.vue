@@ -17,7 +17,7 @@
     <div class="mine-list">
       <button type="button" @click="showServiceScore">服务分 <span class="svc-cell"><ServiceScore :score="displayServiceScore" /> <i>›</i></span></button>
       <button type="button" @click="$emit('open-reviews')">乘客评价 <span><i>›</i></span></button>
-      <button type="button" @click="$emit('refresh-dashboard')">听单检测 <span><i>›</i></span></button>
+      <button type="button" @click="$emit('open-diagnostics')">听单检测 <span><i>›</i></span></button>
       <button type="button" @click="$emit('open-help')">帮助中心 <span><i>›</i></span></button>
       <button type="button" @click="$emit('open-settings')">设置 <span><i>›</i></span></button>
       <button type="button" class="logout-button" @click="$emit('logout')">退出登录 <van-icon name="arrow" /></button>
@@ -60,17 +60,30 @@ const walletTotalIncomeCents = computed(() => props.incomeSummary?.totalIncomeCe
 
 // 原型图中的工具入口：已接入功能跳独立页面，未接入功能提示暂未开放。
 const moreTools = [
-  { label: '车辆管理', icon: 'logistics', action: '/mine/vehicle' }, { label: '收益明细', icon: 'balance-list-o', action: '/mine/income' },
+  { label: '车辆管理', icon: 'logistics', action: '/mine/vehicle' }, { label: '收益明细', icon: 'balance-list-o', emit: 'open-income-detail' },
   { label: '发票中心', icon: 'description' }, { label: '银行卡', icon: 'card', action: '/mine/bank-cards' }, { label: '邀请有奖', icon: 'friends-o' }
 ]
 
-defineEmits([
+const emit = defineEmits([
   'refresh-dashboard',
   'edit-profile',
   'open-settings',
   'open-reviews',
   'open-help',
-  'logout'
+  'logout',
+  'open-diagnostics',
+  'open-income-detail',
+  'update:orderMode',
+  'update:orderStatus',
+  'update:nearby-order-popup-visible',
+  'load-orders',
+  'load-nearby-orders',
+  'load-nearby-expanded-orders',
+  'open-nearby-popup',
+  'order-detail',
+  'order-action',
+  'open-finish',
+  'open-trajectory'
 ])
 
 async function openMinePage(path) {
@@ -79,6 +92,11 @@ async function openMinePage(path) {
 }
 
 function openTool(tool) {
+  // 收益明细等改为弹窗的入口：优先 emit 事件，由 DriverHome 控制弹窗。
+  if (tool.emit) {
+    emit(tool.emit)
+    return
+  }
   if (!tool.action) {
     showToast(`${tool.label}暂未开放`)
     return

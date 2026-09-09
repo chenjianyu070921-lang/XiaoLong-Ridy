@@ -60,6 +60,9 @@ const (
 	DriverService_DeleteBankCard_FullMethodName          = "/driversvc.DriverService/DeleteBankCard"
 	DriverService_VerifyWithdrawPassword_FullMethodName  = "/driversvc.DriverService/VerifyWithdrawPassword"
 	DriverService_ResetWithdrawPassword_FullMethodName   = "/driversvc.DriverService/ResetWithdrawPassword"
+	DriverService_SetHomeDestination_FullMethodName      = "/driversvc.DriverService/SetHomeDestination"
+	DriverService_GetHomeDestination_FullMethodName      = "/driversvc.DriverService/GetHomeDestination"
+	DriverService_SetHomeMode_FullMethodName             = "/driversvc.DriverService/SetHomeMode"
 )
 
 // DriverServiceClient is the client API for DriverService service.
@@ -112,6 +115,12 @@ type DriverServiceClient interface {
 	DeleteBankCard(ctx context.Context, in *DeleteBankCardRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	VerifyWithdrawPassword(ctx context.Context, in *VerifyWithdrawPasswordRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 	ResetWithdrawPassword(ctx context.Context, in *ResetWithdrawPasswordRequest, opts ...grpc.CallOption) (*ResetWithdrawPasswordResponse, error)
+	// 保存/更新司机回家目的地；open=true 时保存后立即开启回家顺路模式。
+	SetHomeDestination(ctx context.Context, in *SetHomeDestinationRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error)
+	// 查询司机回家目的地与回家顺路模式状态；未设置过返回 has_setting=false。
+	GetHomeDestination(ctx context.Context, in *GetHomeDestinationRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error)
+	// 仅切换回家顺路模式开关（已设置目的地的司机）；设置目的地不等于自动开启听单过滤。
+	SetHomeMode(ctx context.Context, in *SetHomeModeRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error)
 }
 
 type driverServiceClient struct {
@@ -532,6 +541,36 @@ func (c *driverServiceClient) ResetWithdrawPassword(ctx context.Context, in *Res
 	return out, nil
 }
 
+func (c *driverServiceClient) SetHomeDestination(ctx context.Context, in *SetHomeDestinationRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HomeDestinationResponse)
+	err := c.cc.Invoke(ctx, DriverService_SetHomeDestination_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driverServiceClient) GetHomeDestination(ctx context.Context, in *GetHomeDestinationRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HomeDestinationResponse)
+	err := c.cc.Invoke(ctx, DriverService_GetHomeDestination_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *driverServiceClient) SetHomeMode(ctx context.Context, in *SetHomeModeRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HomeDestinationResponse)
+	err := c.cc.Invoke(ctx, DriverService_SetHomeMode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DriverServiceServer is the server API for DriverService service.
 // All implementations must embed UnimplementedDriverServiceServer
 // for forward compatibility.
@@ -582,6 +621,12 @@ type DriverServiceServer interface {
 	DeleteBankCard(context.Context, *DeleteBankCardRequest) (*CommonResponse, error)
 	VerifyWithdrawPassword(context.Context, *VerifyWithdrawPasswordRequest) (*CommonResponse, error)
 	ResetWithdrawPassword(context.Context, *ResetWithdrawPasswordRequest) (*ResetWithdrawPasswordResponse, error)
+	// 保存/更新司机回家目的地；open=true 时保存后立即开启回家顺路模式。
+	SetHomeDestination(context.Context, *SetHomeDestinationRequest) (*HomeDestinationResponse, error)
+	// 查询司机回家目的地与回家顺路模式状态；未设置过返回 has_setting=false。
+	GetHomeDestination(context.Context, *GetHomeDestinationRequest) (*HomeDestinationResponse, error)
+	// 仅切换回家顺路模式开关（已设置目的地的司机）；设置目的地不等于自动开启听单过滤。
+	SetHomeMode(context.Context, *SetHomeModeRequest) (*HomeDestinationResponse, error)
 	mustEmbedUnimplementedDriverServiceServer()
 }
 
@@ -714,6 +759,15 @@ func (UnimplementedDriverServiceServer) VerifyWithdrawPassword(context.Context, 
 }
 func (UnimplementedDriverServiceServer) ResetWithdrawPassword(context.Context, *ResetWithdrawPasswordRequest) (*ResetWithdrawPasswordResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ResetWithdrawPassword not implemented")
+}
+func (UnimplementedDriverServiceServer) SetHomeDestination(context.Context, *SetHomeDestinationRequest) (*HomeDestinationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetHomeDestination not implemented")
+}
+func (UnimplementedDriverServiceServer) GetHomeDestination(context.Context, *GetHomeDestinationRequest) (*HomeDestinationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetHomeDestination not implemented")
+}
+func (UnimplementedDriverServiceServer) SetHomeMode(context.Context, *SetHomeModeRequest) (*HomeDestinationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetHomeMode not implemented")
 }
 func (UnimplementedDriverServiceServer) mustEmbedUnimplementedDriverServiceServer() {}
 func (UnimplementedDriverServiceServer) testEmbeddedByValue()                       {}
@@ -1474,6 +1528,60 @@ func _DriverService_ResetWithdrawPassword_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DriverService_SetHomeDestination_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetHomeDestinationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriverServiceServer).SetHomeDestination(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DriverService_SetHomeDestination_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriverServiceServer).SetHomeDestination(ctx, req.(*SetHomeDestinationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DriverService_GetHomeDestination_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetHomeDestinationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriverServiceServer).GetHomeDestination(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DriverService_GetHomeDestination_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriverServiceServer).GetHomeDestination(ctx, req.(*GetHomeDestinationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DriverService_SetHomeMode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetHomeModeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DriverServiceServer).SetHomeMode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DriverService_SetHomeMode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DriverServiceServer).SetHomeMode(ctx, req.(*SetHomeModeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DriverService_ServiceDesc is the grpc.ServiceDesc for DriverService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1644,6 +1752,18 @@ var DriverService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResetWithdrawPassword",
 			Handler:    _DriverService_ResetWithdrawPassword_Handler,
+		},
+		{
+			MethodName: "SetHomeDestination",
+			Handler:    _DriverService_SetHomeDestination_Handler,
+		},
+		{
+			MethodName: "GetHomeDestination",
+			Handler:    _DriverService_GetHomeDestination_Handler,
+		},
+		{
+			MethodName: "SetHomeMode",
+			Handler:    _DriverService_SetHomeMode_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

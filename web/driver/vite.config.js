@@ -6,6 +6,8 @@ import { VantResolver } from '@vant/auto-import-resolver'
 
 // 默认 18082：8082 在部分 Windows 机器上会被 QQ 抢注，改用 18082 避免联调 404。
 const driverApiTarget = process.env.VITE_DRIVER_API_TARGET || 'http://127.0.0.1:18082'
+// 聊天网关（api/chat）：与司机端共用同一套 JWT，乘客端后续直连该网关即可对接。
+const chatApiTarget = process.env.VITE_CHAT_API_TARGET || 'http://127.0.0.1:18090'
 
 export default defineConfig({
   plugins: [
@@ -26,6 +28,11 @@ export default defineConfig({
     proxy: {
       '/api/driver': {
         target: driverApiTarget,
+        changeOrigin: true,
+        ws: true
+      },
+      '/api/chat': {
+        target: chatApiTarget,
         changeOrigin: true,
         ws: true
       }

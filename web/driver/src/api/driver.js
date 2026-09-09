@@ -172,6 +172,21 @@ export function getReviewSummary(config = {}) {
   return driverRequest.get('/reviews/summary', config)
 }
 
+// 回家目的地与回家顺路模式：查询设置
+export function getHomeDestination(config = {}) {
+  return driverRequest.get('/home-destination', config)
+}
+
+// 保存回家目的地，open=true 时同时开启回家顺路模式（只做订单顺路过滤，不改变听单状态）
+export function setHomeDestination(data, config = {}) {
+  return driverRequest.post('/home-destination/save', data, config)
+}
+
+// 仅切换回家顺路模式开关：开启=顺路过滤，关闭=恢复全域听单
+export function setHomeMode(data, config = {}) {
+  return driverRequest.post('/home-destination/mode', data, config)
+}
+
 export function listReceivedReviews(params = {}, config = {}) {
   return driverRequest.get('/reviews/received', {
     ...config,

@@ -49,10 +49,12 @@ type (
 	GetDriverByPhoneResponse        = __proto.GetDriverByPhoneResponse
 	GetDriverRequest                = __proto.GetDriverRequest
 	GetDriverResponse               = __proto.GetDriverResponse
+	GetHomeDestinationRequest       = __proto.GetHomeDestinationRequest
 	GetVehicleRequest               = __proto.GetVehicleRequest
 	GetVehicleResponse              = __proto.GetVehicleResponse
 	HeartbeatRequest                = __proto.HeartbeatRequest
 	HeartbeatResponse               = __proto.HeartbeatResponse
+	HomeDestinationResponse         = __proto.HomeDestinationResponse
 	ListBankCardsRequest            = __proto.ListBankCardsRequest
 	ListBankCardsResponse           = __proto.ListBankCardsResponse
 	ListDriversRequest              = __proto.ListDriversRequest
@@ -78,6 +80,8 @@ type (
 	SetDriverOnlineResponse         = __proto.SetDriverOnlineResponse
 	SetDriverServiceStatusRequest   = __proto.SetDriverServiceStatusRequest
 	SetDriverServiceStatusResponse  = __proto.SetDriverServiceStatusResponse
+	SetHomeDestinationRequest       = __proto.SetHomeDestinationRequest
+	SetHomeModeRequest              = __proto.SetHomeModeRequest
 	UnfreezeDriverRequest           = __proto.UnfreezeDriverRequest
 	UpdateDriverRequest             = __proto.UpdateDriverRequest
 	UpdateDriverResponse            = __proto.UpdateDriverResponse
@@ -136,6 +140,12 @@ type (
 		DeleteBankCard(ctx context.Context, in *DeleteBankCardRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		VerifyWithdrawPassword(ctx context.Context, in *VerifyWithdrawPasswordRequest, opts ...grpc.CallOption) (*CommonResponse, error)
 		ResetWithdrawPassword(ctx context.Context, in *ResetWithdrawPasswordRequest, opts ...grpc.CallOption) (*ResetWithdrawPasswordResponse, error)
+		// 保存/更新司机回家目的地；open=true 时保存后立即开启回家顺路模式。
+		SetHomeDestination(ctx context.Context, in *SetHomeDestinationRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error)
+		// 查询司机回家目的地与回家顺路模式状态；未设置过返回 has_setting=false。
+		GetHomeDestination(ctx context.Context, in *GetHomeDestinationRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error)
+		// 仅切换回家顺路模式开关（已设置目的地的司机）；设置目的地不等于自动开启听单过滤。
+		SetHomeMode(ctx context.Context, in *SetHomeModeRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error)
 	}
 
 	defaultDriverService struct {
@@ -357,4 +367,22 @@ func (m *defaultDriverService) VerifyWithdrawPassword(ctx context.Context, in *V
 func (m *defaultDriverService) ResetWithdrawPassword(ctx context.Context, in *ResetWithdrawPasswordRequest, opts ...grpc.CallOption) (*ResetWithdrawPasswordResponse, error) {
 	client := __proto.NewDriverServiceClient(m.cli.Conn())
 	return client.ResetWithdrawPassword(ctx, in, opts...)
+}
+
+// 保存/更新司机回家目的地；open=true 时保存后立即开启回家顺路模式。
+func (m *defaultDriverService) SetHomeDestination(ctx context.Context, in *SetHomeDestinationRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.SetHomeDestination(ctx, in, opts...)
+}
+
+// 查询司机回家目的地与回家顺路模式状态；未设置过返回 has_setting=false。
+func (m *defaultDriverService) GetHomeDestination(ctx context.Context, in *GetHomeDestinationRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.GetHomeDestination(ctx, in, opts...)
+}
+
+// 仅切换回家顺路模式开关（已设置目的地的司机）；设置目的地不等于自动开启听单过滤。
+func (m *defaultDriverService) SetHomeMode(ctx context.Context, in *SetHomeModeRequest, opts ...grpc.CallOption) (*HomeDestinationResponse, error) {
+	client := __proto.NewDriverServiceClient(m.cli.Conn())
+	return client.SetHomeMode(ctx, in, opts...)
 }
