@@ -16,6 +16,7 @@ type Config struct {
 
 	Mysql       MysqlConf       `yaml:"mysql" json:"mysql"`
 	SigningKey  string          `yaml:"signingKey" json:"signingKey"`
+	CardKey     string          `yaml:"cardKey" json:"cardKey"`
 	DriverRedis DriverRedisConf `yaml:"driverRedis" json:"driverRedis"`
 	Minio       MinioConf       `yaml:"minio" json:"minio"`
 }

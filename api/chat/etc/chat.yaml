@@ -1,0 +1,10 @@
+httpAddr: ":18090"
+
+# 本地 E2E：直连已在运行的 chatsvc（本机服务未注册到本地 docker etcd，改用直连更稳）
+chatRpc:
+  Target: 127.0.0.1:8084
+
+# JWT 签名密钥：司机端(driversvc) 与 乘客端(usersvc) 多密钥兼容，便于乘客端后续直接对接。
+signingKeys:
+  - driversvc-local-dev-key
+  - local-development-signing-key

@@ -2,13 +2,19 @@ package logic
 
 import (
 	"context"
+	"errors"
+	"math"
 	"sync"
 	"time"
 
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
+	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	payproto "XiaoLong-Ridy/rpc/paysvc/proto"
 )
+
+// errDriverClientNotConfigured 表示 ServiceContext 未注入司机 RPC 客户端。
+var errDriverClientNotConfigured = errors.New("driver client not configured")
 
 const (
 	incomePageSize           int32 = 100
@@ -41,13 +47,60 @@ func (l *IncomeLogic) GetIncomeSummary(driverID int64) (*types.GetIncomeSummaryR
 	if summary.capped {
 		source = incomeSource + ":capped"
 	}
+	// P1-1 修复：可提现额必须扣减「已申请 + 已打款」的提现金额，
+	// 否则司机看到的可提余额虚高，可超量/重复提现造成资损。
+	withdrawnCents, err := l.sumWithdrawnCents(driverID)
+	if err != nil {
+		return nil, err
+	}
+	withdrawable := summary.incomeCents - withdrawnCents
+	if withdrawable < 0 {
+		withdrawable = 0
+	}
 	return &types.GetIncomeSummaryResponse{
 		DriverID:          driverID,
 		CompletedOrders:   summary.count,
 		TotalIncomeCents:  summary.incomeCents,
-		WithdrawableCents: summary.incomeCents,
+		WithdrawableCents: withdrawable,
 		Source:            source,
 	}, nil
+}
+
+// sumWithdrawnCents 累加司机「已申请(pending=1) + 已打款(paid=2)」提现金额，换算为分。
+// 这两类都占用可提余额：已打款已实际到账，已申请尚未处理但不可重复提取。
+func (l *IncomeLogic) sumWithdrawnCents(driverID int64) (int64, error) {
+	client := l.svcCtx.DriverClient
+	if client == nil {
+		return 0, errDriverClientNotConfigured
+	}
+	const pageSize int32 = 100
+	var (
+		page  int32 = 1
+		total int64
+	)
+	for {
+		resp, err := client.ListWithdraws(l.ctx, &driversproto.ListWithdrawsRequest{
+			DriverId: driverID,
+			Page:     page,
+			PageSize: pageSize,
+		})
+		if err != nil {
+			return 0, err
+		}
+		for _, w := range resp.GetRecords() {
+			if w.GetStatus() == int32(1) || w.GetStatus() == int32(2) {
+				total += int64(math.Round(w.GetAmount() * 100))
+			}
+		}
+		if int64(len(resp.GetRecords())) < int64(pageSize) {
+			break
+		}
+		page++
+		if page > 1000 { // 安全上限，避免异常分页导致死循环
+			break
+		}
+	}
+	return total, nil
 }
 
 func (l *IncomeLogic) GetTodayIncome(driverID int64) (*types.PeriodIncomeResponse, error) {

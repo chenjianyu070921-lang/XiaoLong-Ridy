@@ -39,10 +39,15 @@ const (
 	RedisDriverGeo             = "driver:geo:%s"
 	RedisDriverOnline          = "driver:online"
 	RedisDriverBusy            = "driver:busy"
-	RedisDriverAvailable       = "driver:available:%d"
+	RedisDriverAvailable       = "driver:available:%d" // 派给司机的待接单集合（90s TTL）
+	RedisDriverHome            = "driver:home:%d"      // 司机回家目的地与顺路模式缓存（lng/lat/open/max_detour_ratio）
 	RedisDriverPush            = "driver:push:%d"
 	RedisDriverPrefRealtime    = "driver:pref:realtime"
 	RedisDriverPrefReservation = "driver:pref:reservation"
+	// RedisChatOnline 聊天相关 Redis key：跨网关 Pub/Sub 转发核心。
+	RedisChatOnline      = "chat:online:user:%d"  // 用户在线 / 所在 WS 实例
+	RedisChatRoomMembers = "chat:room:%d:members" // 聊天室成员
+	RedisChatPub         = "chat:pub:%d"          // 实时消息 Pub/Sub 频道（roomId=orderId）
 )
 
 const (
@@ -54,9 +59,11 @@ const (
 	TopicDispatchNew        = "dispatch.new"
 	TopicDispatchResult     = "dispatch.result"
 	TopicOrderPaid          = "order.paid"
-	TopicOrderRefunded      = "order.refunded" // 閫€娆炬垚鍔?)
+	TopicOrderRefunded      = "order.refunded" // 退款成功
 	// TopicAdminDomain 承载管理后台领域可靠事件，消费者按事件体中的 event_type 分发具体业务动作。
 	TopicAdminDomain = "admin.domain"
+	// TopicChatMessage 聊天消息落库后的异步事件，供重试 / 死信（chat.message.dlq）消费。
+	TopicChatMessage = "chat.message"
 )
 
 const (

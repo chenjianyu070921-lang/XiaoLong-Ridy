@@ -49,6 +49,14 @@ func writeParamError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, 50000, err.Error())
 		return
 	}
+	if errors.Is(err, logic.ErrCodeInvalid) {
+		writeError(w, http.StatusBadRequest, 50000, err.Error())
+		return
+	}
+	if errors.Is(err, logic.ErrCodeSendFailed) {
+		writeError(w, http.StatusInternalServerError, 50006, "验证码发送失败，请稍后重试")
+		return
+	}
 	if errors.Is(err, logic.ErrForbiddenDriverResource) {
 		writeError(w, http.StatusForbidden, 40301, "无权访问该司机资源")
 		return

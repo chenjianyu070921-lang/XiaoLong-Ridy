@@ -137,3 +137,20 @@ func GetDriverAiScoreHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		writeSuccess(w, resp)
 	}
 }
+
+// RefreshDriverScoreHandler triggers a driver score recalculation (feeding) and returns the refreshed score.
+func RefreshDriverScoreHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := middleware.ClaimsFromContext(r.Context())
+		if claims == nil {
+			writeError(w, http.StatusUnauthorized, 40102, "login credential invalid")
+			return
+		}
+		resp, err := logic.NewDriverLogic(r.Context(), svcCtx).RefreshDriverScore()
+		if err != nil {
+			writeParamError(w, err)
+			return
+		}
+		writeSuccess(w, resp)
+	}
+}

@@ -203,7 +203,7 @@ async function handleRegister() {
 .driver-login-page {
   min-height: 100vh;
   padding: 18px 12px 24px;
-  background: #eef2f7;
+  background: var(--driver-bg);
 }
 
 .login-hero {
@@ -213,15 +213,15 @@ async function handleRegister() {
   min-height: 148px;
   padding: 22px 16px;
   border-radius: 0 0 22px 22px;
-  background: linear-gradient(135deg, #6d4aff, #4b2bc5);
-  color: #fff;
+  background: linear-gradient(135deg, var(--driver-primary), var(--driver-primary-dark));
+  color: var(--driver-on-primary);
 }
 
 .login-hero img {
   width: 52px;
   height: 52px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--driver-card);
   object-fit: cover;
 }
 
@@ -242,7 +242,7 @@ async function handleRegister() {
   margin-top: -22px;
   padding: 12px;
   border-radius: 14px;
-  background: #fff;
+  background: var(--driver-card);
   box-shadow: 0 14px 34px rgba(77, 48, 160, .16);
 }
 
@@ -252,7 +252,7 @@ async function handleRegister() {
   gap: 6px;
   padding: 4px;
   border-radius: 10px;
-  background: #f1f5fb;
+  background: var(--driver-soft);
 }
 
 .auth-mode-tabs button {
@@ -260,14 +260,14 @@ async function handleRegister() {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #667085;
+  color: var(--driver-muted);
   font-size: 14px;
   font-weight: 800;
 }
 
 .auth-mode-tabs button.active {
-  background: #6d4aff;
-  color: #fff;
+  background: var(--driver-primary);
+  color: var(--driver-on-primary);
   box-shadow: 0 6px 14px rgba(109, 74, 255, .22);
 }
 
@@ -281,7 +281,7 @@ async function handleRegister() {
 
 .driver-login-page :deep(.van-field__label) {
   width: 72px;
-  color: #667085;
+  color: var(--driver-muted);
   font-size: 13px;
 }
 
@@ -291,8 +291,8 @@ async function handleRegister() {
   margin-top: 16px;
   border: 0;
   border-radius: 10px;
-  background: #6d4aff;
-  color: #fff;
+  background: var(--driver-primary);
+  color: var(--driver-on-primary);
   font-size: 16px;
   font-weight: 800;
 }

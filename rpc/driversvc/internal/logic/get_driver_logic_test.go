@@ -192,6 +192,9 @@ func (getDriverBrokenVehicleRepository) GetByID(context.Context, uint64) (*model
 func (getDriverBrokenVehicleRepository) GetByDriverID(context.Context, uint64) (*model.DriverVehicle, error) {
 	return nil, errors.New("vehicle db unavailable")
 }
+func (getDriverBrokenVehicleRepository) ListByDriverID(context.Context, uint64) ([]*model.DriverVehicle, error) {
+	return nil, errors.New("vehicle db unavailable")
+}
 func (getDriverBrokenVehicleRepository) Update(context.Context, uint64, map[string]interface{}) error {
 	return nil
 }
@@ -217,6 +220,12 @@ func (r getDriverVehicleRepository) GetByDriverID(context.Context, uint64) (*mod
 		return nil, repository.ErrVehicleNotFound
 	}
 	return r.vehicle, nil
+}
+func (r getDriverVehicleRepository) ListByDriverID(context.Context, uint64) ([]*model.DriverVehicle, error) {
+	if r.vehicle == nil {
+		return nil, nil
+	}
+	return []*model.DriverVehicle{r.vehicle}, nil
 }
 func (r getDriverVehicleRepository) Update(context.Context, uint64, map[string]interface{}) error {
 	return nil

@@ -1,16 +1,16 @@
-CREATE TABLE IF NOT EXISTS `order_review` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '评价ID',
-  `order_id` BIGINT UNSIGNED NOT NULL COMMENT '订单ID',
-  `user_id` BIGINT UNSIGNED NOT NULL COMMENT '乘客用户ID',
-  `driver_id` BIGINT UNSIGNED NOT NULL COMMENT '司机ID',
-  `rating` TINYINT NOT NULL COMMENT '评分，1至5',
-  `comment` VARCHAR(500) NOT NULL DEFAULT '' COMMENT '评价内容',
-  `tags` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '评价标签',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+-- 乘客评价储存表：直接接收并存储乘客对司机的原始评价，
+-- 作为自动评价 Agent（agent/driver）按司机手机号查询评价进行打分的数据源。
+-- 对应模型：agent/driver.PassengerReview；仓储：agent/driver.GormReviewStore。
+
+CREATE TABLE IF NOT EXISTS `passenger_review` (
+  `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `driver_phone`    VARCHAR(20)  NOT NULL                COMMENT '司机手机号（Agent 打分查询键）',
+  `order_id`        VARCHAR(64)  NOT NULL DEFAULT ''     COMMENT '关联订单号，可为空',
+  `passenger_phone` VARCHAR(20)  NOT NULL DEFAULT ''     COMMENT '乘客手机号，可脱敏存储',
+  `rating`          TINYINT      NOT NULL DEFAULT 0      COMMENT '乘客星级 0-5，0 表示纯文字评价',
+  `comment`         VARCHAR(500) NOT NULL DEFAULT ''     COMMENT '乘客文字评价（打分主要依据）',
+  `tags`            VARCHAR(255) NOT NULL DEFAULT ''     COMMENT '乘客勾选标签，逗号分隔（原始留存）',
+  `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '评价时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_order_id` (`order_id`),
-  KEY `idx_driver_created` (`driver_id`, `created_at`),
-  KEY `idx_user_created` (`user_id`, `created_at`),
-  CONSTRAINT `chk_order_review_rating` CHECK (`rating` BETWEEN 1 AND 5)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='乘客订单评价';
+  KEY `idx_driver_phone_created` (`driver_phone`, `created_at`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '乘客评价储存表（自动评价 Agent 数据源）';

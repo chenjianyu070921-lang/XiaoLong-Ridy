@@ -90,6 +90,10 @@ func (f *fakeVehicleRepository) GetByDriverID(context.Context, uint64) (*model.D
 	return nil, nil
 }
 
+func (f *fakeVehicleRepository) ListByDriverID(context.Context, uint64) ([]*model.DriverVehicle, error) {
+	return nil, nil
+}
+
 func (f *fakeVehicleRepository) Update(context.Context, uint64, map[string]interface{}) error {
 	return nil
 }

@@ -19,6 +19,7 @@ var (
 	ErrTrajectoryRepositoryNotConfigured = errors.New("order trajectory repository not configured")
 	ErrInvalidParam                      = errors.New("invalid param")
 	ErrForbiddenDriverResource           = errors.New("forbidden driver resource")
+	ErrVehicleLimitExceeded              = errors.New("vehicle limit exceeded")
 )
 
 const (

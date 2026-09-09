@@ -41,6 +41,8 @@ func writeBusinessError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, codeForbidden, "forbidden")
 	case errors.Is(err, logic.ErrInvalidRequest):
 		writeError(w, http.StatusBadRequest, codeInvalidRequest, "invalid request")
+	case errors.Is(err, logic.ErrReviewNotQualified):
+		writeError(w, http.StatusBadRequest, codeReviewNotQualified, "司机完成订单未满5单，暂不支持评价")
 	case errors.Is(err, logic.ErrOrderNotPayable):
 		writeError(w, http.StatusBadRequest, codeInvalidRequest, "order not payable")
 	case errors.Is(err, logic.ErrOrderClientNotConfigured),

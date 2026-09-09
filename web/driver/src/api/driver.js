@@ -60,12 +60,36 @@ export function deleteVehicle(id, config = {}) {
   return driverRequest.post('/vehicles/delete', { id }, config)
 }
 
+export function listVehicles(config = {}) {
+  return driverRequest.get('/vehicles/list', config)
+}
+
 export function createWithdraw(data, config = {}) {
   return driverRequest.post('/withdraws', data, config)
 }
 
 export function listWithdraws(data = {}, config = {}) {
   return driverRequest.post('/withdraws/list', data, config)
+}
+
+export function sendBankCardSmsCode(reservedPhone, config = {}) {
+  return driverRequest.post('/bank-cards/sms-code', { reservedPhone }, config)
+}
+
+export function bindBankCard(data, config = {}) {
+  return driverRequest.post('/bank-cards', data, config)
+}
+
+export function listBankCards(config = {}) {
+  return driverRequest.get('/bank-cards/list', config)
+}
+
+export function deleteBankCard(id, config = {}) {
+  return driverRequest.post('/bank-cards/delete', { id }, config)
+}
+
+export function resetWithdrawPassword(data, config = {}) {
+  return driverRequest.post('/bank-cards/reset-password', data, config)
 }
 
 export function uploadCertification(data, config = {}) {
@@ -144,19 +168,30 @@ export function listDriverDispatches(data = {}, config = {}) {
   return driverRequest.post('/orders/dispatches', data, config)
 }
 
+export function getReviewSummary(config = {}) {
+  return driverRequest.get('/reviews/summary', config)
+}
+
+// 回家目的地与回家顺路模式：查询设置
+export function getHomeDestination(config = {}) {
+  return driverRequest.get('/home-destination', config)
+}
+
+// 保存回家目的地，open=true 时同时开启回家顺路模式（只做订单顺路过滤，不改变听单状态）
+export function setHomeDestination(data, config = {}) {
+  return driverRequest.post('/home-destination/save', data, config)
+}
+
+// 仅切换回家顺路模式开关：开启=顺路过滤，关闭=恢复全域听单
+export function setHomeMode(data, config = {}) {
+  return driverRequest.post('/home-destination/mode', data, config)
+}
+
 export function listReceivedReviews(params = {}, config = {}) {
   return driverRequest.get('/reviews/received', {
     ...config,
     params: { page: params.page || 1, pageSize: params.pageSize || 20, ...(config.params || {}) }
   })
-}
-
-export function listGivenReviews(data = {}, config = {}) {
-  return driverRequest.post('/reviews/given', data, config)
-}
-
-export function submitDriverReview(data, config = {}) {
-  return driverRequest.post('/reviews/submit', data, config)
 }
 
 export default driverRequest

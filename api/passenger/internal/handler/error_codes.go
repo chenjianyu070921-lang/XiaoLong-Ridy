@@ -5,6 +5,8 @@ const (
 	codeSuccess = 0
 	// codeInvalidRequest 表示请求参数或业务前置校验不合法。
 	codeInvalidRequest = 40000
+	// codeSensitiveWord 表示命中敏感词（手机号/微信/QQ/支付宝/线下交易等），消息被拦截。
+	codeSensitiveWord = 46000
 	// codeInvalidPhone 表示登录手机号格式不合法。
 	codeInvalidPhone = 40001
 	// codeTokenExpired 表示登录令牌已过期。
@@ -39,10 +41,18 @@ const (
 	codeCouponReceiveLimit = 41023
 	// codeReviewAlreadyExists 表示订单已评价，不能重复提交评价。
 	codeReviewAlreadyExists = 41031
+	// codeReviewNotQualified 表示司机完成订单数不足，暂不支持评价。
+	codeReviewNotQualified = 41032
 	// codeRealNameVerifyFailed 表示实名认证未通过或第三方核验调用失败。
 	codeRealNameVerifyFailed = 42001
 	// codeInternalError 表示服务内部错误。
 	codeInternalError = 50000
+	// codeInternalServer 表示服务内部错误兜底码。
+	codeInternalServer = 50000
 	// codeDownstreamUnavailable 表示下游 RPC 服务不可用。
 	codeDownstreamUnavailable = 50001
+	// codeNotFound 表示请求资源不存在。
+	codeNotFound = 40404
+	// codeConflict 表示资源状态冲突（如会话已结束不可发送）。
+	codeConflict = 40909
 )

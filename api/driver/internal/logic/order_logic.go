@@ -11,6 +11,7 @@ import (
 	"XiaoLong-Ridy/api/driver/internal/svc"
 	"XiaoLong-Ridy/api/driver/internal/types"
 	"XiaoLong-Ridy/common/constants"
+	"XiaoLong-Ridy/common/geo"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
 	driversproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
@@ -476,6 +477,11 @@ func (l *OrderLogic) availableOrdersFromAssignedSet(orderClient svc.OrderClient,
 		if distance > availableOrderRadiusMeters {
 			continue
 		}
+		// 回家模式第二层过滤：开启后只展示顺路订单（终点与回家方向一致、绕路在阈值内）。
+		// 与推单侧过滤形成双重保险，兜底路径（pending 派单记录）同样生效。
+		if !l.onRouteHome(driverID, driverLongitude, driverLatitude, detail.GetToLongitude(), detail.GetToLatitude()) {
+			continue
+		}
 		items = append(items, types.OrderBrief{
 			OrderID:             detail.GetOrderId(),
 			OrderNo:             detail.GetOrderNo(),
@@ -495,6 +501,25 @@ func (l *OrderLogic) availableOrdersFromAssignedSet(orderClient svc.OrderClient,
 }
 
 const availableOrderRadiusMeters = 10000.0
+
+// onRouteHome 判断订单终点是否顺路回家（回家模式过滤）。
+// 未开启回家模式、设置或位置读取失败时一律放行，避免误杀订单。
+func (l *OrderLogic) onRouteHome(driverID int64, driverLng, driverLat, orderToLng, orderToLat float64) bool {
+	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || driverID <= 0 {
+		return true
+	}
+	home, err := l.svcCtx.RedisClient.HGetAll(l.ctx, fmt.Sprintf(constants.RedisDriverHome, driverID)).Result()
+	if err != nil || len(home) == 0 || home["open"] != "1" {
+		return true
+	}
+	homeLng, _ := strconv.ParseFloat(home["lng"], 64)
+	homeLat, _ := strconv.ParseFloat(home["lat"], 64)
+	ratio, _ := strconv.ParseFloat(home["max_detour_ratio"], 64)
+	if driverLng == 0 && driverLat == 0 {
+		return true
+	}
+	return geo.IsOnRoute(driverLng, driverLat, orderToLng, orderToLat, homeLng, homeLat, ratio)
+}
 
 func emptyOrderList(page, pageSize int32) *types.ListMyOrdersResponse {
 	return &types.ListMyOrdersResponse{

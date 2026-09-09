@@ -30,6 +30,13 @@ func (l *VehicleLogic) CreateVehicle(driverID int64, req *types.CreateVehicleReq
 	if err != nil {
 		return nil, err
 	}
+	// 最多绑定 3 辆汽车：已达上限则拒绝新增，需先删除旧车辆。
+	if existing, listErr := client.ListVehicles(l.ctx, &driversproto.ListVehiclesRequest{DriverId: driverID}); listErr == nil && len(existing.GetVehicles()) >= 3 {
+		return nil, ErrVehicleLimitExceeded
+	}
+	if err != nil {
+		return nil, err
+	}
 	resp, err := client.CreateVehicle(l.ctx, &driversproto.CreateVehicleRequest{
 		DriverId:          driverID,
 		PlateNo:           req.PlateNo,
@@ -166,6 +173,25 @@ func (l *VehicleLogic) GetVehicle(driverID, vehicleID int64) (*types.GetVehicleR
 		return nil, ErrForbiddenDriverResource
 	}
 	return &types.GetVehicleResponse{Vehicle: toVehicleInfo(vehicle)}, nil
+}
+
+func (l *VehicleLogic) ListVehicles(driverID int64) (*types.ListVehiclesResponse, error) {
+	if driverID <= 0 {
+		return nil, ErrInvalidParam
+	}
+	client, err := l.driverClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.ListVehicles(l.ctx, &driversproto.ListVehiclesRequest{DriverId: driverID})
+	if err != nil {
+		return nil, err
+	}
+	vehicles := make([]types.VehicleInfo, 0, len(resp.GetVehicles()))
+	for _, v := range resp.GetVehicles() {
+		vehicles = append(vehicles, toVehicleInfo(v))
+	}
+	return &types.ListVehiclesResponse{Vehicles: vehicles}, nil
 }
 
 func (l *VehicleLogic) driverClient() (svc.DriverClient, error) {

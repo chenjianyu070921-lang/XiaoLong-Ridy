@@ -113,9 +113,9 @@ type LoginResponse {
 }
 
 type SetOnlineRequest {
-	DeviceID          string  `json:"deviceId"`
-	Longitude         float64 `json:"longitude"`
-	Latitude          float64 `json:"latitude"`
+	DeviceID  string  `json:"deviceId"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
 }
 
 type SetOfflineRequest {
@@ -317,7 +317,7 @@ type WithdrawRecord {
 
 type ListWithdrawsResponse {
 	List  []WithdrawRecord `json:"list"`
-	Total   int64            `json:"total"`
+	Total int64            `json:"total"`
 }
 
 type GetIncomeSummaryResponse {
@@ -337,6 +337,7 @@ type PeriodIncomeResponse {
 	EndAt            int64  `json:"endAt"`
 	Source           string `json:"source"`
 }
+
 type ListIncomeBillsRequest {
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"pageSize"`
@@ -461,6 +462,7 @@ type OrderBrief {
 	DistanceMeters      int64  `json:"distanceMeters"`
 	CreatedAt           int64  `json:"createdAt"`
 }
+
 type MyDispatchItem {
 	Dispatch DispatchRecord `json:"dispatch"`
 	Order    OrderBrief     `json:"order"`
@@ -578,32 +580,7 @@ type ListReceivedReviewsResponse {
 	PageSize int32        `json:"pageSize"`
 }
 
-type ListGivenReviewsRequest {
-	Page     int32 `form:"page"`
-	PageSize int32 `form:"pageSize"`
-}
 
-type ListGivenReviewsResponse {
-	List     []ReviewItem `json:"list"`
-	Total    int64        `json:"total"`
-	Page     int32        `json:"page"`
-	PageSize int32        `json:"pageSize"`
-}
-
-type SubmitDriverReviewRequest {
-	OrderID int64  `json:"orderId"`
-	Rating  int32  `json:"rating"`
-	Comment string `json:"comment"`
-	Tags    string `json:"tags"`
-}
-
-type SubmitDriverReviewResponse {
-	ReviewID  int64 `json:"reviewId"`
-	OrderID   int64 `json:"orderId"`
-	DriverID  int64 `json:"driverId"`
-	Rating    int32 `json:"rating"`
-	CreatedAt int64 `json:"createdAt"`
-}
 
 type AgentChatRequest {
 	Question string `json:"question"`
@@ -649,6 +626,10 @@ service driver-api {
 
 	@handler GetDriverAiScoreHandler
 	get /api/driver/v1/drivers/ai-score (GetDriverAiScoreRequest) returns (GetDriverAiScoreResponse)
+
+	// 触发一次司机评分重算（喂数），司机身份从登录态取，无需请求体。
+	@handler RefreshDriverScoreHandler
+	post /api/driver/v1/drivers/ai-score/refresh returns (GetDriverAiScoreResponse)
 
 	@handler SetOnlineHandler
 	post /api/driver/v1/drivers/online (SetOnlineRequest) returns (SetOnlineResponse)
@@ -710,7 +691,7 @@ service driver-api {
 	@handler ListAvailableOrdersHandler
 	post /api/driver/v1/orders/available (ListMyOrdersRequest) returns (ListMyOrdersResponse)
 
-	@handler ListAvailableOrdersHandler
+	@handler ListGrabOrdersHandler
 	post /api/driver/v1/orders/grab-list (ListMyOrdersRequest) returns (ListMyOrdersResponse)
 
 	@handler GetOrderHeatmapHandler
@@ -743,12 +724,7 @@ service driver-api {
 	@handler ListReceivedReviewsHandler
 	get /api/driver/v1/reviews/received (ListReviewsRequest) returns (ListReceivedReviewsResponse)
 
-	@handler SubmitDriverReviewHandler
-	post /api/driver/v1/reviews/submit (SubmitDriverReviewRequest) returns (SubmitDriverReviewResponse)
-
-	@handler ListGivenReviewsHandler
-	post /api/driver/v1/reviews/given (ListGivenReviewsRequest) returns (ListGivenReviewsResponse)
-
 	@handler AgentChatHandler
 	post /api/driver/v1/agent/chat (AgentChatRequest) returns (AgentChatResponse)
 }
+

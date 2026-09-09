@@ -20,10 +20,6 @@
           {{ driverStore.onlineStatus === 1 ? '在线' : driverStore.onlineStatus === 2 || driverStore.tripPhase === 'trip' ? '行驶中' : '离线' }}
         </button>
         <div class="status-metric">
-          <span>服务分</span>
-          <b>{{ serviceScore || '--' }}</b>
-        </div>
-        <div class="status-metric">
           <span>今日预估</span>
           <b>{{ formatPrice(todayIncome.totalIncomeCents) }}</b>
         </div>
@@ -109,9 +105,21 @@
               <van-switch v-model="listenModeEnabled" size="22px" />
             </label>
           </div>
-          <button type="button" class="home-route-button" @click="navigateHomeRoute">
+          <!-- 回家顺路模式三态：未设置→设置弹窗；已设置未开启→开启；已开启→显示目的地并可关闭 -->
+          <button
+            v-if="!homeDestination || !homeDestination.isHomeModeOpen"
+            type="button"
+            class="home-route-button"
+            :class="{ 'home-route-set': homeDestination && homeDestination.hasSetting }"
+            @click="onHomeRouteClick"
+          >
             <van-icon name="wap-home-o" />
             <span>{{ homeRouteLabel }}</span>
+          </button>
+          <button v-else type="button" class="home-route-button home-route-on" @click="onHomeRouteClick">
+            <van-icon name="wap-home-o" />
+            <span>{{ homeRouteLabel }}</span>
+            <van-icon name="cross" />
           </button>
         </template>
       </section>
@@ -138,13 +146,55 @@
         @edit-profile="openProfileEdit"
         @open-settings="openSettings"
         @logout="logoutDriver"
+        @open-diagnostics="diagnosticsPanelVisible = true"
+        @open-income-detail="incomeDetailPanelVisible = true"
       />
-      <DriverReviewsPanel v-model:visible="reviewsPanelVisible" :mode="reviewsPanelMode" />
     </section>
 
     <van-tabbar v-model="activeTab" class="driver-tabbar" fixed safe-area-inset-bottom>
       <van-tabbar-item v-for="item in tabItems" :key="item.title" :icon="item.icon">{{ item.title }}</van-tabbar-item>
     </van-tabbar>
+
+    <DriverHomeDestinationPanel
+      v-model:visible="homeDestinationPanelVisible"
+      :setting="homeDestination"
+      @saved="onHomeDestinationSaved"
+    />
+
+    <DriverListenDiagnosticsPanel
+      v-model:visible="diagnosticsPanelVisible"
+      :samples="dispatchSamples"
+      :ws-connected="wsConnected"
+    />
+
+    <DriverIncomeDetailPanel v-model:visible="incomeDetailPanelVisible" />
+
+    <DriverOrderDetailPanel
+      v-model:visible="orderDetailPanelVisible"
+      :order="orderDetailPanelOrder"
+      :navigate-to-pickup="navigateToPickup"
+      :contact-passenger="contactPassenger"
+      :has-unread="!!chatUnread[orderDetailPanelOrder?.orderId]"
+      @open-chat="openChat"
+    />
+
+    <DriverChatPanel
+      ref="chatPanelRef"
+      v-model:visible="chatPanelVisible"
+      :order="chatPanelOrder"
+    />
+
+    <!-- 联系乘客下拉（电话 / 私信），两端联系乘客按钮共用 -->
+    <van-action-sheet
+      v-model:show="contactSheetVisible"
+      teleport="#driver-home-popups"
+      :actions="contactActions"
+      cancel-text="取消"
+      description="请选择联系方式"
+      @select="onContactSelect"
+    />
+
+    <DriverReviewsPanel v-model:visible="reviewsPanelVisible" />
 
     <van-popup v-model:show="finishVisible" round position="bottom" teleport="#driver-home-popups">
       <section class="finish-panel">
@@ -212,12 +262,16 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { closeToast, showDialog, showLoadingToast, showToast } from 'vant'
+import { useDriverChatStore } from '@/stores/driverChat'
+
+defineOptions({ name: 'DriverHome' })
 import {
   acceptOrder,
   confirmArrive,
   finishTrip,
   getDriverAiScore,
   getDriverOrderDetail,
+  getReviewSummary,
   getOrderHeatmap,
   getOrderTrajectory,
   getRealtimeFare,
@@ -244,7 +298,12 @@ import {
 import DriverOrdersPanel from '@/components/driver-home/DriverOrdersPanel.vue'
 import DriverMinePanel from '@/components/driver-home/DriverMinePanel.vue'
 import DriverReviewsPanel from '@/components/driver-home/DriverReviewsPanel.vue'
+import DriverListenDiagnosticsPanel from '@/components/driver-home/DriverListenDiagnosticsPanel.vue'
+import DriverIncomeDetailPanel from '@/components/driver-home/DriverIncomeDetailPanel.vue'
+import DriverHomeDestinationPanel from '@/components/driver-home/DriverHomeDestinationPanel.vue'
 import DriverTrajectoryPanel from '@/components/driver-home/DriverTrajectoryPanel.vue'
+import DriverOrderDetailPanel from '@/components/driver-home/DriverOrderDetailPanel.vue'
+import DriverChatPanel from '@/components/driver-home/DriverChatPanel.vue'
 import { loadDriverAmap } from '@/config/amap'
 import { normalizeBrowserLocationForAmap } from '@/utils/geo'
 import { apiErrorMessage, safeApiCall } from '@/utils/safe-request'
@@ -253,10 +312,11 @@ import '@/styles/driver-home-panels.css'
 const router = useRouter()
 const route = useRoute()
 const driverStore = useDriverStore()
+const driverChat = useDriverChatStore()
 
 const tabItems = [
   { title: '首页', icon: 'wap-home-o' },
-  { title: '订单', icon: 'orders-o' },
+  { title: '订单', icon: 'todo-list-o' },
   { title: '我的', icon: 'user-o' }
 ]
 
@@ -364,8 +424,6 @@ const finishSubmitting = ref(false)
 const heatmapVisible = ref(false)
 const heatmapLoading = ref(false)
 const heatmapRadiusMeters = 5000
-// 可接单半径，与后端 driversvc 默认搜索半径 3000m 对齐，用于地图“检测范围”圈可视化。
-const listenRadiusMeters = 3000
 const heatmapPoints = ref([])
 const heatmapCenter = ref(null)
 const homeMapContainer = ref(null)
@@ -376,7 +434,9 @@ const heatmapMapReady = ref(false)
 const heatmapMapError = ref('')
 const listenModeEnabled = ref(localStorage.getItem('driverListenModeEnabled') !== '0')
 const previewOrder = ref(null)
-const homeRouteAddress = ref(localStorage.getItem('driverHomeRouteAddress') || '')
+// 回家顺路模式：当前司机的回家目的地与模式状态（来自后端，非 localStorage）。
+const homeDestination = ref(null)
+const homeDestinationPanelVisible = ref(false)
 const realtimeFare = ref(null)
 const realtimeFareLoading = ref(false)
 const realtimeFareError = ref('')
@@ -422,6 +482,10 @@ let geoWatchId = null
 let pushSocket = null
 let reconnectTimer = null
 let reconnectAttempts = 0
+let pushLastMessageAt = 0 // 最近一次收到 WS 消息的时间，用于假死检测
+let pushWatchdogTimer = null // WS 假死看门狗定时器
+let nearbyPollTimer = null // 附近订单 HTTP 轮询定时器（WS 断开时的收单兜底）
+let pushAuthFailed = false // token 失效标记：true 时停止 WS 重连
 let lastLatitude = null
 let lastLongitude = null
 let homeAMap = null
@@ -430,7 +494,6 @@ let homeDriverMarker = null
 let homeHeatmapLayer = null
 let homeOrderMarkers = []
 let homeRouteLine = null
-let homeRangeCircle = null
 let heatmapAMap = null
 let heatmapMapInstance = null
 let heatmapLayer = null
@@ -496,7 +559,12 @@ const homeMapStatusText = computed(() => {
   if (!heatmapPoints.value.length && driverStore.onlineStatus === 1) return '附近暂无线索，继续听单'
   return ''
 })
-const homeRouteLabel = computed(() => homeRouteAddress.value ? '回家顺路: ' + homeRouteAddress.value : '设置回家顺路模式')
+const homeRouteLabel = computed(() => {
+  const d = homeDestination.value
+  if (d && d.isHomeModeOpen) return '回家: ' + (d.homeAddr || '顺路听单中')
+  if (d && d.hasSetting) return '开启回家顺路模式'
+  return '设置回家顺路模式'
+})
 const heatmapStatusText = computed(() => {
   if (heatmapMapError.value) return heatmapMapError.value
   if (!heatmapMapReady.value) return '地图加载中...'
@@ -517,6 +585,7 @@ onMounted(async () => {
   window.addEventListener('pageshow', resumeRealtimeWorkOnForeground)
   document.addEventListener('visibilitychange', handleVisibilityChange)
   await loadDashboardData()
+  await loadHomeDestination()
   await ensureHomeMap()
   await refreshHomeWorkbench()
   if (driverStore.onlineStatus > 0) startRealtimeWork()
@@ -574,14 +643,23 @@ watch(heatmapVisible, async (visible) => {
 })
 
 async function loadDashboardData() {
-  const [, score] = await Promise.allSettled([
+  const [profile, summary, aiScore] = await Promise.allSettled([
     safeApiCall(() => driverStore.refreshProfile({ silentError: true })),
+    safeApiCall(() => getReviewSummary({ silentError: true })),
     safeApiCall(() => getDriverAiScore({ silentError: true }))
   ])
 
-  if (score.status === 'fulfilled' && score.value) {
-    serviceScore.value = Number(score.value.aiScore || score.value.score || 0).toFixed(1)
+  // 服务分优先取 agent 生成的评价概览服务平均分（真实评价数据）；
+  // 评价概览不可用时回退 AI 分。
+  let scoreValue = 0
+  if (summary.status === 'fulfilled' && summary.value) {
+    const s = Number(summary.value.serviceScore ?? summary.value.avgRating ?? 0)
+    if (Number.isFinite(s) && s > 0) scoreValue = s
   }
+  if (scoreValue <= 0 && aiScore.status === 'fulfilled' && aiScore.value) {
+    scoreValue = Number(aiScore.value.aiScore || aiScore.value.score || 0)
+  }
+  serviceScore.value = Number.isFinite(scoreValue) ? scoreValue.toFixed(1) : '--'
   await loadCurrentTabData()
   if (activeTab.value === 0) {
     await refreshHomeWorkbench()
@@ -693,7 +771,16 @@ function rememberWorkLocation(location) {
 }
 
 function workStatusPayload() {
-  return compact({ deviceId: deviceId(), longitude: lastLongitude, latitude: lastLatitude })
+  // 行程中（currentOrderId 存在且订单处于已接单/行程中）必须带上 orderId，
+  // 后端 locationsvc 只有 in.OrderId > 0 才会写 ride_track_point，
+  // 否则乘客端/司机端查轨迹永远是"暂无轨迹点"。
+  const activeOrderId = driverStore.tripPhase === 'idle' ? 0 : Number(driverStore.currentOrderId || 0)
+  return compact({
+    deviceId: deviceId(),
+    longitude: lastLongitude,
+    latitude: lastLatitude,
+    orderId: activeOrderId > 0 ? activeOrderId : undefined
+  })
 }
 
 function startRealtimeWork() {
@@ -701,7 +788,10 @@ function startRealtimeWork() {
   startLocationReporting()
   startTripRealtime()
   startRealtimeFarePolling()
+  pushAuthFailed = false
   connectPushChannel()
+  startPushWatchdog()
+  startNearbyOrderPolling()
 }
 
 function stopRealtimeWork() {
@@ -709,6 +799,8 @@ function stopRealtimeWork() {
   stopLocationReporting()
   stopTripRealtime()
   stopRealtimeFarePolling()
+  stopPushWatchdog()
+  stopNearbyOrderPolling()
   if (reconnectTimer) {
     window.clearTimeout(reconnectTimer)
     reconnectTimer = null
@@ -777,10 +869,9 @@ function startLocationReporting() {
           longitude: position.coords.longitude,
           latitude: position.coords.latitude
         })
-        // 定位刷新后同步司机图标与检测范围圈到最新位置。
+        // 定位刷新后同步司机图标到最新位置。
         if (homeMapReady.value) {
           renderHomeDriverMarker()
-          renderHomeRangeCircle()
         }
       },
       () => {},
@@ -884,7 +975,6 @@ async function refreshHomeHeatmap() {
 function renderHomeMapData() {
   if (!homeMapInstance || !homeAMap) return
   renderHomeDriverMarker()
-  renderHomeRangeCircle()
   renderHomeHeatmapLayer()
   renderHomeOrderMarkers()
   renderHomeRouteLine()
@@ -904,36 +994,6 @@ function renderHomeDriverMarker() {
     homeMapInstance.add(homeDriverMarker)
   } else {
     homeDriverMarker.setPosition(position)
-  }
-}
-
-// 检测范围圈：以司机当前位置为圆心、可接单半径为半径的圆，展示司机能接单的范围。
-function renderHomeRangeCircle() {
-  const location = readRememberedWorkLocation() || workLocationDefault
-  const center = [Number(location.longitude), Number(location.latitude)]
-  if (!homeRangeCircle) {
-    homeRangeCircle = new homeAMap.Circle({
-      center,
-      radius: listenRadiusMeters,
-      strokeColor: '#5B5CFF',
-      strokeWeight: 2,
-      strokeOpacity: 0.6,
-      fillColor: '#5B5CFF',
-      fillOpacity: 0.08,
-      zIndex: 50
-    })
-    homeMapInstance.add(homeRangeCircle)
-  } else {
-    homeRangeCircle.setCenter(center)
-    homeRangeCircle.setRadius(listenRadiusMeters)
-  }
-  // 空闲态下把视野适配到检测范围圈（半径较大，需缩放到可完整显示），选中订单时交由路线视图接管。
-  if (!selectedHomeOrder.value && homeMapInstance) {
-    try {
-      homeMapInstance.setFitView([homeRangeCircle], false, [72, 72, 72, 72])
-    } catch (e) {
-      // 视图适配失败不影响圈本身渲染
-    }
   }
 }
 
@@ -1016,7 +1076,6 @@ function destroyHomeMap() {
   homeHeatmapLayer = null
   homeOrderMarkers = []
   homeRouteLine = null
-  homeRangeCircle = null
   homeMapReady.value = false
   homeMapError.value = ''
 }
@@ -1322,23 +1381,35 @@ function degreesToRadians(value) {
 }
 
 function connectPushChannel() {
-  if (pushSocket || !driverStore.token) return
+  if (pushAuthFailed || pushSocket || !driverStore.token) return
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const url = protocol + '//' + window.location.host + '/api/driver/v1/ws?token=' + encodeURIComponent(driverStore.token)
-  pushSocket = new WebSocket(url)
-  pushSocket.onopen = () => { reconnectAttempts = 0 }
-  pushSocket.onmessage = (event) => handlePushMessage(event.data)
-  pushSocket.onclose = () => {
-    pushSocket = null
+  const socket = new WebSocket(url)
+  pushSocket = socket
+  socket.onopen = () => {
+    reconnectAttempts = 0
+    wsConnected.value = true
+    driverChat.realtimeActive = true
+    pushLastMessageAt = Date.now()
+  }
+  socket.onmessage = (event) => {
+    pushLastMessageAt = Date.now()
+    handlePushMessage(event.data)
+  }
+  socket.onclose = () => {
+    wsConnected.value = false
+    driverChat.realtimeActive = false
+    // 仅当关闭的是当前连接时才清理，避免误清重连后的新连接
+    if (pushSocket === socket) pushSocket = null
     scheduleReconnect()
   }
-  pushSocket.onerror = () => {
-    pushSocket?.close()
+  socket.onerror = () => {
+    socket.close()
   }
 }
 
 function scheduleReconnect() {
-  if (reconnectTimer || !driverStore.token || !driverStore.onlineStatus) return
+  if (pushAuthFailed || reconnectTimer || !driverStore.token || !driverStore.onlineStatus) return
   const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000)
   reconnectAttempts += 1
   reconnectTimer = window.setTimeout(() => {
@@ -1351,14 +1422,90 @@ function handlePushMessage(raw) {
   try {
     const payload = JSON.parse(raw)
     if (payload.type === 'dispatch_order') {
+      recordDispatchSample(payload)
       if (activeTab.value === 1) loadOrders(orderPage.value)
     } else if (payload.type === 'dispatch.new') {
+      recordDispatchSample(payload)
       showToast('收到新的派单')
       void loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
+    } else if (payload.type === 'review.new') {
+      // 乘客评价变化推送：提示司机，并通知评价面板自动刷新服务平均分与评价列表
+      showToast('收到新的乘客评价，评分已更新')
+      window.dispatchEvent(new CustomEvent('driver-review-updated', { detail: payload }))
+    } else if (payload.type === 'auth_failed') {
+      handlePushAuthFailed()
+    } else if (payload.type === 'chat.message') {
+      // 司乘聊天实时消息：统一收口到共享 store（首页面板与独立私信页共用同一数据源）
+      const orderId = payload.orderId
+      const msg = payload.message
+      driverChat.appendMessage(msg)
+      // 已在独立私信页展示该订单，无需首页提示
+      if (driverChat.activeOrderId === orderId) return
+      if (chatPanelVisible.value && chatPanelOrder.value && Number(chatPanelOrder.value.orderId) === Number(orderId)) {
+        chatPanelRef.value?.appendMessage(msg)
+      } else {
+        chatUnread.value[orderId] = true
+        showToast('收到乘客新消息')
+      }
     }
   } catch {
     // Push messages are best-effort; malformed messages should not block the H5 page.
   }
+}
+
+// token 失效后服务端会立即断开 WS，无限重连无意义：
+// 停止重连并回登录页让司机重新获取 token。
+function handlePushAuthFailed() {
+  pushAuthFailed = true
+  driverChat.realtimeActive = false
+  if (reconnectTimer) {
+    window.clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  if (pushSocket) {
+    const socket = pushSocket
+    pushSocket = null
+    try { socket.close() } catch { /* ignore */ }
+  }
+  showToast('登录已过期，请重新登录')
+  router.push('/login')
+}
+
+// WS 假死看门狗：服务端每 25s ping 一次，超过 60s 未收到任何消息说明链路已不通
+//（常见于手机切后台被浏览器冻结连接），主动断开触发重连。
+function startPushWatchdog() {
+  stopPushWatchdog()
+  pushLastMessageAt = Date.now()
+  pushWatchdogTimer = window.setInterval(() => {
+    if (!driverStore.onlineStatus) return
+    if (pushSocket && Date.now() - pushLastMessageAt > 60000) {
+      const dead = pushSocket
+      pushSocket = null
+      try { dead.close() } catch { /* ignore */ }
+      scheduleReconnect()
+    }
+  }, 15000)
+}
+
+function stopPushWatchdog() {
+  if (pushWatchdogTimer) window.clearInterval(pushWatchdogTimer)
+  pushWatchdogTimer = null
+}
+
+// 附近订单 HTTP 轮询兜底：无论 WS 是否可用，在线时每 10s 拉一次待接订单，
+// 保证 WS 断开期间司机仍能刷到新派单。
+function startNearbyOrderPolling() {
+  stopNearbyOrderPolling()
+  nearbyPollTimer = window.setInterval(() => {
+    if (driverStore.onlineStatus === 1) {
+      void loadNearbyOrders(nearbyOrderPage.value, { silentError: true })
+    }
+  }, 10000)
+}
+
+function stopNearbyOrderPolling() {
+  if (nearbyPollTimer) window.clearInterval(nearbyPollTimer)
+  nearbyPollTimer = null
 }
 
 async function loadOrders(page = orderPage.value, config = {}) {
@@ -1556,10 +1703,9 @@ async function loadOrderDetail(orderId) {
   if ([2, 3].includes(status)) {
     driverStore.setCurrentOrder(order, status === 3 ? 'trip' : 'pickup')
   }
-  showDialog({
-    title: order.orderNo || '订单 ' + order.orderId,
-    message: (order.fromAddress || '--') + '\n到\n' + (order.toAddress || '--') + '\n' + formatPrice(order.estimatedPriceCents)
-  })
+  // 订单详情弹窗：交给 DriverOrderDetailPanel 渲染，状态/路线/价格/操作完整呈现
+  orderDetailPanelOrder.value = order
+  orderDetailPanelVisible.value = true
 }
 
 async function openTrajectoryPanel(order) {
@@ -1624,23 +1770,80 @@ function navigateToPickup(order) {
   window.open(url, '_blank')
 }
 
-function navigateHomeRoute() {
-  if (!homeRouteAddress.value) {
-    const value = window.prompt('请输入回家顺路目的地', '')
-    if (!value) return
-    homeRouteAddress.value = value.trim()
-    localStorage.setItem('driverHomeRouteAddress', homeRouteAddress.value)
-  }
-  showToast('已开启回家顺路 ' + homeRouteAddress.value)
-}
-
-function contactPassenger(order) {
-  const phone = order?.passengerPhone || order?.userPhone || order?.phone || ''
-  if (!phone) {
-    showToast('暂无乘客联系方式')
+// 回家顺路模式入口：三态流转（设置 / 开启 / 关闭）。
+function onHomeRouteClick() {
+  const d = homeDestination.value
+  if (d && d.hasSetting && !d.isHomeModeOpen) {
+    // 已设置目的地但未开启 → 开启回家顺路模式（只改听单过滤规则，不自动结束听单）。
+    void setHomeMode({ open: true })
+      .then(onHomeDestinationSaved)
+      .catch((e) => showToast(e?.response?.data?.message || '开启失败'))
     return
   }
-  window.location.href = 'tel:' + phone
+  if (d && d.isHomeModeOpen) {
+    // 已开启 → 关闭回家模式，恢复全域听单。
+    void setHomeMode({ open: false })
+      .then(onHomeDestinationSaved)
+      .catch((e) => showToast(e?.response?.data?.message || '关闭失败'))
+    return
+  }
+  // 未设置目的地 → 打开 POI 联想弹窗。
+  homeDestinationPanelVisible.value = true
+}
+
+// 拉取当前司机回家目的地与模式状态。
+async function loadHomeDestination() {
+  try {
+    const res = await getHomeDestination({ silentError: true })
+    homeDestination.value = res?.data || null
+  } catch (e) {
+    homeDestination.value = null
+  }
+}
+
+// 保存/开关回调：刷新本地状态，使按钮即时流转。
+function onHomeDestinationSaved(saved) {
+  if (saved) homeDestination.value = saved
+  else loadHomeDestination()
+}
+
+// 联系乘客：弹出电话/私信下拉，具体动作交给 onContactSelect
+// 仅在订单活跃期开放私信，与 DriverOrderDetailPanel.canChat 一致；电话项按是否拿到号码启用
+const contactSheetOrder = ref(null)
+const contactSheetVisible = ref(false)
+
+function contactPassenger(order) {
+  if (!order) return
+  contactSheetOrder.value = order
+  contactSheetVisible.value = true
+}
+
+const contactActions = computed(() => {
+  const o = contactSheetOrder.value
+  const phone = o?.passengerPhone || o?.userPhone || o?.phone || ''
+  const s = Number(o?.status || 0)
+  const canMsg = s === 2 || s === 3 || s === 4
+  return [
+    { name: '电话联系乘客', disabled: !phone },
+    { name: '发送私信', disabled: !canMsg }
+  ]
+})
+
+function onContactSelect(action, index) {
+  const order = contactSheetOrder.value
+  contactSheetVisible.value = false
+  if (!order) return
+  if (index === 0) {
+    const phone = order?.passengerPhone || order?.userPhone || order?.phone || ''
+    if (!phone) {
+      showToast('暂无乘客联系方式')
+      return
+    }
+    window.location.href = 'tel:' + phone
+  } else if (index === 1) {
+    // 跳转到独立私信页（/chat/:orderId），仅本订单司机与乘客可见，后端 40301 守门
+    router.push('/chat/' + order.orderId)
+  }
 }
 
 function reportAbnormal() {
@@ -1700,11 +1903,52 @@ async function submitFinishTrip() {
 }
 
 const reviewsPanelVisible = ref(false)
-const reviewsPanelMode = ref('received')
 
 function openPassengerReviews() {
-  reviewsPanelMode.value = 'received'
   reviewsPanelVisible.value = true
+}
+
+// 订单详情弹窗：替换原 showDialog 单行文本
+const orderDetailPanelVisible = ref(false)
+const orderDetailPanelOrder = ref(null)
+
+// 司乘聊天面板：仅司机端，乘客端后续直连 api/chat 网关即可对接
+const chatPanelVisible = ref(false)
+const chatPanelOrder = ref(null)
+const chatPanelRef = ref(null)
+const chatUnread = ref({})
+
+function openChat(order) {
+  if (!order) return
+  chatUnread.value[order.orderId] = false
+  chatPanelOrder.value = order
+  chatPanelVisible.value = true
+}
+
+// ── 听单检测：WS 连接状态与派单推送延迟样本 ──
+const diagnosticsPanelVisible = ref(false)
+const incomeDetailPanelVisible = ref(false)
+const wsConnected = ref(false)
+const dispatchSamples = ref([])
+const MAX_DISPATCH_SAMPLES = 20
+
+// recordDispatchSample 记录一条派单推送延迟样本：
+// 链路延迟 = 手机收到时间 - 服务端下发时间（payload.serverTime / server_time）；
+// 全程延迟 = 手机收到时间 - 后台派单时间（dispatched_at / createdAt）。
+// 手机时钟偏差可能使差值为负，样本按 0 记录，判定以服务端 serverTime 相对值为准。
+function recordDispatchSample(payload) {
+  const serverTime = Number(payload.serverTime ?? payload.server_time ?? 0)
+  const dispatchedAt = Number(payload.dispatched_at ?? payload.dispatchedAt ?? payload.createdAt ?? payload.created_at ?? 0)
+  const receivedAt = Date.now()
+  dispatchSamples.value = [
+    {
+      orderId: Number(payload.orderId ?? payload.order_id ?? 0),
+      receivedAt,
+      linkDelay: serverTime > 0 ? Math.max(0, receivedAt - serverTime) : null,
+      e2eDelay: dispatchedAt > 0 ? Math.max(0, receivedAt - dispatchedAt) : null
+    },
+    ...dispatchSamples.value
+  ].slice(0, MAX_DISPATCH_SAMPLES)
 }
 
 function openHelpCenter() {
@@ -1738,81 +1982,84 @@ function deviceId() {
 </script>
 
 <style scoped>
-.driver-home-page { min-height: 100vh; padding: 0 12px 86px; background: #f6f7fb; color: #172033; }
-.home-workbench { min-height: calc(100vh - 86px); margin: 0 -12px; padding: 10px 12px 172px; background: #f6f7fb; }
-.driver-status-bar { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto auto 38px; gap: 8px; align-items: center; min-height: 58px; padding: 8px 10px; border-radius: 8px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.08); }
+.driver-home-page { min-height: 100vh; padding: 0 12px 86px; background: var(--driver-bg); color: var(--driver-ink); }
+.home-workbench { display: flex; flex-direction: column; height: calc(100vh - 86px); margin: 0 -12px; padding: 10px 12px 0; background: var(--driver-bg); }
+.driver-status-bar { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto auto 38px; gap: 8px; align-items: center; min-height: 58px; padding: 8px 10px; border-radius: 8px; background: var(--driver-card); box-shadow: 0 8px 20px rgba(15,23,42,.08); }
 .driver-status-bar .driver-avatar-button { width: 42px; height: 42px; flex-basis: 42px; }
-.driver-status-bar .driver-avatar-button img, .driver-status-bar .avatar-fallback { width: 42px; height: 42px; flex-basis: 42px; border-color: #e6eaf2; color: #5B5CFF; background: #eef2ff; font-size: 18px; }
+.driver-status-bar .driver-avatar-button img, .driver-status-bar .avatar-fallback { width: 42px; height: 42px; flex-basis: 42px; border-color: var(--driver-line); color: var(--driver-primary); background: var(--driver-soft); font-size: 18px; }
 .status-copy { display: grid; gap: 2px; min-width: 0; }
-.status-copy strong { overflow: hidden; color: #172033; font-size: 15px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-.status-copy span, .status-metric span { color: #7a8496; font-size: 11px; line-height: 1.2; }
+.status-copy strong { overflow: hidden; color: var(--driver-ink); font-size: 15px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.status-copy span, .status-metric span { color: var(--driver-muted); font-size: 11px; line-height: 1.2; }
 .status-metric { display: grid; gap: 2px; min-width: 52px; text-align: center; }
-.status-metric b { color: #172033; font-size: 13px; line-height: 1.2; white-space: nowrap; }
-.status-toggle { min-width: 48px; min-height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: #eef2ff; color: #5B5CFF; font-size: 12px; font-weight: 800; }
-.status-toggle.online { background: #5B5CFF; color: #fff; box-shadow: 0 6px 14px rgba(91,92,255,.24); }
+.status-metric b { color: var(--driver-ink); font-size: 13px; line-height: 1.2; white-space: nowrap; }
+.status-toggle { min-width: 48px; min-height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--driver-soft); color: var(--driver-primary); font-size: 12px; font-weight: 800; }
+.status-toggle.online { background: var(--driver-primary); color: var(--driver-on-primary); box-shadow: 0 6px 14px rgba(91,92,255,.24); }
 .status-toggle.driving { background: #ffb72c; color: #fff; box-shadow: 0 6px 14px rgba(255,183,44,.26); }
 .message-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: #fff7e6; color: #f59e0b; font-size: 18px; }
-.home-map-stage { position: relative; height: calc(100vh - 180px); min-height: 460px; margin: 10px -12px 0; overflow: hidden; background: #dfe8f3; }
+.home-map-stage { position: relative; flex: 1; min-height: 460px; margin: 10px -12px 0; overflow: hidden; background: #dfe8f3; }
 .home-amap { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-.heatmap-legend { position: absolute; left: 12px; top: 12px; z-index: 5; display: inline-flex; align-items: center; gap: 5px; padding: 7px 9px; border-radius: 999px; background: rgba(255,255,255,.94); color: #667085; font-size: 11px; font-weight: 800; box-shadow: 0 6px 16px rgba(15,23,42,.14); }
+.heatmap-legend { position: absolute; left: 12px; top: 12px; z-index: 5; display: inline-flex; align-items: center; gap: 5px; padding: 7px 9px; border-radius: 999px; background: rgba(255,255,255,.94); color: var(--driver-muted); font-size: 11px; font-weight: 800; box-shadow: 0 6px 16px rgba(15,23,42,.14); }
 .heatmap-legend i { width: 18px; height: 8px; border-radius: 999px; }
 .heat-low { background: #3b82f6; }
 .heat-mid { background: #22c55e; }
 .heat-high { background: #ef4444; }
-.route-direction-chip { position: absolute; left: 12px; right: 12px; bottom: 160px; z-index: 5; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 9px 11px; border-radius: 8px; background: rgba(255,255,255,.96); color: #172033; font-size: 12px; font-weight: 800; box-shadow: 0 8px 20px rgba(15,23,42,.14); }
+.route-direction-chip { position: absolute; left: 12px; right: 12px; bottom: 160px; z-index: 5; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 9px 11px; border-radius: 8px; background: rgba(255,255,255,.96); color: var(--driver-ink); font-size: 12px; font-weight: 800; box-shadow: 0 8px 20px rgba(15,23,42,.14); }
 .route-direction-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-floating-actions { position: absolute; right: 12px; top: 58px; z-index: 5; display: grid; gap: 8px; }
 .map-floating-actions button { display: grid; width: 38px; height: 38px; place-items: center; border: 0; border-radius: 50%; background: rgba(255,255,255,.96); color: #2563eb; font-size: 18px; box-shadow: 0 6px 16px rgba(15,23,42,.16); }
 .home-floating-panel { position: fixed; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 30; display: grid; gap: 10px; width: min(calc(100vw - 24px), 406px); padding: 14px; border-radius: 8px; background: rgba(255,255,255,.98); box-shadow: 0 -8px 28px rgba(15,23,42,.16); transform: translateX(-50%); }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.panel-heading span { min-width: 0; color: #7a8496; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
-.panel-heading strong { color: #172033; font-size: 20px; line-height: 1.2; text-align: right; overflow-wrap: anywhere; }
-.realtime-fare-strip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 38px; padding: 8px 10px; border: 1px solid #e6eaf2; border-radius: 8px; background: #f7f9fc; }
-.realtime-fare-strip span { color: #667085; font-size: 12px; font-weight: 800; white-space: nowrap; }
-.realtime-fare-strip strong { min-width: 0; color: #172033; font-size: 18px; line-height: 1.1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.realtime-fare-strip small { color: #5B5CFF; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.panel-heading span { min-width: 0; color: var(--driver-muted); font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.panel-heading strong { color: var(--driver-ink); font-size: 20px; line-height: 1.2; text-align: right; overflow-wrap: anywhere; }
+.realtime-fare-strip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 38px; padding: 8px 10px; border: 1px solid var(--driver-line); border-radius: 8px; background: var(--driver-soft); }
+.realtime-fare-strip span { color: var(--driver-muted); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.realtime-fare-strip strong { min-width: 0; color: var(--driver-ink); font-size: 18px; line-height: 1.1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.realtime-fare-strip small { color: var(--driver-primary); font-size: 11px; font-weight: 800; white-space: nowrap; }
 .order-brief-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.order-brief-grid span { min-height: 30px; padding: 7px 8px; border-radius: 8px; background: #f2f5fa; color: #344054; text-align: center; font-size: 12px; font-weight: 800; }
+.order-brief-grid span { min-height: 30px; padding: 7px 8px; border-radius: 8px; background: var(--driver-soft); color: var(--driver-muted); text-align: center; font-size: 12px; font-weight: 800; }
 .panel-actions, .idle-controls { display: grid; gap: 8px; }
 .three-actions { grid-template-columns: 1.1fr .9fr .9fr; }
 .driving-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.panel-actions button, .home-route-button { min-height: 42px; border: 1px solid #d7dce5; border-radius: 999px; background: #fff; color: #344054; font-size: 14px; font-weight: 800; }
-.panel-actions button.primary { border-color: #5B5CFF; background: #5B5CFF; color: #fff; }
+.panel-actions button, .home-route-button { min-height: 42px; border: 1px solid var(--driver-line); border-radius: 999px; background: var(--driver-card); color: var(--driver-muted); font-size: 14px; font-weight: 800; }
+.panel-actions button.primary { border-color: var(--driver-primary); background: var(--driver-primary); color: var(--driver-on-primary); }
 .idle-controls { grid-template-columns: minmax(0, 1fr) 92px; align-items: center; }
-.listen-switch { display: grid; justify-items: center; gap: 6px; color: #667085; font-size: 12px; font-weight: 800; }
+.listen-switch { display: grid; justify-items: center; gap: 6px; color: var(--driver-muted); font-size: 12px; font-weight: 800; }
 .home-route-button { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.home-route-button.home-route-set { border-color: var(--driver-primary); color: var(--driver-primary); }
+.home-route-button.home-route-on { border-color: var(--driver-primary); background: var(--driver-primary); color: var(--driver-on-primary); }
+.home-route-button.home-route-on .van-icon:last-child { margin-left: 4px; }
 .driver-avatar-button { width: 52px; height: 52px; flex: 0 0 52px; padding: 0; border: 0; border-radius: 50%; background: transparent; }
 .driver-avatar-button img, .avatar-fallback { width: 52px; height: 52px; flex: 0 0 52px; border: 2px solid rgba(255,255,255,.72); border-radius: 50%; background: rgba(255,255,255,.22); object-fit: cover; }
 .avatar-fallback { display: grid; place-items: center; color: #fff; font-size: 22px; font-weight: 800; }
 .work-status-hint { margin: 0; line-height: 1.5; }
 .work-primary-action { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 56px; border: 0; border-radius: 999px; font-size: 17px; font-weight: 800; }
 .work-primary-action .van-icon { font-size: 21px; }
-.go-online { border: 0; background: #5B5CFF; color: #fff; box-shadow: 0 8px 18px rgba(91,92,255,.28); }
-.finish-panel, .withdraw-panel, .heatmap-panel { padding: 18px 14px 22px; background: #f6f7fb; }
+.go-online { border: 0; background: var(--driver-primary); color: var(--driver-on-primary); box-shadow: 0 8px 18px rgba(91,92,255,.28); }
+.finish-panel, .withdraw-panel, .heatmap-panel { padding: 18px 14px 22px; background: var(--driver-bg); }
 .finish-panel h2, .withdraw-panel h2 { margin: 0 0 14px; text-align: center; }
 .driver-heatmap-popup, .driver-trajectory-popup { left: 0; right: 0; width: min(100vw, 390px); margin: 0 auto; overflow: hidden; }
-.heatmap-panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); background: #f6f7fb; }
+.heatmap-panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); background: var(--driver-bg); }
 .heatmap-sheet-grabber { width: 42px; height: 4px; margin: 0 auto 10px; border-radius: 999px; background: #cbd5e1; }
 .heatmap-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .heatmap-sheet-header { min-height: 44px; align-items: center; }
-.heatmap-heading h2 { margin: 0 0 4px; color: #172033; font-size: 18px; }
-.heatmap-heading p { margin: 0; color: #7a8496; font-size: 12px; }
+.heatmap-heading h2 { margin: 0 0 4px; color: var(--driver-ink); font-size: 18px; }
+.heatmap-heading p { margin: 0; color: var(--driver-muted); font-size: 12px; }
 .heatmap-floating-actions { position: absolute; top: 12px; right: 12px; display: grid; gap: 8px; z-index: 2; }
-.heatmap-refresh { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border: 0; border-radius: 50%; background: #fff; color: #5B5CFF; font-size: 18px; box-shadow: 0 4px 14px rgba(15,23,42,.18); }
+.heatmap-refresh { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border: 0; border-radius: 50%; background: var(--driver-card); color: var(--driver-primary); font-size: 18px; box-shadow: 0 4px 14px rgba(15,23,42,.18); }
 .heatmap-map-shell { position: relative; min-height: 0; overflow: hidden; border-radius: 8px; background: #e8edf5; }
 .driver-heatmap-map { width: 100%; height: 100%; min-height: 0; }
-.heatmap-badge { position: absolute; right: 12px; bottom: 12px; display: grid; gap: 2px; min-width: 78px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.94); color: #172033; box-shadow: 0 6px 18px rgba(15,23,42,.14); }
-.heatmap-badge span { color: #7a8496; font-size: 11px; }
+.heatmap-badge { position: absolute; right: 12px; bottom: 12px; display: grid; gap: 2px; min-width: 78px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.94); color: var(--driver-ink); box-shadow: 0 6px 18px rgba(15,23,42,.14); }
+.heatmap-badge span { color: var(--driver-muted); font-size: 11px; }
 .heatmap-badge strong { font-size: 16px; line-height: 1.1; }
 .heatmap-chip-strip { display: flex; gap: 8px; margin: 10px -12px 0; padding: 0 12px 2px; overflow-x: auto; scrollbar-width: none; }
 .heatmap-chip-strip::-webkit-scrollbar { display: none; }
-.heatmap-chip { display: inline-flex; min-width: 132px; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; background: #fff; box-shadow: 0 4px 14px rgba(15,23,42,.06); }
+.heatmap-chip { display: inline-flex; min-width: 132px; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; background: var(--driver-card); box-shadow: 0 4px 14px rgba(15,23,42,.06); }
 .heatmap-chip > span { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 50%; background: #fff4e5; color: #f59e0b; font-size: 18px; }
 .heatmap-chip div { display: grid; gap: 2px; min-width: 0; }
-.heatmap-chip strong { color: #172033; font-size: 15px; line-height: 1.1; white-space: nowrap; }
-.heatmap-chip small { max-width: 76px; overflow: hidden; color: #7a8496; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.driver-tabbar { left: 50%; right: auto; width: min(100vw, 430px); height: calc(60px + env(safe-area-inset-bottom)); border-top: 1px solid #e6eaf2; box-shadow: 0 -8px 24px rgba(15,23,42,.08); transform: translateX(-50%); --van-tabbar-item-active-color: #5B5CFF; --van-tabbar-item-text-color: #98a2b3; }
+.heatmap-chip strong { color: var(--driver-ink); font-size: 15px; line-height: 1.1; white-space: nowrap; }
+.heatmap-chip small { max-width: 76px; overflow: hidden; color: var(--driver-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.driver-tabbar { left: 50%; right: auto; width: min(100vw, 390px); height: calc(60px + env(safe-area-inset-bottom)); border-top: 1px solid var(--driver-line); box-shadow: 0 -8px 24px rgba(15,23,42,.08); transform: translateX(-50%); --van-tabbar-item-active-color: var(--driver-primary); --van-tabbar-item-text-color: var(--driver-muted); --van-tabbar-background: var(--driver-card); }
 button:disabled { opacity: .48; }
 @media (max-width: 360px) { .driver-home-page { padding-inline: 10px; } .income-today-card strong { font-size: 30px; } .income-today-card { align-items: flex-start; } .withdraw-entry { min-width: 68px; padding-inline: 10px; } }
 </style>
@@ -1820,7 +2067,7 @@ button:disabled { opacity: .48; }
 <!-- 司机位置脉冲标识由高德地图动态注入到地图内部 DOM，scoped 样式无法作用，必须放在全局样式中 -->
 <style>
 .driver-location-pulse { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
-.driver-location-pulse .pulse-core { position: relative; z-index: 1; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; background: #5B5CFF; box-shadow: 0 0 0 6px rgba(91, 92, 255, .18); }
+.driver-location-pulse .pulse-core { position: relative; z-index: 1; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; background: var(--driver-primary); box-shadow: 0 0 0 6px rgba(91, 92, 255, .18); }
 .driver-location-pulse .pulse-ring { position: absolute; width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(91, 92, 255, .4); animation: pulse-ring 2s ease-out infinite; }
 .driver-location-pulse .pulse-ring.delay { animation-delay: 1s; }
 .driver-location-pulse .pulse-core, .driver-location-pulse .pulse-ring { pointer-events: none; }

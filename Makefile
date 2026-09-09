@@ -53,6 +53,15 @@ usersvc-goctl:
 	--go-grpc_out=rpc/usersvc/proto \
 	--zrpc_out=rpc/usersvc \
 	--style=go_zero
+
+driversvc-goctl:
+	goctl rpc protoc rpc/driversvc/proto/driversvc.proto \
+	--go_out=rpc/driversvc/proto \
+	--go-grpc_out=rpc/driversvc/proto \
+	--zrpc_out=rpc/driversvc \
+	--style=go_zero
+	powershell -ExecutionPolicy Bypass -File scripts/fix-driversvc-proto-alias.ps1
+
 # RPC 服务 main 启动命令
 
 run-ordersvc:

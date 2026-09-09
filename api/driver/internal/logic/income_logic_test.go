@@ -22,7 +22,7 @@ func TestGetIncomeSummaryUsesPaysvcSettlements(t *testing.T) {
 		Page:     1,
 		PageSize: 100,
 	}}
-	logic := NewIncomeLogic(context.Background(), &svc.ServiceContext{PayClient: client})
+	logic := NewIncomeLogic(context.Background(), &svc.ServiceContext{PayClient: client, DriverClient: &fakeDriverClient{}})
 
 	resp, err := logic.GetIncomeSummary(25)
 	if err != nil {
@@ -151,7 +151,7 @@ func TestGetIncomeSummaryAggregatesMultipleSettlementPages(t *testing.T) {
 			},
 		},
 	}
-	logic := NewIncomeLogic(context.Background(), &svc.ServiceContext{PayClient: client})
+	logic := NewIncomeLogic(context.Background(), &svc.ServiceContext{PayClient: client, DriverClient: &fakeDriverClient{}})
 
 	resp, err := logic.GetIncomeSummary(25)
 	if err != nil {

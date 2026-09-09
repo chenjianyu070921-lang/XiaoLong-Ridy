@@ -51,6 +51,19 @@ func (r *gormVehicleRepository) GetByDriverID(ctx context.Context, driverID uint
 	return &vehicle, nil
 }
 
+// ListByDriverID 按司机 ID 列出其绑定的全部车辆（物理删除，无需软删过滤），按 id 升序。
+func (r *gormVehicleRepository) ListByDriverID(ctx context.Context, driverID uint64) ([]*model.DriverVehicle, error) {
+	var vehicles []*model.DriverVehicle
+	err := r.db.WithContext(ctx).
+		Where("driver_id = ?", driverID).
+		Order("id ASC").
+		Find(&vehicles).Error
+	if err != nil {
+		return nil, err
+	}
+	return vehicles, nil
+}
+
 // Update 按 ID 增量更新车辆字段。
 func (r *gormVehicleRepository) Update(ctx context.Context, id uint64, updates map[string]interface{}) error {
 	return r.db.WithContext(ctx).

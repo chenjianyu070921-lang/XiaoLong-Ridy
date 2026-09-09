@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"XiaoLong-Ridy/common/cryptox"
+	"XiaoLong-Ridy/rpc/driversvc/internal/config"
+	"XiaoLong-Ridy/rpc/driversvc/internal/crypto"
 	"XiaoLong-Ridy/rpc/driversvc/internal/model"
 	"XiaoLong-Ridy/rpc/driversvc/internal/repository"
 	"XiaoLong-Ridy/rpc/driversvc/internal/svc"
@@ -16,13 +19,34 @@ import (
 
 func TestCreateWithdrawCreatesPendingRecord(t *testing.T) {
 	repo := &fakeWithdrawRepository{}
-	logic := NewCreateWithdrawLogic(context.Background(), &svc.ServiceContext{DriverWithdrawRepository: repo})
+	cardRepo := &fakeBankCardRepository{
+		card: &model.DriverBankCard{
+			Id:               7,
+			DriverId:         25,
+			BankName:         "中国工商银行",
+			CardNo:           mustEncryptCardNo(t, "6222021234567890123"),
+			HolderName:       "张三",
+			HolderIdCard:     "110101199001011234",
+			ReservedPhone:    "13800000001",
+			WithdrawPasswordHash: mustHash(t, "123456"),
+			Status:           1,
+		},
+	}
+	driverRepo := &fakeDriverRepository{
+		driver: &model.Driver{Id: 25, Phone: "13800000001", RealName: "张三", WithdrawPasswordHash: mustHash(t, "123456")},
+	}
+	logic := NewCreateWithdrawLogic(context.Background(), &svc.ServiceContext{
+		DriverWithdrawRepository:   repo,
+		DriverBankCardRepository:   cardRepo,
+		DriverRepository:           driverRepo,
+		Config:                     config.Config{CardKey: "test-card-key"},
+	})
 
 	resp, err := logic.CreateWithdraw(&proto.CreateWithdrawRequest{
-		DriverId:   25,
-		Amount:     128.5,
-		PayeeName:  " 张三 ",
-		PayAccount: " acct-1 ",
+		DriverId:        25,
+		Amount:          128.5,
+		BankCardId:      7,
+		WithdrawPassword: "123456",
 	})
 	if err != nil {
 		t.Fatalf("CreateWithdraw() error = %v", err)
@@ -31,7 +55,7 @@ func TestCreateWithdrawCreatesPendingRecord(t *testing.T) {
 		t.Fatalf("CreateWithdraw() response = %+v", resp)
 	}
 	if repo.created == nil || repo.created.DriverId != 25 || repo.created.Amount != 128.5 ||
-		repo.created.PayeeName != "张三" || repo.created.PayAccount != "acct-1" ||
+		repo.created.PayeeName != "张三" || repo.created.PayAccount != "6222021234567890123" ||
 		repo.created.Status != withdrawStatusPending || repo.created.AppliedAt == nil {
 		t.Fatalf("created withdraw = %+v", repo.created)
 	}
@@ -39,14 +63,56 @@ func TestCreateWithdrawCreatesPendingRecord(t *testing.T) {
 
 func TestCreateWithdrawRejectsInvalidInputBeforeCreate(t *testing.T) {
 	repo := &fakeWithdrawRepository{}
-	logic := NewCreateWithdrawLogic(context.Background(), &svc.ServiceContext{DriverWithdrawRepository: repo})
+	cardRepo := &fakeBankCardRepository{
+		card: &model.DriverBankCard{
+			Id:            7,
+			DriverId:      25,
+			BankName:      "中国工商银行",
+			CardNo:        mustEncryptCardNo(t, "6222021234567890123"),
+			HolderName:    "张三",
+			Status:        1,
+		},
+	}
+	driverRepo := &fakeDriverRepository{
+		driver: &model.Driver{Id: 25, Phone: "13800000001", RealName: "张三", WithdrawPasswordHash: mustHash(t, "123456")},
+	}
+	logic := NewCreateWithdrawLogic(context.Background(), &svc.ServiceContext{
+		DriverWithdrawRepository:   repo,
+		DriverBankCardRepository:   cardRepo,
+		DriverRepository:           driverRepo,
+		Config:                     config.Config{CardKey: "test-card-key"},
+	})
 
-	if _, err := logic.CreateWithdraw(&proto.CreateWithdrawRequest{DriverId: 25, Amount: 0, PayeeName: "张三", PayAccount: "acct"}); err == nil {
+	if _, err := logic.CreateWithdraw(&proto.CreateWithdrawRequest{DriverId: 25, Amount: 0}); err == nil {
 		t.Fatal("CreateWithdraw() accepted invalid amount")
+	}
+	if _, err := logic.CreateWithdraw(&proto.CreateWithdrawRequest{DriverId: 25, Amount: 10}); err == nil {
+		t.Fatal("CreateWithdraw() accepted missing bank card")
+	}
+	if _, err := logic.CreateWithdraw(&proto.CreateWithdrawRequest{DriverId: 25, Amount: 10, BankCardId: 7}); err == nil {
+		t.Fatal("CreateWithdraw() accepted missing withdraw password")
 	}
 	if repo.created != nil {
 		t.Fatalf("invalid withdraw should not be created: %+v", repo.created)
 	}
+}
+
+func mustEncryptCardNo(t *testing.T, no string) string {
+	t.Helper()
+	enc, err := crypto.EncryptCardNo(no, "test-card-key")
+	if err != nil {
+		t.Fatalf("encrypt card no: %v", err)
+	}
+	return enc
+}
+
+func mustHash(t *testing.T, pwd string) string {
+	t.Helper()
+	h, err := cryptox.BcryptHash(pwd)
+	if err != nil {
+		t.Fatalf("bcrypt hash: %v", err)
+	}
+	return h
 }
 
 func TestListWithdrawsReturnsRepositoryRecords(t *testing.T) {
@@ -238,4 +304,31 @@ func (f *fakeWithdrawRepository) Audit(_ context.Context, id uint64, status int3
 		}
 	}
 	return nil
+}
+
+
+// fakeBankCardRepository 嵌入接口，仅覆盖提现逻辑用到的 GetByID。
+type fakeBankCardRepository struct {
+	repository.DriverBankCardRepository
+	card *model.DriverBankCard
+}
+
+func (f *fakeBankCardRepository) GetByID(_ context.Context, id uint64) (*model.DriverBankCard, error) {
+	if f.card == nil || f.card.Id != id {
+		return nil, nil
+	}
+	return f.card, nil
+}
+
+// fakeDriverRepository 嵌入接口，仅覆盖提现逻辑用到的 GetByID。
+type fakeDriverRepository struct {
+	repository.DriverRepository
+	driver *model.Driver
+}
+
+func (f *fakeDriverRepository) GetByID(_ context.Context, id uint64) (*model.Driver, error) {
+	if f.driver == nil || f.driver.Id != id {
+		return nil, nil
+	}
+	return f.driver, nil
 }

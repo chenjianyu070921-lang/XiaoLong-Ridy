@@ -1,0 +1,8 @@
+Name: chatsvc.rpc
+ListenOn: 0.0.0.0:50058
+# 服务端处理超时（毫秒），与 ordersvc 对齐放宽到 30s。
+Timeout: 30000
+mysql:
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+# 订单服务 gRPC 地址，用于读取订单归属与状态。
+orderRpcAddr: "127.0.0.1:50051"

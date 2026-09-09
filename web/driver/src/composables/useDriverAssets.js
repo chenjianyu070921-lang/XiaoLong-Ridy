@@ -9,6 +9,7 @@ import {
   getTodayIncome,
   getVehicle,
   getWeekIncome,
+  listBankCards,
   listIncomeBills,
   listWithdraws,
   updateVehicle,
@@ -50,7 +51,8 @@ export function useDriverAssets() {
   const withdrawRecords = ref([])
   const withdrawVisible = ref(false)
   const withdrawLoading = ref(false)
-  const withdrawForm = reactive({ amount: '', payeeName: '', payAccount: '' })
+  const withdrawForm = reactive({ amount: '', bankCardId: '', withdrawPassword: '' })
+  const bankCards = ref([])
 
   function syncVehicleForm() {
     if (!driverStore.vehicle) return
@@ -187,7 +189,7 @@ export function useDriverAssets() {
       vehicleId: Number(vehicleId),
       idCardNo: certificationForm.idCardNo.trim(),
       realName: certificationForm.realName.trim(),
-      driverLicenseNo: certificationForm.driverLicenseNo.trim()
+      driverLicenseNo: (driverStore.driver?.driverLicenseNo || certificationForm.driverLicenseNo || '').trim()
     }
     try {
       const res = await safeApiCall(() => uploadCertification(payload))
@@ -231,26 +233,46 @@ export function useDriverAssets() {
 
   function openWithdraw() {
     withdrawVisible.value = true
+    if (bankCards.value.length === 0) void loadBankCards({ silentError: true })
+  }
+
+  async function loadBankCards(config = {}) {
+    const res = await safeApiCall(() => listBankCards(config))
+    if (res && Array.isArray(res.cards)) {
+      bankCards.value = res.cards
+      if (withdrawForm.bankCardId && !bankCards.value.some((card) => String(card.id) === String(withdrawForm.bankCardId))) {
+        withdrawForm.bankCardId = ''
+      }
+    }
+    return res
   }
 
   // 注意：后端 /withdraws 期望的 amount 单位为「元」（driver_withdraw.amount 为 DECIMAL(10,2)），
   // 与收入的「分」不同，此处不可换算。展示侧的单位差异由 normalizeWithdrawRecord 收敛。
   async function submitWithdraw() {
     const amount = Number(withdrawForm.amount)
-    if (!Number.isFinite(amount) || amount <= 0 || !withdrawForm.payeeName.trim() || !withdrawForm.payAccount.trim()) {
-      showToast('请填写完整的提现信息')
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('请输入正确的提现金额')
+      return null
+    }
+    if (!withdrawForm.bankCardId) {
+      showToast('请选择提现银行卡')
+      return null
+    }
+    if (!String(withdrawForm.withdrawPassword || '').trim()) {
+      showToast('请输入平台提现密码')
       return null
     }
     withdrawLoading.value = true
     try {
       const res = await safeApiCall(() => createWithdraw({
         amount,
-        payeeName: withdrawForm.payeeName.trim(),
-        payAccount: withdrawForm.payAccount.trim()
+        bankCardId: Number(withdrawForm.bankCardId),
+        withdrawPassword: String(withdrawForm.withdrawPassword).trim()
       }))
       if (!res) return null
       withdrawVisible.value = false
-      Object.assign(withdrawForm, { amount: '', payeeName: '', payAccount: '' })
+      Object.assign(withdrawForm, { amount: '', bankCardId: '', withdrawPassword: '' })
       showToast('提现申请已提交')
       await loadIncome({ silentError: true })
       return res
@@ -285,6 +307,8 @@ export function useDriverAssets() {
     withdrawVisible,
     withdrawLoading,
     withdrawForm,
+    bankCards,
+    loadBankCards,
     syncVehicleForm,
     syncFromStore,
     loadVehicle,

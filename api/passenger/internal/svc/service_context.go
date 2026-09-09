@@ -12,6 +12,7 @@ import (
 	"XiaoLong-Ridy/common/datasource"
 	qiniuutil "XiaoLong-Ridy/common/qiniu"
 	dispatchproto "XiaoLong-Ridy/rpc/dispatchsvc/proto"
+
 	driverproto "XiaoLong-Ridy/rpc/driversvc/proto"
 	locationproto "XiaoLong-Ridy/rpc/locationsvc/locationsvc"
 	orderlocal "XiaoLong-Ridy/rpc/ordersvc/client"
@@ -21,6 +22,7 @@ import (
 	priceclient "XiaoLong-Ridy/rpc/pricesvc/client"
 	userlocal "XiaoLong-Ridy/rpc/usersvc/client"
 	userproto "XiaoLong-Ridy/rpc/usersvc/proto"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -57,6 +59,8 @@ type RuntimeConfig struct {
 	LocationRPCAddr string
 	ClientMode      string
 	PriceCityCode   string
+	RedisAddr       string
+	ChatRPCAddr     string
 	MysqlDSN        string
 	QiniuAccessKey  string
 	QiniuSecretKey  string
@@ -141,6 +145,9 @@ type ServiceContext struct {
 	DriverClient    DriverClient
 	LocationClient  LocationClient
 	Reviews         ReviewRepository
+	RedisClient     *redis.Client
+	ChatClient      ChatClient
+	ChatConn        *grpc.ClientConn
 	TokenSigningKey string
 	PriceCityCode   string
 	Qiniu           *qiniuutil.Client
@@ -195,6 +202,8 @@ func applyRuntimeEnvOverrides(cfg RuntimeConfig) RuntimeConfig {
 	cfg.DispatchRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_DISPATCHSVC_ADDR"), cfg.DispatchRPCAddr)
 	cfg.DriverRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_DRIVERSVC_ADDR"), cfg.DriverRPCAddr)
 	cfg.LocationRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_LOCATIONSVC_ADDR"), cfg.LocationRPCAddr)
+	cfg.RedisAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_REDIS_ADDR"), cfg.RedisAddr)
+	cfg.ChatRPCAddr = firstNonEmptyRuntime(os.Getenv("PASSENGER_CHATSVC_ADDR"), cfg.ChatRPCAddr)
 	cfg.ClientMode = firstNonEmptyRuntime(os.Getenv("PASSENGER_CLIENT_MODE"), cfg.ClientMode)
 	cfg.PriceCityCode = firstNonEmptyRuntime(os.Getenv("PASSENGER_PRICE_CITY_CODE"), cfg.PriceCityCode)
 	cfg.MysqlDSN = firstNonEmptyRuntime(os.Getenv("PASSENGER_MYSQL_DSN"), cfg.MysqlDSN)
@@ -303,15 +312,32 @@ func NewServiceContextFromConfig(cfg RuntimeConfig) (*ServiceContext, error) {
 		ctx.Reviews = NewGormReviewRepository(db)
 	} else {
 		// 未配置 passenger 专属 DSN 时使用进程内仓储，保证评价接口在联调环境可用；配置 DSN 后自动切换为 MySQL 持久化。
-		logx.Infof("passenger mysqlDSN empty, use memory review repository")
+		// 内存仓储不具备持久性：进程重启后已提交的评价全部丢失，订单列表会重新出现「去评价」入口。
+		logx.Infof("passenger mysqlDSN empty, use memory review repository: 评价数据仅存于进程内存，服务重启后全部丢失，请配置 PASSENGER_MYSQL_DSN 启用持久化")
 		ctx.Reviews = NewMemoryReviewRepository()
 	}
-	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, driverConn, locationConn)
+
+	// 聊天服务：连接 rpc/chatsvc（统一方案 V1.0）。
+	if cfg.ChatRPCAddr != "" {
+		chatConn, chatErr := newInsecureGRPCConn(cfg.ChatRPCAddr)
+		if chatErr != nil {
+			closeGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, driverConn, locationConn)
+			return nil, chatErr
+		}
+		ctx.ChatConn = chatConn
+		ctx.ChatClient = NewGRPCChatClient(chatConn)
+	}
+
+	ctx.grpcConns = compactGRPCConns(userConn, orderConn, priceConn, payConn, dispatchConn, driverConn, locationConn, ctx.ChatConn)
 	return ctx, nil
 }
 
 // newLocalServiceContext 创建显式 local 模式下的本地客户端集合，仅用于测试和无下游依赖的本地演示。
 func newLocalServiceContext(cfg RuntimeConfig) *ServiceContext {
+	var redisClient *redis.Client
+	if cfg.RedisAddr != "" {
+		redisClient = datasource.NewRedisClient(commonconfig.RedisConf{Host: cfg.RedisAddr})
+	}
 	return NewServiceContext(
 		userlocal.NewLocalClient(cfg.TokenSigningKey, func(phone, code string) {
 			logx.Infof("[LOCAL SMS] 手机号=%s 验证码=%s（local 模式不会真实发送短信）", phone, code)
@@ -322,6 +348,7 @@ func newLocalServiceContext(cfg RuntimeConfig) *ServiceContext {
 		WithDispatchClient(newMemoryDispatchClient()),
 		WithDriverClient(nil),
 		WithReviewRepository(NewMemoryReviewRepository()),
+		WithRedisClient(redisClient),
 		WithTokenSigningKey(cfg.TokenSigningKey),
 		WithPriceCityCode(cfg.PriceCityCode),
 	)
@@ -364,6 +391,10 @@ func applyRuntimeDefaults(cfg RuntimeConfig) RuntimeConfig {
 	if cfg.LocationRPCAddr == "" {
 		cfg.LocationRPCAddr = defaultLocationRPCAddr
 	}
+	if cfg.RedisAddr == "" {
+		// 本地默认 Redis 地址；聊天 WS 依靠 Redis Pub/Sub 跨网关转发，单机联调也可退回进程内 fan-out。
+		cfg.RedisAddr = "127.0.0.1:6379"
+	}
 	if cfg.ClientMode == "" {
 		// 乘客端 API 默认必须调用真实 usersvc gRPC，避免验证码接口只写入本地内存而没有真正发送短信。
 		cfg.ClientMode = clientModeGRPC
@@ -381,6 +412,10 @@ func (ctx *ServiceContext) Close() {
 	}
 	closeGRPCConns(ctx.grpcConns...)
 	ctx.grpcConns = nil
+	if ctx.RedisClient != nil {
+		_ = ctx.RedisClient.Close()
+		ctx.RedisClient = nil
+	}
 }
 
 // WithOrderClient 注入订单服务客户端。
@@ -437,6 +472,20 @@ func WithLocationClient(client LocationClient) Option {
 func WithReviewRepository(repo ReviewRepository) Option {
 	return func(ctx *ServiceContext) {
 		ctx.Reviews = repo
+	}
+}
+
+// WithRedisClient 注入 Redis 客户端，聊天 WS 依靠其 Pub/Sub 跨网关转发。
+func WithRedisClient(client *redis.Client) Option {
+	return func(ctx *ServiceContext) {
+		ctx.RedisClient = client
+	}
+}
+
+// WithChatClient 注入聊天服务客户端（已接入 rpc/chatsvc）。
+func WithChatClient(client ChatClient) Option {
+	return func(ctx *ServiceContext) {
+		ctx.ChatClient = client
 	}
 }
 
