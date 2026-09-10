@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// callerOf 从 JWT claims 推导 chatsvc 所需的 caller_type(1司机/2乘客) 与 caller_id。
+// callerOf 从 JWT claims 推导调用方类型(1司机/2乘客)与 caller_id。
 func callerOf(c *jwtx.AccountClaims) (callerType int32, callerId int64) {
 	if c.AccountType == "driver" {
 		callerType = 1
@@ -23,6 +23,14 @@ func callerOf(c *jwtx.AccountClaims) (callerType int32, callerId int64) {
 	}
 	callerId = int64(c.AccountID)
 	return
+}
+
+// roleOf 将调用方类型转为 proto 的 caller_role 字符串（driver/passenger）。
+func roleOf(t int32) string {
+	if t == 1 {
+		return "driver"
+	}
+	return "passenger"
 }
 
 // GetConversationHandler GET /api/chat/v1/conversation?orderId=
@@ -40,8 +48,8 @@ func GetConversationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 		ct, cid := callerOf(claims)
 		resp, err := svcCtx.ChatClient.GetOrCreateConversation(r.Context(), &chatproto.GetOrCreateConversationRequest{
-			OrderId:   orderID,
-			CallerType: ct,
+			OrderId:    orderID,
+			CallerRole: roleOf(ct),
 			CallerId:   cid,
 		})
 		if err != nil {
@@ -51,7 +59,6 @@ func GetConversationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		data := map[string]interface{}{
 			"conversationId": resp.ConversationId,
 			"orderId":        resp.OrderId,
-			"orderNo":        resp.OrderNo,
 			"status":         resp.Status,
 			"lastMsg":        resp.LastMsg,
 			"lastMsgAt":      resp.LastMsgAt,
@@ -59,7 +66,7 @@ func GetConversationHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			"opened":         resp.Opened,
 		}
 		if resp.Peer != nil {
-			data["peer"] = map[string]interface{}{"id": resp.Peer.Id, "name": resp.Peer.Name, "role": resp.Peer.Role}
+			data["peer"] = map[string]interface{}{"id": resp.Peer.Id, "name": resp.Peer.Name}
 		} else {
 			data["peer"] = nil
 		}
@@ -90,7 +97,7 @@ func ListMessagesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			ConversationId: convID,
 			Cursor:         cursor,
 			Limit:          int32(limit),
-			CallerType:     ct,
+			CallerRole:     roleOf(ct),
 			CallerId:       cid,
 		})
 		if err != nil {
@@ -172,7 +179,7 @@ func MarkReadHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		ct, cid := callerOf(claims)
 		resp, err := svcCtx.ChatClient.MarkRead(r.Context(), &chatproto.MarkReadRequest{
 			ConversationId: body.ConversationId,
-			CallerType:     ct,
+			CallerRole:     roleOf(ct),
 			CallerId:       cid,
 		})
 		if err != nil {

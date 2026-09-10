@@ -9,6 +9,7 @@ import (
 	"XiaoLong-Ridy/rpc/chatsvc/internal/model"
 	orderproto "XiaoLong-Ridy/rpc/ordersvc/proto"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,6 +21,7 @@ type ServiceContext struct {
 	Config      config.Config
 	DB          *gorm.DB
 	OrderClient orderproto.OrderClient
+	RedisClient *redis.Client
 }
 
 // NewServiceContext 初始化 MySQL、自动建表并连接 ordersvc。
@@ -47,7 +49,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		logx.Errorf("chatsvc connect ordersvc failed: %v", err)
 	}
 
+	var rdb *redis.Client
+	if c.RedisHost != "" {
+		rdb = datasource.NewRedisClient(cfg.RedisConf{Host: c.RedisHost, Pass: c.RedisPass})
+	}
 	svc := &ServiceContext{Config: c, DB: client}
+	if rdb != nil {
+		svc.RedisClient = rdb
+	}
 	if conn != nil {
 		svc.OrderClient = orderproto.NewOrderClient(conn)
 	}

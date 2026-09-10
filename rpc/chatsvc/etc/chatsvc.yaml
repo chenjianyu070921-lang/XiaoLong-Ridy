@@ -6,3 +6,6 @@ mysql:
   dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
 # 订单服务 gRPC 地址，用于读取订单归属与状态。
 orderRpcAddr: "127.0.0.1:50051"
+# 实时推送 Redis（与 api/driver 同一实例，司机 WS 经 driver:push:%d 订阅）。
+redisHost: "115.191.16.159:6379"
+redisPass: "4ay1nkal3u8ed77y"

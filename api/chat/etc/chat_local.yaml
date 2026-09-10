@@ -1,0 +1,11 @@
+httpAddr: ":19090"
+
+# 本地临时配置：18090 落在 Windows TCP 排除区间(18002-18601)导致 bind 失败，
+# 故改用 19090。chatsvc 仍直连 127.0.0.1:50058（与 etc/chat.yaml 一致）。
+chatRpc:
+  Target: 127.0.0.1:50058
+
+# JWT 签名密钥：司机端(driversvc) 与 乘客端(usersvc) 多密钥兼容。
+signingKeys:
+  - driversvc-local-dev-key
+  - local-development-signing-key

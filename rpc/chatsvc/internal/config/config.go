@@ -15,4 +15,8 @@ type Config struct {
 	Mysql cfg.MysqlConf `yaml:"mysql" json:"mysql"`
 	// OrderRPCAddr 订单服务 gRPC 地址，用于读取订单归属与状态。
 	OrderRPCAddr string `yaml:"orderRpcAddr" json:"orderRpcAddr"`
+	// Redis 实时推送通道（driver:push:%d）的发布端；留空则不使用实时推送（前端轮询兜底）。
+	// 必须与 api/driver 使用同一实例，否则司机 WS 收不到推送。
+	RedisHost string `yaml:"redisHost" json:"redisHost"`
+	RedisPass string `yaml:"redisPass" json:"redisPass"`
 }

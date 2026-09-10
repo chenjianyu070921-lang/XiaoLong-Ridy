@@ -42,7 +42,10 @@ func (l *GetOrCreateConversationLogic) GetOrCreateConversation(in *chatproto.Get
 	if l.svcCtx.OrderClient == nil {
 		return nil, status.Error(codes.Unavailable, "order service unavailable")
 	}
-	order, err := l.svcCtx.OrderClient.GetOrder(l.ctx, &orderproto.GetOrderRequest{OrderId: in.OrderId})
+	// 防止 ordersvc 慢/抖导致本接口挂起（原删除逻辑 A 的 3s 超时未移植，此处补回）。
+	orderCtx, orderCancel := context.WithTimeout(l.ctx, 3*time.Second)
+	defer orderCancel()
+	order, err := l.svcCtx.OrderClient.GetOrder(orderCtx, &orderproto.GetOrderRequest{OrderId: in.OrderId})
 	if err != nil {
 		return nil, err
 	}
@@ -50,9 +53,15 @@ func (l *GetOrCreateConversationLogic) GetOrCreateConversation(in *chatproto.Get
 		return nil, status.Error(codes.NotFound, "order not found")
 	}
 
-	convStatus, opened, _, senderType, peerID, isParticipant := orderView(order, in.CallerId)
+	convStatus, opened, readonly, senderType, peerID, isParticipant := orderView(order, in.CallerId)
 	if !isParticipant {
 		return nil, status.Error(codes.PermissionDenied, "forbidden: not order participant")
+	}
+
+	// 对端名字：司机视角的对端是乘客，乘客视角对端是司机（真实昵称由网关补全，此处给角色兜底）。
+	peerName := "乘客"
+	if senderType == SenderTypePassenger {
+		peerName = "司机"
 	}
 
 	orderIDStr := strconv.FormatInt(in.OrderId, 10)
@@ -61,7 +70,7 @@ func (l *GetOrCreateConversationLogic) GetOrCreateConversation(in *chatproto.Get
 		Status:     convStatus,
 		Opened:     opened,
 		SenderType: senderType,
-		Peer:       &chatproto.PeerInfo{Id: int64(peerID)},
+		Peer:       &chatproto.PeerInfo{Id: int64(peerID), Name: peerName},
 	}
 
 	if !opened {
@@ -92,6 +101,15 @@ func (l *GetOrCreateConversationLogic) GetOrCreateConversation(in *chatproto.Get
 		if findErr := l.svcCtx.DB.Where("order_id = ?", orderIDStr).First(&conv).Error; findErr != nil {
 			return nil, status.Error(codes.Internal, "query conversation failed")
 		}
+	}
+
+	// 终端态（订单完成/取消/退款）回写会话状态，使 SendMessage 据此禁止发送；
+	// 同时保证返回给前端的 Status 与订单真实状态一致（修复状态被 DB 旧值覆盖）。
+	if readonly && conv.Status != int8(convStatus) {
+		if updErr := l.svcCtx.DB.Model(&conv).Update("status", int8(convStatus)).Error; updErr != nil {
+			return nil, status.Error(codes.Internal, "update conversation status failed")
+		}
+		conv.Status = int8(convStatus)
 	}
 
 	resp.ConversationId = int64(conv.Id)

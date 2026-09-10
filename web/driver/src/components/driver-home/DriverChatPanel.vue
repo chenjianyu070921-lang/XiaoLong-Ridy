@@ -30,7 +30,7 @@
           v-for="m in messages"
           :key="m.clientMsgId || m.id"
           class="cp-row"
-          :class="m.senderType === 1 ? 'mine' : 'peer'"
+          :class="m.senderType === SENDER_TYPE_DRIVER ? 'mine' : 'peer'"
         >
           <div class="cp-bubble">
             <span class="cp-text">{{ m.content }}</span>
@@ -65,9 +65,9 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { showToast } from 'vant'
-import { getConversation, listMessages, sendMessage, markRead, genClientMsgId } from '@/api/chat'
+import { getConversation, listMessages, sendMessage, markRead, genClientMsgId, MSG_TYPE_TEXT, MSG_TYPE_QUICK, SENDER_TYPE_DRIVER } from '@/api/chat'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -109,13 +109,28 @@ function formatTime(ts) {
   return `${hh}:${mm}`
 }
 
+function isNearBottom() {
+  const el = listEl.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 80
+}
+
 async function loadMessages() {
   const res = await listMessages(conversationId.value, 0, 20)
-  messages.value = res.messages || []
+  const server = res.messages || []
+  // 保留本地乐观消息（_tmp 尚未被服务端确认），避免轮询覆盖未确认发送
+  const localTmp = messages.value.filter((m) => m._tmp)
+  const seen = new Set(server.map((m) => (m.id ? 'id:' + m.id : 'c:' + m.clientMsgId)))
+  const merged = server.slice()
+  for (const t of localTmp) {
+    const k = t.id ? 'id:' + t.id : 'c:' + t.clientMsgId
+    if (!seen.has(k)) merged.push(t)
+  }
+  messages.value = merged
   try {
     await markRead(conversationId.value)
   } catch (e) { /* 标记已读失败不阻断 */ }
-  scrollToBottom()
+  if (isNearBottom()) scrollToBottom()
 }
 
 async function loadConversation() {
@@ -132,6 +147,7 @@ async function loadConversation() {
     peer.value = conv.peer || null
     if (opened.value && conversationId.value) {
       await loadMessages()
+      startPolling()
     }
   } catch (e) {
     showToast('会话加载失败')
@@ -141,6 +157,8 @@ async function loadConversation() {
 }
 
 // DriverHome 经 WebSocket push 调用：追加对端（乘客）新消息。
+// 后端 chatsvc 落库后会实时 Publish chat.message 到 driver:push:%d（见 send_message_logic.go），
+// 由 DriverHome 的 WS 分支分发至此；下方轮询仅作兜底。
 function appendMessage(msg) {
   if (!conversationId.value || msg.conversationId !== conversationId.value) return
   if (messages.value.some((m) => (msg.id && m.id === msg.id) || (msg.clientMsgId && m.clientMsgId === msg.clientMsgId))) {
@@ -150,7 +168,19 @@ function appendMessage(msg) {
   scrollToBottom()
 }
 
-async function doSend(content, msgType = 1) {
+let pollTimer = null
+function startPolling() {
+  stopPolling()
+  if (!opened.value || !conversationId.value) return
+  pollTimer = window.setInterval(() => {
+    if (opened.value && conversationId.value) loadMessages().catch(() => {})
+  }, 3000)
+}
+function stopPolling() {
+  if (pollTimer) { window.clearInterval(pollTimer); pollTimer = null }
+}
+
+async function doSend(content, msgType = MSG_TYPE_TEXT) {
   const text = (content ?? inputText.value).trim()
   if (!text) return
   if (!conversationId.value) {
@@ -162,7 +192,7 @@ async function doSend(content, msgType = 1) {
     id: 0,
     conversationId: conversationId.value,
     orderId: props.order?.orderId,
-    senderType: 1,
+    senderType: SENDER_TYPE_DRIVER,
     senderId: 0,
     msgType,
     content: text,
@@ -190,11 +220,11 @@ async function doSend(content, msgType = 1) {
 }
 
 function onSend() {
-  doSend(inputText.value, 1)
+  doSend(inputText.value, MSG_TYPE_TEXT)
 }
 
 function onQuick(q) {
-  doSend(q, 2)
+  doSend(q, MSG_TYPE_QUICK)
 }
 
 watch(
@@ -202,9 +232,13 @@ watch(
   (v) => {
     if (v && props.order) {
       loadConversation()
+    } else {
+      stopPolling()
     }
   }
 )
+
+onBeforeUnmount(stopPolling)
 
 defineExpose({ appendMessage })
 </script>

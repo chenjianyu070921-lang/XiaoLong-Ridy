@@ -24,6 +24,14 @@ const (
 	ConvStatusClosed int32 = 3
 )
 
+// IsConversationTerminal 判断会话是否处于终态（只读、禁止发送）。
+// 终态包含已归档（订单完成）与已关闭（订单取消/退款）；进行中(ConvStatusOngoing)为可聊天态。
+// 所有需要判断「会话是否结束」的地方都必须走本函数，禁止散落比较特定状态码，
+// 以免新增终态时漏改（D1 状态回写与 SendMessage 发送拦截需保持一致）。
+func IsConversationTerminal(status int32) bool {
+	return status == ConvStatusArchived || status == ConvStatusClosed
+}
+
 // orderView 从订单响应中解析出调用方在会话中的角色、对端 ID、会话状态与是否可聊天。
 // callerID 为已鉴权的调用方 ID（司机或乘客）。
 func orderView(order *orderproto.GetOrderResponse, callerID int64) (
@@ -43,15 +51,17 @@ func orderView(order *orderproto.GetOrderResponse, callerID int64) (
 	switch order.Status {
 	case orderproto.OrderStatus_ORDER_STATUS_WAIT_ACCEPT:
 		// 等待接单阶段：不建会话，返回未开启。
-		convStatus, opened, readonly = ConvStatusOngoing, false, false
+		convStatus, opened = ConvStatusOngoing, false
 	case orderproto.OrderStatus_ORDER_STATUS_ACCEPTED,
 		orderproto.OrderStatus_ORDER_STATUS_ON_TRIP,
 		orderproto.OrderStatus_ORDER_STATUS_WAIT_PAY:
-		convStatus, opened, readonly = ConvStatusOngoing, true, false
+		convStatus, opened = ConvStatusOngoing, true
 	case orderproto.OrderStatus_ORDER_STATUS_COMPLETED:
-		convStatus, opened, readonly = ConvStatusArchived, true, true
+		convStatus, opened = ConvStatusArchived, true
 	default: // CANCELLED / REFUNDED 等终态
-		convStatus, opened, readonly = ConvStatusClosed, false, true
+		convStatus, opened = ConvStatusClosed, false
 	}
+	// 终态由单一判定函数推导，避免与 SendMessage 的发送拦截散落不一致。
+	readonly = IsConversationTerminal(convStatus)
 	return
 }

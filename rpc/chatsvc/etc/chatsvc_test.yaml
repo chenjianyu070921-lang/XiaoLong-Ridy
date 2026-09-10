@@ -1,0 +1,8 @@
+Name: chatsvc.rpc
+ListenOn: 0.0.0.0:50059
+Timeout: 30000
+mysql:
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+orderRpcAddr: "127.0.0.1:50051"
+redisHost: "115.191.16.159:6379"
+redisPass: "4ay1nkal3u8ed77y"

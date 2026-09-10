@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict'
+import assert from 'node:assert/strict'
 import { buildDriverMineMenuItems, buildDriverMineServices } from '../src/components/driver-home/driver-mine-data.js'
 
 const menuItems = buildDriverMineMenuItems({

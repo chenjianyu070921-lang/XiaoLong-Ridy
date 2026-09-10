@@ -35,7 +35,7 @@
           v-for="m in messages"
           :key="m.clientMsgId || m.id"
           class="oc-row"
-          :class="m.senderType === 1 ? 'mine' : 'peer'"
+          :class="m.senderType === SENDER_TYPE_DRIVER ? 'mine' : 'peer'"
         >
           <div class="oc-avatar-col">
             <img v-if="avatarFor(m)" :src="avatarFor(m)" class="oc-avatar" alt="" />
@@ -85,7 +85,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
-import { getConversation, listMessages, sendMessage, markRead, genClientMsgId } from '@/api/chat'
+import { getConversation, listMessages, sendMessage, markRead, genClientMsgId, MSG_TYPE_TEXT, MSG_TYPE_QUICK, SENDER_TYPE_DRIVER } from '@/api/chat'
 import { useDriverChatStore } from '@/stores/driverChat'
 import { useDriverStore } from '@/stores/driver'
 
@@ -115,7 +115,7 @@ const myAvatar = computed(() => driverStore.driver?.avatarUrl || '')
 const peerName = computed(() => peer.value?.name || '乘客')
 const peerAvatar = computed(() => peer.value?.avatar || '')
 
-function isMine(m) { return m && m.senderType === 1 }
+function isMine(m) { return m && m.senderType === SENDER_TYPE_DRIVER }
 function avatarFor(m) { return isMine(m) ? myAvatar.value : peerAvatar.value }
 function nameFor(m) { return isMine(m) ? myName.value : peerName.value }
 function avatarText(m) {
@@ -146,11 +146,27 @@ function formatTime(ts) {
   return `${hh}:${mm}`
 }
 
+function isNearBottom() {
+  const el = listEl.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 80
+}
+
 async function loadMessages() {
   const res = await listMessages(conversationId.value, 0, 20)
-  driverChat.seedMessages(orderId.value, res.messages || [])
+  const server = res.messages || []
+  // 保留本地乐观消息（_tmp 尚未被服务端确认），避免轮询覆盖未确认发送
+  const list = driverChat.byOrder[orderId.value] || []
+  const localTmp = list.filter((m) => m._tmp)
+  const seen = new Set(server.map((m) => (m.id ? 'id:' + m.id : 'c:' + m.clientMsgId)))
+  const merged = server.slice()
+  for (const t of localTmp) {
+    const k = t.id ? 'id:' + t.id : 'c:' + t.clientMsgId
+    if (!seen.has(k)) merged.push(t)
+  }
+  driverChat.seedMessages(orderId.value, merged)
   try { await markRead(conversationId.value) } catch (e) { /* 标记已读失败不阻断 */ }
-  scrollToBottom()
+  if (isNearBottom()) scrollToBottom()
 }
 
 async function loadConversation() {
@@ -172,6 +188,7 @@ async function loadConversation() {
     orderNo.value = conv.orderNo || ''
     if (opened.value && conversationId.value) {
       await loadMessages()
+      startPolling()
     }
   } catch (e) {
     // 后端对非订单参与方返回 40301，由 chat.js 拦截器统一 toast，这里再覆盖为页面级提示
@@ -181,7 +198,7 @@ async function loadConversation() {
   }
 }
 
-async function doSend(content, msgType = 1) {
+async function doSend(content, msgType = MSG_TYPE_TEXT) {
   const text = (content ?? inputText.value).trim()
   if (!text) return
   if (!conversationId.value) {
@@ -193,7 +210,7 @@ async function doSend(content, msgType = 1) {
     id: 0,
     conversationId: conversationId.value,
     orderId: orderId.value,
-    senderType: 1,
+    senderType: SENDER_TYPE_DRIVER,
     senderId: 0,
     msgType,
     content: text,
@@ -226,8 +243,8 @@ async function doSend(content, msgType = 1) {
   }
 }
 
-function onSend() { doSend(inputText.value, 1) }
-function onQuick(q) { doSend(q, 2) }
+function onSend() { doSend(inputText.value, MSG_TYPE_TEXT) }
+function onQuick(q) { doSend(q, MSG_TYPE_QUICK) }
 
 // ─── 深链接兜底实时（仅当 DriverHome 未挂载、全局 WS 未在线时）───
 let pushSocket = null
@@ -283,6 +300,18 @@ function disconnectFallbackPush() {
   }
 }
 
+let pollTimer = null
+function startPolling() {
+  stopPolling()
+  if (!opened.value || !conversationId.value) return
+  pollTimer = window.setInterval(() => {
+    if (opened.value && conversationId.value) loadMessages().catch(() => {})
+  }, 3000)
+}
+function stopPolling() {
+  if (pollTimer) { window.clearInterval(pollTimer); pollTimer = null }
+}
+
 onMounted(() => {
   driverChat.setActive(orderId.value)
   loadConversation()
@@ -295,6 +324,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   driverChat.clearActive(orderId.value)
+  stopPolling()
   disconnectFallbackPush()
 })
 </script>

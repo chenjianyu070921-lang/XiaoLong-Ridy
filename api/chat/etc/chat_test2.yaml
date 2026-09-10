@@ -1,0 +1,6 @@
+httpAddr: ":19091"
+chatRpc:
+  Target: 127.0.0.1:50059
+signingKeys:
+  - driversvc-local-dev-key
+  - local-development-signing-key

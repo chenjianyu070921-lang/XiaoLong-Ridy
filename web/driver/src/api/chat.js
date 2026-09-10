@@ -74,4 +74,12 @@ export function genClientMsgId() {
   return `c_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+// 消息类型枚举：与 chatsvc helper.go（MsgTypeText=1 / MsgTypeQuick=2）保持一致，避免裸数字漂移。
+export const MSG_TYPE_TEXT = 1
+export const MSG_TYPE_QUICK = 2
+
+// 发送方枚举：与 chatsvc helper.go（SenderTypeDriver=1 / SenderTypePassenger=2）保持一致。
+export const SENDER_TYPE_DRIVER = 1
+export const SENDER_TYPE_PASSENGER = 2
+
 export default chatRequest
