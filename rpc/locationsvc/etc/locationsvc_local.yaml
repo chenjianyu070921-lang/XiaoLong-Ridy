@@ -1,0 +1,33 @@
+# 本地临时配置：启动 locationsvc 供司机位置上报写入 Redis GEO。
+# 1) defaultCityCode 对齐 dispatchsvc 读取键 "default"（dispatchsvc 硬编码查 driver:geo:default），
+#    否则上报端写 driver:geo:321300、派单端查 driver:geo:default，静默查不到候选司机 → 司机无单可接。
+# 2) 去掉 Etcd 注册段：本机 127.0.0.1:2379 未运行，保留会导致 zrpc 注册失败、服务起不来。
+#    api/driver 直连 127.0.0.1:50057，不依赖 etcd 发现。
+Name: locationsvc.rpc
+defaultCityCode: "default"
+ListenOn: 0.0.0.0:50057
+
+Mysql:
+  Dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  MaxOpenConn: 100
+  MaxIdleConn: 10
+  MaxLifeTime: 3600
+
+myredis:
+  host: 115.191.16.159:6379
+  pass: "4ay1nkal3u8ed77y"
+  db: 0
+  poolSize: 20
+  dialTimeout: 0
+  readTimeout: 0
+  writeTimeout: 0
+
+MapService:
+  ApiKey: "f94510299d67fe4e4a904a726936795a"
+  Provider: "amap"
+  BaseUrl: "https://restapi.amap.com/v3"
+
+Log:
+  ServiceName: locationsvc
+  Mode: console
+  Level: info

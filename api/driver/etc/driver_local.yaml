@@ -1,0 +1,22 @@
+# 本地临时配置：原 18082 落在 Windows TCP 排除区间(18002-18601)导致 bind 失败，改用 19082。
+# 前端 vite 代理需同步指向 19082（用 VITE_DRIVER_API_TARGET 或改 vite.config.js 默认值）。
+httpAddr: ":19082"
+signingKey: "driversvc-local-dev-key"
+driverGrpcAddr: "127.0.0.1:50055"
+orderGrpcAddr: "127.0.0.1:50051"
+payGrpcAddr: "127.0.0.1:50054"
+priceGrpcAddr: "127.0.0.1:50053"
+dispatchGrpcAddr: "127.0.0.1:50056"
+locationGrpcAddr: "127.0.0.1:50057"
+redisAddr: "115.191.16.159:6379"
+redisPassword: "4ay1nkal3u8ed77y"
+qiniuAccessKey: "Es2mf8cbVQlkPXFf69B2wHgZyWp51rW1veuw9-v2"
+qiniuSecretKey: "8eTHgtIMEdbKXXFVC46s4i65IShYHiRoMVjY5hJn"
+qiniuBucket: "xiaolong-ride"
+qiniuDomain: "http://tkiajahyp.hd-bkt.clouddn.com"
+qiniuUploadURL: "https://upload.qiniup.com"
+mysql:
+  dsn: root:4ay1nkal3u8ed77y@tcp(115.191.16.159:3306)/xiaolong_ridy?charset=utf8mb4&parseTime=True&loc=Local
+  maxOpenConn: 100
+  maxIdleConn: 10
+  maxLifeTime: 3600
