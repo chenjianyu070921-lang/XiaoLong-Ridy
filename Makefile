@@ -107,6 +107,7 @@ run-admin-api:
 install-web:
 	powershell -Command "cd web/user; npm install"
 	powershell -Command "cd web/admin; npm install"
+	powershell -Command "cd web/driver; npm install"
 
 run-user-web:
 	powershell -Command "cd web/user; npm run dev"
